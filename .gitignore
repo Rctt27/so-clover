@@ -1,0 +1,54 @@
+# Build outputs
+**/bin/
+**/obj/
+**/out/
+**/[Dd]ebug/
+**/[Rr]elease/
+**/[Pp]ublish/
+artifacts/
+
+# IDEs and tooling
+.vs/
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# Test & coverage artifacts
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.trx
+*.coverage
+*.coveragexml
+BenchmarkDotNet.Artifacts/
+TestResult.xml
+coverage.cobertura.xml
+
+# ReSharper / Rider / NCrunch
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.ncrunch*
+_NCrunch_*/
+nCrunchTemp_*/
+*.dotCover
+
+# Logs & temp files
+*.log
+*.tmp
+*.temp
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
