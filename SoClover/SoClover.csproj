@@ -15,4 +15,8 @@
       </Content>
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="UseCases\Games\" />
+    </ItemGroup>
+
 </Project>
