@@ -9,6 +9,7 @@ var services = new ServiceCollection();
 // Infrastructure
 services.AddSingleton<IGameRepository, InMemoryGameRepository>();
 services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
+services.AddSingleton<IWordDictionary, InMemoryWordDictionary>();
 
 // Use cases
 services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();

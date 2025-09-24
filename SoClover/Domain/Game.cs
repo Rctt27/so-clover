@@ -51,6 +51,14 @@ public sealed class Game
         var player = RequirePlayer(ownerId);
         var expected = player.Board.GetClueText(direction);
         var correct = string.Equals(expected, guessedWord?.Trim(), StringComparison.OrdinalIgnoreCase);
+        if (correct)
+        {
+            player.Board.MarkGuessed(direction);
+            if (Players.All(p => p.Board.IsComplete()))
+            {
+                Phase = GamePhase.Completed;
+            }
+        }
         return new GuessResult(correct, expected);
     }
 

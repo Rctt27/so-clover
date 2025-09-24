@@ -13,6 +13,8 @@ public sealed class CloverBoard
     public ClueText? BottomClue { get; private set; }
     public ClueText? LeftClue { get; private set; }
 
+    private readonly HashSet<Direction> _guessedDirections = new();
+
     public void Place(BoardPosition position, OrientedCard orientedCard)
     {
         switch (position)
@@ -43,8 +45,6 @@ public sealed class CloverBoard
         };
         Place(position, orientedCard);
     }
-
-    
 
     public void SetClue(Direction direction, ClueText clue)
     {
@@ -79,4 +79,13 @@ public sealed class CloverBoard
             throw new NoClueForDirectionException(direction);
         return result;
     }
+
+    public void MarkGuessed(Direction direction)
+    {
+        _guessedDirections.Add(direction);
+    }
+
+    public bool IsDirectionGuessed(Direction direction) => _guessedDirections.Contains(direction);
+
+    public bool IsComplete() => _guessedDirections.Count >= 4;
 }
