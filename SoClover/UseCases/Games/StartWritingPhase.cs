@@ -4,12 +4,14 @@ using SoClover.UseCases.Errors;
 
 namespace SoClover.UseCases.Games;
 
-public static class StartGuessingPhase
+public interface IStartWritingPhaseUseCase : IUseCase<StartWritingPhase.Request, StartWritingPhase.Response> { }
+
+public static class StartWritingPhase
 {
     public readonly record struct Request(GameId GameId);
     public readonly record struct Response(GamePhase Phase);
 
-    public sealed class Handler : IUseCase<Request, Response>
+    public sealed class Handler : IStartWritingPhaseUseCase
     {
         private readonly IGameRepository _repo;
         private readonly IEventPublisher _events;
@@ -23,12 +25,12 @@ public static class StartGuessingPhase
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
         {
             var game = await _repo.Get(request.GameId, ct) ?? throw new GameNotFoundException(request.GameId);
-            game.StartGuessingPhase();
+            game.StartWritingPhase();
             await _repo.Save(game, ct);
-            await _events.Publish(new GuessingPhaseStarted(game.Id), ct);
+            await _events.Publish(new WritingPhaseStarted(game.Id), ct);
             return new Response(game.Phase);
         }
     }
 }
 
-public readonly record struct GuessingPhaseStarted(GameId GameId);
+public readonly record struct WritingPhaseStarted(GameId GameId);

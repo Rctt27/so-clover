@@ -4,12 +4,14 @@ using SoClover.UseCases.Errors;
 
 namespace SoClover.UseCases.Games;
 
+public interface IGuessUseCase : IUseCase<Guess.Request, Guess.Response> { }
+
 public static class Guess
 {
     public readonly record struct Request(GameId GameId, PlayerId OwnerId, Direction Direction, string Word);
     public readonly record struct Response(bool IsCorrect, string ExpectedWord);
 
-    public sealed class Handler : IUseCase<Request, Response>
+    public sealed class Handler : IGuessUseCase
     {
         private readonly IGameRepository _repo;
         private readonly IEventPublisher _events;

@@ -5,6 +5,8 @@ using SoClover.UseCases.Errors;
 
 namespace SoClover.UseCases.Boards;
 
+public interface IPlaceCardUseCase : IUseCase<PlaceCard.Request, PlaceCard.Response> { }
+
 public static class PlaceCard
 {
     public readonly record struct Request(
@@ -19,7 +21,7 @@ public static class PlaceCard
 
     public readonly record struct Response(CardId CardId);
 
-    public sealed class Handler : IUseCase<Request, Response>
+    public sealed class Handler : IPlaceCardUseCase
     {
         private readonly IGameRepository _repo;
         private readonly IEventPublisher _events;

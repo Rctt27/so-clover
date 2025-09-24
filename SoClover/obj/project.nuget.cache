@@ -1,8 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "7vNhjC0sECg=",
+  "dgSpecHash": "HUrQfpTfySg=",
   "success": true,
   "projectFilePath": "/Users/xavierquelard/RiderProjects/SoClover/SoClover/SoClover.csproj",
-  "expectedPackageFiles": [],
+  "expectedPackageFiles": [
+    "/Users/xavierquelard/.nuget/packages/microsoft.extensions.dependencyinjection/9.0.0/microsoft.extensions.dependencyinjection.9.0.0.nupkg.sha512",
+    "/Users/xavierquelard/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/9.0.0/microsoft.extensions.dependencyinjection.abstractions.9.0.0.nupkg.sha512"
+  ],
   "logs": []
 }

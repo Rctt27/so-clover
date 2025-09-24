@@ -4,12 +4,14 @@ using SoClover.UseCases.Errors;
 
 namespace SoClover.UseCases.Games;
 
+public interface ISetClueUseCase : IUseCase<SetClue.Request, SetClue.Response> { }
+
 public static class SetClue
 {
     public readonly record struct Request(GameId GameId, PlayerId PlayerId, Direction Direction, string ClueText);
     public readonly record struct Response;
 
-    public sealed class Handler : IUseCase<Request, Response>
+    public sealed class Handler : ISetClueUseCase
     {
         private readonly IGameRepository _repo;
         private readonly IEventPublisher _events;
