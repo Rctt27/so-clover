@@ -31,4 +31,60 @@ public class NoClueForDirectionException : DomainException
     }
 }
 
+public class CardWordEmptyException : DomainException
+{
+    public CardWordEmptyException() : base("Card word cannot be empty.") { }
+}
+
+public class CardWordTooLongException : DomainException
+{
+    public int MaxLength { get; }
+
+    public CardWordTooLongException(int maxLength)
+        : base($"Card word cannot exceed {maxLength} characters.")
+    {
+        MaxLength = maxLength;
+    }
+}
+
+public class PlayerNameEmptyException : DomainException
+{
+    public PlayerNameEmptyException() : base("Player name cannot be empty.") { }
+}
+
+public class PlayerNameTooLongException : DomainException
+{
+    public int MaxLength { get; }
+
+    public PlayerNameTooLongException(int maxLength)
+        : base($"Player name cannot exceed {maxLength} characters.")
+    {
+        MaxLength = maxLength;
+    }
+}
+
+public class NotEnoughPlayersException : DomainException
+{
+    public int RequiredMinimum { get; }
+    public int ActualCount { get; }
+
+    public NotEnoughPlayersException(int requiredMinimum, int actualCount)
+        : base($"At least {requiredMinimum} player(s) are required; got {actualCount}.")
+    {
+        RequiredMinimum = requiredMinimum;
+        ActualCount = actualCount;
+    }
+}
+
+public class PlayerNotFoundException : DomainException
+{
+    public PlayerId PlayerId { get; }
+
+    public PlayerNotFoundException(PlayerId playerId)
+        : base($"Player not found: {playerId}.")
+    {
+        PlayerId = playerId;
+    }
+}
+
 

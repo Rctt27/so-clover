@@ -21,9 +21,9 @@ public sealed class Card
     {
         var v = (value ?? string.Empty).Trim();
         if (v.Length == 0)
-            throw new DomainException("Word cannot be empty.");
+            throw new CardWordEmptyException();
         if (v.Length > 32)
-            throw new DomainException("Word cannot exceed 32 characters.");
+            throw new CardWordTooLongException(32);
         return v;
     }
 }

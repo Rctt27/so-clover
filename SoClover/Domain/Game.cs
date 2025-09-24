@@ -25,7 +25,7 @@ public sealed class Game
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("Writing phase can only start from Lobby.");
         if (_players.Count == 0)
-            throw new DomainException("At least one player is required.");
+            throw new NotEnoughPlayersException(1, _players.Count);
         Phase = GamePhase.WritingClues;
     }
 
@@ -57,7 +57,7 @@ public sealed class Game
     private Player RequirePlayer(PlayerId playerId)
     {
         if (!_players.TryGetValue(playerId, out var player))
-            throw new DomainException("Player not found.");
+            throw new PlayerNotFoundException(playerId);
         return player;
     }
 }

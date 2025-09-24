@@ -16,9 +16,9 @@ public sealed class Player
     {
         var value = (input ?? string.Empty).Trim();
         if (value.Length == 0)
-            throw new DomainException("Player name cannot be empty.");
+            throw new PlayerNameEmptyException();
         if (value.Length > 32)
-            throw new DomainException("Player name cannot exceed 32 characters.");
+            throw new PlayerNameTooLongException(32);
         return value;
     }
 }
