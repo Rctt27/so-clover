@@ -1,0 +1,7 @@
+﻿services:
+  soclover:
+    image: soclover
+    build:
+      context: .
+      dockerfile: SoClover/Dockerfile
+
