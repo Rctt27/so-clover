@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SoClover")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+89ce47a5c47e4ddcf6dfdc656fcd749891731fd8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6cdf4fc77ba32acb648626a054408928cdd7b2ef")]
 [assembly: System.Reflection.AssemblyProductAttribute("SoClover")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SoClover")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

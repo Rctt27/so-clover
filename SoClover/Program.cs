@@ -19,6 +19,7 @@ services.AddTransient<ISetClueUseCase, SetClue.Handler>();
 services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
 services.AddTransient<IGuessUseCase, Guess.Handler>();
 services.AddTransient<IPlaceCardUseCase, PlaceCard.Handler>();
+services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
 
 // Build provider
 var provider = services.BuildServiceProvider();
