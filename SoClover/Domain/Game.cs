@@ -49,11 +49,9 @@ public sealed class Game
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Cannot guess outside Guessing phase.");
         var player = RequirePlayer(ownerId);
-        var visible = player.Board.GetVisibleWord(direction);
-        if (visible is null)
-            throw new InvalidGuessException("No card placed for that direction.");
-        var correct = string.Equals(visible, guessedWord?.Trim(), StringComparison.OrdinalIgnoreCase);
-        return new GuessResult(correct, visible);
+        var expected = player.Board.GetClueText(direction);
+        var correct = string.Equals(expected, guessedWord?.Trim(), StringComparison.OrdinalIgnoreCase);
+        return new GuessResult(correct, expected);
     }
 
     private Player RequirePlayer(PlayerId playerId)

@@ -2,50 +2,49 @@ namespace SoClover.Domain;
 
 public sealed class CloverBoard
 {
-    // A 2x2 clover board with four positions around center
-    public OrientedCard? Top { get; private set; }
-    public OrientedCard? Right { get; private set; }
-    public OrientedCard? Bottom { get; private set; }
-    public OrientedCard? Left { get; private set; }
+    // A 2x2 clover board with four corner positions
+    public OrientedCard? TopLeft { get; private set; }
+    public OrientedCard? TopRight { get; private set; }
+    public OrientedCard? BottomRight { get; private set; }
+    public OrientedCard? BottomLeft { get; private set; }
 
     public ClueText? TopClue { get; private set; }
     public ClueText? RightClue { get; private set; }
     public ClueText? BottomClue { get; private set; }
     public ClueText? LeftClue { get; private set; }
 
-    public void Place(Direction direction, OrientedCard orientedCard)
+    public void Place(BoardPosition position, OrientedCard orientedCard)
     {
-        switch (direction)
+        switch (position)
         {
-            case Direction.Top:
-                Top = orientedCard; break;
-            case Direction.Right:
-                Right = orientedCard; break;
-            case Direction.Bottom:
-                Bottom = orientedCard; break;
-            case Direction.Left:
-                Left = orientedCard; break;
+            case BoardPosition.TopLeft:
+                TopLeft = orientedCard; break;
+            case BoardPosition.TopRight:
+                TopRight = orientedCard; break;
+            case BoardPosition.BottomRight:
+                BottomRight = orientedCard; break;
+            case BoardPosition.BottomLeft:
+                BottomLeft = orientedCard; break;
             default:
-                throw new ArgumentOutOfRangeException(nameof(direction));
+                throw new ArgumentOutOfRangeException(nameof(position));
         }
     }
 
-    public void Rotate(Direction direction)
+    // Convenience overload: map directions to a default corner on that edge
+    public void Place(Direction direction, OrientedCard orientedCard)
     {
-        switch (direction)
+        var position = direction switch
         {
-            case Direction.Top:
-                Top = Top?.RotateRight(); break;
-            case Direction.Right:
-                Right = Right?.RotateRight(); break;
-            case Direction.Bottom:
-                Bottom = Bottom?.RotateRight(); break;
-            case Direction.Left:
-                Left = Left?.RotateRight(); break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(direction));
-        }
+            Direction.Top => BoardPosition.TopLeft,
+            Direction.Right => BoardPosition.TopRight,
+            Direction.Bottom => BoardPosition.BottomRight,
+            Direction.Left => BoardPosition.BottomLeft,
+            _ => throw new ArgumentOutOfRangeException(nameof(direction))
+        };
+        Place(position, orientedCard);
     }
+
+    
 
     public void SetClue(Direction direction, ClueText clue)
     {
@@ -64,15 +63,20 @@ public sealed class CloverBoard
         }
     }
 
-    public string? GetVisibleWord(Direction direction)
+    public string GetClueText(Direction direction)
     {
-        return direction switch
+        var result = direction switch
         {
-            Direction.Top => Top?.GetWord(Direction.Bottom),
-            Direction.Right => Right?.GetWord(Direction.Left),
-            Direction.Bottom => Bottom?.GetWord(Direction.Top),
-            Direction.Left => Left?.GetWord(Direction.Right),
+            // Pick one corner on that edge deterministically
+            Direction.Top => TopLeft?.GetWord(Direction.Bottom),
+            Direction.Right => TopRight?.GetWord(Direction.Left),
+            Direction.Bottom => BottomRight?.GetWord(Direction.Top),
+            Direction.Left => BottomLeft?.GetWord(Direction.Right),
             _ => null
         };
+
+        if (result is null)
+            throw new NoClueForDirectionException(direction);
+        return result;
     }
 }

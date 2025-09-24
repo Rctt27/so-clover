@@ -25,4 +25,12 @@ public enum GamePhase
     Completed = 4
 }
 
+public enum BoardPosition
+{
+    TopLeft = 0,
+    TopRight = 1,
+    BottomRight = 2,
+    BottomLeft = 3
+}
+
 
