@@ -154,6 +154,8 @@ function showGameCreated() {
     noGameState.style.display = 'none';
     activeGameState.style.display = 'block';
     gameIdDisplay.textContent = currentGameId;
+    cancelGameBtn.disabled = false;
+    cancelGameBtn.innerHTML = '<span class="btn-icon">❌</span> Cancel Game';
 }
 
 function showNoGame() {
