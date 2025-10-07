@@ -1,25 +1,31 @@
 {
   "format": 1,
   "restore": {
-    "/Users/xavierquelard/RiderProjects/SoClover/SoClover/SoClover.csproj": {}
+    "C:\\Users\\FlowUP\\RiderProjects\\so-clover\\SoClover\\SoClover.csproj": {}
   },
   "projects": {
-    "/Users/xavierquelard/RiderProjects/SoClover/SoClover/SoClover.csproj": {
+    "C:\\Users\\FlowUP\\RiderProjects\\so-clover\\SoClover\\SoClover.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/xavierquelard/RiderProjects/SoClover/SoClover/SoClover.csproj",
+        "projectUniqueName": "C:\\Users\\FlowUP\\RiderProjects\\so-clover\\SoClover\\SoClover.csproj",
         "projectName": "SoClover",
-        "projectPath": "/Users/xavierquelard/RiderProjects/SoClover/SoClover/SoClover.csproj",
-        "packagesPath": "/Users/xavierquelard/.nuget/packages/",
-        "outputPath": "/Users/xavierquelard/RiderProjects/SoClover/SoClover/obj/",
+        "projectPath": "C:\\Users\\FlowUP\\RiderProjects\\so-clover\\SoClover\\SoClover.csproj",
+        "packagesPath": "C:\\Users\\FlowUP\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\FlowUP\\RiderProjects\\so-clover\\SoClover\\obj\\",
         "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "/Users/xavierquelard/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\FlowUP\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net9.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -61,11 +67,14 @@
           "assetTargetFallback": true,
           "warn": true,
           "frameworkReferences": {
+            "Microsoft.AspNetCore.App": {
+              "privateAssets": "none"
+            },
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/Users/xavierquelard/.dotnet/sdk/9.0.305/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.301/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

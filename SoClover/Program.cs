@@ -1,30 +1,65 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using SoClover.Domain;
 using SoClover.Infrastructure;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Boards;
 using SoClover.UseCases.Games;
 
-var services = new ServiceCollection();
+var builder = WebApplication.CreateBuilder(args);
 
 // Infrastructure
-services.AddSingleton<IGameRepository, InMemoryGameRepository>();
-services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
-services.AddSingleton<IWordDictionary, InMemoryWordDictionary>();
+builder.Services.AddSingleton<IGameRepository, InMemoryGameRepository>();
+builder.Services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
+builder.Services.AddSingleton<IWordDictionary, InMemoryWordDictionary>();
 
 // Use cases
-services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
-services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();
-services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
-services.AddTransient<ISetClueUseCase, SetClue.Handler>();
-services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
-services.AddTransient<IGuessUseCase, Guess.Handler>();
-services.AddTransient<IPlaceCardUseCase, PlaceCard.Handler>();
-services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
+builder.Services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
+builder.Services.AddTransient<IDeleteGameUseCase, DeleteGame.Handler>();
+builder.Services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();
+builder.Services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
+builder.Services.AddTransient<ISetClueUseCase, SetClue.Handler>();
+builder.Services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
+builder.Services.AddTransient<IGuessUseCase, Guess.Handler>();
+builder.Services.AddTransient<IPlaceCardUseCase, PlaceCard.Handler>();
+builder.Services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
 
-// Build provider
-var provider = services.BuildServiceProvider();
+// Add CORS for development
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
 
-// Minimal demo of container working
-var repo = provider.GetRequiredService<IGameRepository>();
-var eventsPublisher = provider.GetRequiredService<IEventPublisher>();
-Console.WriteLine("DI container initialized. Repo: {0}, Events: {1}", repo.GetType().Name, eventsPublisher.GetType().Name);
+var app = builder.Build();
+
+app.UseCors();
+app.UseStaticFiles();
+
+// API Endpoints
+app.MapPost("/api/games", async (ICreateGameUseCase useCase, CancellationToken ct) =>
+{
+    var response = await useCase.Handle(new CreateGame.Request(), ct);
+    return Results.Ok(new { gameId = response.GameId.Value });
+})
+.WithName("CreateGame");
+
+app.MapDelete("/api/games/{gameId:guid}", async (Guid gameId, IDeleteGameUseCase useCase, CancellationToken ct) =>
+{
+    var request = new DeleteGame.Request(new GameId(gameId));
+    var response = await useCase.Handle(request, ct);
+
+    if (!response.Success)
+    {
+        return Results.NotFound(new { message = "Game not found" });
+    }
+
+    return Results.Ok(new { message = "Game deleted successfully" });
+})
+.WithName("DeleteGame");
+
+app.MapFallbackToFile("index.html");
+
+app.Run();

@@ -1,11 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "HUrQfpTfySg=",
+  "dgSpecHash": "2bbv+DfcwSw=",
   "success": true,
-  "projectFilePath": "/Users/xavierquelard/RiderProjects/SoClover/SoClover/SoClover.csproj",
+  "projectFilePath": "C:\\Users\\FlowUP\\RiderProjects\\so-clover\\SoClover\\SoClover.csproj",
   "expectedPackageFiles": [
-    "/Users/xavierquelard/.nuget/packages/microsoft.extensions.dependencyinjection/9.0.0/microsoft.extensions.dependencyinjection.9.0.0.nupkg.sha512",
-    "/Users/xavierquelard/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/9.0.0/microsoft.extensions.dependencyinjection.abstractions.9.0.0.nupkg.sha512"
+    "C:\\Users\\FlowUP\\.nuget\\packages\\microsoft.extensions.dependencyinjection\\9.0.0\\microsoft.extensions.dependencyinjection.9.0.0.nupkg.sha512",
+    "C:\\Users\\FlowUP\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\9.0.0\\microsoft.extensions.dependencyinjection.abstractions.9.0.0.nupkg.sha512"
   ],
   "logs": []
 }

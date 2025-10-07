@@ -19,4 +19,10 @@ public sealed class InMemoryGameRepository : IGameRepository
         _store[game.Id] = game;
         return Task.CompletedTask;
     }
+
+    public Task Delete(GameId id, CancellationToken ct = default)
+    {
+        _store.TryRemove(id, out _);
+        return Task.CompletedTask;
+    }
 }
