@@ -29,6 +29,20 @@ function setupEventListeners() {
     createGameBtn.addEventListener('click', handleCreateGame);
     cancelGameBtn.addEventListener('click', handleCancelGame);
     copyBtn.addEventListener('click', handleCopyGameId);
+
+    // Check game validity when page becomes visible
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && currentGameId) {
+            validateAndUpdateGameState();
+        }
+    });
+
+    // Check game validity when window gains focus
+    window.addEventListener('focus', () => {
+        if (currentGameId) {
+            validateAndUpdateGameState();
+        }
+    });
 }
 
 function handlePlayerNameInput(e) {
@@ -94,6 +108,14 @@ async function handleCancelGame() {
         return;
     }
 
+    // Validate that the game still exists before attempting to cancel
+    const gameExists = await validateGameExists(currentGameId);
+    if (!gameExists) {
+        showStatusMessage('Game no longer exists on server. Resetting...', 'error');
+        resetToInitialState();
+        return;
+    }
+
     if (!confirm('Are you sure you want to cancel this game? All game data will be deleted.')) {
         return;
     }
@@ -107,6 +129,12 @@ async function handleCancelGame() {
         });
 
         if (!response.ok) {
+            if (response.status === 404) {
+                // Game was already deleted or doesn't exist
+                showStatusMessage('Game no longer exists. Resetting...', 'info');
+                resetToInitialState();
+                return;
+            }
             throw new Error('Failed to cancel game');
         }
 
@@ -149,6 +177,8 @@ function showGameCreated() {
     noGameState.style.display = 'none';
     activeGameState.style.display = 'block';
     gameIdDisplay.textContent = currentGameId;
+    cancelGameBtn.disabled = false;
+    cancelGameBtn.innerHTML = '<span class="btn-icon">❌</span> Cancel Game';
 }
 
 function showNoGame() {
@@ -156,6 +186,7 @@ function showNoGame() {
     activeGameState.style.display = 'none';
     createGameBtn.disabled = !playerName;
     createGameBtn.innerHTML = '<span class="btn-icon">🎮</span> Create Game';
+    cancelGameBtn.disabled = true;
     cancelGameBtn.innerHTML = '<span class="btn-icon">❌</span> Cancel Game';
 }
 
@@ -174,11 +205,41 @@ function saveState() {
         playerName: playerName,
         currentGameId: currentGameId
     };
-    localStorage.setItem('soCloverState', JSON.stringify(state));
+    sessionStorage.setItem('soCloverState', JSON.stringify(state));
 }
 
-function loadState() {
-    const savedState = localStorage.getItem('soCloverState');
+async function validateGameExists(gameId) {
+    try {
+        const response = await fetch(`/api/games/${gameId}`);
+        return response.ok;
+    } catch (error) {
+        console.error('Error validating game:', error);
+        return false;
+    }
+}
+
+function resetToInitialState() {
+    currentGameId = null;
+    sessionStorage.removeItem('soCloverState');
+    showNoGame();
+    console.log('Front-end reset to initial state');
+}
+
+async function validateAndUpdateGameState() {
+    if (!currentGameId) {
+        return;
+    }
+
+    const gameExists = await validateGameExists(currentGameId);
+    if (!gameExists) {
+        console.log('Game no longer exists on server, resetting to initial state');
+        resetToInitialState();
+        showStatusMessage('Game session expired. The server may have restarted.', 'info');
+    }
+}
+
+async function loadState() {
+    const savedState = sessionStorage.getItem('soCloverState');
     if (savedState) {
         try {
             const state = JSON.parse(savedState);
@@ -192,8 +253,18 @@ function loadState() {
             }
 
             if (state.currentGameId) {
-                currentGameId = state.currentGameId;
-                showGameCreated();
+                // Validate that the game still exists on the backend
+                const gameExists = await validateGameExists(state.currentGameId);
+                if (gameExists) {
+                    currentGameId = state.currentGameId;
+                    showGameCreated();
+                } else {
+                    // Game no longer exists, reset to initial state
+                    console.log('Cached game no longer exists on server, resetting to initial state');
+                    resetToInitialState();
+                    showStatusMessage('Previous game no longer exists. Please create a new game.', 'info');
+                    return;
+                }
             }
 
             if (playerName && !currentGameId) {
@@ -202,6 +273,8 @@ function loadState() {
             }
         } catch (error) {
             console.error('Error loading state:', error);
+            // Clear potentially corrupted state
+            resetToInitialState();
         }
     }
 }
