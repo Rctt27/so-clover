@@ -39,17 +39,6 @@ app.UseCors();
 app.UseStaticFiles();
 
 // API Endpoints
-app.MapGet("/api/games/{gameId:guid}", async (Guid gameId, IGameRepository repo, CancellationToken ct) =>
-{
-    var game = await repo.Get(new GameId(gameId), ct);
-    if (game is null)
-    {
-        return Results.NotFound(new { message = "Game not found" });
-    }
-    return Results.Ok(new { gameId = game.Id.Value, exists = true });
-})
-.WithName("GetGame");
-
 app.MapPost("/api/games", async (ICreateGameUseCase useCase, CancellationToken ct) =>
 {
     var response = await useCase.Handle(new CreateGame.Request(), ct);

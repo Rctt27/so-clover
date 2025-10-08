@@ -106,19 +106,14 @@ async function handleCancelGame() {
             method: 'DELETE'
         });
 
-        // Handle both success (200) and not found (404) as successful deletions
-        // 404 means the game was already deleted (e.g., server restart)
-        if (response.ok || response.status === 404) {
-            currentGameId = null;
-            showNoGame();
-            const message = response.status === 404 
-                ? 'Game was already removed (possibly due to server restart)' 
-                : 'Game canceled and deleted successfully!';
-            showStatusMessage(message, 'info');
-            saveState();
-        } else {
+        if (!response.ok) {
             throw new Error('Failed to cancel game');
         }
+
+        currentGameId = null;
+        showNoGame();
+        showStatusMessage('Game canceled and deleted successfully!', 'info');
+        saveState();
 
     } catch (error) {
         console.error('Error canceling game:', error);
@@ -154,8 +149,6 @@ function showGameCreated() {
     noGameState.style.display = 'none';
     activeGameState.style.display = 'block';
     gameIdDisplay.textContent = currentGameId;
-    cancelGameBtn.disabled = false;
-    cancelGameBtn.innerHTML = '<span class="btn-icon">❌</span> Cancel Game';
 }
 
 function showNoGame() {
@@ -184,7 +177,7 @@ function saveState() {
     localStorage.setItem('soCloverState', JSON.stringify(state));
 }
 
-async function loadState() {
+function loadState() {
     const savedState = localStorage.getItem('soCloverState');
     if (savedState) {
         try {
@@ -199,18 +192,8 @@ async function loadState() {
             }
 
             if (state.currentGameId) {
-                // Validate that the game still exists on the server
-                const gameExists = await validateGameExists(state.currentGameId);
-                if (gameExists) {
-                    currentGameId = state.currentGameId;
-                    showGameCreated();
-                } else {
-                    // Game doesn't exist on server (e.g., server restart)
-                    currentGameId = null;
-                    showNoGame();
-                    showStatusMessage('Previous game session was lost (server restart)', 'info');
-                    saveState(); // Clear the invalid game ID from storage
-                }
+                currentGameId = state.currentGameId;
+                showGameCreated();
             }
 
             if (playerName && !currentGameId) {
@@ -220,15 +203,5 @@ async function loadState() {
         } catch (error) {
             console.error('Error loading state:', error);
         }
-    }
-}
-
-async function validateGameExists(gameId) {
-    try {
-        const response = await fetch(`/api/games/${gameId}`);
-        return response.ok;
-    } catch (error) {
-        console.error('Error validating game:', error);
-        return false;
     }
 }
