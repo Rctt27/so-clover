@@ -16,6 +16,7 @@ public class FullGameFlowTests
         services.AddSingleton<IGameRepository, InMemoryGameRepository>();
         services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
         services.AddSingleton<IWordDictionary, InMemoryWordDictionary>();
+        services.AddTransient<CardFactory>();
         services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
         services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();
         services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();

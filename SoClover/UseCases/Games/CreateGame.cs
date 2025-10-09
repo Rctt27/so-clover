@@ -7,7 +7,7 @@ public interface ICreateGameUseCase : IUseCase<CreateGame.Request, CreateGame.Re
 
 public static class CreateGame
 {
-    public readonly record struct Request;
+    public readonly record struct Request(string? Language = null);
     public readonly record struct Response(GameId GameId);
 
     public sealed class Handler : ICreateGameUseCase
@@ -23,7 +23,7 @@ public static class CreateGame
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
         {
-            var game = new Game(GameId.New());
+            var game = new Game(GameId.New(), request.Language);
             await _repo.Save(game, ct);
             await _events.Publish(new GameCreated(game.Id), ct);
             return new Response(game.Id);

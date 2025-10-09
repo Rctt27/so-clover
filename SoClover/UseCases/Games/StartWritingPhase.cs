@@ -15,30 +15,28 @@ public static class StartWritingPhase
     {
         private readonly IGameRepository _repo;
         private readonly IEventPublisher _events;
-        private readonly IWordDictionary _dictionary;
+        private readonly CardFactory _cardFactory;
 
-        public Handler(IGameRepository repo, IEventPublisher events, IWordDictionary dictionary)
+        public Handler(IGameRepository repo, IEventPublisher events, CardFactory cardFactory)
         {
             _repo = repo;
             _events = events;
-            _dictionary = dictionary;
+            _cardFactory = cardFactory;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
         {
             var game = await _repo.Get(request.GameId, ct) ?? throw new GameNotFoundException(request.GameId);
 
-            // Populate each player's board with 4 cards (16 unique words per player)
+            // Populate each player's board with 4 cards using the game's language
             foreach (var player in game.Players)
             {
-                var words = await _dictionary.TakeWords(game.Id, 16, ct);
-                var cards = new List<Card>(4)
+                var cards = new List<Card>(4);
+                for (int i = 0; i < 4; i++)
                 {
-                    new Card(CardId.New(), words[0],  words[1],  words[2],  words[3]),
-                    new Card(CardId.New(), words[4],  words[5],  words[6],  words[7]),
-                    new Card(CardId.New(), words[8],  words[9],  words[10], words[11]),
-                    new Card(CardId.New(), words[12], words[13], words[14], words[15])
-                };
+                    var card = await _cardFactory.CreateRandomCardAsync(CardId.New(), game.Language, ct);
+                    cards.Add(card);
+                }
 
                 player.Board.Place(BoardPosition.TopLeft,     new OrientedCard(cards[0]));
                 player.Board.Place(BoardPosition.TopRight,    new OrientedCard(cards[1]));

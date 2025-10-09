@@ -1,8 +1,3 @@
-using SoClover.Domain;
-
-namespace SoClover.UseCases.Abstractions;
-
-public interface IWordDictionary
-{
-    Task<IReadOnlyList<string>> TakeWords(GameId gameId, int count, CancellationToken ct = default);
-}
+// This interface has been moved to SoClover.Domain namespace
+// This file is kept for backward compatibility but should not be used
+// Use SoClover.Domain.IWordDictionary instead

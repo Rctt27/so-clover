@@ -3,14 +3,16 @@ namespace SoClover.Domain;
 public sealed class Game
 {
     public GameId Id { get; }
+    public string Language { get; }
     public GamePhase Phase { get; private set; } = GamePhase.Lobby;
     private readonly Dictionary<PlayerId, Player> _players = new();
 
     public IReadOnlyCollection<Player> Players => _players.Values;
 
-    public Game(GameId id)
+    public Game(GameId id, string? language = null)
     {
         Id = id;
+        Language = string.IsNullOrWhiteSpace(language) ? "Français" : language.Trim();
     }
 
     public void AddPlayer(Player player)

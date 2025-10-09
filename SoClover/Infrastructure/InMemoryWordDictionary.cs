@@ -1,35 +1,42 @@
-using System.Collections.Concurrent;
 using SoClover.Domain;
-using SoClover.UseCases.Abstractions;
 
 namespace SoClover.Infrastructure;
 
 public sealed class InMemoryWordDictionary : IWordDictionary
 {
-    private static readonly string[] SeedWords =
-    [
-        "CAT","DOG","MOUSE","BIRD","SUN","MOON","STAR","SKY",
-        "RED","BLUE","GREEN","YELLOW","WATER","FIRE","EARTH","WIND",
-        "TREE","ROCK","RIVER","MOUNTAIN","CAR","TRAIN","PLANE","BOAT"
-    ];
-
-    private readonly ConcurrentDictionary<GameId, Queue<string>> _perGame = new();
-
-    public Task<IReadOnlyList<string>> TakeWords(GameId gameId, int count, CancellationToken ct = default)
+    private static readonly Dictionary<string, string[]> SeedWordsByLanguage = new()
     {
-        var queue = _perGame.GetOrAdd(gameId, _ => new Queue<string>(Shuffle(SeedWords)));
-        // Ensure there are enough words; if not, recycle the seed words with a fresh shuffle
-        while (queue.Count < count)
+        ["Français"] = 
+        [
+            "CHAT", "CHIEN", "SOURIS", "OISEAU", "SOLEIL", "LUNE", "ÉTOILE", "CIEL",
+            "ROUGE", "BLEU", "VERT", "JAUNE", "EAU", "FEU", "TERRE", "VENT",
+            "ARBRE", "ROCHE", "RIVIÈRE", "MONTAGNE", "VOITURE", "TRAIN", "AVION", "BATEAU"
+        ],
+        ["English"] =
+        [
+            "CAT", "DOG", "MOUSE", "BIRD", "SUN", "MOON", "STAR", "SKY",
+            "RED", "BLUE", "GREEN", "YELLOW", "WATER", "FIRE", "EARTH", "WIND",
+            "TREE", "ROCK", "RIVER", "MOUNTAIN", "CAR", "TRAIN", "PLANE", "BOAT"
+        ]
+    };
+
+    public Task<IReadOnlyList<string>> GetRandomWordsAsync(string language, int count, CancellationToken ct = default)
+    {
+        if (!SeedWordsByLanguage.TryGetValue(language, out var seedWords))
         {
-            foreach (var w in Shuffle(SeedWords))
-                queue.Enqueue(w);
+            // Default to French if language not found
+            seedWords = SeedWordsByLanguage["Français"];
         }
-        var list = new List<string>(count);
-        for (var i = 0; i < count; i++)
+
+        var shuffled = Shuffle(seedWords).ToArray();
+        var result = new List<string>(count);
+
+        for (int i = 0; i < count; i++)
         {
-            list.Add(queue.Dequeue());
+            result.Add(shuffled[i % shuffled.Length]);
         }
-        return Task.FromResult<IReadOnlyList<string>>(list);
+
+        return Task.FromResult<IReadOnlyList<string>>(result);
     }
 
     private static IEnumerable<string> Shuffle(IEnumerable<string> input)

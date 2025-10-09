@@ -11,6 +11,9 @@ builder.Services.AddSingleton<IGameRepository, InMemoryGameRepository>();
 builder.Services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
 builder.Services.AddSingleton<IWordDictionary, InMemoryWordDictionary>();
 
+// Domain services
+builder.Services.AddTransient<CardFactory>();
+
 // Use cases
 builder.Services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
 builder.Services.AddTransient<IDeleteGameUseCase, DeleteGame.Handler>();
@@ -39,9 +42,9 @@ app.UseCors();
 app.UseStaticFiles();
 
 // API Endpoints
-app.MapPost("/api/games", async (ICreateGameUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games", async (CreateGameRequest? request, ICreateGameUseCase useCase, CancellationToken ct) =>
 {
-    var response = await useCase.Handle(new CreateGame.Request(), ct);
+    var response = await useCase.Handle(new CreateGame.Request(request?.Language), ct);
     return Results.Ok(new { gameId = response.GameId.Value });
 })
 .WithName("CreateGame");
@@ -63,3 +66,6 @@ app.MapDelete("/api/games/{gameId:guid}", async (Guid gameId, IDeleteGameUseCase
 app.MapFallbackToFile("index.html");
 
 app.Run();
+
+// Request DTO for API
+record CreateGameRequest(string? Language);
