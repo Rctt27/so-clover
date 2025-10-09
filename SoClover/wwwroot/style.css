@@ -4,6 +4,111 @@
     box-sizing: border-box;
 }
 
+/* Clues Section */
+.clues-section {
+    margin-top: 2rem;
+}
+
+.clues-hint {
+    color: #666;
+    font-style: italic;
+    margin-bottom: 1.5rem;
+}
+
+.clue-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.clue-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.clue-input-group label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-weight: 600;
+}
+
+.clue-label {
+    font-size: 1.1rem;
+    color: #2c3e50;
+}
+
+.clue-words {
+    font-size: 0.9rem;
+    color: #7f8c8d;
+    font-weight: normal;
+    font-style: italic;
+}
+
+.clue-input {
+    padding: 0.75rem;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.clue-input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.clue-input.filled {
+    border-color: #27ae60;
+    background-color: #f0fff4;
+}
+
+.submit-section {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.btn-submit {
+    padding: 1rem 3rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: white;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-submit:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.btn-submit:disabled {
+    background: #bdc3c7;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.submit-hint {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+    text-align: center;
+    margin: 0;
+}
+
+.submit-hint.ready {
+    color: #27ae60;
+    font-weight: 600;
+}
+
 :root {
     --primary-color: #4CAF50;
     --primary-dark: #388E3C;
@@ -286,6 +391,414 @@ footer {
     font-size: 0.9rem;
 }
 
+/* Lobby Styles */
+.game-info-lobby {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.info-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.info-row .label {
+    font-weight: 600;
+    color: #555;
+    min-width: 100px;
+}
+
+.player-count {
+    background: #4CAF50;
+    color: white;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.players-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.player-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: #f5f5f5;
+    border-radius: 8px;
+    border-left: 4px solid #4CAF50;
+}
+
+.player-item.creator {
+    border-left-color: #ff9800;
+    background: #fff3e0;
+}
+
+.player-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.player-badge {
+    background: #ff9800;
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.invite-hint {
+    background: #e3f2fd;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid #2196F3;
+}
+
+.game-controls {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Board Styles */
+.board-section {
+    margin-top: 1rem;
+}
+
+.clover-board {
+    display: grid;
+    grid-template-columns: repeat(2, 280px);
+    grid-template-rows: repeat(2, 280px);
+    gap: 1rem;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+.card-slot {
+    background: white;
+    border: 3px solid #4CAF50;
+    border-radius: 12px;
+    padding: 1rem;
+    width: 280px;
+    height: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.card-slot.top-left {
+    border-color: #ff9800;
+}
+
+.card-slot.top-right {
+    border-color: #2196F3;
+}
+
+.card-slot.bottom-right {
+    border-color: #9C27B0;
+}
+
+.card-slot.bottom-left {
+    border-color: #f44336;
+}
+
+.card-content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-areas: 
+        ". top ."
+        "left center right"
+        ". bottom .";
+    grid-template-columns: 75px 1fr 75px;
+    grid-template-rows: 75px 1fr 75px;
+    gap: 0;
+}
+
+.word {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #333;
+    text-align: center;
+    padding: 0.25rem;
+    word-break: keep-all;
+    white-space: nowrap;
+    line-height: 1.2;
+    overflow: hidden;
+}
+
+.word.top {
+    grid-area: top;
+    padding: 0.5rem 0.25rem;
+}
+
+.word.right {
+    grid-area: right;
+    transform: rotate(90deg);
+    transform-origin: center center;
+    width: 75px;
+    height: 75px;
+    align-self: center;
+}
+
+.word.bottom {
+    grid-area: bottom;
+    transform: rotate(180deg);
+    padding: 0.5rem 0.25rem;
+}
+
+.word.left {
+    grid-area: left;
+    transform: rotate(270deg);
+    transform-origin: center center;
+    width: 75px;
+    height: 75px;
+    align-self: center;
+}
+
+.board-hint {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    margin-top: 1rem;
+}
+
+/* Clue Writing Section */
+.clue-section {
+    margin-top: 2rem;
+}
+
+.clue-instruction {
+    color: #555;
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.clue-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.clue-input-group {
+    display: grid;
+    grid-template-columns: 200px 1fr auto;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.clue-input-group label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    color: #333;
+}
+
+.clue-label {
+    font-size: 1rem;
+}
+
+.clue-status {
+    font-size: 0.85rem;
+    font-weight: normal;
+    margin-left: 0.5rem;
+}
+
+.clue-status.saved {
+    color: #28a745;
+}
+
+.clue-status.saved::before {
+    content: "✓ ";
+}
+
+.clue-input {
+    padding: 0.6rem;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+}
+
+.clue-input:focus {
+    outline: none;
+    border-color: #4CAF50;
+}
+
+.clue-input.saved {
+    border-color: #28a745;
+    background-color: #f0fff4;
+}
+
+.btn-save-clue {
+    padding: 0.6rem 1.2rem;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.1s;
+    white-space: nowrap;
+}
+
+.btn-save-clue:hover:not(:disabled) {
+    background-color: #45a049;
+    transform: translateY(-1px);
+}
+
+.btn-save-clue:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.btn-save-clue.saved {
+    background-color: #28a745;
+}
+
+.submit-section {
+    margin-top: 2rem;
+    text-align: center;
+    padding-top: 2rem;
+    border-top: 2px solid #e0e0e0;
+}
+
+.btn-submit-board {
+    padding: 1rem 2.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.btn-submit-board:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.btn-submit-board:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.btn-submit-board:disabled:hover {
+    transform: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .clue-input-group {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+
+    .clue-input-group label {
+        grid-column: 1;
+    }
+}
+
+/* Board Rotation Controls */
+.board-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.board-rotation-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+}
+
+.btn-rotate {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.5rem;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+}
+
+.btn-rotate:hover {
+    background: var(--primary-dark);
+    transform: scale(1.1);
+    box-shadow: var(--shadow-lg);
+}
+
+.btn-rotate:active {
+    transform: scale(0.95);
+}
+
+.rotation-indicator {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    min-width: 100px;
+    text-align: center;
+}
+
+/* Board rotation states */
+.board-container {
+    min-height: 650px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.clover-board {
+    transition: transform 0.5s ease;
+    transform-origin: center center;
+}
+
+.clover-board.rotate-0 {
+    transform: rotate(0deg);
+}
+
+.clover-board.rotate-90 {
+    transform: rotate(90deg);
+}
+
+.clover-board.rotate-180 {
+    transform: rotate(180deg);
+}
+
+.clover-board.rotate-270 {
+    transform: rotate(270deg);
+}
+
 /* Animations */
 @keyframes fadeInDown {
     from {
@@ -339,5 +852,37 @@ footer {
         right: 10px;
         left: 10px;
         max-width: none;
+    }
+
+    .clover-board {
+        grid-template-columns: repeat(2, 200px);
+        grid-template-rows: repeat(2, 200px);
+        gap: 0.75rem;
+        padding: 0.5rem;
+    }
+
+    .card-slot {
+        width: 200px;
+        height: 200px;
+        padding: 0.75rem;
+    }
+
+    .card-content {
+        grid-template-columns: 60px 1fr 60px;
+        grid-template-rows: 60px 1fr 60px;
+    }
+
+    .word {
+        font-size: 0.8rem;
+    }
+
+    .word.right,
+    .word.left {
+        width: 60px;
+        height: 60px;
+    }
+
+    .board-container {
+        min-height: 450px;
     }
 }

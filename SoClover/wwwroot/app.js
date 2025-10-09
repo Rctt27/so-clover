@@ -77,23 +77,52 @@ async function handleCreateGame() {
     createGameBtn.innerHTML = '<span class="btn-icon">⏳</span> Creating...';
 
     try {
-        const response = await fetch('/api/games', {
+        // Step 1: Create game
+        const createResponse = await fetch('/api/games', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             }
         });
 
-        if (!response.ok) {
+        if (!createResponse.ok) {
             throw new Error('Failed to create game');
         }
 
-        const data = await response.json();
-        currentGameId = data.gameId;
+        const createData = await createResponse.json();
+        currentGameId = createData.gameId;
 
-        showGameCreated();
-        showStatusMessage('Game created successfully!', 'success');
-        saveState();
+        // Step 2: Join the game as the creator
+        const joinResponse = await fetch(`/api/games/${currentGameId}/join`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ playerName: playerName })
+        });
+
+        if (!joinResponse.ok) {
+            throw new Error('Failed to join game');
+        }
+
+        const joinData = await joinResponse.json();
+        const playerId = joinData.playerId;
+
+        // Save state with playerId and creator status
+        const state = {
+            playerName: playerName,
+            currentGameId: currentGameId,
+            playerId: playerId,
+            isCreator: true
+        };
+        sessionStorage.setItem('soCloverState', JSON.stringify(state));
+
+        showStatusMessage('Game created successfully! Redirecting to lobby...', 'success');
+
+        // Navigate to lobby page
+        setTimeout(() => {
+            window.location.href = '/lobby.html';
+        }, 1000);
 
     } catch (error) {
         console.error('Error creating game:', error);

@@ -1,0 +1,97 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Board - SoClover</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🍀 SoClover - Your Board</h1>
+            <p class="subtitle">Writing Phase - Create your clues</p>
+        </header>
+
+        <main>
+            <!-- Player Info Section -->
+            <section class="card">
+                <h2>Player Information</h2>
+                <div class="info-row">
+                    <span class="label">Your Name:</span>
+                    <strong id="boardPlayerName"></strong>
+                </div>
+                <div class="info-row">
+                    <span class="label">Game Phase:</span>
+                    <span id="gamePhase" class="status-badge info">WritingClues</span>
+                </div>
+            </section>
+
+            <!-- Board Section -->
+            <section class="card board-section">
+                <h2>Your Clover Board</h2>
+                <div class="board-wrapper">
+                    <div class="board-rotation-controls">
+                        <button id="btnRotateLeft" class="btn-rotate" title="Rotate board left">↶</button>
+                        <span class="rotation-indicator" id="rotationIndicator">0°</span>
+                        <button id="btnRotateRight" class="btn-rotate" title="Rotate board right">↷</button>
+                    </div>
+                    <div class="board-container">
+                        <div class="clover-board rotate-0" id="cloverBoard">
+                    <!-- Top Left Card -->
+                    <div class="card-slot top-left" id="cardTopLeft">
+                        <div class="card-content">
+                            <div class="word top" id="tlTop"></div>
+                            <div class="word right" id="tlRight"></div>
+                            <div class="word bottom" id="tlBottom"></div>
+                            <div class="word left" id="tlLeft"></div>
+                        </div>
+                    </div>
+
+                    <!-- Top Right Card -->
+                    <div class="card-slot top-right" id="cardTopRight">
+                        <div class="card-content">
+                            <div class="word top" id="trTop"></div>
+                            <div class="word right" id="trRight"></div>
+                            <div class="word bottom" id="trBottom"></div>
+                            <div class="word left" id="trLeft"></div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Right Card -->
+                    <div class="card-slot bottom-right" id="cardBottomRight">
+                        <div class="card-content">
+                            <div class="word top" id="brTop"></div>
+                            <div class="word right" id="brRight"></div>
+                            <div class="word bottom" id="brBottom"></div>
+                            <div class="word left" id="brLeft"></div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Left Card -->
+                    <div class="card-slot bottom-left" id="cardBottomLeft">
+                        <div class="card-content">
+                            <div class="word top" id="blTop"></div>
+                            <div class="word right" id="blRight"></div>
+                            <div class="word bottom" id="blBottom"></div>
+                            <div class="word left" id="blLeft"></div>
+                        </div>
+                    </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="board-hint">These are your 4 cards. Each card has 4 words on its edges.</p>
+            </section>
+
+            <!-- Status Messages -->
+            <div id="boardStatusMessage" class="status-message" style="display: none;"></div>
+        </main>
+
+        <footer>
+            <p>SoClover Browser Game &copy; 2025</p>
+        </footer>
+    </div>
+
+    <script src="board.js"></script>
+</body>
+</html>

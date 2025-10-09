@@ -1,0 +1,83 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Lobby - SoClover</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🍀 SoClover - Game Lobby</h1>
+            <p class="subtitle">Waiting for players...</p>
+        </header>
+
+        <main>
+            <!-- Game Info Section -->
+            <section class="card">
+                <h2>Game Information</h2>
+                <div class="game-info-lobby">
+                    <div class="info-row">
+                        <span class="label">Game ID:</span>
+                        <div class="game-id">
+                            <code id="lobbyGameId"></code>
+                            <button class="btn-copy" id="lobbyeCopyBtn" title="Copy to clipboard">
+                                📋
+                            </button>
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Your Name:</span>
+                        <strong id="lobbyPlayerName"></strong>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Status:</span>
+                        <span class="status-badge success">In Lobby</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Players Section -->
+            <section class="card">
+                <h2>Players <span id="playerCount" class="player-count">(1)</span></h2>
+                <div id="playersList" class="players-list">
+                    <!-- Players will be dynamically added here -->
+                </div>
+            </section>
+
+            <!-- Invite Section -->
+            <section class="card">
+                <h2>Invite Friends</h2>
+                <p class="info-text">Share the Game ID with your friends so they can join!</p>
+                <div class="invite-hint">
+                    <p>📢 <em>Multiplayer join functionality coming soon...</em></p>
+                </div>
+            </section>
+
+            <!-- Game Controls -->
+            <section class="card">
+                <div class="game-controls">
+                    <button class="btn btn-primary" id="startGameBtn">
+                        <span class="btn-icon">🚀</span>
+                        Start Game
+                    </button>
+                    <button class="btn btn-danger" id="lobbyCancelBtn">
+                        <span class="btn-icon">❌</span>
+                        Cancel Game
+                    </button>
+                </div>
+            </section>
+
+            <!-- Status Messages -->
+            <div id="lobbyStatusMessage" class="status-message" style="display: none;"></div>
+        </main>
+
+        <footer>
+            <p>SoClover Browser Game &copy; 2025</p>
+        </footer>
+    </div>
+
+    <script src="lobby.js"></script>
+</body>
+</html>

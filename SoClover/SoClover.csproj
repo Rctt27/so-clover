@@ -15,10 +15,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="UseCases\Games\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
     </ItemGroup>
 

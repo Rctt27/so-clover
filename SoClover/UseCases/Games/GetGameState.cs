@@ -34,7 +34,17 @@ public static class GetGameState
         bool HasCard,
         bool IsGuessed,
         string? ClueLabel,
-        string? ExpectedWord // populated only if IncludeSecrets = true
+        string? ExpectedWord, // populated only if IncludeSecrets = true
+        CardInfo? Card // populated only if IncludeSecrets = true
+    );
+
+    public sealed record CardInfo(
+        string CardId,
+        string TopWord,
+        string RightWord,
+        string BottomWord,
+        string LeftWord,
+        string Rotation
     );
 
     public sealed class Handler : IGetGameStateUseCase
@@ -69,15 +79,16 @@ public static class GetGameState
         private static DirectionState BuildDirectionState(Player player, Direction direction, bool includeSecrets)
         {
             var board = player.Board;
-            var hasCard = direction switch
+            var orientedCard = direction switch
             {
-                Direction.Top => board.TopLeft is not null,
-                Direction.Right => board.TopRight is not null,
-                Direction.Bottom => board.BottomRight is not null,
-                Direction.Left => board.BottomLeft is not null,
-                _ => false
+                Direction.Top => board.TopLeft,
+                Direction.Right => board.TopRight,
+                Direction.Bottom => board.BottomRight,
+                Direction.Left => board.BottomLeft,
+                _ => null
             };
 
+            var hasCard = orientedCard is not null;
             var isGuessed = board.IsDirectionGuessed(direction);
 
             string? label = direction switch
@@ -90,13 +101,26 @@ public static class GetGameState
             };
 
             string? expected = null;
-            if (includeSecrets && hasCard)
+            CardInfo? cardInfo = null;
+
+            if (includeSecrets && hasCard && orientedCard is not null)
             {
                 // Safe: only call when card exists
                 expected = board.GetClueText(direction);
+
+                // Extract full card information
+                var card = orientedCard.Card;
+                cardInfo = new CardInfo(
+                    card.Id.Value.ToString(),
+                    card.TopWord,
+                    card.RightWord,
+                    card.BottomWord,
+                    card.LeftWord,
+                    orientedCard.Rotation.ToString()
+                );
             }
 
-            return new DirectionState(direction, hasCard, isGuessed, label, expected);
+            return new DirectionState(direction, hasCard, isGuessed, label, expected, cardInfo);
         }
     }
 }
