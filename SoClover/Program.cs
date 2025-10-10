@@ -10,7 +10,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Infrastructure
 builder.Services.AddSingleton<IGameRepository, InMemoryGameRepository>();
 builder.Services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
-builder.Services.AddSingleton<IWordDictionary, InMemoryWordDictionary>();
+builder.Services.AddSingleton<IWordDictionary>(sp => 
+    new FileWordDictionary(Path.Combine(builder.Environment.WebRootPath, "dictionaries")));
 
 // Domain services
 builder.Services.AddTransient<CardFactory>();

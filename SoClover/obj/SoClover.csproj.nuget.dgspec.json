@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\FlowUP\\RiderProjects\\so-clover\\SoClover\\SoClover.csproj": {}
+    "C:\\Users\\renau\\RiderProjects\\so-clover\\SoClover\\SoClover.csproj": {}
   },
   "projects": {
-    "C:\\Users\\FlowUP\\RiderProjects\\so-clover\\SoClover\\SoClover.csproj": {
+    "C:\\Users\\renau\\RiderProjects\\so-clover\\SoClover\\SoClover.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\FlowUP\\RiderProjects\\so-clover\\SoClover\\SoClover.csproj",
+        "projectUniqueName": "C:\\Users\\renau\\RiderProjects\\so-clover\\SoClover\\SoClover.csproj",
         "projectName": "SoClover",
-        "projectPath": "C:\\Users\\FlowUP\\RiderProjects\\so-clover\\SoClover\\SoClover.csproj",
-        "packagesPath": "C:\\Users\\FlowUP\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\FlowUP\\RiderProjects\\so-clover\\SoClover\\obj\\",
+        "projectPath": "C:\\Users\\renau\\RiderProjects\\so-clover\\SoClover\\SoClover.csproj",
+        "packagesPath": "C:\\Users\\renau\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\renau\\RiderProjects\\so-clover\\SoClover\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\FlowUP\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\renau\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -44,7 +44,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.300"
+        "SdkAnalysisLevel": "9.0.100"
       },
       "frameworks": {
         "net9.0": {
@@ -74,7 +74,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.301/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.102/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

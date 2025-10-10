@@ -15,14 +15,15 @@ public class GenerateGameCard
     }
 
     [Theory]
-    [InlineData("Français", @"^[A-ZÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ]+$")]
-    [InlineData("English", @"^[A-Z]+$")]
+    [InlineData("Français", @"^[A-ZÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ\-]+$")]
+    [InlineData("English", @"^[A-Z\-]+$")]
     public async Task ShouldCreateCardWithFourRandomWords(string language, string characterPattern)
     {
         // Arrange
         _testOutputHelper.WriteLine($"=== Test: ShouldCreateCardWithFourRandomWords ({language}) ===");
         _testOutputHelper.WriteLine("Arranging test dependencies...");
-        var dictionary = new InMemoryWordDictionary();
+        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot", "dictionaries");
+        var dictionary = new FileWordDictionary(Path.GetFullPath(dictionaryPath));
         var cardFactory = new CardFactory(dictionary);
         var cardId = CardId.New();
         _testOutputHelper.WriteLine($"Using language: {language}");
@@ -78,7 +79,8 @@ public class GenerateGameCard
         // Arrange
         _testOutputHelper.WriteLine($"=== Test: ShouldCreateMultipleCardsWithDifferentWords ({language}) ===");
         _testOutputHelper.WriteLine("Arranging test dependencies...");
-        var dictionary = new InMemoryWordDictionary();
+        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot", "dictionaries");
+        var dictionary = new FileWordDictionary(Path.GetFullPath(dictionaryPath));
         var cardFactory = new CardFactory(dictionary);
         _testOutputHelper.WriteLine($"Using language: {language}");
 
@@ -130,9 +132,10 @@ public class GenerateGameCard
         // Arrange
         _testOutputHelper.WriteLine($"=== Test: ShouldRespectCardWordValidationRules ({language}) ===");
         _testOutputHelper.WriteLine("Step 1: Arranging test dependencies...");
-        var dictionary = new InMemoryWordDictionary();
+        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot", "dictionaries");
+        var dictionary = new FileWordDictionary(Path.GetFullPath(dictionaryPath));
         var cardFactory = new CardFactory(dictionary);
-        _testOutputHelper.WriteLine($"  - Dictionary: InMemoryWordDictionary");
+        _testOutputHelper.WriteLine($"  - Dictionary: FileWordDictionary");
         _testOutputHelper.WriteLine($"  - CardFactory initialized");
         _testOutputHelper.WriteLine($"  - Language: {language}");
 

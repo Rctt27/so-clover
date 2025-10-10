@@ -15,7 +15,9 @@ public class FullGameFlowTests
         var services = new ServiceCollection();
         services.AddSingleton<IGameRepository, InMemoryGameRepository>();
         services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
-        services.AddSingleton<IWordDictionary, InMemoryWordDictionary>();
+        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot", "dictionaries");
+        services.AddSingleton<IWordDictionary>(sp => 
+            new FileWordDictionary(Path.GetFullPath(dictionaryPath)));
         services.AddTransient<CardFactory>();
         services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
         services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();
