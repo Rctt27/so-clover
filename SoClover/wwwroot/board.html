@@ -77,10 +77,22 @@
                             <div class="word left" id="blLeft"></div>
                         </div>
                     </div>
+
+                    <!-- Clue Text Inputs -->
+                    <input type="text" class="clue-text-input clue-top" id="clueTop" placeholder="Top clue" maxlength="20">
+                    <input type="text" class="clue-text-input clue-right" id="clueRight" placeholder="Right clue" maxlength="20">
+                    <input type="text" class="clue-text-input clue-bottom" id="clueBottom" placeholder="Bottom clue" maxlength="20">
+                    <input type="text" class="clue-text-input clue-left" id="clueLeft" placeholder="Left clue" maxlength="20">
                         </div>
                     </div>
                 </div>
                 <p class="board-hint">These are your 4 cards. Each card has 4 words on its edges.</p>
+            </section>
+
+            <!-- Submit Board Section -->
+            <section class="card submit-section">
+                <button id="btnSubmitBoard" class="btn-submit" disabled>Submit Board</button>
+                <p class="submit-hint">You must write all 4 clues before submitting your board</p>
             </section>
 
             <!-- Status Messages -->

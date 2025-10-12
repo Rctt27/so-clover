@@ -4,6 +4,14 @@ let playerName = '';
 let playerId = null;
 let boardRotation = 0; // Current board rotation: 0, 90, 180, or 270
 
+// Track saved clues
+const savedClues = {
+    top: false,
+    right: false,
+    bottom: false,
+    left: false
+};
+
 // DOM elements
 const boardPlayerNameDisplay = document.getElementById('boardPlayerName');
 const gamePhaseDisplay = document.getElementById('gamePhase');
@@ -12,6 +20,15 @@ const cloverBoard = document.getElementById('cloverBoard');
 const btnRotateLeft = document.getElementById('btnRotateLeft');
 const btnRotateRight = document.getElementById('btnRotateRight');
 const rotationIndicator = document.getElementById('rotationIndicator');
+const btnSubmitBoard = document.getElementById('btnSubmitBoard');
+
+// Clue text inputs
+const clueInputs = {
+    top: document.getElementById('clueTop'),
+    right: document.getElementById('clueRight'),
+    bottom: document.getElementById('clueBottom'),
+    left: document.getElementById('clueLeft')
+};
 
 // Card word elements
 const cardWords = {
@@ -46,6 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadBoardState();
     fetchAndDisplayBoard();
     setupRotationControls();
+    setupClueInputs();
+    setupSubmitButton();
 });
 
 function loadBoardState() {
@@ -100,6 +119,9 @@ async function fetchAndDisplayBoard() {
 
         // Display the board cards
         displayBoard(currentPlayer.board);
+
+        // Load existing clues
+        loadClues(currentPlayer.board);
 
     } catch (error) {
         console.error('Error fetching board:', error);
@@ -210,4 +232,143 @@ function updateBoardRotation() {
 
     // Update rotation indicator
     rotationIndicator.textContent = `${boardRotation}°`;
+}
+
+// Clue input functions
+function setupClueInputs() {
+    // Add event listeners for auto-save on input change
+    Object.keys(clueInputs).forEach(direction => {
+        clueInputs[direction].addEventListener('blur', () => saveClue(direction));
+        clueInputs[direction].addEventListener('input', (e) => {
+            // Visual feedback when typing
+            if (e.target.value.trim()) {
+                e.target.style.borderColor = '#2196F3';
+            } else {
+                e.target.style.borderColor = '#4CAF50';
+            }
+        });
+    });
+}
+
+async function saveClue(direction) {
+    const clueText = clueInputs[direction].value.trim();
+
+    if (!clueText) {
+        return; // Don't save empty clues
+    }
+
+    try {
+        // Convert direction to match API expected format (capitalize first letter)
+        const apiDirection = direction.charAt(0).toUpperCase() + direction.slice(1);
+
+        const response = await fetch(`/api/games/${gameId}/clues`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                playerId: playerId,
+                direction: apiDirection,
+                clueText: clueText
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to save clue');
+        }
+
+        // Visual feedback for successful save
+        clueInputs[direction].style.borderColor = '#27ae60';
+        clueInputs[direction].style.backgroundColor = '#f0fff4';
+
+        // Mark clue as saved
+        savedClues[direction] = true;
+        updateSubmitButtonState();
+
+        console.log(`✅ Clue saved for ${direction}: ${clueText}`);
+
+    } catch (error) {
+        console.error(`Error saving clue for ${direction}:`, error);
+        showBoardStatusMessage(`Failed to save ${direction} clue. Please try again.`, 'error');
+
+        // Visual feedback for error
+        clueInputs[direction].style.borderColor = '#f44336';
+    }
+}
+
+function loadClues(board) {
+    // Load existing clues from board data if available
+    if (board.topClue?.text) {
+        clueInputs.top.value = board.topClue.text;
+        clueInputs.top.style.borderColor = '#27ae60';
+        clueInputs.top.style.backgroundColor = '#f0fff4';
+        savedClues.top = true;
+    }
+    if (board.rightClue?.text) {
+        clueInputs.right.value = board.rightClue.text;
+        clueInputs.right.style.borderColor = '#27ae60';
+        clueInputs.right.style.backgroundColor = '#f0fff4';
+        savedClues.right = true;
+    }
+    if (board.bottomClue?.text) {
+        clueInputs.bottom.value = board.bottomClue.text;
+        clueInputs.bottom.style.borderColor = '#27ae60';
+        clueInputs.bottom.style.backgroundColor = '#f0fff4';
+        savedClues.bottom = true;
+    }
+    if (board.leftClue?.text) {
+        clueInputs.left.value = board.leftClue.text;
+        clueInputs.left.style.borderColor = '#27ae60';
+        clueInputs.left.style.backgroundColor = '#f0fff4';
+        savedClues.left = true;
+    }
+
+    // Update submit button state after loading clues
+    updateSubmitButtonState();
+}
+
+// Submit board functions
+function setupSubmitButton() {
+    btnSubmitBoard.addEventListener('click', submitBoard);
+}
+
+function updateSubmitButtonState() {
+    const allCluesSaved = savedClues.top && savedClues.right && savedClues.bottom && savedClues.left;
+    btnSubmitBoard.disabled = !allCluesSaved;
+}
+
+async function submitBoard() {
+    try {
+        btnSubmitBoard.disabled = true;
+        btnSubmitBoard.textContent = 'Submitting...';
+
+        const response = await fetch(`/api/games/${gameId}/submit-board`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                playerId: playerId
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to submit board');
+        }
+
+        showBoardStatusMessage('Board submitted successfully!', 'success');
+        btnSubmitBoard.textContent = 'Board Submitted ✓';
+        btnSubmitBoard.style.backgroundColor = '#27ae60';
+
+        // Disable all clue inputs after submission
+        Object.values(clueInputs).forEach(input => {
+            input.disabled = true;
+        });
+
+    } catch (error) {
+        console.error('Error submitting board:', error);
+        showBoardStatusMessage('Failed to submit board. Please try again.', 'error');
+        btnSubmitBoard.disabled = false;
+        btnSubmitBoard.textContent = 'Submit Board';
+    }
 }

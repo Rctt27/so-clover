@@ -816,6 +816,7 @@ footer {
 .clover-board {
     transition: transform 0.5s ease;
     transform-origin: center center;
+    position: relative;
 }
 
 .clover-board.rotate-0 {
@@ -832,6 +833,63 @@ footer {
 
 .clover-board.rotate-270 {
     transform: rotate(270deg);
+}
+
+/* Clue Text Inputs */
+.clue-text-input {
+    position: absolute;
+    padding: 8px 12px;
+    border: 2px solid #4CAF50;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-align: center;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+    z-index: 10;
+}
+
+.clue-text-input:focus {
+    outline: none;
+    border-color: #2196F3;
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+.clue-text-input::placeholder {
+    color: #bbb;
+    font-weight: normal;
+}
+
+/* Position for each clue */
+.clue-top {
+    top: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px;
+}
+
+.clue-right {
+    right: -120px;
+    top: 50%;
+    transform: translateY(-50%) rotate(90deg);
+    width: 200px;
+    transform-origin: center center;
+}
+
+.clue-bottom {
+    bottom: -40px;
+    left: 50%;
+    transform: translateX(-50%) rotate(180deg);
+    width: 200px;
+}
+
+.clue-left {
+    left: -120px;
+    top: 50%;
+    transform: translateY(-50%) rotate(-90deg);
+    width: 200px;
+    transform-origin: center center;
 }
 
 /* Animations */

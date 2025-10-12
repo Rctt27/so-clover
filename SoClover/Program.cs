@@ -26,6 +26,7 @@ builder.Services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Han
 builder.Services.AddTransient<IGuessUseCase, Guess.Handler>();
 builder.Services.AddTransient<IPlaceCardUseCase, PlaceCard.Handler>();
 builder.Services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
+builder.Services.AddTransient<ISubmitBoardUseCase, SubmitBoard.Handler>();
 
 // Add CORS for development
 builder.Services.AddCors(options =>
@@ -192,6 +193,49 @@ app.MapPost("/api/games/{gameId:guid}/start", async (Guid gameId, IStartWritingP
 })
 .WithName("StartWritingPhase");
 
+app.MapPost("/api/games/{gameId:guid}/clues", async (Guid gameId, SetClueRequest? request, ISetClueUseCase useCase, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(request?.PlayerId) || string.IsNullOrWhiteSpace(request?.Direction) || string.IsNullOrWhiteSpace(request?.ClueText))
+    {
+        return Results.BadRequest(new { message = "PlayerId, Direction, and ClueText are required" });
+    }
+
+    try
+    {
+        var direction = Enum.Parse<Direction>(request.Direction);
+        var response = await useCase.Handle(new SetClue.Request(new GameId(gameId), new PlayerId(Guid.Parse(request.PlayerId)), direction, request.ClueText), ct);
+        return Results.Ok(new { message = "Clue saved successfully" });
+    }
+    catch (GameNotFoundException)
+    {
+        return Results.NotFound(new { message = "Game not found" });
+    }
+})
+.WithName("SetClue");
+
+app.MapPost("/api/games/{gameId:guid}/submit-board", async (Guid gameId, SubmitBoardRequest? request, ISubmitBoardUseCase useCase, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(request?.PlayerId))
+    {
+        return Results.BadRequest(new { message = "PlayerId is required" });
+    }
+
+    try
+    {
+        await useCase.Handle(new SubmitBoard.Request(new GameId(gameId), new PlayerId(Guid.Parse(request.PlayerId))), ct);
+        return Results.Ok(new { message = "Board submitted successfully" });
+    }
+    catch (GameNotFoundException)
+    {
+        return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (InvalidOperationInPhaseException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+})
+.WithName("SubmitBoard");
+
 app.MapFallbackToFile("index.html");
 
 app.Run();
@@ -199,3 +243,5 @@ app.Run();
 // Request DTOs for API
 record CreateGameRequest(string? Language);
 record JoinGameRequest(string PlayerName);
+record SetClueRequest(string PlayerId, string Direction, string ClueText);
+record SubmitBoardRequest(string PlayerId);
