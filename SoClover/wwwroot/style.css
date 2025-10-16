@@ -266,6 +266,15 @@ header .subtitle {
     background: var(--primary-dark);
 }
 
+.btn-join {
+    background: #2196F3;
+    color: white;
+}
+
+.btn-join:hover:not(:disabled) {
+    background: #1976D2;
+}
+
 .btn-danger {
     background: var(--danger-color);
     color: white;

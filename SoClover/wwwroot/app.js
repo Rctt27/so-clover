@@ -3,20 +3,35 @@ let currentGameId = null;
 let playerName = '';
 
 // DOM elements
-const playerNameInput = document.getElementById('playerName');
-const charCountDisplay = document.getElementById('charCount');
-const displayNameElement = document.getElementById('displayName');
-const playerInfoDiv = document.getElementById('playerInfo');
-const createGameBtn = document.getElementById('createGameBtn');
-const cancelGameBtn = document.getElementById('cancelGameBtn');
-const copyBtn = document.getElementById('copyBtn');
-const noGameState = document.getElementById('noGameState');
-const activeGameState = document.getElementById('activeGameState');
-const gameIdDisplay = document.getElementById('gameIdDisplay');
-const statusMessage = document.getElementById('statusMessage');
+let playerNameInput;
+let charCountDisplay;
+let displayNameElement;
+let playerInfoDiv;
+let createGameBtn;
+let cancelGameBtn;
+let copyBtn;
+let noGameState;
+let activeGameState;
+let gameIdDisplay;
+let statusMessage;
+let gameIdInput;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize DOM element references
+    playerNameInput = document.getElementById('playerName');
+    charCountDisplay = document.getElementById('charCount');
+    displayNameElement = document.getElementById('displayName');
+    playerInfoDiv = document.getElementById('playerInfo');
+    createGameBtn = document.getElementById('createGameBtn');
+    cancelGameBtn = document.getElementById('cancelGameBtn');
+    copyBtn = document.getElementById('copyBtn');
+    noGameState = document.getElementById('noGameState');
+    activeGameState = document.getElementById('activeGameState');
+    gameIdDisplay = document.getElementById('gameIdDisplay');
+    statusMessage = document.getElementById('statusMessage');
+    gameIdInput = document.getElementById('gameIdInput');
+
     setupEventListeners();
     loadState();
 });
@@ -25,8 +40,11 @@ function setupEventListeners() {
     // Player name input
     playerNameInput.addEventListener('input', handlePlayerNameInput);
 
+    // Game ID input
+    gameIdInput.addEventListener('input', handleGameIdInput);
+
     // Game management buttons
-    createGameBtn.addEventListener('click', handleCreateGame);
+    createGameBtn.addEventListener('click', handleCreateOrJoinGame);
     cancelGameBtn.addEventListener('click', handleCancelGame);
     copyBtn.addEventListener('click', handleCopyGameId);
 
@@ -54,6 +72,7 @@ function handlePlayerNameInput(e) {
         displayNameElement.textContent = playerName;
         playerInfoDiv.style.display = 'block';
         createGameBtn.disabled = false;
+        updateButtonLabel();
         document.querySelector('.hint').textContent = 'Ready to create a game!';
         saveState();
     } else {
@@ -64,6 +83,29 @@ function handlePlayerNameInput(e) {
             document.querySelector('.hint').textContent = 'Please enter your player name first';
         }
         saveState();
+    }
+}
+
+function handleGameIdInput(e) {
+    updateButtonLabel();
+}
+
+function updateButtonLabel() {
+    const gameIdValue = gameIdInput.value.trim();
+    if (gameIdValue) {
+        createGameBtn.innerHTML = '<span class="btn-icon">🚪</span> Join Game';
+    } else {
+        createGameBtn.innerHTML = '<span class="btn-icon">🎮</span> Create Game';
+    }
+}
+
+async function handleCreateOrJoinGame() {
+    const gameIdValue = gameIdInput.value.trim();
+
+    if (gameIdValue) {
+        await handleJoinGame(gameIdValue);
+    } else {
+        await handleCreateGame();
     }
 }
 
@@ -128,7 +170,64 @@ async function handleCreateGame() {
         console.error('Error creating game:', error);
         showStatusMessage('Failed to create game. Please try again.', 'error');
         createGameBtn.disabled = false;
-        createGameBtn.innerHTML = '<span class="btn-icon">🎮</span> Create Game';
+        updateButtonLabel();
+    }
+}
+
+async function handleJoinGame(gameId) {
+    if (!playerName) {
+        showStatusMessage('Please enter your player name first', 'error');
+        return;
+    }
+
+    createGameBtn.disabled = true;
+    createGameBtn.innerHTML = '<span class="btn-icon">⏳</span> Joining...';
+
+    try {
+        const joinResponse = await fetch(`/api/games/${gameId}/join`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ playerName: playerName })
+        });
+
+        if (!joinResponse.ok) {
+            if (joinResponse.status === 404) {
+                showStatusMessage('Partie non trouvée', 'error');
+                createGameBtn.disabled = false;
+                updateButtonLabel();
+                return;
+            }
+            throw new Error('Failed to join game');
+        }
+
+        const joinData = await joinResponse.json();
+        const playerId = joinData.playerId;
+
+        currentGameId = gameId;
+
+        // Save state with playerId (not creator)
+        const state = {
+            playerName: playerName,
+            currentGameId: currentGameId,
+            playerId: playerId,
+            isCreator: false
+        };
+        sessionStorage.setItem('soCloverState', JSON.stringify(state));
+
+        showStatusMessage('Game joined successfully! Redirecting to lobby...', 'success');
+
+        // Navigate to lobby page
+        setTimeout(() => {
+            window.location.href = '/lobby.html';
+        }, 1000);
+
+    } catch (error) {
+        console.error('Error joining game:', error);
+        showStatusMessage('Failed to join game. Please try again.', 'error');
+        createGameBtn.disabled = false;
+        updateButtonLabel();
     }
 }
 
@@ -214,7 +313,7 @@ function showNoGame() {
     noGameState.style.display = 'block';
     activeGameState.style.display = 'none';
     createGameBtn.disabled = !playerName;
-    createGameBtn.innerHTML = '<span class="btn-icon">🎮</span> Create Game';
+    updateButtonLabel();
     cancelGameBtn.disabled = true;
     cancelGameBtn.innerHTML = '<span class="btn-icon">❌</span> Cancel Game';
 }
@@ -298,6 +397,7 @@ async function loadState() {
 
             if (playerName && !currentGameId) {
                 createGameBtn.disabled = false;
+                updateButtonLabel();
                 document.querySelector('.hint').textContent = 'Ready to create a game!';
             }
         } catch (error) {
