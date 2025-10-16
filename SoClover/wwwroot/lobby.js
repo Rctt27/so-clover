@@ -147,11 +147,11 @@ function startPollingGameState() {
     }
 
     console.log('[Lobby] Starting polling interval...');
-    // Poll every 2 seconds to update players list
+    // Poll every 5 seconds to update players list
     pollInterval = setInterval(() => {
         console.log('[Lobby] Polling tick - calling fetchAndUpdatePlayers');
         fetchAndUpdatePlayers();
-    }, 2000);
+    }, 5000);
 
     // Clear interval when leaving page
     window.addEventListener('beforeunload', () => {
