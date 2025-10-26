@@ -19,10 +19,8 @@ const lobbyStatusMessage = document.getElementById('lobbyStatusMessage');
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[Lobby] DOMContentLoaded - Initializing...');
-    loadLobbyState();
     setupEventListeners();
-    console.log('[Lobby] About to start polling, gameId:', gameId);
-    startPollingGameState();
+    loadLobbyState(); // This will call startPollingGameState() after gameId is loaded
 });
 
 function setupEventListeners() {
@@ -74,6 +72,10 @@ function loadLobbyState() {
 
         // Fetch and display all players
         fetchAndUpdatePlayers();
+        
+        // Start polling now that gameId is loaded
+        console.log('[Lobby] About to start polling, gameId:', gameId);
+        startPollingGameState();
 
     } catch (error) {
         console.error('Error loading lobby state:', error);
@@ -99,7 +101,26 @@ async function fetchAndUpdatePlayers() {
 
         const gameState = await response.json();
         console.log('[Lobby] Game state received:', gameState);
+        console.log('[Lobby] Current phase:', gameState.phase);
         console.log('[Lobby] Number of players:', gameState.players?.length);
+        
+        // Check if game has started (phase changed from Lobby)
+        if (gameState.phase !== 'Lobby') {
+            console.log('[Lobby] Game has started! Redirecting to board...');
+            showLobbyStatusMessage('Game starting! Redirecting to your board...', 'success');
+            
+            // Stop polling before redirect
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+            
+            // Redirect to board page
+            setTimeout(() => {
+                window.location.href = '/board.html';
+            }, 1000);
+            return;
+        }
+        
         updatePlayersList(gameState.players);
 
     } catch (error) {
@@ -147,6 +168,10 @@ function startPollingGameState() {
     }
 
     console.log('[Lobby] Starting polling interval...');
+    
+    // Call immediately first, then every 5 seconds
+    fetchAndUpdatePlayers();
+    
     // Poll every 5 seconds to update players list
     pollInterval = setInterval(() => {
         console.log('[Lobby] Polling tick - calling fetchAndUpdatePlayers');

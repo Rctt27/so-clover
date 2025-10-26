@@ -3,6 +3,7 @@ let gameId = null;
 let playerName = '';
 let playerId = null;
 let boardRotation = 0; // Current board rotation: 0, 90, 180, or 270
+let pollInterval = null; // Polling interval for game state
 
 // Track saved clues
 const savedClues = {
@@ -65,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupRotationControls();
     setupClueInputs();
     setupSubmitButton();
+    startPollingGameState();
 });
 
 function loadBoardState() {
@@ -105,6 +107,23 @@ async function fetchAndDisplayBoard() {
         const gameState = await response.json();
         console.log('🎮 Game State:', gameState);
 
+        // Check if phase has changed to Guessing
+        if (gameState.phase === 'Guessing') {
+            console.log('[Board] Phase changed to Guessing! Redirecting...');
+            showBoardStatusMessage('All boards submitted! Starting guessing phase...', 'success');
+            
+            // Stop polling before redirect
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+            
+            // Redirect to guessing page
+            setTimeout(() => {
+                window.location.href = '/guessing.html';
+            }, 1500);
+            return;
+        }
+
         // Update game phase
         gamePhaseDisplay.textContent = gameState.phase;
 
@@ -127,6 +146,30 @@ async function fetchAndDisplayBoard() {
         console.error('Error fetching board:', error);
         showBoardStatusMessage('Failed to load your board. Please refresh the page.', 'error');
     }
+}
+
+function startPollingGameState() {
+    if (!gameId) {
+        console.log('[Board] Cannot start polling - no gameId available');
+        return;
+    }
+
+    console.log('[Board] Starting polling for game state changes...');
+    
+    // Poll every 5 seconds to check for phase changes
+    pollInterval = setInterval(() => {
+        console.log('[Board] Polling tick - checking game state');
+        fetchAndDisplayBoard();
+    }, 5000);
+
+    // Clear interval when leaving page
+    window.addEventListener('beforeunload', () => {
+        if (pollInterval) {
+            clearInterval(pollInterval);
+        }
+    });
+
+    console.log('[Board] Polling started successfully');
 }
 
 function displayBoard(board) {

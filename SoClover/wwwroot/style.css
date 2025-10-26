@@ -535,6 +535,8 @@ footer {
     overflow: hidden;
     background: transparent;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.5s ease;
+    transform-origin: center center;
 }
 
 /* Utilisation d'une pseudo-classe pour créer la bordure épaisse avec centre transparent */
@@ -854,6 +856,7 @@ footer {
     font-weight: 600;
     text-align: center;
     background: white;
+    color: #2c3e50;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     transition: all 0.3s ease;
     z-index: 10;
@@ -935,6 +938,225 @@ footer {
     }
 }
 
+/* Guessing Phase Styles */
+.guessing-container {
+    max-width: 1800px;
+}
+
+.spectator-message {
+    background: #fff3cd;
+    border: 2px solid #ffc107;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+    text-align: center;
+    font-weight: 600;
+    color: #856404;
+}
+
+.guessing-board-section {
+    padding: 2rem;
+    flex: 1;
+    max-width: 1000px;
+}
+
+.guessing-layout {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin: 2rem 0;
+    width: 100%;
+}
+
+.outside-cards-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 300px;
+    flex-shrink: 0;
+}
+
+.central-board-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.guessing-board-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+}
+
+.guessing-board {
+    display: grid;
+    grid-template-columns: auto 140px 140px auto;
+    grid-template-rows: 140px 140px;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 12px;
+    transition: transform 0.5s ease;
+    position: relative;
+}
+
+.clue-display {
+    background: white;
+    border: 3px solid #4CAF50;
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #2c3e50;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    white-space: nowrap;
+}
+
+.clue-display.clue-top,
+.clue-display.clue-bottom {
+    margin: 0 auto;
+}
+
+.clue-display.clue-top {
+    margin-bottom: 1rem;
+}
+
+.clue-display.clue-bottom {
+    margin-top: 1rem;
+    transform: rotate(180deg);
+}
+
+.clue-display.clue-left {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    align-self: center;
+}
+
+.clue-display.clue-right {
+    grid-column: 4;
+    grid-row: 1 / 3;
+    writing-mode: vertical-rl;
+    align-self: center;
+}
+
+.drop-zone {
+    /* Drop zones inherit card-slot size */
+}
+
+/* Style for empty drop zones - override card-slot border */
+.drop-zone:not(:has(.card-slot))::before {
+    background: transparent;
+    -webkit-mask: none;
+    mask: none;
+    border: 3px dotted #bdc3c7 !important;
+}
+
+.drop-zone.drag-over:not(:has(.card-slot))::before {
+    border-color: #3498db !important;
+    border-style: dotted !important;
+}
+
+.drop-zone.locked::after {
+    content: '🔒';
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    font-size: 1.2rem;
+    z-index: 20;
+}
+
+/* Card-slot already handles all card styling - no need for .guessing-card */
+
+.card-slot[draggable="true"] {
+    cursor: grab;
+}
+
+.card-slot.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+.card-slot.locked {
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
+.card-rotation-controls {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: none;
+    gap: 0.75rem;
+    z-index: 20;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 0.5rem 1rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.btn-rotate-card {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: all 0.2s ease;
+}
+
+.btn-rotate-card:hover {
+    background: #2980b9;
+    transform: scale(1.1);
+}
+
+.confirm-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid #e0e0e0;
+}
+
+.attempts-info {
+    font-size: 1.1rem;
+    color: #555;
+}
+
+.btn-confirm {
+    padding: 1rem 3rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: white;
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+}
+
+.btn-confirm:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(52, 152, 219, 0.6);
+}
+
+.btn-confirm:disabled {
+    background: #bdc3c7;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     body {
@@ -986,5 +1208,22 @@ footer {
 
     .board-container {
         min-height: 450px;
+    }
+
+    .guessing-layout {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .outside-cards-column {
+        flex-direction: row;
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .outside-cards-column .card-slot {
+        width: 200px;
+        height: 200px;
+        flex-shrink: 0;
     }
 }

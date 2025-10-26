@@ -13,7 +13,8 @@ public static class GetGameState
     public sealed record Response(
         GameId GameId,
         GamePhase Phase,
-        IReadOnlyList<PlayerState> Players
+        IReadOnlyList<PlayerState> Players,
+        GuessingPhaseState? GuessingState
     );
 
     public sealed record PlayerState(
@@ -47,6 +48,21 @@ public static class GetGameState
         string Rotation
     );
 
+    public sealed record GuessingPhaseState(
+        PlayerId? CurrentBoardOwnerId,
+        string? CurrentBoardOwnerName,
+        IReadOnlyList<CardInfo> OutsideCards,
+        Dictionary<BoardPosition, CardInfo?> GuessedPositions,
+        IReadOnlyList<BoardPosition> CorrectlyPlacedPositions,
+        int RemainingAttempts,
+        IReadOnlyList<ClueInfo> CurrentBoardClues
+    );
+
+    public sealed record ClueInfo(
+        Direction Direction,
+        string Text
+    );
+
     public sealed class Handler : IGetGameStateUseCase
     {
         private readonly IGameRepository _repo;
@@ -73,7 +89,58 @@ public static class GetGameState
                 ))
                 .ToList();
 
-            return new Response(game.Id, game.Phase, players);
+            GuessingPhaseState? guessingState = null;
+            if (game.Phase == GamePhase.Guessing && game.CurrentGuessingBoardOwner != null)
+            {
+                var owner = game.Players.FirstOrDefault(p => p.Id == game.CurrentGuessingBoardOwner);
+                var ownerName = owner?.Name;
+
+                var outsideCards = game.OutsideCards.Select(oc => new CardInfo(
+                    oc.Card.Id.Value.ToString(),
+                    oc.Card.TopWord,
+                    oc.Card.RightWord,
+                    oc.Card.BottomWord,
+                    oc.Card.LeftWord,
+                    oc.Rotation.ToString()
+                )).ToList();
+
+                var guessedPositions = game.GuessedCardPositions.ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => kvp.Value == null ? null : new CardInfo(
+                        kvp.Value.Card.Id.Value.ToString(),
+                        kvp.Value.Card.TopWord,
+                        kvp.Value.Card.RightWord,
+                        kvp.Value.Card.BottomWord,
+                        kvp.Value.Card.LeftWord,
+                        kvp.Value.Rotation.ToString()
+                    )
+                );
+
+                var clues = new List<ClueInfo>();
+                if (owner != null)
+                {
+                    if (owner.Board.TopClue != null)
+                        clues.Add(new ClueInfo(Direction.Top, owner.Board.TopClue.Value.Value));
+                    if (owner.Board.RightClue != null)
+                        clues.Add(new ClueInfo(Direction.Right, owner.Board.RightClue.Value.Value));
+                    if (owner.Board.BottomClue != null)
+                        clues.Add(new ClueInfo(Direction.Bottom, owner.Board.BottomClue.Value.Value));
+                    if (owner.Board.LeftClue != null)
+                        clues.Add(new ClueInfo(Direction.Left, owner.Board.LeftClue.Value.Value));
+                }
+
+                guessingState = new GuessingPhaseState(
+                    game.CurrentGuessingBoardOwner,
+                    ownerName,
+                    outsideCards,
+                    guessedPositions,
+                    game.CorrectlyPlacedPositions.ToList(),
+                    game.RemainingAttempts,
+                    clues
+                );
+            }
+
+            return new Response(game.Id, game.Phase, players, guessingState);
         }
 
         private static DirectionState BuildDirectionState(Player player, Direction direction, bool includeSecrets)

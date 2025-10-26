@@ -15,11 +15,13 @@ public static class SubmitBoard
     {
         private readonly IGameRepository _repo;
         private readonly IEventPublisher _events;
+        private readonly IStartGuessingPhaseUseCase _startGuessingPhase;
 
-        public Handler(IGameRepository repo, IEventPublisher events)
+        public Handler(IGameRepository repo, IEventPublisher events, IStartGuessingPhaseUseCase startGuessingPhase)
         {
             _repo = repo;
             _events = events;
+            _startGuessingPhase = startGuessingPhase;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
@@ -30,11 +32,27 @@ public static class SubmitBoard
             if (game.Phase != GamePhase.WritingClues)
                 throw new InvalidOperationInPhaseException("Cannot submit board outside WritingClues phase.");
 
-            // The board submission is recorded in the event system
-            // In the future, we could add validation here to ensure all 4 clues are set
+            // Mark this player's board as submitted
+            var player = game.Players.FirstOrDefault(p => p.Id == request.PlayerId) 
+                ?? throw new PlayerNotFoundException(request.PlayerId);
+
+            // Check if all players have submitted their boards (all 4 clues set)
+            var allPlayersSubmitted = game.Players.All(p => 
+                p.Board.TopClue != null && 
+                p.Board.RightClue != null && 
+                p.Board.BottomClue != null && 
+                p.Board.LeftClue != null
+            );
 
             await _repo.Save(game, ct);
             await _events.Publish(new BoardSubmitted(game.Id, request.PlayerId), ct);
+
+            // If all players have submitted, automatically start the guessing phase
+            if (allPlayersSubmitted)
+            {
+                await _startGuessingPhase.Handle(new StartGuessingPhase.Request(game.Id), ct);
+            }
+
             return new Response();
         }
     }
