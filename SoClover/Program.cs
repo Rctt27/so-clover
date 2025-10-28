@@ -31,6 +31,7 @@ builder.Services.AddTransient<IPlaceGuessingCardUseCase, PlaceGuessingCard.Handl
 builder.Services.AddTransient<IRotateBoardCardUseCase, RotateBoardCard.Handler>();
 builder.Services.AddTransient<IRotateOutsideCardUseCase, RotateOutsideCard.Handler>();
 builder.Services.AddTransient<IValidateGuessingBoardUseCase, ValidateGuessingBoard.Handler>();
+builder.Services.AddTransient<IMoveToNextBoardUseCase, MoveToNextBoard.Handler>();
 
 // Add CORS for development
 builder.Services.AddCors(options =>
@@ -327,10 +328,12 @@ app.MapPost("/api/games/{gameId:guid}/rotate-board-card", async (Guid gameId, Ro
     try
     {
         var position = Enum.Parse<BoardPosition>(request.Position);
+        var rotateRight = request.Direction?.ToLower() != "left";
         await useCase.Handle(new RotateBoardCard.Request(
             new GameId(gameId),
             new PlayerId(Guid.Parse(request.PlayerId)),
-            position
+            position,
+            rotateRight
         ), ct);
         return Results.Ok(new { message = "Card rotated successfully" });
     }
@@ -352,10 +355,12 @@ app.MapPost("/api/games/{gameId:guid}/rotate-outside-card", async (Guid gameId, 
 
     try
     {
+        var rotateRight = request.Direction?.ToLower() != "left";
         await useCase.Handle(new RotateOutsideCard.Request(
             new GameId(gameId),
             new PlayerId(Guid.Parse(request.PlayerId)),
-            request.OutsideCardIndex
+            request.OutsideCardIndex,
+            rotateRight
         ), ct);
         return Results.Ok(new { message = "Card rotated successfully" });
     }
@@ -401,6 +406,38 @@ app.MapPost("/api/games/{gameId:guid}/validate-guessing-board", async (Guid game
 })
 .WithName("ValidateGuessingBoard");
 
+app.MapPost("/api/games/{gameId:guid}/move-to-next-board", async (Guid gameId, MoveToNextBoardRequest? request, IMoveToNextBoardUseCase useCase, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(request?.PlayerId))
+        return Results.BadRequest(new { message = "PlayerId is required" });
+
+    try
+    {
+        var response = await useCase.Handle(new MoveToNextBoard.Request(
+            new GameId(gameId),
+            new PlayerId(Guid.Parse(request.PlayerId))
+        ), ct);
+        return Results.Ok(new
+        {
+            phase = response.Phase.ToString(),
+            nextBoardOwnerId = response.NextBoardOwnerId?.Value.ToString()
+        });
+    }
+    catch (GameNotFoundException)
+    {
+        return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (InvalidOperationInPhaseException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+})
+.WithName("MoveToNextBoard");
+
 app.MapFallbackToFile("index.html");
 
 app.Run();
@@ -411,6 +448,7 @@ record JoinGameRequest(string PlayerName);
 record SetClueRequest(string PlayerId, string Direction, string ClueText);
 record SubmitBoardRequest(string PlayerId);
 record PlaceGuessingCardRequest(string PlayerId, int OutsideCardIndex, string Position);
-record RotateBoardCardRequest(string PlayerId, string Position);
-record RotateOutsideCardRequest(string PlayerId, int OutsideCardIndex);
+record RotateBoardCardRequest(string PlayerId, string Position, string? Direction = null);
+record RotateOutsideCardRequest(string PlayerId, int OutsideCardIndex, string? Direction = null);
 record ValidateGuessingBoardRequest(string PlayerId);
+record MoveToNextBoardRequest(string PlayerId);

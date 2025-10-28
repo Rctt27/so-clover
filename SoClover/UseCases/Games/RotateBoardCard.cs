@@ -8,7 +8,7 @@ public interface IRotateBoardCardUseCase : IUseCase<RotateBoardCard.Request, Rot
 
 public static class RotateBoardCard
 {
-    public readonly record struct Request(GameId GameId, PlayerId PlayerId, BoardPosition Position);
+    public readonly record struct Request(GameId GameId, PlayerId PlayerId, BoardPosition Position, bool RotateRight = true);
     public readonly record struct Response;
 
     public sealed class Handler : IRotateBoardCardUseCase
@@ -30,13 +30,13 @@ public static class RotateBoardCard
             if (game.CurrentGuessingBoardOwner == request.PlayerId)
                 throw new InvalidOperationException("Board owner cannot participate in guessing their own board.");
 
-            game.RotateGuessingCard(request.Position);
+            game.RotateGuessingCard(request.Position, request.RotateRight);
             await _repo.Save(game, ct);
-            await _events.Publish(new BoardCardRotated(game.Id, request.PlayerId, request.Position), ct);
+            await _events.Publish(new BoardCardRotated(game.Id, request.PlayerId, request.Position, request.RotateRight), ct);
 
             return new Response();
         }
     }
 }
 
-public readonly record struct BoardCardRotated(GameId GameId, PlayerId PlayerId, BoardPosition Position);
+public readonly record struct BoardCardRotated(GameId GameId, PlayerId PlayerId, BoardPosition Position, bool RotateRight);

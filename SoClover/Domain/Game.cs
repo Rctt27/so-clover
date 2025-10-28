@@ -19,6 +19,7 @@ public sealed class Game
     };
     public int RemainingAttempts { get; private set; } = 3;
     public HashSet<BoardPosition> CorrectlyPlacedPositions { get; private set; } = new();
+    public int CompletedBoardsCount { get; private set; } = 0;
 
     public IReadOnlyCollection<Player> Players => _players.Values;
 
@@ -81,6 +82,7 @@ public sealed class Game
 
         RemainingAttempts = 3;
         CorrectlyPlacedPositions = new HashSet<BoardPosition>();
+        CompletedBoardsCount = 0;
 
         Phase = GamePhase.Guessing;
     }
@@ -109,7 +111,7 @@ public sealed class Game
         OutsideCards.RemoveAt(outsideCardIndex);
     }
 
-    public void RotateGuessingCard(BoardPosition position)
+    public void RotateGuessingCard(BoardPosition position, bool rotateRight = true)
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only rotate cards during Guessing phase.");
@@ -121,10 +123,10 @@ public sealed class Game
         if (card == null)
             throw new InvalidOperationException("No card at this position to rotate.");
 
-        GuessedCardPositions[position] = card.RotateRight();
+        GuessedCardPositions[position] = rotateRight ? card.RotateRight() : card.RotateLeft();
     }
 
-    public void RotateOutsideCard(int outsideCardIndex)
+    public void RotateOutsideCard(int outsideCardIndex, bool rotateRight = true)
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only rotate cards during Guessing phase.");
@@ -132,7 +134,9 @@ public sealed class Game
         if (outsideCardIndex < 0 || outsideCardIndex >= OutsideCards.Count)
             throw new ArgumentOutOfRangeException(nameof(outsideCardIndex));
 
-        OutsideCards[outsideCardIndex] = OutsideCards[outsideCardIndex].RotateRight();
+        OutsideCards[outsideCardIndex] = rotateRight 
+            ? OutsideCards[outsideCardIndex].RotateRight() 
+            : OutsideCards[outsideCardIndex].RotateLeft();
     }
 
     public GuessValidationResult ValidateGuessingBoard()
@@ -207,27 +211,53 @@ public sealed class Game
         );
     }
 
-    public void MoveToNextGuessingBoard()
+    public void MoveToNextGuessingBoard(Card fifthCard, Rotation[] cardRotations)
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only move to next board during Guessing phase.");
 
-        // Trouver le prochain joueur
-        var playersList = Players.ToList();
-        var currentIndex = playersList.FindIndex(p => p.Id == CurrentGuessingBoardOwner);
-        var nextIndex = (currentIndex + 1) % playersList.Count;
+        // Incrémenter le compteur de boards complétés
+        CompletedBoardsCount++;
 
-        if (nextIndex == 0)
+        var playersList = Players.ToList();
+
+        // Vérifier si tous les boards ont été devinés
+        if (CompletedBoardsCount >= playersList.Count)
         {
-            // On a fait le tour de tous les boards, fin de la phase de guessing
+            // Tous les boards ont été complétés, fin de la phase de guessing
             Phase = GamePhase.Scoring;
             CurrentGuessingBoardOwner = null;
         }
         else
         {
-            // Passer au board suivant - nécessite de regénérer les cartes
-            // Cette méthode sera appelée après la génération de la 5ème carte
-            CurrentGuessingBoardOwner = playersList[nextIndex].Id;
+            // Trouver le prochain joueur qui n'a pas encore été deviné
+            var currentIndex = playersList.FindIndex(p => p.Id == CurrentGuessingBoardOwner);
+            var nextIndex = (currentIndex + 1) % playersList.Count;
+
+            // Passer au board suivant
+            var nextOwner = playersList[nextIndex];
+            CurrentGuessingBoardOwner = nextOwner.Id;
+
+            // Réinitialiser l'état de guessing pour le nouveau board
+            OutsideCards = new List<OrientedCard>
+            {
+                new OrientedCard(nextOwner.Board.TopLeft!.Card, cardRotations[0]),
+                new OrientedCard(nextOwner.Board.TopRight!.Card, cardRotations[1]),
+                new OrientedCard(nextOwner.Board.BottomRight!.Card, cardRotations[2]),
+                new OrientedCard(nextOwner.Board.BottomLeft!.Card, cardRotations[3]),
+                new OrientedCard(fifthCard, cardRotations[4])
+            };
+
+            GuessedCardPositions = new Dictionary<BoardPosition, OrientedCard?>
+            {
+                { BoardPosition.TopLeft, null },
+                { BoardPosition.TopRight, null },
+                { BoardPosition.BottomRight, null },
+                { BoardPosition.BottomLeft, null }
+            };
+
+            RemainingAttempts = 3;
+            CorrectlyPlacedPositions = new HashSet<BoardPosition>();
         }
     }
 

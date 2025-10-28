@@ -316,12 +316,14 @@ async function rotateOutsideCard(index, direction) {
     try {
         // Find the card element and animate it locally first
         const cardElements = document.querySelectorAll(`.card-slot[data-card-index="${index}"][data-is-outside="true"]`);
+        const rotationDelta = direction === 'right' ? 90 : -90;
+        
         cardElements.forEach(cardElement => {
             // Get current rotation from card-slot itself
             const currentTransform = cardElement.style.transform || 'rotate(0deg)';
             const currentAngle = parseInt(currentTransform.match(/rotate\((-?\d+)deg\)/)?.[1] || 0);
-            // Calculate new angle (rotate right by 90 degrees)
-            const newAngle = (currentAngle + 90) % 360;
+            // Calculate new angle based on direction
+            const newAngle = (currentAngle + rotationDelta + 360) % 360;
             cardElement.style.transform = `rotate(${newAngle}deg)`;
         });
 
@@ -332,7 +334,8 @@ async function rotateOutsideCard(index, direction) {
             },
             body: JSON.stringify({
                 playerId: playerId,
-                outsideCardIndex: index
+                outsideCardIndex: index,
+                direction: direction
             })
         });
 
@@ -354,14 +357,16 @@ async function rotateBoardCard(position, direction) {
     try {
         // Find the card element in the drop zone and animate it locally first
         const dropZone = document.getElementById(`dropZone${position}`);
+        const rotationDelta = direction === 'right' ? 90 : -90;
+        
         if (dropZone) {
             const cardElement = dropZone.querySelector('.card-slot');
             if (cardElement) {
                 // Get current rotation from card-slot itself
                 const currentTransform = cardElement.style.transform || 'rotate(0deg)';
                 const currentAngle = parseInt(currentTransform.match(/rotate\((-?\d+)deg\)/)?.[1] || 0);
-                // Calculate new angle (rotate right by 90 degrees)
-                const newAngle = (currentAngle + 90) % 360;
+                // Calculate new angle based on direction
+                const newAngle = (currentAngle + rotationDelta + 360) % 360;
                 cardElement.style.transform = `rotate(${newAngle}deg)`;
             }
         }
@@ -373,7 +378,8 @@ async function rotateBoardCard(position, direction) {
             },
             body: JSON.stringify({
                 playerId: playerId,
-                position: position
+                position: position,
+                direction: direction
             })
         });
 
@@ -425,22 +431,48 @@ function updateBoardRotation() {
 
 // Confirm button
 function setupConfirmButton() {
-    btnConfirmBoard.addEventListener('click', confirmBoard);
+    btnConfirmBoard.addEventListener('click', handleConfirmButtonClick);
+}
+
+function handleConfirmButtonClick() {
+    // Check if button is in "Move to next Board" mode
+    if (btnConfirmBoard.dataset.mode === 'moveToNext') {
+        moveToNextBoard();
+    } else {
+        confirmBoard();
+    }
 }
 
 function updateConfirmButtonState() {
     if (isSpectator) {
         btnConfirmBoard.disabled = true;
+        btnConfirmBoard.textContent = 'Confirm Board';
+        btnConfirmBoard.dataset.mode = 'confirm';
         return;
     }
 
-    // Enable button only if all 4 positions are filled
-    const positions = ['TopLeft', 'TopRight', 'BottomRight', 'BottomLeft'];
-    const allFilled = positions.every(position => {
-        return guessingState.guessedPositions[position] !== null;
-    });
+    // Check if board is validated (complete or no attempts left)
+    const boardValidated = guessingState.remainingAttempts === 0 ||
+                           guessingState.correctlyPlacedPositions.length === 4;
 
-    btnConfirmBoard.disabled = !allFilled;
+    if (boardValidated) {
+        // Change button to "Move to next Board"
+        btnConfirmBoard.textContent = 'Move to next Board';
+        btnConfirmBoard.disabled = false;
+        btnConfirmBoard.dataset.mode = 'moveToNext';
+    } else {
+        // Normal "Confirm Board" mode
+        btnConfirmBoard.textContent = 'Confirm Board';
+        btnConfirmBoard.dataset.mode = 'confirm';
+
+        // Enable button only if all 4 positions are filled
+        const positions = ['TopLeft', 'TopRight', 'BottomRight', 'BottomLeft'];
+        const allFilled = positions.every(position => {
+            return guessingState.guessedPositions[position] !== null;
+        });
+
+        btnConfirmBoard.disabled = !allFilled;
+    }
 }
 
 async function confirmBoard() {
@@ -475,24 +507,58 @@ async function confirmBoard() {
             );
         }
 
-        // Refresh display
+        // Refresh display to update button state
         await fetchAndDisplayGuessingPhase();
-
-        btnConfirmBoard.textContent = 'Confirm Board';
-
-        // If should move to next board, show message
-        if (result.shouldMoveToNext) {
-            setTimeout(() => {
-                showGuessingStatusMessage('Moving to next board...', 'info');
-                // Here you would trigger moving to the next board
-            }, 2000);
-        }
 
     } catch (error) {
         console.error('Error confirming board:', error);
         showGuessingStatusMessage('Failed to validate board. Please try again.', 'error');
         btnConfirmBoard.disabled = false;
         btnConfirmBoard.textContent = 'Confirm Board';
+    }
+}
+
+async function moveToNextBoard() {
+    try {
+        btnConfirmBoard.disabled = true;
+        btnConfirmBoard.textContent = 'Loading...';
+
+        const response = await fetch(`/api/games/${gameId}/move-to-next-board`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                playerId: playerId
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to move to next board');
+        }
+
+        const result = await response.json();
+
+        // Check if we're moving to Scoring phase
+        if (result.phase === 'Scoring') {
+            showGuessingStatusMessage('All boards completed! Moving to scoring...', 'success');
+            setTimeout(() => {
+                // Redirect to scoring page when implemented
+                window.location.href = '/scoring.html';
+            }, 2000);
+        } else {
+            // Moving to next board
+            showGuessingStatusMessage('Loading next board...', 'info');
+            // Refresh immediately to load the new board
+            await fetchAndDisplayGuessingPhase();
+        }
+
+    } catch (error) {
+        console.error('Error moving to next board:', error);
+        showGuessingStatusMessage(error.message || 'Failed to move to next board. Please try again.', 'error');
+        btnConfirmBoard.disabled = false;
+        btnConfirmBoard.textContent = 'Move to next Board';
     }
 }
 

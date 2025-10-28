@@ -37,6 +37,7 @@ public static class ValidateGuessingBoard
                 throw new InvalidOperationException("Board owner cannot participate in guessing their own board.");
 
             var result = game.ValidateGuessingBoard();
+
             await _repo.Save(game, ct);
             await _events.Publish(new GuessingBoardValidated(
                 game.Id,

@@ -37,6 +37,19 @@ public sealed class OrientedCard
         return new OrientedCard(Card, next);
     }
 
+    public OrientedCard RotateLeft()
+    {
+        var next = Rotation switch
+        {
+            Rotation.None => Rotation.Right270,
+            Rotation.Right90 => Rotation.None,
+            Rotation.Right180 => Rotation.Right90,
+            Rotation.Right270 => Rotation.Right180,
+            _ => Rotation.None
+        };
+        return new OrientedCard(Card, next);
+    }
+
     private static Direction Rotate(Direction direction, Rotation rotation)
     {
         var offset = (int)rotation;

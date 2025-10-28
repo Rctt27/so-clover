@@ -8,7 +8,7 @@ public interface IRotateOutsideCardUseCase : IUseCase<RotateOutsideCard.Request,
 
 public static class RotateOutsideCard
 {
-    public readonly record struct Request(GameId GameId, PlayerId PlayerId, int OutsideCardIndex);
+    public readonly record struct Request(GameId GameId, PlayerId PlayerId, int OutsideCardIndex, bool RotateRight = true);
     public readonly record struct Response;
 
     public sealed class Handler : IRotateOutsideCardUseCase
@@ -30,13 +30,13 @@ public static class RotateOutsideCard
             if (game.CurrentGuessingBoardOwner == request.PlayerId)
                 throw new InvalidOperationException("Board owner cannot participate in guessing their own board.");
 
-            game.RotateOutsideCard(request.OutsideCardIndex);
+            game.RotateOutsideCard(request.OutsideCardIndex, request.RotateRight);
             await _repo.Save(game, ct);
-            await _events.Publish(new OutsideCardRotated(game.Id, request.PlayerId, request.OutsideCardIndex), ct);
+            await _events.Publish(new OutsideCardRotated(game.Id, request.PlayerId, request.OutsideCardIndex, request.RotateRight), ct);
 
             return new Response();
         }
     }
 }
 
-public readonly record struct OutsideCardRotated(GameId GameId, PlayerId PlayerId, int OutsideCardIndex);
+public readonly record struct OutsideCardRotated(GameId GameId, PlayerId PlayerId, int OutsideCardIndex, bool RotateRight);
