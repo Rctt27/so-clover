@@ -1046,21 +1046,32 @@ footer {
     align-self: center;
 }
 
+/* Drop zones - override card-slot styles when empty */
 .drop-zone {
-    /* Drop zones inherit card-slot size */
+    width: 280px;
+    height: 280px;
+    position: relative;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-/* Style for empty drop zones - override card-slot border */
-.drop-zone:not(:has(.card-slot))::before {
-    background: transparent;
-    -webkit-mask: none;
-    mask: none;
-    border: 3px dotted #bdc3c7 !important;
+.drop-zone:empty {
+    background: white;
+    border: 3px dotted #bdc3c7;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.drop-zone.drag-over:not(:has(.card-slot))::before {
-    border-color: #3498db !important;
-    border-style: dotted !important;
+/* Remove the mask-based border for empty drop zones */
+.drop-zone:empty::before {
+    display: none;
+}
+
+.drop-zone.drag-over:empty {
+    border-color: #3498db;
+    border-width: 4px;
+    background: rgba(52, 152, 219, 0.05);
 }
 
 .drop-zone.locked::after {
