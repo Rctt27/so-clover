@@ -580,7 +580,7 @@ function showGuessingStatusMessage(message, type = 'info') {
 function startPolling() {
     pollingInterval = setInterval(async () => {
         await fetchAndDisplayGuessingPhase();
-    }, 5000); // Poll every 5 seconds
+    }, 1000); // Poll every 1 second
 }
 
 // Cleanup on page unload
