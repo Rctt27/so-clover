@@ -153,6 +153,14 @@ function displayOutsideCards(outsideCards) {
 }
 
 function createDraggableCard(card, index, isOutside) {
+    // Create wrapper container for card + controls
+    const wrapper = document.createElement('div');
+    wrapper.className = 'card-wrapper';
+    wrapper.style.position = 'relative';
+    wrapper.style.width = '280px';
+    wrapper.style.height = '280px';
+
+    // Create card element
     const cardDiv = document.createElement('div');
     cardDiv.className = 'card-slot';
     cardDiv.draggable = !isSpectator;
@@ -164,10 +172,6 @@ function createDraggableCard(card, index, isOutside) {
     cardDiv.style.transform = `rotate(${rotationAngle}deg)`;
 
     cardDiv.innerHTML = `
-        <div class="card-rotation-controls" style="display: none;">
-            <button class="btn-rotate-card" data-direction="left">↶</button>
-            <button class="btn-rotate-card" data-direction="right">↷</button>
-        </div>
         <div class="card-content">
             <div class="word top">${card.topWord}</div>
             <div class="word right">${card.rightWord}</div>
@@ -176,18 +180,30 @@ function createDraggableCard(card, index, isOutside) {
         </div>
     `;
 
+    // Create rotation controls outside the card
+    const rotationControls = document.createElement('div');
+    rotationControls.className = 'card-rotation-controls';
+    rotationControls.style.display = 'none';
+    rotationControls.innerHTML = `
+        <button class="btn-rotate-card" data-direction="left">↶</button>
+        <button class="btn-rotate-card" data-direction="right">↷</button>
+    `;
+
+    wrapper.appendChild(cardDiv);
+    wrapper.appendChild(rotationControls);
+
     // Show rotation controls on hover
     if (!isSpectator) {
-        cardDiv.addEventListener('mouseenter', () => {
-            cardDiv.querySelector('.card-rotation-controls').style.display = 'flex';
+        wrapper.addEventListener('mouseenter', () => {
+            rotationControls.style.display = 'flex';
         });
 
-        cardDiv.addEventListener('mouseleave', () => {
-            cardDiv.querySelector('.card-rotation-controls').style.display = 'none';
+        wrapper.addEventListener('mouseleave', () => {
+            rotationControls.style.display = 'none';
         });
 
         // Setup rotation button handlers
-        const rotateButtons = cardDiv.querySelectorAll('.btn-rotate-card');
+        const rotateButtons = rotationControls.querySelectorAll('.btn-rotate-card');
         rotateButtons.forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -205,7 +221,7 @@ function createDraggableCard(card, index, isOutside) {
         cardDiv.addEventListener('dragend', handleDragEnd);
     }
 
-    return cardDiv;
+    return wrapper;
 }
 
 function displayGuessedPositions(guessedPositions, correctlyPlacedPositions) {
@@ -275,18 +291,20 @@ async function handleDrop(e) {
     if (!draggedCard) return;
 
     const dropZone = e.currentTarget;
-    const position = dropZone.dataset.position;
-    const cardIndex = parseInt(draggedCard.dataset.cardIndex);
+    const targetPosition = dropZone.dataset.position;
     const isOutside = draggedCard.dataset.isOutside === 'true';
 
     if (!isOutside) {
-        // Card is being moved from one board position to another
-        showGuessingStatusMessage('Cannot move cards between board positions. Remove and place again.', 'error');
+        // Card is being moved from one board position to another - swap them
+        const sourcePosition = draggedCard.dataset.cardIndex; // For board cards, cardIndex is the position string (e.g., "TopLeft")
+        await swapBoardCards(sourcePosition, targetPosition);
+        await fetchAndDisplayGuessingPhase(); // Refresh display
         return;
     }
 
     try {
-        await placeCardOnBoard(cardIndex, position);
+        const cardIndex = parseInt(draggedCard.dataset.cardIndex);
+        await placeCardOnBoard(cardIndex, targetPosition);
         await fetchAndDisplayGuessingPhase(); // Refresh display
     } catch (error) {
         console.error('Error placing card:', error);
@@ -312,79 +330,96 @@ async function placeCardOnBoard(outsideCardIndex, position) {
     }
 }
 
-async function rotateOutsideCard(index, direction) {
+async function swapBoardCards(sourcePosition, targetPosition) {
     try {
-        // Find the card element and animate it locally first
-        const cardElements = document.querySelectorAll(`.card-slot[data-card-index="${index}"][data-is-outside="true"]`);
-        const rotationDelta = direction === 'right' ? 90 : -90;
-        
-        cardElements.forEach(cardElement => {
-            // Get current rotation from card-slot itself
-            const currentTransform = cardElement.style.transform || 'rotate(0deg)';
-            const currentAngle = parseInt(currentTransform.match(/rotate\((-?\d+)deg\)/)?.[1] || 0);
-            // Calculate new angle based on direction
-            const newAngle = (currentAngle + rotationDelta + 360) % 360;
-            cardElement.style.transform = `rotate(${newAngle}deg)`;
-        });
-
-        const response = await fetch(`/api/games/${gameId}/rotate-outside-card`, {
+        const response = await fetch(`/api/games/${gameId}/swap-guessing-cards`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 playerId: playerId,
-                outsideCardIndex: index,
-                direction: direction
+                position1: sourcePosition,
+                position2: targetPosition
             })
         });
 
         if (!response.ok) {
-            throw new Error('Failed to rotate outside card');
+            throw new Error('Failed to swap cards');
         }
-
-        // Wait for animation to complete before refreshing
-        setTimeout(async () => {
-            await fetchAndDisplayGuessingPhase();
-        }, 500);
     } catch (error) {
-        console.error('Error rotating outside card:', error);
-        showGuessingStatusMessage('Failed to rotate card. Please try again.', 'error');
+        console.error('Error swapping cards:', error);
+        showGuessingStatusMessage('Failed to swap cards. Please try again.', 'error');
     }
 }
 
+async function rotateOutsideCard(index, direction) {
+    await rotateCard(null, index, direction);
+}
+
 async function rotateBoardCard(position, direction) {
+    await rotateCard(position, null, direction);
+}
+
+async function rotateCard(position, outsideCardIndex, direction) {
     try {
-        // Find the card element in the drop zone and animate it locally first
-        const dropZone = document.getElementById(`dropZone${position}`);
         const rotationDelta = direction === 'right' ? 90 : -90;
-        
-        if (dropZone) {
-            const cardElement = dropZone.querySelector('.card-slot');
-            if (cardElement) {
-                // Get current rotation from card-slot itself
-                const currentTransform = cardElement.style.transform || 'rotate(0deg)';
-                const currentAngle = parseInt(currentTransform.match(/rotate\((-?\d+)deg\)/)?.[1] || 0);
-                // Calculate new angle based on direction
-                const newAngle = (currentAngle + rotationDelta + 360) % 360;
-                cardElement.style.transform = `rotate(${newAngle}deg)`;
+
+        // Find and animate the card element locally first
+        let cardElement = null;
+        if (position !== null) {
+            // Rotating board card
+            const dropZone = document.getElementById(`dropZone${position}`);
+            if (dropZone) {
+                const wrapper = dropZone.querySelector('.card-wrapper');
+                if (wrapper) {
+                    cardElement = wrapper.querySelector('.card-slot');
+                }
             }
+        } else if (outsideCardIndex !== null) {
+            // Rotating outside card
+            const wrappers = document.querySelectorAll('.card-wrapper');
+            wrappers.forEach(wrapper => {
+                const card = wrapper.querySelector('.card-slot');
+                if (card && card.dataset.cardIndex == outsideCardIndex && card.dataset.isOutside === 'true') {
+                    const currentTransform = card.style.transform || 'rotate(0deg)';
+                    const currentAngle = parseInt(currentTransform.match(/rotate\((-?\d+)deg\)/)?.[1] || 0);
+                    const newAngle = (currentAngle + rotationDelta + 360) % 360;
+                    card.style.transform = `rotate(${newAngle}deg)`;
+                }
+            });
         }
 
-        const response = await fetch(`/api/games/${gameId}/rotate-board-card`, {
+        // Animate the card element
+        if (cardElement) {
+            const currentTransform = cardElement.style.transform || 'rotate(0deg)';
+            const currentAngle = parseInt(currentTransform.match(/rotate\((-?\d+)deg\)/)?.[1] || 0);
+            const newAngle = (currentAngle + rotationDelta + 360) % 360;
+            cardElement.style.transform = `rotate(${newAngle}deg)`;
+        }
+
+        // Build request body
+        const requestBody = {
+            playerId: playerId,
+            direction: direction
+        };
+
+        if (position !== null) {
+            requestBody.position = position;
+        } else if (outsideCardIndex !== null) {
+            requestBody.outsideCardIndex = outsideCardIndex;
+        }
+
+        const response = await fetch(`/api/games/${gameId}/rotate-card`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                playerId: playerId,
-                position: position,
-                direction: direction
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
-            throw new Error('Failed to rotate board card');
+            throw new Error('Failed to rotate card');
         }
 
         // Wait for animation to complete before refreshing
@@ -392,7 +427,7 @@ async function rotateBoardCard(position, direction) {
             await fetchAndDisplayGuessingPhase();
         }, 500);
     } catch (error) {
-        console.error('Error rotating board card:', error);
+        console.error('Error rotating card:', error);
         showGuessingStatusMessage('Failed to rotate card. Please try again.', 'error');
     }
 }

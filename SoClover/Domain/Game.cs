@@ -111,7 +111,22 @@ public sealed class Game
         OutsideCards.RemoveAt(outsideCardIndex);
     }
 
-    public void RotateGuessingCard(BoardPosition position, bool rotateRight = true)
+    public void SwapGuessingCards(BoardPosition position1, BoardPosition position2)
+    {
+        if (Phase != GamePhase.Guessing)
+            throw new InvalidOperationInPhaseException("Can only swap cards during Guessing phase.");
+
+        // Si l'une des positions est verrouillée, ne pas permettre l'échange
+        if (CorrectlyPlacedPositions.Contains(position1) || CorrectlyPlacedPositions.Contains(position2))
+            throw new InvalidOperationException("Cannot swap locked positions.");
+
+        // Échanger les cartes
+        (GuessedCardPositions[position1], GuessedCardPositions[position2]) =
+            (GuessedCardPositions[position2], GuessedCardPositions[position1]);
+    }
+
+    // Unified card rotation method - handles both board and outside cards
+    public void RotateCard(BoardPosition position, bool rotateRight = true)
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only rotate cards during Guessing phase.");
@@ -126,7 +141,7 @@ public sealed class Game
         GuessedCardPositions[position] = rotateRight ? card.RotateRight() : card.RotateLeft();
     }
 
-    public void RotateOutsideCard(int outsideCardIndex, bool rotateRight = true)
+    public void RotateCard(int outsideCardIndex, bool rotateRight = true)
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only rotate cards during Guessing phase.");
@@ -134,8 +149,8 @@ public sealed class Game
         if (outsideCardIndex < 0 || outsideCardIndex >= OutsideCards.Count)
             throw new ArgumentOutOfRangeException(nameof(outsideCardIndex));
 
-        OutsideCards[outsideCardIndex] = rotateRight 
-            ? OutsideCards[outsideCardIndex].RotateRight() 
+        OutsideCards[outsideCardIndex] = rotateRight
+            ? OutsideCards[outsideCardIndex].RotateRight()
             : OutsideCards[outsideCardIndex].RotateLeft();
     }
 

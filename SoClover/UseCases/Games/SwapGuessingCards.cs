@@ -1,17 +1,17 @@
-﻿using SoClover.Domain;
+using SoClover.Domain;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
 
 namespace SoClover.UseCases.Games;
 
-public interface IRotateOutsideCardUseCase : IUseCase<RotateOutsideCard.Request, RotateOutsideCard.Response> { }
+public interface ISwapGuessingCardsUseCase : IUseCase<SwapGuessingCards.Request, SwapGuessingCards.Response> { }
 
-public static class RotateOutsideCard
+public static class SwapGuessingCards
 {
-    public readonly record struct Request(GameId GameId, PlayerId PlayerId, int OutsideCardIndex, bool RotateRight = true);
+    public readonly record struct Request(GameId GameId, PlayerId PlayerId, BoardPosition Position1, BoardPosition Position2);
     public readonly record struct Response;
 
-    public sealed class Handler : IRotateOutsideCardUseCase
+    public sealed class Handler : ISwapGuessingCardsUseCase
     {
         private readonly IGameRepository _repo;
         private readonly IEventPublisher _events;
@@ -30,13 +30,13 @@ public static class RotateOutsideCard
             if (game.CurrentGuessingBoardOwner == request.PlayerId)
                 throw new InvalidOperationException("Board owner cannot participate in guessing their own board.");
 
-            game.RotateOutsideCard(request.OutsideCardIndex, request.RotateRight);
+            game.SwapGuessingCards(request.Position1, request.Position2);
             await _repo.Save(game, ct);
-            await _events.Publish(new OutsideCardRotated(game.Id, request.PlayerId, request.OutsideCardIndex, request.RotateRight), ct);
+            await _events.Publish(new GuessingCardsSwapped(game.Id, request.PlayerId, request.Position1, request.Position2), ct);
 
             return new Response();
         }
     }
 }
 
-public readonly record struct OutsideCardRotated(GameId GameId, PlayerId PlayerId, int OutsideCardIndex, bool RotateRight);
+public readonly record struct GuessingCardsSwapped(GameId GameId, PlayerId PlayerId, BoardPosition Position1, BoardPosition Position2);
