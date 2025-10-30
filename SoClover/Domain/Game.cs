@@ -21,7 +21,13 @@ public sealed class Game
     public HashSet<BoardPosition> CorrectlyPlacedPositions { get; private set; } = new();
     public int CompletedBoardsCount { get; private set; } = 0;
 
+    // Scoring tracking
+    private DateTime _currentBoardStartTime;
+    private int _currentBoardAttempts = 0;
+    private readonly Dictionary<PlayerId, BoardResult> _boardResults = new();
+
     public IReadOnlyCollection<Player> Players => _players.Values;
+    public IReadOnlyDictionary<PlayerId, BoardResult> BoardResults => _boardResults;
 
     public Game(GameId id, string? language = null)
     {
@@ -83,6 +89,10 @@ public sealed class Game
         RemainingAttempts = 3;
         CorrectlyPlacedPositions = new HashSet<BoardPosition>();
         CompletedBoardsCount = 0;
+
+        // Initialize scoring tracking
+        _currentBoardStartTime = DateTime.UtcNow;
+        _currentBoardAttempts = 0;
 
         Phase = GamePhase.Guessing;
     }
@@ -213,6 +223,7 @@ public sealed class Game
         }
 
         RemainingAttempts--;
+        _currentBoardAttempts++;
 
         var isComplete = correctPositions.Count == 4;
         var shouldMoveToNext = RemainingAttempts == 0 || isComplete;
@@ -230,6 +241,23 @@ public sealed class Game
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only move to next board during Guessing phase.");
+
+        // Enregistrer le résultat du board actuel avant de passer au suivant
+        if (CurrentGuessingBoardOwner != null)
+        {
+            var endTime = DateTime.UtcNow;
+            var duration = endTime - _currentBoardStartTime;
+            var wasGuessed = CorrectlyPlacedPositions.Count == 4;
+
+            _boardResults[CurrentGuessingBoardOwner.Value] = new BoardResult(
+                CurrentGuessingBoardOwner.Value,
+                _currentBoardAttempts,
+                _currentBoardStartTime,
+                endTime,
+                duration,
+                wasGuessed
+            );
+        }
 
         // Incrémenter le compteur de boards complétés
         CompletedBoardsCount++;
@@ -273,6 +301,10 @@ public sealed class Game
 
             RemainingAttempts = 3;
             CorrectlyPlacedPositions = new HashSet<BoardPosition>();
+
+            // Réinitialiser le tracking pour le nouveau board
+            _currentBoardStartTime = DateTime.UtcNow;
+            _currentBoardAttempts = 0;
         }
     }
 
@@ -310,6 +342,15 @@ public readonly record struct GuessValidationResult(
     int RemainingAttempts,
     bool IsComplete,
     bool ShouldMoveToNext
+);
+
+public readonly record struct BoardResult(
+    PlayerId PlayerId,
+    int Attempts,
+    DateTime StartTime,
+    DateTime EndTime,
+    TimeSpan Duration,
+    bool WasGuessed
 );
 
 

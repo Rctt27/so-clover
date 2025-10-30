@@ -1239,3 +1239,163 @@ footer {
         flex-shrink: 0;
     }
 }
+
+/* ===================================
+   SCORING PHASE STYLES
+   =================================== */
+
+.scoring-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.scoring-section {
+    margin: 2rem 0;
+}
+
+.scoring-table-wrapper {
+    overflow-x: auto;
+    margin-top: 1.5rem;
+}
+
+.scoring-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.scoring-table thead {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: white;
+}
+
+.scoring-table th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 1rem;
+    border-bottom: 2px solid #2980b9;
+}
+
+.scoring-table th:first-child {
+    text-align: center;
+    width: 80px;
+}
+
+.scoring-table tbody tr {
+    border-bottom: 1px solid #ecf0f1;
+    transition: background-color 0.2s ease;
+}
+
+.scoring-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.scoring-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.scoring-table td {
+    padding: 1rem;
+    font-size: 0.95rem;
+    color: #2c3e50;
+}
+
+.rank-cell {
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.player-name-cell {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.attempts-cell {
+    text-align: center;
+    font-weight: 600;
+    color: #e74c3c;
+}
+
+.duration-cell {
+    text-align: center;
+    font-weight: 500;
+    color: #16a085;
+}
+
+.current-player-row {
+    background-color: #e8f4f8 !important;
+    border-left: 4px solid #3498db;
+}
+
+.current-player-row:hover {
+    background-color: #d4ecf5 !important;
+}
+
+.no-results-message {
+    text-align: center;
+    padding: 3rem;
+    color: #7f8c8d;
+    font-size: 1.1rem;
+}
+
+.no-results-message p {
+    margin: 0;
+}
+
+/* Failed Boards Section */
+.failed-boards-section {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: #fff5f5;
+    border-left: 4px solid #e74c3c;
+}
+
+.failed-boards-section h3 {
+    color: #e74c3c;
+    margin-top: 0;
+}
+
+.failed-boards-list {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0 0;
+}
+
+.failed-boards-list li {
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    background: white;
+    border-radius: 6px;
+    border-left: 3px solid #e74c3c;
+    color: #2c3e50;
+}
+
+.current-player-failed {
+    background: #ffe8e8 !important;
+    font-weight: 600;
+}
+
+/* Responsive Scoring Table */
+@media (max-width: 768px) {
+    .scoring-table {
+        font-size: 0.85rem;
+    }
+
+    .scoring-table th,
+    .scoring-table td {
+        padding: 0.75rem 0.5rem;
+    }
+
+    .rank-cell {
+        font-size: 1rem;
+    }
+
+    .scoring-table th:first-child {
+        width: 60px;
+    }
+}

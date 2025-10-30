@@ -32,6 +32,7 @@ builder.Services.AddTransient<ISwapGuessingCardsUseCase, SwapGuessingCards.Handl
 builder.Services.AddTransient<IRotateCardUseCase, RotateCard.Handler>();
 builder.Services.AddTransient<IValidateGuessingBoardUseCase, ValidateGuessingBoard.Handler>();
 builder.Services.AddTransient<IMoveToNextBoardUseCase, MoveToNextBoard.Handler>();
+builder.Services.AddTransient<IGetScoringUseCase, GetScoring.Handler>();
 
 // Add CORS for development
 builder.Services.AddCors(options =>
@@ -459,6 +460,42 @@ app.MapPost("/api/games/{gameId:guid}/move-to-next-board", async (Guid gameId, M
     }
 })
 .WithName("MoveToNextBoard");
+
+app.MapGet("/api/games/{gameId:guid}/scoring", async (Guid gameId, IGetScoringUseCase useCase, CancellationToken ct) =>
+{
+    try
+    {
+        var response = await useCase.Handle(new GetScoring.Request(new GameId(gameId)), ct);
+        return Results.Ok(new
+        {
+            successfulBoards = response.SuccessfulBoards.Select(b => new
+            {
+                playerId = b.PlayerId,
+                playerName = b.PlayerName,
+                attempts = b.Attempts,
+                durationSeconds = b.DurationSeconds,
+                wasGuessed = b.WasGuessed
+            }).ToList(),
+            failedBoards = response.FailedBoards.Select(b => new
+            {
+                playerId = b.PlayerId,
+                playerName = b.PlayerName,
+                attempts = b.Attempts,
+                durationSeconds = b.DurationSeconds,
+                wasGuessed = b.WasGuessed
+            }).ToList()
+        });
+    }
+    catch (GameNotFoundException)
+    {
+        return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (InvalidOperationInPhaseException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+})
+.WithName("GetScoring");
 
 app.MapFallbackToFile("index.html");
 

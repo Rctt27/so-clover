@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scoring - SoClover</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container scoring-container">
+        <header>
+            <h1>🍀 SoClover - Scoring</h1>
+            <p class="subtitle">Game Results - Best players ranking</p>
+        </header>
+
+        <main>
+            <!-- Player Info Section -->
+            <section class="card">
+                <h2>Player Information</h2>
+                <div class="info-row">
+                    <span class="label">Your Name:</span>
+                    <strong id="scoringPlayerName"></strong>
+                </div>
+            </section>
+
+            <!-- Scoring Table Section -->
+            <section class="card scoring-section">
+                <h2>Ranking - Successfully Guessed Boards</h2>
+                <p class="subtitle">Players ranked by number of attempts (fewer is better), then by duration (faster is better)</p>
+
+                <div class="scoring-table-wrapper">
+                    <table class="scoring-table" id="scoringTable">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Player</th>
+                                <th>Attempts</th>
+                                <th>Duration</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scoringTableBody">
+                            <!-- Results will be dynamically added here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="noResultsMessage" class="no-results-message" style="display: none;">
+                    <p>No boards were successfully guessed. Better luck next time!</p>
+                </div>
+            </section>
+
+            <!-- Failed Boards Section -->
+            <section class="card failed-boards-section" id="failedBoardsSection" style="display: none;">
+                <h3>Failed to Guess</h3>
+                <p class="subtitle">These players' boards were not successfully guessed</p>
+                <ul id="failedBoardsList" class="failed-boards-list">
+                    <!-- Failed boards will be added here -->
+                </ul>
+            </section>
+
+            <!-- Status Messages -->
+            <div id="scoringStatusMessage" class="status-message" style="display: none;"></div>
+        </main>
+
+        <footer>
+            <p>SoClover Browser Game © 2025</p>
+        </footer>
+    </div>
+
+    <script src="scoring.js"></script>
+</body>
+</html>

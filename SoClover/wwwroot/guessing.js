@@ -76,6 +76,15 @@ async function fetchAndDisplayGuessingPhase() {
         const gameState = await response.json();
         console.log('🎮 Game State:', gameState);
 
+        // Check if game has moved to Scoring phase
+        if (gameState.phase === 'Scoring') {
+            showGuessingStatusMessage('All boards completed! Moving to scoring...', 'success');
+            setTimeout(() => {
+                window.location.href = '/scoring.html';
+            }, 2000);
+            return;
+        }
+
         if (gameState.phase !== 'Guessing') {
             showGuessingStatusMessage('Not in guessing phase', 'error');
             return;
