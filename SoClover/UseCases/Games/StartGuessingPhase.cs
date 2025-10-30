@@ -1,3 +1,5 @@
+//TODO: Add logic of chrono to this phase. User must not ewceed xx minutes to write Clues. If not all Clues are written when chrono is over then replace "null" Clues by "no clue"
+
 using SoClover.Domain;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;

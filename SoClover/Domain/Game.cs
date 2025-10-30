@@ -228,6 +228,37 @@ public sealed class Game
         var isComplete = correctPositions.Count == 4;
         var shouldMoveToNext = RemainingAttempts == 0 || isComplete;
 
+        // Si le board est complété avec succès, enregistrer le résultat avec le timestamp actuel
+        if (isComplete && CurrentGuessingBoardOwner != null)
+        {
+            var endTime = DateTime.UtcNow;
+            var duration = endTime - _currentBoardStartTime;
+
+            _boardResults[CurrentGuessingBoardOwner.Value] = new BoardResult(
+                CurrentGuessingBoardOwner.Value,
+                _currentBoardAttempts,
+                _currentBoardStartTime,
+                endTime,
+                duration,
+                true // wasGuessed = true
+            );
+        }
+        // Si c'est la dernière tentative et le board n'est pas complété, enregistrer l'échec
+        else if (RemainingAttempts == 0 && !isComplete && CurrentGuessingBoardOwner != null)
+        {
+            var endTime = DateTime.UtcNow;
+            var duration = endTime - _currentBoardStartTime;
+
+            _boardResults[CurrentGuessingBoardOwner.Value] = new BoardResult(
+                CurrentGuessingBoardOwner.Value,
+                _currentBoardAttempts,
+                _currentBoardStartTime,
+                endTime,
+                duration,
+                false // wasGuessed = false
+            );
+        }
+
         return new GuessValidationResult(
             correctPositions,
             incorrectPositions,
@@ -242,22 +273,8 @@ public sealed class Game
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only move to next board during Guessing phase.");
 
-        // Enregistrer le résultat du board actuel avant de passer au suivant
-        if (CurrentGuessingBoardOwner != null)
-        {
-            var endTime = DateTime.UtcNow;
-            var duration = endTime - _currentBoardStartTime;
-            var wasGuessed = CorrectlyPlacedPositions.Count == 4;
-
-            _boardResults[CurrentGuessingBoardOwner.Value] = new BoardResult(
-                CurrentGuessingBoardOwner.Value,
-                _currentBoardAttempts,
-                _currentBoardStartTime,
-                endTime,
-                duration,
-                wasGuessed
-            );
-        }
+        // Le résultat du board a déjà été enregistré dans ValidateGuessingBoard
+        // On ne fait que passer au board suivant
 
         // Incrémenter le compteur de boards complétés
         CompletedBoardsCount++;

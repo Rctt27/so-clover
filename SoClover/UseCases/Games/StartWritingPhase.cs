@@ -1,3 +1,5 @@
+//TODO: When a Card is created for a Board, back-end must double check if the 4 words are not already present on another Board's card. If yes, back-end must generate a new replacement card and double check again. + add unit test covering this logic.
+
 using SoClover.Domain;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;

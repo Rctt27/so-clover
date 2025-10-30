@@ -1,4 +1,6 @@
-﻿// Guessing Phase logic
+﻿//TODO: Try add live mouse tracking of all guessing players when guessing a board. Do not track owner mouse movements, only guessing players.
+
+// Guessing Phase logic
 let gameId = null;
 let playerName = '';
 let playerId = null;

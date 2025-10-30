@@ -1,4 +1,6 @@
-﻿// Lobby page logic
+﻿//TODO: Add settings logic for Admin to select Dictionary + writing clues max duration + guessing max duration for each board
+
+// Lobby page logic
 let gameId = null;
 let playerName = '';
 let playerId = null;
