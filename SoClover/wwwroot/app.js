@@ -119,12 +119,13 @@ async function handleCreateGame() {
     createGameBtn.innerHTML = '<span class="btn-icon">⏳</span> Creating...';
 
     try {
-        // Step 1: Create game
+        // Create game with player name (creator is automatically added as admin)
         const createResponse = await fetch('/api/games', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({ playerName: playerName })
         });
 
         if (!createResponse.ok) {
@@ -133,22 +134,7 @@ async function handleCreateGame() {
 
         const createData = await createResponse.json();
         currentGameId = createData.gameId;
-
-        // Step 2: Join the game as the creator
-        const joinResponse = await fetch(`/api/games/${currentGameId}/join`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ playerName: playerName })
-        });
-
-        if (!joinResponse.ok) {
-            throw new Error('Failed to join game');
-        }
-
-        const joinData = await joinResponse.json();
-        const playerId = joinData.playerId;
+        const playerId = createData.playerId;
 
         // Save state with playerId and creator status
         const state = {

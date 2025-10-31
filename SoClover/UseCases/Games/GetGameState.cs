@@ -13,6 +13,7 @@ public static class GetGameState
     public sealed record Response(
         GameId GameId,
         GamePhase Phase,
+        PlayerId? AdminPlayerId,
         IReadOnlyList<PlayerState> Players,
         GuessingPhaseState? GuessingState
     );
@@ -140,7 +141,7 @@ public static class GetGameState
                 );
             }
 
-            return new Response(game.Id, game.Phase, players, guessingState);
+            return new Response(game.Id, game.Phase, game.AdminPlayerId, players, guessingState);
         }
 
         private static DirectionState BuildDirectionState(Player player, Direction direction, bool includeSecrets)

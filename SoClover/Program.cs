@@ -32,6 +32,7 @@ builder.Services.AddTransient<IRotateCardUseCase, RotateCard.Handler>();
 builder.Services.AddTransient<IValidateGuessingBoardUseCase, ValidateGuessingBoard.Handler>();
 builder.Services.AddTransient<IMoveToNextBoardUseCase, MoveToNextBoard.Handler>();
 builder.Services.AddTransient<IGetScoringUseCase, GetScoring.Handler>();
+builder.Services.AddTransient<ICompleteGameUseCase, CompleteGame.Handler>();
 
 // Add CORS for development
 builder.Services.AddCors(options =>
@@ -52,8 +53,13 @@ app.UseStaticFiles();
 // API Endpoints
 app.MapPost("/api/games", async (CreateGameRequest? request, ICreateGameUseCase useCase, CancellationToken ct) =>
 {
-    var response = await useCase.Handle(new CreateGame.Request(request?.Language), ct);
-    return Results.Ok(new { gameId = response.GameId.Value });
+    if (string.IsNullOrWhiteSpace(request?.PlayerName))
+    {
+        return Results.BadRequest(new { message = "Player name is required" });
+    }
+
+    var response = await useCase.Handle(new CreateGame.Request(request.PlayerName, request.Language), ct);
+    return Results.Ok(new { gameId = response.GameId.Value, playerId = response.CreatorPlayerId.Value });
 })
 .WithName("CreateGame");
 
@@ -99,6 +105,7 @@ app.MapGet("/api/games/{gameId:guid}/state", async (Guid gameId, string? playerI
         {
             gameId = response.GameId.Value,
             phase = response.Phase.ToString(),
+            adminPlayerId = response.AdminPlayerId?.Value.ToString(),
             guessingState = response.GuessingState == null ? null : new
             {
                 currentBoardOwnerId = response.GuessingState.CurrentBoardOwnerId?.Value,
@@ -496,12 +503,40 @@ app.MapGet("/api/games/{gameId:guid}/scoring", async (Guid gameId, IGetScoringUs
 })
 .WithName("GetScoring");
 
+app.MapPost("/api/games/{gameId:guid}/complete", async (Guid gameId, CompleteGameRequest? request, ICompleteGameUseCase useCase, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(request?.PlayerId))
+        return Results.BadRequest(new { message = "PlayerId is required" });
+
+    try
+    {
+        var response = await useCase.Handle(new CompleteGame.Request(
+            new GameId(gameId),
+            new PlayerId(Guid.Parse(request.PlayerId))
+        ), ct);
+        return Results.Ok(new { phase = response.Phase.ToString() });
+    }
+    catch (GameNotFoundException)
+    {
+        return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+        return Results.Forbid();
+    }
+    catch (InvalidOperationInPhaseException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+})
+.WithName("CompleteGame");
+
 app.MapFallbackToFile("index.html");
 
 app.Run();
 
 // Request DTOs for API
-record CreateGameRequest(string? Language);
+record CreateGameRequest(string PlayerName, string? Language = null);
 record JoinGameRequest(string PlayerName);
 record SetClueRequest(string PlayerId, string Direction, string ClueText);
 record SubmitBoardRequest(string PlayerId);
@@ -510,3 +545,4 @@ record SwapGuessingCardsRequest(string PlayerId, string Position1, string Positi
 record RotateCardRequest(string PlayerId, string? Position = null, int? OutsideCardIndex = null, string? Direction = null);
 record ValidateGuessingBoardRequest(string PlayerId);
 record MoveToNextBoardRequest(string PlayerId);
+record CompleteGameRequest(string PlayerId);

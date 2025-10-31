@@ -5,6 +5,7 @@ public sealed class Game
     public GameId Id { get; }
     public string Language { get; }
     public GamePhase Phase { get; private set; } = GamePhase.Lobby;
+    public PlayerId? AdminPlayerId { get; private set; }
     private readonly Dictionary<PlayerId, Player> _players = new();
     private WordsPool? _wordsPool;
 
@@ -41,6 +42,12 @@ public sealed class Game
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("Cannot join after game start.");
         _players[player.Id] = player;
+
+        // Set admin if this player is marked as admin
+        if (player.IsAdmin)
+        {
+            AdminPlayerId = player.Id;
+        }
     }
 
     public async Task InitializeWordsPoolAsync(IWordDictionary wordDictionary, CancellationToken ct = default)
@@ -361,6 +368,16 @@ public sealed class Game
             }
         }
         return new GuessResult(correct, expected);
+    }
+
+    public void CompleteGame(PlayerId playerId)
+    {
+        if (Phase != GamePhase.Scoring)
+            throw new InvalidOperationInPhaseException("Can only complete game from Scoring phase.");
+        if (playerId != AdminPlayerId)
+            throw new UnauthorizedAccessException("Only the admin can complete the game.");
+
+        Phase = GamePhase.Completed;
     }
 
     private Player RequirePlayer(PlayerId playerId)

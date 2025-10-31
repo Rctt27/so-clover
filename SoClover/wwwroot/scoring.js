@@ -2,6 +2,7 @@
 let gameId = null;
 let playerName = '';
 let playerId = null;
+let adminPlayerId = null;
 let pollingInterval = null;
 
 // DOM elements
@@ -11,12 +12,18 @@ const noResultsMessage = document.getElementById('noResultsMessage');
 const failedBoardsSection = document.getElementById('failedBoardsSection');
 const failedBoardsList = document.getElementById('failedBoardsList');
 const scoringStatusMessage = document.getElementById('scoringStatusMessage');
+const endGameSection = document.getElementById('endGameSection');
+const endGameButton = document.getElementById('endGameButton');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     loadScoringState();
+    fetchAdminInfo();
     fetchAndDisplayScoring();
     startPolling();
+
+    // Attach End Game button click handler
+    endGameButton.addEventListener('click', handleEndGame);
 });
 
 function loadScoringState() {
@@ -169,10 +176,90 @@ function showScoringStatusMessage(message, type = 'info') {
     }, 5000);
 }
 
+async function fetchAdminInfo() {
+    try {
+        const response = await fetch(`/api/games/${gameId}/state?playerId=${playerId}&includeSecrets=false`);
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch game state');
+        }
+
+        const gameState = await response.json();
+        adminPlayerId = gameState.adminPlayerId;
+
+        // Show End Game button if current player is admin
+        if (adminPlayerId === playerId) {
+            endGameSection.style.display = 'block';
+        }
+
+    } catch (error) {
+        console.error('Error fetching admin info:', error);
+    }
+}
+
+async function handleEndGame() {
+    if (!confirm('Are you sure you want to end the game? All players will be redirected to the home page.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/games/${gameId}/complete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ playerId })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to complete game');
+        }
+
+        showScoringStatusMessage('Game completed! Redirecting...', 'success');
+
+        // Clean up and redirect
+        cleanupGameData();
+        setTimeout(() => {
+            window.location.href = '/index.html';
+        }, 1500);
+
+    } catch (error) {
+        console.error('Error ending game:', error);
+        showScoringStatusMessage('Failed to end game', 'error');
+    }
+}
+
+function cleanupGameData() {
+    sessionStorage.removeItem('soCloverState');
+}
+
+async function checkGamePhase() {
+    try {
+        const response = await fetch(`/api/games/${gameId}/state?playerId=${playerId}&includeSecrets=false`);
+
+        if (!response.ok) {
+            return;
+        }
+
+        const gameState = await response.json();
+
+        // If game is completed, redirect to index.html
+        if (gameState.phase === 'Completed') {
+            showScoringStatusMessage('Game has ended. Redirecting...', 'info');
+            cleanupGameData();
+            setTimeout(() => {
+                window.location.href = '/index.html';
+            }, 1500);
+        }
+
+    } catch (error) {
+        console.error('Error checking game phase:', error);
+    }
+}
+
 function startPolling() {
     // Poll every 5 seconds to check for any updates
     pollingInterval = setInterval(() => {
         fetchAndDisplayScoring();
+        checkGamePhase();
     }, 5000);
 }
 

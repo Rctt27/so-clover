@@ -39,6 +39,14 @@ public static class GetScoring
             if (game.Phase != GamePhase.Scoring)
                 throw new InvalidOperationInPhaseException("Cannot get scoring outside Scoring phase.");
 
+            // Debug: Log player count and board results count
+            Console.WriteLine($"[GetScoring] Total players: {game.Players.Count}");
+            Console.WriteLine($"[GetScoring] Board results: {game.BoardResults.Count}");
+            foreach (var player in game.Players)
+            {
+                Console.WriteLine($"  - Player: {player.Name} (ID: {player.Id.Value}, IsAdmin: {player.IsAdmin})");
+            }
+
             // Récupérer tous les résultats
             var allResults = game.BoardResults
                 .Select(kvp =>

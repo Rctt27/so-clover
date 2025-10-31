@@ -4,12 +4,14 @@ public sealed class Player
 {
     public PlayerId Id { get; }
     public string Name { get; }
+    public bool IsAdmin { get; }
     public CloverBoard Board { get; } = new();
 
-    public Player(PlayerId id, string name)
+    public Player(PlayerId id, string name, bool isAdmin = false)
     {
         Id = id;
         Name = RequireName(name);
+        IsAdmin = isAdmin;
     }
 
     private static string RequireName(string? input)
