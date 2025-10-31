@@ -252,7 +252,7 @@ public sealed class Game
         RemainingAttempts--;
         _currentBoardAttempts++;
 
-        var isComplete = correctPositions.Count == 4;
+        var isComplete = CorrectlyPlacedPositions.Count == 4;
         var shouldMoveToNext = RemainingAttempts == 0 || isComplete;
 
         // Si le board est complété avec succès, enregistrer le résultat avec le timestamp actuel
