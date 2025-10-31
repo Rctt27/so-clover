@@ -119,13 +119,42 @@ async function handleCreateGame() {
     createGameBtn.innerHTML = '<span class="btn-icon">⏳</span> Creating...';
 
     try {
-        // Create game with player name (creator is automatically added as admin)
+        // Load game settings to get language preference
+        // Priority: sessionStorage > game_settings.json > default
+        let language = 'Français'; // Default
+
+        // Check sessionStorage first (set by admin in lobby)
+        const savedSettings = sessionStorage.getItem('gameSettings');
+        if (savedSettings) {
+            try {
+                const settings = JSON.parse(savedSettings);
+                language = settings.language || language;
+            } catch (error) {
+                console.warn('Could not parse saved game settings');
+            }
+        } else {
+            // Fall back to game_settings.json
+            try {
+                const settingsResponse = await fetch('/game_settings.json');
+                if (settingsResponse.ok) {
+                    const settings = await settingsResponse.json();
+                    language = settings.language;
+                }
+            } catch (error) {
+                console.warn('Could not load game settings, using default language');
+            }
+        }
+
+        // Create game with player name and language (creator is automatically added as admin)
         const createResponse = await fetch('/api/games', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ playerName: playerName })
+            body: JSON.stringify({
+                playerName: playerName,
+                language: language
+            })
         });
 
         if (!createResponse.ok) {

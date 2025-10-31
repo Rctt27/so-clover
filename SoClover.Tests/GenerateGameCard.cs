@@ -15,8 +15,8 @@ public class GenerateGameCard
     }
 
     [Theory]
-    [InlineData("Français", @"^[A-ZÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ\-]+$")]
-    [InlineData("English", @"^[A-Z\-]+$")]
+    [InlineData("Français", @"^[A-ZÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ\-\s]+$")]
+    [InlineData("English", @"^[A-Z\-\s]+$")]
     public async Task ShouldCreateCardWithFourRandomWords(string language, string characterPattern)
     {
         // Arrange

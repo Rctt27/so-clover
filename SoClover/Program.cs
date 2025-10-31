@@ -19,6 +19,7 @@ builder.Services.AddSingleton<IWordDictionary>(sp =>
 builder.Services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
 builder.Services.AddTransient<IDeleteGameUseCase, DeleteGame.Handler>();
 builder.Services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();
+builder.Services.AddTransient<IUpdateGameSettingsUseCase, UpdateGameSettings.Handler>();
 builder.Services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
 builder.Services.AddTransient<ISetClueUseCase, SetClue.Handler>();
 builder.Services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
@@ -95,6 +96,38 @@ app.MapPost("/api/games/{gameId:guid}/join", async (Guid gameId, JoinGameRequest
     }
 })
 .WithName("JoinGame");
+
+app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSettingsRequest? request, IUpdateGameSettingsUseCase useCase, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(request?.PlayerId) || string.IsNullOrWhiteSpace(request?.Language))
+    {
+        return Results.BadRequest(new { message = "PlayerId and Language are required" });
+    }
+
+    try
+    {
+        var response = await useCase.Handle(
+            new UpdateGameSettings.Request(
+                new GameId(gameId),
+                new PlayerId(Guid.Parse(request.PlayerId)),
+                request.Language),
+            ct);
+        return Results.Ok(new { language = response.Language });
+    }
+    catch (GameNotFoundException)
+    {
+        return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+        return Results.Forbid();
+    }
+    catch (InvalidOperationInPhaseException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+})
+.WithName("UpdateGameSettings");
 
 app.MapGet("/api/games/{gameId:guid}/state", async (Guid gameId, string? playerId, bool includeSecrets, IGetGameStateUseCase useCase, CancellationToken ct) =>
 {
@@ -538,6 +571,7 @@ app.Run();
 // Request DTOs for API
 record CreateGameRequest(string PlayerName, string? Language = null);
 record JoinGameRequest(string PlayerName);
+record UpdateGameSettingsRequest(string PlayerId, string Language);
 record SetClueRequest(string PlayerId, string Direction, string ClueText);
 record SubmitBoardRequest(string PlayerId);
 record PlaceGuessingCardRequest(string PlayerId, int OutsideCardIndex, string Position);

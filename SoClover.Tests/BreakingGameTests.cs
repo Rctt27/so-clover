@@ -34,12 +34,17 @@ public class BreakingGameTests
     public async Task StartWriting_without_players_throws_NotEnoughPlayers()
     {
         var sp = BuildProvider();
-        var create = sp.GetRequiredService<ICreateGameUseCase>();
         var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
-        var gameId = (await create.Handle(new CreateGame.Request())).GameId;
+        var repo = sp.GetRequiredService<IGameRepository>();
+
+        // This test expects no players, but CreateGame now adds admin automatically
+        // We need to manually create a game without players for this edge case test
+        var emptyGame = new Game(GameId.New());
+        await emptyGame.InitializeWordsPoolAsync(sp.GetRequiredService<IWordDictionary>());
+        await repo.Save(emptyGame);
 
         await Assert.ThrowsAsync<NotEnoughPlayersException>(async () =>
-            await startWriting.Handle(new StartWritingPhase.Request(gameId)));
+            await startWriting.Handle(new StartWritingPhase.Request(emptyGame.Id)));
     }
 
     [Fact]
@@ -49,10 +54,9 @@ public class BreakingGameTests
         var create = sp.GetRequiredService<ICreateGameUseCase>();
         var join = sp.GetRequiredService<IJoinGameUseCase>();
         var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
-        var gameId = (await create.Handle(new CreateGame.Request())).GameId;
+        var gameId = (await create.Handle(new CreateGame.Request("Admin"))).GameId;
 
-        // First player joins, then writing starts
-        await join.Handle(new JoinGame.Request(gameId, "Alice"));
+        // Admin is already in the game, start writing
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
 
         await Assert.ThrowsAsync<InvalidOperationInPhaseException>(async () =>
@@ -65,7 +69,7 @@ public class BreakingGameTests
         var sp = BuildProvider();
         var create = sp.GetRequiredService<ICreateGameUseCase>();
         var startGuessing = sp.GetRequiredService<IStartGuessingPhaseUseCase>();
-        var gameId = (await create.Handle(new CreateGame.Request())).GameId;
+        var gameId = (await create.Handle(new CreateGame.Request("Admin"))).GameId;
 
         await Assert.ThrowsAsync<InvalidOperationInPhaseException>(async () =>
             await startGuessing.Handle(new StartGuessingPhase.Request(gameId)));
@@ -76,14 +80,14 @@ public class BreakingGameTests
     {
         var sp = BuildProvider();
         var create = sp.GetRequiredService<ICreateGameUseCase>();
-        var join = sp.GetRequiredService<IJoinGameUseCase>();
         var setClue = sp.GetRequiredService<ISetClueUseCase>();
-        var gameId = (await create.Handle(new CreateGame.Request())).GameId;
-        var p1 = (await join.Handle(new JoinGame.Request(gameId, "Alice"))).PlayerId;
+        var createResponse = await create.Handle(new CreateGame.Request("Admin"));
+        var gameId = createResponse.GameId;
+        var adminId = createResponse.CreatorPlayerId;
 
         // Still in Lobby
         await Assert.ThrowsAsync<InvalidOperationInPhaseException>(async () =>
-            await setClue.Handle(new SetClue.Request(gameId, p1, Direction.Top, "X")));
+            await setClue.Handle(new SetClue.Request(gameId, adminId, Direction.Top, "X")));
     }
 
     [Fact]
@@ -91,15 +95,15 @@ public class BreakingGameTests
     {
         var sp = BuildProvider();
         var create = sp.GetRequiredService<ICreateGameUseCase>();
-        var join = sp.GetRequiredService<IJoinGameUseCase>();
         var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
         var guess = sp.GetRequiredService<IGuessUseCase>();
-        var gameId = (await create.Handle(new CreateGame.Request())).GameId;
-        var p1 = (await join.Handle(new JoinGame.Request(gameId, "Alice"))).PlayerId;
+        var createResponse = await create.Handle(new CreateGame.Request("Admin"));
+        var gameId = createResponse.GameId;
+        var adminId = createResponse.CreatorPlayerId;
         await startWriting.Handle(new StartWritingPhase.Request(gameId)); // still WritingClues
 
         await Assert.ThrowsAsync<InvalidOperationInPhaseException>(async () =>
-            await guess.Handle(new Guess.Request(gameId, p1, Direction.Top, "whatever")));
+            await guess.Handle(new Guess.Request(gameId, adminId, Direction.Top, "whatever")));
     }
 
     [Fact]
@@ -107,19 +111,19 @@ public class BreakingGameTests
     {
         var sp = BuildProvider();
         var create = sp.GetRequiredService<ICreateGameUseCase>();
-        var join = sp.GetRequiredService<IJoinGameUseCase>();
         var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
         var setClue = sp.GetRequiredService<ISetClueUseCase>();
-        var gameId = (await create.Handle(new CreateGame.Request())).GameId;
-        var p1 = (await join.Handle(new JoinGame.Request(gameId, "Alice"))).PlayerId;
+        var createResponse = await create.Handle(new CreateGame.Request("Admin"));
+        var gameId = createResponse.GameId;
+        var adminId = createResponse.CreatorPlayerId;
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
 
         await Assert.ThrowsAsync<InvalidClueException>(async () =>
-            await setClue.Handle(new SetClue.Request(gameId, p1, Direction.Top, "")));
+            await setClue.Handle(new SetClue.Request(gameId, adminId, Direction.Top, "")));
 
         var longText = new string('a', 33);
         await Assert.ThrowsAsync<InvalidClueException>(async () =>
-            await setClue.Handle(new SetClue.Request(gameId, p1, Direction.Top, longText)));
+            await setClue.Handle(new SetClue.Request(gameId, adminId, Direction.Top, longText)));
     }
 
     [Fact]
@@ -127,17 +131,17 @@ public class BreakingGameTests
     {
         var sp = BuildProvider();
         var create = sp.GetRequiredService<ICreateGameUseCase>();
-        var join = sp.GetRequiredService<IJoinGameUseCase>();
         var place = sp.GetRequiredService<IPlaceCardUseCase>();
-        var gameId = (await create.Handle(new CreateGame.Request())).GameId;
-        var p1 = (await join.Handle(new JoinGame.Request(gameId, "Alice"))).PlayerId;
+        var createResponse = await create.Handle(new CreateGame.Request("Admin"));
+        var gameId = createResponse.GameId;
+        var adminId = createResponse.CreatorPlayerId;
 
         await Assert.ThrowsAsync<CardWordEmptyException>(async () =>
-            await place.Handle(new PlaceCard.Request(gameId, p1, BoardPosition.TopLeft, "", "b", "c", "d")));
+            await place.Handle(new PlaceCard.Request(gameId, adminId, BoardPosition.TopLeft, "", "b", "c", "d")));
 
         var longWord = new string('x', 33);
         await Assert.ThrowsAsync<CardWordTooLongException>(async () =>
-            await place.Handle(new PlaceCard.Request(gameId, p1, BoardPosition.TopLeft, longWord, "b", "c", "d")));
+            await place.Handle(new PlaceCard.Request(gameId, adminId, BoardPosition.TopLeft, longWord, "b", "c", "d")));
     }
 
     [Fact]
@@ -146,7 +150,7 @@ public class BreakingGameTests
         var sp = BuildProvider();
         var create = sp.GetRequiredService<ICreateGameUseCase>();
         var join = sp.GetRequiredService<IJoinGameUseCase>();
-        var gameId = (await create.Handle(new CreateGame.Request())).GameId;
+        var gameId = (await create.Handle(new CreateGame.Request("Admin"))).GameId;
 
         await Assert.ThrowsAsync<PlayerNameEmptyException>(async () =>
             await join.Handle(new JoinGame.Request(gameId, " ")));
@@ -161,12 +165,10 @@ public class BreakingGameTests
     {
         var sp = BuildProvider();
         var create = sp.GetRequiredService<ICreateGameUseCase>();
-        var join = sp.GetRequiredService<IJoinGameUseCase>();
         var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
         var startGuessing = sp.GetRequiredService<IStartGuessingPhaseUseCase>();
         var guess = sp.GetRequiredService<IGuessUseCase>();
-        var gameId = (await create.Handle(new CreateGame.Request())).GameId;
-        await join.Handle(new JoinGame.Request(gameId, "Alice"));
+        var gameId = (await create.Handle(new CreateGame.Request("Admin"))).GameId;
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
         await startGuessing.Handle(new StartGuessingPhase.Request(gameId));
 

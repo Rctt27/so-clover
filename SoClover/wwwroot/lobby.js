@@ -17,6 +17,17 @@ const lobbyCancelBtn = document.getElementById('lobbyCancelBtn');
 const lobbyLeaveBtn = document.getElementById('lobbyLeaveBtn');
 const lobbyCopyBtn = document.getElementById('lobbyeCopyBtn');
 const lobbyStatusMessage = document.getElementById('lobbyStatusMessage');
+const gameSettingsSection = document.getElementById('gameSettingsSection');
+const languageSelector = document.getElementById('languageSelector');
+const cluesDurationInput = document.getElementById('cluesDuration');
+const guessDurationInput = document.getElementById('guessDuration');
+
+// Game settings
+let gameSettings = {
+    language: 'Français',
+    cluesDuration: 300,
+    guessDuration: 300
+};
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -30,6 +41,11 @@ function setupEventListeners() {
     lobbyCancelBtn.addEventListener('click', handleCancelGame);
     lobbyLeaveBtn.addEventListener('click', handleLeaveGame);
     lobbyCopyBtn.addEventListener('click', handleCopyGameId);
+
+    // Game settings listeners
+    languageSelector.addEventListener('change', handleSettingsChange);
+    cluesDurationInput.addEventListener('input', handleSettingsChange);
+    guessDurationInput.addEventListener('input', handleSettingsChange);
 }
 
 function loadLobbyState() {
@@ -66,11 +82,16 @@ function loadLobbyState() {
             startGameBtn.style.display = 'inline-flex';
             lobbyCancelBtn.style.display = 'inline-flex';
             lobbyLeaveBtn.style.display = 'none';
+            gameSettingsSection.style.display = 'block';
         } else {
             startGameBtn.style.display = 'none';
             lobbyCancelBtn.style.display = 'none';
             lobbyLeaveBtn.style.display = 'inline-flex';
+            gameSettingsSection.style.display = 'none';
         }
+
+        // Load game settings
+        loadGameSettings();
 
         // Fetch and display all players
         fetchAndUpdatePlayers();
@@ -308,4 +329,94 @@ function showLobbyStatusMessage(message, type = 'info') {
     setTimeout(() => {
         lobbyStatusMessage.style.display = 'none';
     }, 4000);
+}
+
+// Game Settings functions
+async function loadGameSettings() {
+    try {
+        // Check sessionStorage first for previously saved settings
+        const savedSettings = sessionStorage.getItem('gameSettings');
+        if (savedSettings) {
+            gameSettings = JSON.parse(savedSettings);
+            console.log('[Lobby] Game settings loaded from sessionStorage:', gameSettings);
+        } else {
+            // Fall back to game_settings.json
+            const response = await fetch('/game_settings.json');
+            if (response.ok) {
+                gameSettings = await response.json();
+                console.log('[Lobby] Game settings loaded from file:', gameSettings);
+            }
+        }
+
+        // Update UI with loaded settings
+        languageSelector.value = gameSettings.language;
+        cluesDurationInput.value = gameSettings.cluesDuration;
+        guessDurationInput.value = gameSettings.guessDuration;
+    } catch (error) {
+        console.error('Error loading game settings:', error);
+        // Keep default values if loading fails
+    }
+}
+
+async function handleSettingsChange() {
+    // Update gameSettings object with current values
+    gameSettings.language = languageSelector.value;
+    gameSettings.cluesDuration = parseInt(cluesDurationInput.value) || 300;
+    gameSettings.guessDuration = parseInt(guessDurationInput.value) || 300;
+
+    // Validate duration values
+    gameSettings.cluesDuration = Math.max(60, Math.min(600, gameSettings.cluesDuration));
+    gameSettings.guessDuration = Math.max(60, Math.min(600, gameSettings.guessDuration));
+
+    // Update inputs in case values were clamped
+    cluesDurationInput.value = gameSettings.cluesDuration;
+    guessDurationInput.value = gameSettings.guessDuration;
+
+    console.log('[Lobby] Game settings updated:', gameSettings);
+
+    // Save settings to sessionStorage for next game creation
+    saveGameSettings();
+
+    // Update language on backend immediately (durations not yet implemented)
+    await updateBackendLanguage();
+}
+
+function saveGameSettings() {
+    try {
+        // Save to sessionStorage so settings persist for next game creation
+        sessionStorage.setItem('gameSettings', JSON.stringify(gameSettings));
+        console.log('[Lobby] Settings saved to sessionStorage for next game');
+    } catch (error) {
+        console.error('Error saving game settings:', error);
+    }
+}
+
+async function updateBackendLanguage() {
+    if (!isCreator || !gameId || !playerId) {
+        console.log('[Lobby] Cannot update backend settings - not creator or missing IDs');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/games/${gameId}/settings`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                playerId: playerId,
+                language: gameSettings.language
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update game settings on backend');
+        }
+
+        const data = await response.json();
+        console.log('[Lobby] Backend language updated to:', data.language);
+    } catch (error) {
+        console.error('Error updating backend language:', error);
+        showLobbyStatusMessage('Failed to update language settings', 'error');
+    }
 }

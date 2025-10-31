@@ -3,7 +3,7 @@ namespace SoClover.Domain;
 public sealed class Game
 {
     public GameId Id { get; }
-    public string Language { get; }
+    public string Language { get; private set; }
     public GamePhase Phase { get; private set; } = GamePhase.Lobby;
     public PlayerId? AdminPlayerId { get; private set; }
     private readonly Dictionary<PlayerId, Player> _players = new();
@@ -56,6 +56,21 @@ public sealed class Game
             throw new InvalidOperationException("WordsPool already initialized.");
 
         _wordsPool = await WordsPool.CreateAsync(Id, Language, wordDictionary, ct);
+    }
+
+    public async Task UpdateLanguageAsync(string newLanguage, IWordDictionary wordDictionary, CancellationToken ct = default)
+    {
+        if (Phase != GamePhase.Lobby)
+            throw new InvalidOperationInPhaseException("Language can only be changed in the Lobby phase.");
+
+        if (string.IsNullOrWhiteSpace(newLanguage))
+            throw new ArgumentException("Language cannot be empty.", nameof(newLanguage));
+
+        Language = newLanguage.Trim();
+
+        // Reinitialize WordsPool with new language
+        _wordsPool = null;
+        await InitializeWordsPoolAsync(wordDictionary, ct);
     }
 
     public void StartWritingPhase()

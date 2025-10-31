@@ -46,6 +46,44 @@
                 </div>
             </section>
 
+            <!-- Game Settings Section (Admin Only) -->
+            <section class="card" id="gameSettingsSection" style="display: none;">
+                <h2>Game Settings</h2>
+                <div class="game-settings-grid">
+                    <div class="setting-item">
+                        <label for="languageSelector">Dictionary</label>
+                        <select id="languageSelector" class="setting-input">
+                            <option value="Français">Français</option>
+                            <option value="English">English</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label for="cluesDuration">Clues Duration (s)</label>
+                        <input
+                            type="number"
+                            id="cluesDuration"
+                            class="setting-input"
+                            min="60"
+                            max="600"
+                            value="300"
+                            placeholder="300"
+                        />
+                    </div>
+                    <div class="setting-item">
+                        <label for="guessDuration">Guess Duration (s)</label>
+                        <input
+                            type="number"
+                            id="guessDuration"
+                            class="setting-input"
+                            min="60"
+                            max="600"
+                            value="300"
+                            placeholder="300"
+                        />
+                    </div>
+                </div>
+            </section>
+
             <!-- Game Controls -->
             <section class="card">
                 <div class="game-controls">

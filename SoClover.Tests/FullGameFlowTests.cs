@@ -41,19 +41,25 @@ public class FullGameFlowTests
         var guess = sp.GetRequiredService<IGuessUseCase>();
         var repo = sp.GetRequiredService<IGameRepository>();
 
-        // Create game
-        var gameId = (await create.Handle(new CreateGame.Request())).GameId;
+        // Create game with admin player
+        var createResponse = await create.Handle(new CreateGame.Request("Admin"));
+        var gameId = createResponse.GameId;
+        var adminId = createResponse.CreatorPlayerId;
 
-        // Join 3 players
+        // Join 2 more players (admin is already in the game)
         var p1 = (await join.Handle(new JoinGame.Request(gameId, "Alice"))).PlayerId;
         var p2 = (await join.Handle(new JoinGame.Request(gameId, "Bob"))).PlayerId;
-        var p3 = (await join.Handle(new JoinGame.Request(gameId, "Cara"))).PlayerId;
 
         // Writing phase auto-populates boards with 4 cards per player (unique words)
         var phase = (await startWriting.Handle(new StartWritingPhase.Request(gameId))).Phase;
         Assert.Equal(GamePhase.WritingClues, phase);
 
         // Set clues (labels) for directions for each player
+        await setClue.Handle(new SetClue.Request(gameId, adminId, Direction.Top,    "Clue Admin1"));
+        await setClue.Handle(new SetClue.Request(gameId, adminId, Direction.Right,  "Clue Admin2"));
+        await setClue.Handle(new SetClue.Request(gameId, adminId, Direction.Bottom, "Clue Admin3"));
+        await setClue.Handle(new SetClue.Request(gameId, adminId, Direction.Left,   "Clue Admin4"));
+
         await setClue.Handle(new SetClue.Request(gameId, p1, Direction.Top,    "Clue A1"));
         await setClue.Handle(new SetClue.Request(gameId, p1, Direction.Right,  "Clue A2"));
         await setClue.Handle(new SetClue.Request(gameId, p1, Direction.Bottom, "Clue A3"));
@@ -63,11 +69,6 @@ public class FullGameFlowTests
         await setClue.Handle(new SetClue.Request(gameId, p2, Direction.Right,  "Clue B2"));
         await setClue.Handle(new SetClue.Request(gameId, p2, Direction.Bottom, "Clue B3"));
         await setClue.Handle(new SetClue.Request(gameId, p2, Direction.Left,   "Clue B4"));
-
-        await setClue.Handle(new SetClue.Request(gameId, p3, Direction.Top,    "Clue C1"));
-        await setClue.Handle(new SetClue.Request(gameId, p3, Direction.Right,  "Clue C2"));
-        await setClue.Handle(new SetClue.Request(gameId, p3, Direction.Bottom, "Clue C3"));
-        await setClue.Handle(new SetClue.Request(gameId, p3, Direction.Left,   "Clue C4"));
 
         // Guessing phase
         phase = (await startGuessing.Handle(new StartGuessingPhase.Request(gameId))).Phase;
