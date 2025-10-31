@@ -194,4 +194,65 @@ public class GenerateGameCard
         _testOutputHelper.WriteLine("  ✓ Words are within max length (≤ 32 characters)");
         _testOutputHelper.WriteLine("=== Test Passed ===\n");
     }
+
+    [Fact]
+    public async Task AllDictionariesShouldHaveUniqueWords()
+    {
+        // Arrange
+        _testOutputHelper.WriteLine("=== Test: AllDictionariesShouldHaveUniqueWords ===");
+        _testOutputHelper.WriteLine("Step 1: Scanning dictionaries directory...");
+
+        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot", "dictionaries");
+        var fullPath = Path.GetFullPath(dictionaryPath);
+        _testOutputHelper.WriteLine($"Dictionary path: {fullPath}");
+
+        if (!Directory.Exists(fullPath))
+        {
+            throw new DirectoryNotFoundException($"Dictionaries directory not found: {fullPath}");
+        }
+
+        var dictionaryFiles = Directory.GetFiles(fullPath, "*.txt");
+        _testOutputHelper.WriteLine($"Found {dictionaryFiles.Length} dictionary file(s)\n");
+
+        foreach (var file in dictionaryFiles)
+        {
+            var fileName = Path.GetFileNameWithoutExtension(file);
+            _testOutputHelper.WriteLine($"\n--- Checking dictionary: {fileName} ---");
+
+            // Act - Read all lines from the dictionary file
+            var lines = await File.ReadAllLinesAsync(file);
+            var words = lines
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .Select(line => line.Trim())
+                .ToList();
+
+            _testOutputHelper.WriteLine($"Total lines read: {words.Count}");
+
+            // Assert - Check for duplicates
+            var wordGroups = words
+                .GroupBy(w => w)
+                .Where(g => g.Count() > 1)
+                .Select(g => new { Word = g.Key, Count = g.Count() })
+                .ToList();
+
+            if (wordGroups.Any())
+            {
+                _testOutputHelper.WriteLine($"\n❌ DUPLICATES FOUND in {fileName}:");
+                foreach (var duplicate in wordGroups)
+                {
+                    _testOutputHelper.WriteLine($"  - '{duplicate.Word}' appears {duplicate.Count} times");
+                }
+                Assert.Fail($"Dictionary '{fileName}' contains {wordGroups.Count} duplicate word(s)");
+            }
+
+            var uniqueWords = words.Distinct().ToList();
+            _testOutputHelper.WriteLine($"Unique words: {uniqueWords.Count}");
+            _testOutputHelper.WriteLine($"✓ No duplicates found in '{fileName}'");
+
+            // Additional validation - ensure uniqueness count matches
+            Assert.Equal(words.Count, uniqueWords.Count);
+        }
+
+        _testOutputHelper.WriteLine("\n=== All dictionaries validated successfully ===");
+    }
 }
