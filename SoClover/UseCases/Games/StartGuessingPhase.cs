@@ -17,14 +17,12 @@ public static class StartGuessingPhase
     {
         private readonly IGameRepository _repo;
         private readonly IEventPublisher _events;
-        private readonly CardFactory _cardFactory;
         private readonly Random _random = new();
 
-        public Handler(IGameRepository repo, IEventPublisher events, CardFactory cardFactory)
+        public Handler(IGameRepository repo, IEventPublisher events)
         {
             _repo = repo;
             _events = events;
-            _cardFactory = cardFactory;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
@@ -45,12 +43,8 @@ public static class StartGuessingPhase
 
             var firstPlayer = players[_random.Next(players.Count)];
 
-            // Générer la 5ème carte aléatoire
-            var fifthCard = await _cardFactory.CreateRandomCardAsync(
-                CardId.Create(),
-                game.Language,
-                ct
-            );
+            // Générer la 5ème carte aléatoire depuis le WordsPool de la game
+            var fifthCard = game.CreateRandomCard();
 
             // Générer 5 rotations aléatoires (une pour chaque carte)
             var rotations = new Rotation[5];

@@ -2,16 +2,16 @@
 
 public sealed class CardFactory
 {
-    private readonly IWordDictionary _wordDictionary;
+    private readonly WordsPool _wordsPool;
 
-    public CardFactory(IWordDictionary wordDictionary)
+    public CardFactory(WordsPool wordsPool)
     {
-        _wordDictionary = wordDictionary;
+        _wordsPool = wordsPool;
     }
 
-    public async Task<Card> CreateRandomCardAsync(CardId id, string language, CancellationToken ct = default)
+    public Card CreateRandomCard(CardId id)
     {
-        var words = await _wordDictionary.GetRandomWordsAsync(language, 4, ct);
+        var words = _wordsPool.DrawWords(4);
 
         if (words.Count != 4)
             throw new InvalidOperationException($"Expected 4 words but got {words.Count}");

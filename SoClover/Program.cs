@@ -13,8 +13,7 @@ builder.Services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
 builder.Services.AddSingleton<IWordDictionary>(sp => 
     new FileWordDictionary(Path.Combine(builder.Environment.WebRootPath, "dictionaries")));
 
-// Domain services
-builder.Services.AddTransient<CardFactory>();
+// Domain services (CardFactory is now created internally by Game)
 
 // Use cases
 builder.Services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();

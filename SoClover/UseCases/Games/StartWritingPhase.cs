@@ -17,26 +17,24 @@ public static class StartWritingPhase
     {
         private readonly IGameRepository _repo;
         private readonly IEventPublisher _events;
-        private readonly CardFactory _cardFactory;
 
-        public Handler(IGameRepository repo, IEventPublisher events, CardFactory cardFactory)
+        public Handler(IGameRepository repo, IEventPublisher events)
         {
             _repo = repo;
             _events = events;
-            _cardFactory = cardFactory;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
         {
             var game = await _repo.Get(request.GameId, ct) ?? throw new GameNotFoundException(request.GameId);
 
-            // Populate each player's board with 4 cards using the game's language
+            // Populate each player's board with 4 cards using the game's WordsPool
             foreach (var player in game.Players)
             {
                 var cards = new List<Card>(4);
                 for (int i = 0; i < 4; i++)
                 {
-                    var card = await _cardFactory.CreateRandomCardAsync(CardId.New(), game.Language, ct);
+                    var card = game.CreateRandomCard();
                     cards.Add(card);
                 }
 

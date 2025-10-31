@@ -6,6 +6,7 @@ public sealed class Game
     public string Language { get; }
     public GamePhase Phase { get; private set; } = GamePhase.Lobby;
     private readonly Dictionary<PlayerId, Player> _players = new();
+    private WordsPool? _wordsPool;
 
     // Guessing phase state
     public PlayerId? CurrentGuessingBoardOwner { get; private set; }
@@ -42,13 +43,32 @@ public sealed class Game
         _players[player.Id] = player;
     }
 
+    public async Task InitializeWordsPoolAsync(IWordDictionary wordDictionary, CancellationToken ct = default)
+    {
+        if (_wordsPool != null)
+            throw new InvalidOperationException("WordsPool already initialized.");
+
+        _wordsPool = await WordsPool.CreateAsync(Id, Language, wordDictionary, ct);
+    }
+
     public void StartWritingPhase()
     {
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("Writing phase can only start from Lobby.");
         if (_players.Count == 0)
             throw new NotEnoughPlayersException(1, _players.Count);
+        if (_wordsPool == null)
+            throw new InvalidOperationException("WordsPool must be initialized before starting writing phase.");
         Phase = GamePhase.WritingClues;
+    }
+
+    public Card CreateRandomCard()
+    {
+        if (_wordsPool == null)
+            throw new InvalidOperationException("WordsPool not initialized.");
+
+        var cardFactory = new CardFactory(_wordsPool);
+        return cardFactory.CreateRandomCard(CardId.New());
     }
 
     public void SetClue(PlayerId playerId, Direction direction, string clueText)

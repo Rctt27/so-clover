@@ -18,14 +18,12 @@ public static class MoveToNextBoard
     {
         private readonly IGameRepository _repo;
         private readonly IEventPublisher _events;
-        private readonly CardFactory _cardFactory;
         private readonly Random _random = new();
 
-        public Handler(IGameRepository repo, IEventPublisher events, CardFactory cardFactory)
+        public Handler(IGameRepository repo, IEventPublisher events)
         {
             _repo = repo;
             _events = events;
-            _cardFactory = cardFactory;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
@@ -39,12 +37,8 @@ public static class MoveToNextBoard
             if (game.RemainingAttempts > 0 && game.CorrectlyPlacedPositions.Count < 4)
                 throw new InvalidOperationException("Cannot move to next board while attempts remain and board is not complete.");
 
-            // Générer la 5ème carte aléatoire pour le prochain board
-            var fifthCard = await _cardFactory.CreateRandomCardAsync(
-                CardId.Create(),
-                game.Language,
-                ct
-            );
+            // Générer la 5ème carte aléatoire depuis le WordsPool de la game
+            var fifthCard = game.CreateRandomCard();
 
             // Générer 5 rotations aléatoires
             var rotations = new Rotation[5];

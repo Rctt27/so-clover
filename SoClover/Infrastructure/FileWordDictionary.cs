@@ -38,6 +38,12 @@ public sealed class FileWordDictionary : IWordDictionary
         return result;
     }
 
+    public async Task<IReadOnlyList<string>> GetAllWordsAsync(string language, CancellationToken ct = default)
+    {
+        var words = await GetOrLoadDictionaryAsync(language, ct);
+        return words;
+    }
+
     private async Task<List<string>> GetOrLoadDictionaryAsync(string language, CancellationToken ct)
     {
         if (_cachedDictionaries.TryGetValue(language, out var cached))

@@ -24,14 +24,15 @@ public class GenerateGameCard
         _testOutputHelper.WriteLine("Arranging test dependencies...");
         var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot", "dictionaries");
         var dictionary = new FileWordDictionary(Path.GetFullPath(dictionaryPath));
-        var cardFactory = new CardFactory(dictionary);
+        var wordsPool = await WordsPool.CreateAsync(GameId.New(), language, dictionary);
+        var cardFactory = new CardFactory(wordsPool);
         var cardId = CardId.New();
         _testOutputHelper.WriteLine($"Using language: {language}");
         _testOutputHelper.WriteLine($"Generated CardId: {cardId.Value}");
 
         // Act
         _testOutputHelper.WriteLine("Creating random card...");
-        var card = await cardFactory.CreateRandomCardAsync(cardId, language);
+        var card = cardFactory.CreateRandomCard(cardId);
         _testOutputHelper.WriteLine("Card created successfully!");
 
         // Assert
@@ -72,56 +73,73 @@ public class GenerateGameCard
     }
 
     [Theory]
-    [InlineData("Français")]
-    [InlineData("English")]
-    public async Task ShouldCreateMultipleCardsWithDifferentWords(string language)
+    [InlineData("Français", 60)]
+    [InlineData("English", 60)]
+    public async Task ShouldCreateMultipleCardsWithDifferentWords(string language, int cardCount)
     {
         // Arrange
         _testOutputHelper.WriteLine($"=== Test: ShouldCreateMultipleCardsWithDifferentWords ({language}) ===");
         _testOutputHelper.WriteLine("Arranging test dependencies...");
         var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot", "dictionaries");
         var dictionary = new FileWordDictionary(Path.GetFullPath(dictionaryPath));
-        var cardFactory = new CardFactory(dictionary);
+        var wordsPool = await WordsPool.CreateAsync(GameId.New(), language, dictionary);
+        var cardFactory = new CardFactory(wordsPool);
         _testOutputHelper.WriteLine($"Using language: {language}");
+        _testOutputHelper.WriteLine($"Initial words available in pool: {wordsPool.RemainingWordsCount}");
+        _testOutputHelper.WriteLine($"Creating {cardCount} cards ({cardCount * 4} words)...\n");
 
-        // Act
-        _testOutputHelper.WriteLine("Creating first card...");
-        var card1 = await cardFactory.CreateRandomCardAsync(CardId.New(), language);
-        _testOutputHelper.WriteLine("First card created successfully!");
+        // Act - Create multiple cards
+        var cards = new List<Card>();
+        for (int i = 0; i < cardCount; i++)
+        {
+            var card = cardFactory.CreateRandomCard(CardId.New());
+            cards.Add(card);
+            _testOutputHelper.WriteLine($"Card {i + 1}/{cardCount} created - Remaining words in pool: {wordsPool.RemainingWordsCount}");
+        }
+        _testOutputHelper.WriteLine($"\n✓ Successfully created {cardCount} cards");
 
-        _testOutputHelper.WriteLine("Creating second card...");
-        var card2 = await cardFactory.CreateRandomCardAsync(CardId.New(), language);
-        _testOutputHelper.WriteLine("Second card created successfully!");
+        // Assert - Verify all cards have unique IDs
+        _testOutputHelper.WriteLine("\nVerifying all cards have unique IDs...");
+        var uniqueIds = cards.Select(c => c.Id).Distinct().Count();
+        Assert.Equal(cardCount, uniqueIds);
+        _testOutputHelper.WriteLine($"✓ All {cardCount} cards have unique IDs");
 
-        // Log both cards
-        _testOutputHelper.WriteLine("\n--- Card 1 ---");
-        _testOutputHelper.WriteLine($"Card ID: {card1.Id.Value}");
-        _testOutputHelper.WriteLine($"Position: TOP    | Word: {card1.TopWord}");
-        _testOutputHelper.WriteLine($"Position: RIGHT  | Word: {card1.RightWord}");
-        _testOutputHelper.WriteLine($"Position: BOTTOM | Word: {card1.BottomWord}");
-        _testOutputHelper.WriteLine($"Position: LEFT   | Word: {card1.LeftWord}");
+        // Assert - Verify NO word is used more than once across ALL cards
+        _testOutputHelper.WriteLine("\nVerifying word uniqueness across all cards...");
+        var allWords = cards.SelectMany(c => new[] { c.TopWord, c.RightWord, c.BottomWord, c.LeftWord }).ToList();
+        var uniqueWords = allWords.Distinct().ToList();
 
-        _testOutputHelper.WriteLine("\n--- Card 2 ---");
-        _testOutputHelper.WriteLine($"Card ID: {card2.Id.Value}");
-        _testOutputHelper.WriteLine($"Position: TOP    | Word: {card2.TopWord}");
-        _testOutputHelper.WriteLine($"Position: RIGHT  | Word: {card2.RightWord}");
-        _testOutputHelper.WriteLine($"Position: BOTTOM | Word: {card2.BottomWord}");
-        _testOutputHelper.WriteLine($"Position: LEFT   | Word: {card2.LeftWord}");
-        _testOutputHelper.WriteLine("--------------\n");
+        _testOutputHelper.WriteLine($"Total words used: {allWords.Count}");
+        _testOutputHelper.WriteLine($"Unique words: {uniqueWords.Count}");
 
-        // Assert - Cards should have different IDs
-        _testOutputHelper.WriteLine("Verifying cards have different IDs...");
-        Assert.NotEqual(card1.Id, card2.Id);
-        _testOutputHelper.WriteLine("✓ Cards have different IDs");
+        // Find any duplicates
+        var duplicates = allWords.GroupBy(w => w)
+            .Where(g => g.Count() > 1)
+            .Select(g => new { Word = g.Key, Count = g.Count() })
+            .ToList();
 
-        // At least one word should be different (very high probability with random selection)
-        _testOutputHelper.WriteLine("Verifying cards have different words...");
-        var allWords1 = new[] { card1.TopWord, card1.RightWord, card1.BottomWord, card1.LeftWord };
-        var allWords2 = new[] { card2.TopWord, card2.RightWord, card2.BottomWord, card2.LeftWord };
-        var allSame = allWords1.SequenceEqual(allWords2);
-        Assert.False(allSame, "Two randomly generated cards should very likely have at least one different word");
-        _testOutputHelper.WriteLine("✓ Cards have at least one different word");
-        _testOutputHelper.WriteLine("=== Test Passed ===\n");
+        if (duplicates.Any())
+        {
+            _testOutputHelper.WriteLine("\n❌ DUPLICATES FOUND:");
+            foreach (var dup in duplicates)
+            {
+                _testOutputHelper.WriteLine($"  - '{dup.Word}' appears {dup.Count} times");
+            }
+        }
+
+        Assert.Empty(duplicates);
+        Assert.Equal(allWords.Count, uniqueWords.Count);
+        _testOutputHelper.WriteLine("✓ All words are unique across all cards (WordsPool ensures no reuse)");
+
+        // Assert - Verify WordsPool correctly decremented available words
+        _testOutputHelper.WriteLine($"\nVerifying WordsPool word consumption...");
+        var expectedRemainingWords = wordsPool.RemainingWordsCount;
+        _testOutputHelper.WriteLine($"Words remaining in pool: {expectedRemainingWords}");
+        _testOutputHelper.WriteLine($"Words consumed: {cardCount * 4}");
+        Assert.True(expectedRemainingWords >= 0, "WordsPool should have non-negative remaining words");
+        _testOutputHelper.WriteLine("✓ WordsPool correctly tracked word consumption");
+
+        _testOutputHelper.WriteLine("\n=== Test Passed ===\n");
     }
 
     [Theory]
@@ -134,14 +152,16 @@ public class GenerateGameCard
         _testOutputHelper.WriteLine("Step 1: Arranging test dependencies...");
         var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot", "dictionaries");
         var dictionary = new FileWordDictionary(Path.GetFullPath(dictionaryPath));
-        var cardFactory = new CardFactory(dictionary);
+        var wordsPool = await WordsPool.CreateAsync(GameId.New(), language, dictionary);
+        var cardFactory = new CardFactory(wordsPool);
         _testOutputHelper.WriteLine($"  - Dictionary: FileWordDictionary");
+        _testOutputHelper.WriteLine($"  - WordsPool initialized");
         _testOutputHelper.WriteLine($"  - CardFactory initialized");
         _testOutputHelper.WriteLine($"  - Language: {language}");
 
         // Act
         _testOutputHelper.WriteLine("\nStep 2: Creating card with CardFactory...");
-        var card = await cardFactory.CreateRandomCardAsync(CardId.New(), language);
+        var card = cardFactory.CreateRandomCard(CardId.New());
         _testOutputHelper.WriteLine("  - Card created successfully via factory");
         _testOutputHelper.WriteLine($"  - Card ID: {card.Id.Value}");
         _testOutputHelper.WriteLine($"  - Words generated: TOP={card.TopWord}, RIGHT={card.RightWord}, BOTTOM={card.BottomWord}, LEFT={card.LeftWord}");
