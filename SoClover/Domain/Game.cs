@@ -6,6 +6,12 @@ public sealed class Game
     public string Language { get; private set; }
     public GamePhase Phase { get; private set; } = GamePhase.Lobby;
     public PlayerId? AdminPlayerId { get; private set; }
+    public DateTime? PhaseEndsAtUtc { get; private set; }
+
+    // Per-game overrides (seconds). When null, defaults from configuration are used.
+    public int? CluesDurationSecondsOverride { get; private set; }
+    public int? GuessDurationSecondsOverride { get; private set; }
+
     private readonly Dictionary<PlayerId, Player> _players = new();
     private WordsPool? _wordsPool;
 
@@ -66,14 +72,49 @@ public sealed class Game
         if (string.IsNullOrWhiteSpace(newLanguage))
             throw new ArgumentException("Language cannot be empty.", nameof(newLanguage));
 
-        Language = newLanguage.Trim();
-
-        // Reinitialize WordsPool with new language
-        _wordsPool = null;
-        await InitializeWordsPoolAsync(wordDictionary, ct);
+        var trimmed = newLanguage.Trim();
+        if (!string.Equals(Language, trimmed, StringComparison.Ordinal))
+        {
+            Language = trimmed;
+            // Reinitialize WordsPool with new language
+            _wordsPool = null;
+            await InitializeWordsPoolAsync(wordDictionary, ct);
+        }
     }
 
-    public void StartWritingPhase()
+    public void UpdateDurationOverrides(int? cluesDurationSeconds, int? guessDurationSeconds)
+    {
+        if (Phase != GamePhase.Lobby)
+            throw new InvalidOperationInPhaseException("Durations can only be changed in the Lobby phase.");
+
+        // Validate and clamp within 1..1800 if provided
+        if (cluesDurationSeconds.HasValue)
+        {
+            var v = Math.Clamp(cluesDurationSeconds.Value, 1, 1800);
+            CluesDurationSecondsOverride = v;
+        }
+        if (guessDurationSeconds.HasValue)
+        {
+            var v = Math.Clamp(guessDurationSeconds.Value, 1, 1800);
+            GuessDurationSecondsOverride = v;
+        }
+    }
+
+    public void SetLobbyDeadline(DateTime nowUtc, TimeSpan duration)
+    {
+        if (Phase != GamePhase.Lobby)
+            throw new InvalidOperationInPhaseException("Lobby deadline can only be set during Lobby phase.");
+        PhaseEndsAtUtc = nowUtc + duration;
+    }
+
+    public void SetScoringDeadline(DateTime nowUtc, TimeSpan duration)
+    {
+        if (Phase != GamePhase.Scoring)
+            throw new InvalidOperationInPhaseException("Scoring deadline can only be set during Scoring phase.");
+        PhaseEndsAtUtc = nowUtc + duration;
+    }
+
+    public void StartWritingPhase(DateTime nowUtc, TimeSpan duration)
     {
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("Writing phase can only start from Lobby.");
@@ -82,6 +123,7 @@ public sealed class Game
         if (_wordsPool == null)
             throw new InvalidOperationException("WordsPool must be initialized before starting writing phase.");
         Phase = GamePhase.WritingClues;
+        PhaseEndsAtUtc = nowUtc + duration;
     }
 
     public Card CreateRandomCard()
@@ -101,7 +143,7 @@ public sealed class Game
         player.Board.SetClue(direction, ClueText.Create(clueText));
     }
 
-    public void StartGuessingPhase(PlayerId firstBoardOwner, Card fifthCard, Rotation[] cardRotations)
+    public void StartGuessingPhase(PlayerId firstBoardOwner, Card fifthCard, Rotation[] cardRotations, DateTime nowUtc, TimeSpan perBoardDuration)
     {
         if (Phase != GamePhase.WritingClues)
             throw new InvalidOperationInPhaseException("Guessing phase can only start after WritingClues.");
@@ -133,10 +175,11 @@ public sealed class Game
         CompletedBoardsCount = 0;
 
         // Initialize scoring tracking
-        _currentBoardStartTime = DateTime.UtcNow;
+        _currentBoardStartTime = nowUtc;
         _currentBoardAttempts = 0;
 
         Phase = GamePhase.Guessing;
+        PhaseEndsAtUtc = nowUtc + perBoardDuration;
     }
 
     public void PlaceCardOnGuessingBoard(int outsideCardIndex, BoardPosition position)
@@ -310,7 +353,7 @@ public sealed class Game
         );
     }
 
-    public void MoveToNextGuessingBoard(Card fifthCard, Rotation[] cardRotations)
+    public void MoveToNextGuessingBoard(Card fifthCard, Rotation[] cardRotations, DateTime nowUtc, TimeSpan perBoardDuration)
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only move to next board during Guessing phase.");
@@ -329,6 +372,7 @@ public sealed class Game
             // Tous les boards ont été complétés, fin de la phase de guessing
             Phase = GamePhase.Scoring;
             CurrentGuessingBoardOwner = null;
+            PhaseEndsAtUtc = null;
         }
         else
         {
@@ -362,8 +406,9 @@ public sealed class Game
             CorrectlyPlacedPositions = new HashSet<BoardPosition>();
 
             // Réinitialiser le tracking pour le nouveau board
-            _currentBoardStartTime = DateTime.UtcNow;
+            _currentBoardStartTime = nowUtc;
             _currentBoardAttempts = 0;
+            PhaseEndsAtUtc = nowUtc + perBoardDuration;
         }
     }
 

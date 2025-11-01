@@ -61,6 +61,7 @@ const cardWords = {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    try { if (typeof initPhaseTimer === 'function') initPhaseTimer(); } catch {}
     loadBoardState();
     fetchAndDisplayBoard();
     setupRotationControls();
@@ -106,6 +107,9 @@ async function fetchAndDisplayBoard() {
 
         const gameState = await response.json();
         console.log('🎮 Game State:', gameState);
+
+        // Update phase countdown timer from server
+        try { if (typeof setPhaseDeadline === 'function') setPhaseDeadline(gameState.phaseEndsAtUtc || null); } catch {}
 
         // Check if phase has changed to Guessing
         if (gameState.phase === 'Guessing') {

@@ -17,12 +17,16 @@ public static class StartGuessingPhase
     {
         private readonly IGameRepository _repo;
         private readonly IEventPublisher _events;
+        private readonly IClock _clock;
+        private readonly IGameSettingsProvider _settings;
         private readonly Random _random = new();
 
-        public Handler(IGameRepository repo, IEventPublisher events)
+        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings)
         {
             _repo = repo;
             _events = events;
+            _clock = clock;
+            _settings = settings;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
@@ -53,7 +57,12 @@ public static class StartGuessingPhase
                 rotations[i] = (Rotation)_random.Next(4);
             }
 
-            game.StartGuessingPhase(firstPlayer.Id, fifthCard, rotations);
+            var now = _clock.UtcNow;
+            var cfg = await _settings.GetAsync(ct);
+            var seconds = game.GuessDurationSecondsOverride ?? cfg.GuessDurationSeconds;
+            seconds = Math.Clamp(seconds, 1, 1800);
+            var perBoard = TimeSpan.FromSeconds(seconds);
+            game.StartGuessingPhase(firstPlayer.Id, fifthCard, rotations, now, perBoard);
             await _repo.Save(game, ct);
             await _events.Publish(new GuessingPhaseStarted(game.Id, firstPlayer.Id), ct);
             return new Response(game.Phase, firstPlayer.Id);

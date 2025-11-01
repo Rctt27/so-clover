@@ -30,6 +30,7 @@ let gameSettings = {
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[Lobby] DOMContentLoaded - Initializing...');
+    try { if (typeof initPhaseTimer === 'function') initPhaseTimer(); } catch {}
     setupEventListeners();
     loadLobbyState(); // This will call startPollingGameState() after gameId is loaded
 });
@@ -122,6 +123,8 @@ async function fetchAndUpdatePlayers() {
 
         const gameState = await response.json();
         console.log('[Lobby] Game state received:', gameState);
+        // Hide countdown in Lobby (management-only); do not show timer to players here
+        try { if (typeof setPhaseDeadline === 'function') setPhaseDeadline(null); } catch {}
         console.log('[Lobby] Current phase:', gameState.phase);
         console.log('[Lobby] Number of players:', gameState.players?.length);
         
@@ -375,8 +378,8 @@ async function handleSettingsChange() {
     // Save settings to sessionStorage for next game creation
     saveGameSettings();
 
-    // Update language on backend immediately (durations not yet implemented)
-    await updateBackendLanguage();
+    // Update backend settings immediately so overrides are persisted for this game
+    await updateBackendSettings();
 }
 
 function saveGameSettings() {
@@ -389,7 +392,7 @@ function saveGameSettings() {
     }
 }
 
-async function updateBackendLanguage() {
+async function updateBackendSettings() {
     if (!isCreator || !gameId || !playerId) {
         console.log('[Lobby] Cannot update backend settings - not creator or missing IDs');
         return;
@@ -403,18 +406,30 @@ async function updateBackendLanguage() {
             },
             body: JSON.stringify({
                 playerId: playerId,
-                language: gameSettings.language
+                language: gameSettings.language,
+                cluesDuration: gameSettings.cluesDuration,
+                guessDuration: gameSettings.guessDuration
             })
         });
 
         if (!response.ok) {
-            throw new Error('Failed to update game settings on backend');
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.message || 'Failed to update game settings on backend');
         }
 
         const data = await response.json();
-        console.log('[Lobby] Backend language updated to:', data.language);
+        console.log('[Lobby] Backend settings updated:', data);
+        // Optionally reflect server-clamped values back into the UI
+        if (typeof data.cluesDuration === 'number') {
+            gameSettings.cluesDuration = data.cluesDuration;
+            cluesDurationInput.value = data.cluesDuration;
+        }
+        if (typeof data.guessDuration === 'number') {
+            gameSettings.guessDuration = data.guessDuration;
+            guessDurationInput.value = data.guessDuration;
+        }
     } catch (error) {
-        console.error('Error updating backend language:', error);
-        showLobbyStatusMessage('Failed to update language settings', 'error');
+        console.error('Error updating backend settings:', error);
+        showLobbyStatusMessage('Failed to update game settings', 'error');
     }
 }

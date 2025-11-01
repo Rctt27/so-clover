@@ -13,6 +13,13 @@ builder.Services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
 builder.Services.AddSingleton<IWordDictionary>(sp => 
     new FileWordDictionary(Path.Combine(builder.Environment.WebRootPath, "dictionaries")));
 
+// Time and settings providers
+builder.Services.AddSingleton<IClock, SystemClock>();
+builder.Services.AddSingleton<IGameSettingsProvider, FileGameSettingsProvider>();
+
+// Background process manager
+builder.Services.AddHostedService<GameProcessManager>(); // manages deadlines for lobby, writing, guessing, scoring
+
 // Domain services (CardFactory is now created internally by Game)
 
 // Use cases
@@ -110,15 +117,17 @@ app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSe
             new UpdateGameSettings.Request(
                 new GameId(gameId),
                 new PlayerId(Guid.Parse(request.PlayerId)),
-                request.Language),
+                request.Language,
+                request.CluesDuration,
+                request.GuessDuration),
             ct);
-        return Results.Ok(new { language = response.Language });
+        return Results.Ok(new { language = response.Language, cluesDuration = response.CluesDurationSeconds, guessDuration = response.GuessDurationSeconds });
     }
     catch (GameNotFoundException)
     {
         return Results.NotFound(new { message = "Game not found" });
     }
-    catch (UnauthorizedAccessException ex)
+    catch (UnauthorizedAccessException)
     {
         return Results.Forbid();
     }
@@ -138,6 +147,7 @@ app.MapGet("/api/games/{gameId:guid}/state", async (Guid gameId, string? playerI
         {
             gameId = response.GameId.Value,
             phase = response.Phase.ToString(),
+            phaseEndsAtUtc = response.PhaseEndsAtUtc,
             adminPlayerId = response.AdminPlayerId?.Value.ToString(),
             guessingState = response.GuessingState == null ? null : new
             {
@@ -571,7 +581,7 @@ app.Run();
 // Request DTOs for API
 record CreateGameRequest(string PlayerName, string? Language = null);
 record JoinGameRequest(string PlayerName);
-record UpdateGameSettingsRequest(string PlayerId, string Language);
+record UpdateGameSettingsRequest(string PlayerId, string Language, int? CluesDuration, int? GuessDuration);
 record SetClueRequest(string PlayerId, string Direction, string ClueText);
 record SubmitBoardRequest(string PlayerId);
 record PlaceGuessingCardRequest(string PlayerId, int OutsideCardIndex, string Position);

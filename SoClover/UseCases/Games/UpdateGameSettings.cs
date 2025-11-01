@@ -8,8 +8,19 @@ public interface IUpdateGameSettingsUseCase : IUseCase<UpdateGameSettings.Reques
 
 public static class UpdateGameSettings
 {
-    public readonly record struct Request(GameId GameId, PlayerId PlayerId, string Language);
-    public readonly record struct Response(string Language);
+    public readonly record struct Request(
+        GameId GameId,
+        PlayerId PlayerId,
+        string Language,
+        int? CluesDurationSeconds,
+        int? GuessDurationSeconds
+    );
+
+    public readonly record struct Response(
+        string Language,
+        int? CluesDurationSeconds,
+        int? GuessDurationSeconds
+    );
 
     public sealed class Handler : IUpdateGameSettingsUseCase
     {
@@ -33,9 +44,15 @@ public static class UpdateGameSettings
             }
 
             await game.UpdateLanguageAsync(request.Language, _wordDictionary, ct);
+            game.UpdateDurationOverrides(request.CluesDurationSeconds, request.GuessDurationSeconds);
+
             await _repo.Save(game, ct);
 
-            return new Response(game.Language);
+            return new Response(
+                game.Language,
+                game.CluesDurationSecondsOverride,
+                game.GuessDurationSecondsOverride
+            );
         }
     }
 }

@@ -17,6 +17,7 @@ const endGameButton = document.getElementById('endGameButton');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    try { if (typeof disposePhaseTimer === 'function') disposePhaseTimer(); } catch {}
     loadScoringState();
     fetchAdminInfo();
     fetchAndDisplayScoring();

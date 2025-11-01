@@ -33,6 +33,7 @@ const clueDisplays = {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    try { if (typeof initPhaseTimer === 'function') initPhaseTimer(); } catch {}
     loadGuessingState();
     fetchAndDisplayGuessingPhase();
     setupRotationControls();
@@ -77,6 +78,8 @@ async function fetchAndDisplayGuessingPhase() {
 
         const gameState = await response.json();
         console.log('🎮 Game State:', gameState);
+        // Update phase countdown timer from server
+        try { if (typeof setPhaseDeadline === 'function') setPhaseDeadline(gameState.phaseEndsAtUtc || null); } catch {}
 
         // Check if game has moved to Scoring phase
         if (gameState.phase === 'Scoring') {

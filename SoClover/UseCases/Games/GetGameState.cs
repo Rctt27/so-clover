@@ -14,6 +14,7 @@ public static class GetGameState
         GameId GameId,
         GamePhase Phase,
         PlayerId? AdminPlayerId,
+        DateTime? PhaseEndsAtUtc,
         IReadOnlyList<PlayerState> Players,
         GuessingPhaseState? GuessingState
     );
@@ -141,7 +142,7 @@ public static class GetGameState
                 );
             }
 
-            return new Response(game.Id, game.Phase, game.AdminPlayerId, players, guessingState);
+            return new Response(game.Id, game.Phase, game.AdminPlayerId, game.PhaseEndsAtUtc, players, guessingState);
         }
 
         private static DirectionState BuildDirectionState(Player player, Direction direction, bool includeSecrets)

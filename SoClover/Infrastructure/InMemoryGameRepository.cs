@@ -25,4 +25,10 @@ public sealed class InMemoryGameRepository : IGameRepository
         _store.TryRemove(id, out _);
         return Task.CompletedTask;
     }
+
+    public Task<IReadOnlyList<Game>> GetAll(CancellationToken ct = default)
+    {
+        IReadOnlyList<Game> list = _store.Values.ToList();
+        return Task.FromResult(list);
+    }
 }

@@ -15,11 +15,15 @@ public static class StartWritingPhase
     {
         private readonly IGameRepository _repo;
         private readonly IEventPublisher _events;
+        private readonly IClock _clock;
+        private readonly IGameSettingsProvider _settings;
 
-        public Handler(IGameRepository repo, IEventPublisher events)
+        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings)
         {
             _repo = repo;
             _events = events;
+            _clock = clock;
+            _settings = settings;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
@@ -42,7 +46,12 @@ public static class StartWritingPhase
                 player.Board.Place(BoardPosition.BottomLeft,  new OrientedCard(cards[3]));
             }
 
-            game.StartWritingPhase();
+            var now = _clock.UtcNow;
+            var settings = await _settings.GetAsync(ct);
+            var seconds = game.CluesDurationSecondsOverride ?? settings.CluesDurationSeconds;
+            seconds = Math.Clamp(seconds, 1, 1800);
+            var duration = TimeSpan.FromSeconds(seconds);
+            game.StartWritingPhase(now, duration);
             await _repo.Save(game, ct);
             await _events.Publish(new WritingPhaseStarted(game.Id), ct);
             return new Response(game.Phase);
