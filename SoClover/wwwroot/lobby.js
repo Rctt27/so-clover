@@ -349,13 +349,55 @@ async function loadGameSettings() {
             }
         }
 
-        // Update UI with loaded settings
-        languageSelector.value = gameSettings.language;
+        // 1) Fetch dictionaries and populate the selector
+        await populateLanguageOptions();
+
+        // 2) Update UI with loaded settings
+        if (gameSettings.language) {
+            // If the desired language is part of the list, select it; otherwise keep the first option
+            const exists = Array.from(languageSelector.options).some(opt => opt.value === gameSettings.language);
+            if (exists) languageSelector.value = gameSettings.language;
+        }
         cluesDurationInput.value = gameSettings.cluesDuration;
         guessDurationInput.value = gameSettings.guessDuration;
     } catch (error) {
         console.error('Error loading game settings:', error);
         // Keep default values if loading fails
+    }
+}
+
+async function populateLanguageOptions() {
+    try {
+        const resp = await fetch('/api/dictionaries');
+        if (!resp.ok) throw new Error('Failed to load dictionaries');
+        const items = await resp.json(); // [{ key, name }]
+
+        // Clear existing options
+        languageSelector.innerHTML = '';
+
+        if (Array.isArray(items) && items.length > 0) {
+            items.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.key || item.name;
+                opt.textContent = item.name || item.key;
+                languageSelector.appendChild(opt);
+            });
+        } else {
+            // Fallback: ensure at least one option exists from current settings
+            const opt = document.createElement('option');
+            opt.value = gameSettings.language || 'Français';
+            opt.textContent = gameSettings.language || 'Français';
+            languageSelector.appendChild(opt);
+        }
+    } catch (e) {
+        console.warn('[Lobby] Could not load dictionaries from backend:', e);
+        // Leave whatever is in the selector; if empty, add the current setting as fallback
+        if (!languageSelector.options.length) {
+            const opt = document.createElement('option');
+            opt.value = gameSettings.language || 'Français';
+            opt.textContent = gameSettings.language || 'Français';
+            languageSelector.appendChild(opt);
+        }
     }
 }
 

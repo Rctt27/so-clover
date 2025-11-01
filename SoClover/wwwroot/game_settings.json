@@ -1,7 +1,7 @@
 {
   "language": "Français",
-  "lobbyDuration": 30,
+  "lobbyDuration": 900,
   "cluesDuration": 300,
   "guessDuration": 300,
-  "scoringDuration": 30
+  "scoringDuration": 300
 }

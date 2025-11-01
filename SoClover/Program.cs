@@ -574,6 +574,32 @@ app.MapPost("/api/games/{gameId:guid}/complete", async (Guid gameId, CompleteGam
 })
 .WithName("CompleteGame");
 
+// List available dictionaries from wwwroot/dictionaries (*.txt)
+app.MapGet("/api/dictionaries", (IWebHostEnvironment env) =>
+{
+    try
+    {
+        var dir = Path.Combine(env.WebRootPath, "dictionaries");
+        if (!Directory.Exists(dir))
+        {
+            return Results.Ok(Array.Empty<object>());
+        }
+
+        var items = Directory.EnumerateFiles(dir, "*.txt")
+            .Select(f => Path.GetFileNameWithoutExtension(f))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .Select(name => new { key = name, name = name })
+            .ToList();
+
+        return Results.Ok(items);
+    }
+    catch
+    {
+        return Results.Ok(Array.Empty<object>());
+    }
+});
+
 app.MapFallbackToFile("index.html");
 
 app.Run();
