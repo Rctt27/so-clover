@@ -1,4 +1,5 @@
-﻿using SoClover.Domain;
+﻿using Microsoft.EntityFrameworkCore;
+using SoClover.Domain;
 using SoClover.Infrastructure;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Boards;
@@ -8,7 +9,19 @@ using SoClover.UseCases.Games;
 var builder = WebApplication.CreateBuilder(args);
 
 // Infrastructure
+// Configure PostgreSQL DbContext (prod-ready)
+var connectionString = builder.Configuration.GetConnectionString("GameDb") ?? Environment.GetEnvironmentVariable("DATABASE_URL") ?? "Host=localhost;Database=soclover;Username=postgres;Password=postgres";
+builder.Services.AddDbContext<SoClover.Infrastructure.Persistence.GameDbContext>(options =>
+{
+    options.UseNpgsql(connectionString);
+});
+
+#if DEBUG
 builder.Services.AddSingleton<IGameRepository, InMemoryGameRepository>();
+#else
+builder.Services.AddScoped<IGameRepository, SoClover.Infrastructure.Persistence.EfGameRepository>();
+#endif
+
 builder.Services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
 builder.Services.AddSingleton<IWordDictionary>(sp => 
     new FileWordDictionary(Path.Combine(builder.Environment.WebRootPath, "dictionaries")));
@@ -19,6 +32,7 @@ builder.Services.AddSingleton<IGameSettingsProvider, FileGameSettingsProvider>()
 
 // Background process manager
 builder.Services.AddHostedService<GameProcessManager>(); // manages deadlines for lobby, writing, guessing, scoring
+builder.Services.AddHostedService<CleanupHostedService>(); // periodic cleanup of completed games
 
 // Domain services (CardFactory is now created internally by Game)
 
