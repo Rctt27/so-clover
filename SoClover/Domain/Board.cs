@@ -1,19 +1,46 @@
+using System.Text.Json.Serialization;
+
 namespace SoClover.Domain;
 
 public sealed class CloverBoard
 {
     // A 2x2 clover board with four corner positions
+    [JsonInclude]
+    [JsonPropertyName("topLeft")]
     public OrientedCard? TopLeft { get; private set; }
+
+    [JsonInclude]
+    [JsonPropertyName("topRight")]
     public OrientedCard? TopRight { get; private set; }
+
+    [JsonInclude]
+    [JsonPropertyName("bottomRight")]
     public OrientedCard? BottomRight { get; private set; }
+
+    [JsonInclude]
+    [JsonPropertyName("bottomLeft")]
     public OrientedCard? BottomLeft { get; private set; }
 
+    [JsonInclude]
+    [JsonPropertyName("topClue")]
     public ClueText? TopClue { get; private set; }
+
+    [JsonInclude]
+    [JsonPropertyName("rightClue")]
     public ClueText? RightClue { get; private set; }
+
+    [JsonInclude]
+    [JsonPropertyName("bottomClue")]
     public ClueText? BottomClue { get; private set; }
+
+    [JsonInclude]
+    [JsonPropertyName("leftClue")]
     public ClueText? LeftClue { get; private set; }
 
-    private readonly HashSet<Direction> _guessedDirections = new();
+    // Track guessed edges and persist across EF JSON round-trips
+    [JsonInclude]
+    [JsonPropertyName("guessedDirections")]
+    public HashSet<Direction> GuessedDirections { get; private set; } = new();
 
     public void Place(BoardPosition position, OrientedCard orientedCard)
     {
@@ -82,10 +109,10 @@ public sealed class CloverBoard
 
     public void MarkGuessed(Direction direction)
     {
-        _guessedDirections.Add(direction);
+        GuessedDirections.Add(direction);
     }
 
-    public bool IsDirectionGuessed(Direction direction) => _guessedDirections.Contains(direction);
+    public bool IsDirectionGuessed(Direction direction) => GuessedDirections.Contains(direction);
 
-    public bool IsComplete() => _guessedDirections.Count >= 4;
+    public bool IsComplete() => GuessedDirections.Count >= 4;
 }

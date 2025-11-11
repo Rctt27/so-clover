@@ -20,14 +20,16 @@ public static class MoveToNextBoard
         private readonly IEventPublisher _events;
         private readonly IClock _clock;
         private readonly IGameSettingsProvider _settings;
+        private readonly IWordDictionary _wordDictionary;
         private readonly Random _random = new();
 
-        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings)
+        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings, IWordDictionary wordDictionary)
         {
             _repo = repo;
             _events = events;
             _clock = clock;
             _settings = settings;
+            _wordDictionary = wordDictionary;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
@@ -49,6 +51,7 @@ public static class MoveToNextBoard
                 throw new InvalidOperationException("Cannot move to next board while attempts remain and board is not complete.");
 
             // Générer la 5ème carte aléatoire depuis le WordsPool de la game
+            await game.EnsureWordsPoolInitializedAsync(_wordDictionary, ct);
             var fifthCard = game.CreateRandomCard();
 
             // Générer 5 rotations aléatoires

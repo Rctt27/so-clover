@@ -180,7 +180,14 @@ app.MapGet("/api/games/{gameId:guid}/state", async (Guid gameId, string? playerI
 {
     try
     {
-        var response = await useCase.Handle(new GetGameState.Request(new GameId(gameId), includeSecrets), ct);
+        // Include secrets for the requesting player's own board to allow clients to render their words
+        PlayerId? requestingPlayerId = null;
+        if (!string.IsNullOrWhiteSpace(playerId) && Guid.TryParse(playerId, out var pid))
+        {
+            requestingPlayerId = new PlayerId(pid);
+        }
+
+        var response = await useCase.Handle(new GetGameState.Request(new GameId(gameId), includeSecrets, requestingPlayerId), ct);
         var result = new
         {
             gameId = response.GameId.Value,

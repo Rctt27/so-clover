@@ -8,7 +8,7 @@ public interface IGetGameStateUseCase : IUseCase<GetGameState.Request, GetGameSt
 
 public static class GetGameState
 {
-    public readonly record struct Request(GameId GameId, bool IncludeSecrets = false);
+    public readonly record struct Request(GameId GameId, bool IncludeSecrets = false, PlayerId? RequestingPlayerId = null);
 
     public sealed record Response(
         GameId GameId,
@@ -79,16 +79,22 @@ public static class GetGameState
             var game = await _repo.Get(request.GameId, ct) ?? throw new GameNotFoundException(request.GameId);
 
             var players = game.Players
-                .Select(p => new PlayerState(
+                .Select(p =>
+                {
+                    var includeSecretsForPlayer = request.IncludeSecrets
+                        || (request.RequestingPlayerId.HasValue && p.Id == request.RequestingPlayerId.Value);
+
+                    return new PlayerState(
                     p.Id,
                     p.Name,
                     new BoardState(
-                        BuildDirectionState(p, Direction.Top, request.IncludeSecrets),
-                        BuildDirectionState(p, Direction.Right, request.IncludeSecrets),
-                        BuildDirectionState(p, Direction.Bottom, request.IncludeSecrets),
-                        BuildDirectionState(p, Direction.Left, request.IncludeSecrets)
+                        BuildDirectionState(p, Direction.Top, includeSecretsForPlayer),
+                        BuildDirectionState(p, Direction.Right, includeSecretsForPlayer),
+                        BuildDirectionState(p, Direction.Bottom, includeSecretsForPlayer),
+                        BuildDirectionState(p, Direction.Left, includeSecretsForPlayer)
                     )
-                ))
+                );
+                })
                 .ToList();
 
             GuessingPhaseState? guessingState = null;

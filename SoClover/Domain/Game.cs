@@ -5,7 +5,14 @@ namespace SoClover.Domain;
 public sealed class Game
 {
     public GameId Id { get; }
+    // With EF snapshot storage, we need to rehydrate properties with private setters.
+    // System.Text.Json ignores private setters unless [JsonInclude] is present.
+    [JsonInclude]
+    [JsonPropertyName("language")]
     public string Language { get; private set; }
+
+    [JsonInclude]
+    [JsonPropertyName("phase")]
     public GamePhase Phase { get; private set; } = GamePhase.Lobby;
     // Persist and rehydrate AdminPlayerId through JSON snapshots stored by EF
     // Without [JsonInclude], System.Text.Json would ignore the private setter during deserialization,
@@ -13,18 +20,34 @@ public sealed class Game
     [JsonInclude]
     [JsonPropertyName("adminPlayerId")]
     public PlayerId? AdminPlayerId { get; private set; }
+
+    [JsonInclude]
+    [JsonPropertyName("phaseEndsAtUtc")]
     public DateTime? PhaseEndsAtUtc { get; private set; }
 
     // Per-game overrides (seconds). When null, defaults from configuration are used.
+    [JsonInclude]
+    [JsonPropertyName("cluesDurationSecondsOverride")]
     public int? CluesDurationSecondsOverride { get; private set; }
+
+    [JsonInclude]
+    [JsonPropertyName("guessDurationSecondsOverride")]
     public int? GuessDurationSecondsOverride { get; private set; }
 
     private readonly Dictionary<PlayerId, Player> _players = new();
     private WordsPool? _wordsPool;
 
     // Guessing phase state
+    [JsonInclude]
+    [JsonPropertyName("currentGuessingBoardOwner")]
     public PlayerId? CurrentGuessingBoardOwner { get; private set; }
+
+    [JsonInclude]
+    [JsonPropertyName("outsideCards")]
     public List<OrientedCard> OutsideCards { get; private set; } = new();
+
+    [JsonInclude]
+    [JsonPropertyName("guessedCardPositions")]
     public Dictionary<BoardPosition, OrientedCard?> GuessedCardPositions { get; private set; } = new()
     {
         { BoardPosition.TopLeft, null },
@@ -32,13 +55,28 @@ public sealed class Game
         { BoardPosition.BottomRight, null },
         { BoardPosition.BottomLeft, null }
     };
+    
+    [JsonInclude]
+    [JsonPropertyName("remainingAttempts")]
     public int RemainingAttempts { get; private set; } = 3;
+
+    [JsonInclude]
+    [JsonPropertyName("correctlyPlacedPositions")]
     public HashSet<BoardPosition> CorrectlyPlacedPositions { get; private set; } = new();
+
+    [JsonInclude]
+    [JsonPropertyName("completedBoardsCount")]
     public int CompletedBoardsCount { get; private set; } = 0;
 
     // Scoring tracking
+    [JsonInclude]
+    [JsonPropertyName("currentBoardStartTime")]
     private DateTime _currentBoardStartTime;
+    
+    [JsonInclude]
+    [JsonPropertyName("currentBoardAttempts")]
     private int _currentBoardAttempts = 0;
+    
     private readonly Dictionary<PlayerId, BoardResult> _boardResults = new();
 
     [JsonIgnore]
@@ -64,7 +102,27 @@ public sealed class Game
             }
         }
     }
+    [JsonIgnore]
     public IReadOnlyDictionary<PlayerId, BoardResult> BoardResults => _boardResults;
+
+    // Persistence bridge for scoring results. EF stores the Game as a JSON snapshot; we must
+    // expose a serializable view with a private setter so System.Text.Json can rehydrate it.
+    // Requires PlayerId dictionary key converter (registered in EfGameRepository).
+    [JsonInclude]
+    [JsonPropertyName("boardResults")]
+    public Dictionary<PlayerId, BoardResult> BoardResultsPersistence
+    {
+        get => _boardResults.ToDictionary(kv => kv.Key, kv => kv.Value);
+        private set
+        {
+            _boardResults.Clear();
+            if (value == null) return;
+            foreach (var kv in value)
+            {
+                _boardResults[kv.Key] = kv.Value;
+            }
+        }
+    }
 
     public Game(GameId id, string? language = null)
     {

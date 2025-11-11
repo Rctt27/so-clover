@@ -23,6 +23,7 @@ public sealed class EfGameRepository : IGameRepository
         _json.Converters.Add(new GameIdJsonConverter());
         _json.Converters.Add(new PlayerIdJsonConverter());
         _json.Converters.Add(new CardIdJsonConverter());
+        _json.Converters.Add(new ClueTextJsonConverter());
     }
 
     public async Task<Game?> Get(GameId id, CancellationToken ct = default)
@@ -144,4 +145,24 @@ internal sealed class CardIdJsonConverter : JsonConverter<CardId>
 
     public override void WriteAsPropertyName(Utf8JsonWriter writer, CardId value, JsonSerializerOptions options)
         => writer.WritePropertyName(value.Value.ToString());
+}
+
+internal sealed class ClueTextJsonConverter : JsonConverter<ClueText>
+{
+    public override ClueText Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Null)
+        {
+            // For nullable ClueText?, the serializer will handle nulls before invoking this converter.
+            // Returning default is safe for non-nullable paths when data is malformed.
+            return default;
+        }
+        var str = reader.GetString();
+        return ClueText.Create(str);
+    }
+
+    public override void Write(Utf8JsonWriter writer, ClueText value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value.Value);
+    }
 }

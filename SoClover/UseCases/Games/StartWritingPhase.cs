@@ -17,18 +17,23 @@ public static class StartWritingPhase
         private readonly IEventPublisher _events;
         private readonly IClock _clock;
         private readonly IGameSettingsProvider _settings;
+        private readonly IWordDictionary _wordDictionary;
 
-        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings)
+        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings, IWordDictionary wordDictionary)
         {
             _repo = repo;
             _events = events;
             _clock = clock;
             _settings = settings;
+            _wordDictionary = wordDictionary;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
         {
             var game = await _repo.Get(request.GameId, ct) ?? throw new GameNotFoundException(request.GameId);
+
+            // Ensure the game's WordsPool is available after loading from persistence
+            await game.EnsureWordsPoolInitializedAsync(_wordDictionary, ct);
 
             // Populate each player's board with 4 cards using the game's WordsPool
             foreach (var player in game.Players)

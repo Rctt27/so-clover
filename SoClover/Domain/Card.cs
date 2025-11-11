@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace SoClover.Domain;
 
 public sealed class Card
@@ -8,6 +10,7 @@ public sealed class Card
     public string BottomWord { get; }
     public string LeftWord { get; }
 
+    [JsonConstructor]
     public Card(CardId id, string topWord, string rightWord, string bottomWord, string leftWord)
     {
         Id = id;

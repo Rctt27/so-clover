@@ -19,14 +19,16 @@ public static class StartGuessingPhase
         private readonly IEventPublisher _events;
         private readonly IClock _clock;
         private readonly IGameSettingsProvider _settings;
+        private readonly IWordDictionary _wordDictionary;
         private readonly Random _random = new();
 
-        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings)
+        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings, IWordDictionary wordDictionary)
         {
             _repo = repo;
             _events = events;
             _clock = clock;
             _settings = settings;
+            _wordDictionary = wordDictionary;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
@@ -46,6 +48,9 @@ public static class StartGuessingPhase
                 throw new NotEnoughPlayersException(1, 0);
 
             var firstPlayer = players[_random.Next(players.Count)];
+
+            // Ensure WordsPool is initialized after loading from persistence
+            await game.EnsureWordsPoolInitializedAsync(_wordDictionary, ct);
 
             // Générer la 5ème carte aléatoire depuis le WordsPool de la game
             var fifthCard = game.CreateRandomCard();

@@ -1,11 +1,25 @@
+using System.Text.Json.Serialization;
+
 namespace SoClover.Domain;
 
 public sealed class Player
 {
-    public PlayerId Id { get; }
-    public string Name { get; }
-    public bool IsAdmin { get; }
-    public CloverBoard Board { get; } = new();
+    [JsonInclude]
+    [JsonPropertyName("id")]
+    public PlayerId Id { get; private set; }
+
+    [JsonInclude]
+    [JsonPropertyName("name")]
+    public string Name { get; private set; }
+
+    [JsonInclude]
+    [JsonPropertyName("isAdmin")]
+    public bool IsAdmin { get; private set; }
+
+    // Ensure the board is persisted and rehydrated when using EF JSON snapshots
+    [JsonInclude]
+    [JsonPropertyName("board")]
+    public CloverBoard Board { get; private set; } = new();
 
     public Player(PlayerId id, string name, bool isAdmin = false)
     {

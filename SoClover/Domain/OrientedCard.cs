@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace SoClover.Domain;
 
 public sealed class OrientedCard
@@ -5,6 +7,7 @@ public sealed class OrientedCard
     public Card Card { get; }
     public Rotation Rotation { get; }
 
+    [JsonConstructor]
     public OrientedCard(Card card, Rotation rotation = Rotation.None)
     {
         Card = card;
