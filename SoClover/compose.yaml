@@ -1,6 +1,4 @@
-﻿version: "3.9"
-
-services:
+﻿services:
   db:
     image: postgres:16
     environment:
@@ -9,16 +7,19 @@ services:
       POSTGRES_DB: soclover
     volumes:
       - dbdata:/var/lib/postgresql/data
-      - ./SoClover/Infrastructure/Persistence/Migrations/0001_CreateGames.sql:/docker-entrypoint-initdb.d/0001_CreateGames.sql:ro
+      - ./Infrastructure/Persistence/Migrations/0001_CreateGames.sql:/docker-entrypoint-initdb.d/0001_CreateGames.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d soclover"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   web:
     build:
-      context: .
+      # Use the repository root as build context so Dockerfile COPY paths like
+      # "COPY SoClover/SoClover.csproj SoClover/" resolve correctly.
+      context: ..
       dockerfile: SoClover/Dockerfile
     environment:
       ConnectionStrings__GameDb: Host=db;Database=soclover;Username=postgres;Password=postgres
@@ -29,6 +30,7 @@ services:
         condition: service_healthy
     expose:
       - "8080"
+    restart: unless-stopped
 
   caddy:
     image: caddy:2
@@ -41,6 +43,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
       - web
+    restart: unless-stopped
 
 volumes:
   dbdata:
