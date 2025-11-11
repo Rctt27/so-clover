@@ -1,0 +1,15 @@
+﻿# Default Caddy reverse proxy configuration
+# Replace example.com with your domain to enable automatic HTTPS via Let's Encrypt.
+# If you don't have a domain yet, you can still run Caddy as an HTTP reverse proxy
+# by replacing the first line with :80 (but HTTPS requires a resolvable domain).
+
+:80 {
+    encode gzip
+    reverse_proxy web:8080
+}
+
+# Example for a real domain (uncomment and replace):
+# example.com {
+#     encode gzip
+#     reverse_proxy web:8080
+# }

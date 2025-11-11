@@ -1,7 +1,49 @@
-﻿services:
-  soclover:
-    image: soclover
+﻿version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: soclover
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+      - ./SoClover/Infrastructure/Persistence/Migrations/0001_CreateGames.sql:/docker-entrypoint-initdb.d/0001_CreateGames.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d soclover"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
     build:
       context: .
       dockerfile: SoClover/Dockerfile
+    environment:
+      ConnectionStrings__GameDb: Host=db;Database=soclover;Username=postgres;Password=postgres
+      DOTNET_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - web
+
+volumes:
+  dbdata:
+  caddy-data:
+  caddy-config:
 
