@@ -17,6 +17,7 @@ public class GenerateGameCard
     [Theory]
     [InlineData("Français", @"^[A-ZÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ\-\s]+$")]
     [InlineData("English", @"^[A-Z\-\s]+$")]
+    [InlineData("Portuguese", @"^[A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇ\-\s]+$")]
     public async Task ShouldCreateCardWithFourRandomWords(string language, string characterPattern)
     {
         // Arrange
@@ -75,6 +76,7 @@ public class GenerateGameCard
     [Theory]
     [InlineData("Français", 60)]
     [InlineData("English", 60)]
+    [InlineData("Portuguese", 60)]
     public async Task ShouldCreateMultipleCardsWithDifferentWords(string language, int cardCount)
     {
         // Arrange
@@ -145,6 +147,7 @@ public class GenerateGameCard
     [Theory]
     [InlineData("Français")]
     [InlineData("English")]
+    [InlineData("Portuguese")]
     public async Task ShouldRespectCardWordValidationRules(string language)
     {
         // Arrange

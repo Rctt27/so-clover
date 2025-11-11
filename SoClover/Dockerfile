@@ -6,12 +6,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-# Copy solution and the main project files first for better layer caching
+# Copy the main project file first for better layer caching
 # NOTE: This repository contains a single web project (SoClover) with subfolders
 # like Domain, Infrastructure, and UseCases inside it, not separate .csproj projects.
-# So we only copy the SoClover project file (and optionally the solution).
+# We copy only the project file (no dependency on the .sln file).
 COPY SoClover/SoClover.csproj SoClover/
-COPY SoClover.sln ./
 
 # Restore
 RUN dotnet restore SoClover/SoClover.csproj

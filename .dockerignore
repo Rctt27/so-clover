@@ -23,3 +23,15 @@
 **/values.dev.yaml
 LICENSE
 README.md
+cat > .dockerignore <<'EOF'
+# Ignore build outputs so Windows obj/bin do not get copied into Linux image
+**/bin
+**/obj
+
+# Common noise
+.git
+.vs
+*.user
+*.suo
+*.tgz
+EOF
