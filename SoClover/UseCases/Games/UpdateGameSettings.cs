@@ -38,7 +38,8 @@ public static class UpdateGameSettings
             var game = await _repo.Get(request.GameId, ct) ?? throw new GameNotFoundException(request.GameId);
 
             // Only admin can update settings
-            if (game.AdminPlayerId != request.PlayerId)
+            // Use a resilient check: rely on Player.IsAdmin flag to avoid issues if AdminPlayerId was missing in older snapshots
+            if (!game.IsAdmin(request.PlayerId))
             {
                 throw new UnauthorizedAccessException("Only the admin can update game settings.");
             }

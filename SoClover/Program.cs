@@ -120,9 +120,24 @@ app.MapPost("/api/games/{gameId:guid}/join", async (Guid gameId, JoinGameRequest
 
 app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSettingsRequest? request, IUpdateGameSettingsUseCase useCase, CancellationToken ct) =>
 {
-    if (string.IsNullOrWhiteSpace(request?.PlayerId) || string.IsNullOrWhiteSpace(request?.Language))
+    if (request is null)
     {
-        return Results.BadRequest(new { message = "PlayerId and Language are required" });
+        return Results.BadRequest(new { message = "Body is required" });
+    }
+
+    if (string.IsNullOrWhiteSpace(request.PlayerId))
+    {
+        return Results.BadRequest(new { message = "PlayerId is required" });
+    }
+
+    if (!Guid.TryParse(request.PlayerId, out var playerGuid))
+    {
+        return Results.BadRequest(new { message = "PlayerId must be a valid GUID" });
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Language))
+    {
+        return Results.BadRequest(new { message = "Language is required" });
     }
 
     try
@@ -130,8 +145,8 @@ app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSe
         var response = await useCase.Handle(
             new UpdateGameSettings.Request(
                 new GameId(gameId),
-                new PlayerId(Guid.Parse(request.PlayerId)),
-                request.Language,
+                new PlayerId(playerGuid),
+                request.Language.Trim(),
                 request.CluesDuration,
                 request.GuessDuration),
             ct);
@@ -143,9 +158,18 @@ app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSe
     }
     catch (UnauthorizedAccessException)
     {
-        return Results.Forbid();
+        // Avoid Results.Forbid() since no authentication is configured; return 403 directly
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
     catch (InvalidOperationInPhaseException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (FileNotFoundException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (ArgumentException ex)
     {
         return Results.BadRequest(new { message = ex.Message });
     }
@@ -579,7 +603,8 @@ app.MapPost("/api/games/{gameId:guid}/complete", async (Guid gameId, CompleteGam
     }
     catch (UnauthorizedAccessException ex)
     {
-        return Results.Forbid();
+        // Avoid Results.Forbid() since no authentication is configured; return 403 directly
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
     catch (InvalidOperationInPhaseException ex)
     {

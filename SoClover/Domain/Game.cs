@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace SoClover.Domain;
 
 public sealed class Game
@@ -5,6 +7,11 @@ public sealed class Game
     public GameId Id { get; }
     public string Language { get; private set; }
     public GamePhase Phase { get; private set; } = GamePhase.Lobby;
+    // Persist and rehydrate AdminPlayerId through JSON snapshots stored by EF
+    // Without [JsonInclude], System.Text.Json would ignore the private setter during deserialization,
+    // leaving AdminPlayerId null after reloading from the database and causing authorization to fail.
+    [JsonInclude]
+    [JsonPropertyName("adminPlayerId")]
     public PlayerId? AdminPlayerId { get; private set; }
     public DateTime? PhaseEndsAtUtc { get; private set; }
 
@@ -34,7 +41,29 @@ public sealed class Game
     private int _currentBoardAttempts = 0;
     private readonly Dictionary<PlayerId, BoardResult> _boardResults = new();
 
+    [JsonIgnore]
     public IReadOnlyCollection<Player> Players => _players.Values;
+
+    // Persistence bridge: expose players for JSON (de)serialization when using EF snapshot storage.
+    // We keep the domain API read-only (via Players) and use this property only for persistence.
+    // Note: requires custom JSON converters for PlayerId as dictionary keys (already added in EfGameRepository).
+    [JsonInclude]
+    [JsonPropertyName("players")] // store under a stable name; distinct from [JsonIgnore]d public Players
+    public Dictionary<PlayerId, Player> PlayersPersistence
+    {
+        // Return a copy to avoid exposing the internal mutable dictionary to application code
+        get => _players.ToDictionary(kv => kv.Key, kv => kv.Value);
+        // Private setter is honored by System.Text.Json when [JsonInclude] is present
+        private set
+        {
+            _players.Clear();
+            if (value == null) return;
+            foreach (var kv in value)
+            {
+                _players[kv.Key] = kv.Value;
+            }
+        }
+    }
     public IReadOnlyDictionary<PlayerId, BoardResult> BoardResults => _boardResults;
 
     public Game(GameId id, string? language = null)
@@ -42,6 +71,11 @@ public sealed class Game
         Id = id;
         Language = string.IsNullOrWhiteSpace(language) ? "Français" : language.Trim();
     }
+
+    // Backward/compat helper used by use cases: check if a given player is admin based on player flag.
+    // This is resilient even if AdminPlayerId wasn't present in older JSON snapshots.
+    public bool IsAdmin(PlayerId playerId)
+        => _players.TryGetValue(playerId, out var p) && p.IsAdmin;
 
     public void AddPlayer(Player player)
     {
@@ -62,6 +96,17 @@ public sealed class Game
             throw new InvalidOperationException("WordsPool already initialized.");
 
         _wordsPool = await WordsPool.CreateAsync(Id, Language, wordDictionary, ct);
+    }
+
+    // In persistence via EF, the words pool is not serialized. After reloading a Game from the database
+    // the field will be null. Any operation that needs to create cards must ensure the pool is available.
+    public bool IsWordsPoolInitialized => _wordsPool != null;
+
+    public Task EnsureWordsPoolInitializedAsync(IWordDictionary wordDictionary, CancellationToken ct = default)
+    {
+        if (_wordsPool != null)
+            return Task.CompletedTask;
+        return InitializeWordsPoolAsync(wordDictionary, ct);
     }
 
     public async Task UpdateLanguageAsync(string newLanguage, IWordDictionary wordDictionary, CancellationToken ct = default)

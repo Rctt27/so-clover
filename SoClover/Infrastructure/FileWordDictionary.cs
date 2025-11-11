@@ -1,4 +1,6 @@
 ﻿using System.Collections.Concurrent;
+using System.Globalization;
+using System.Text;
 using SoClover.Domain;
 
 namespace SoClover.Infrastructure;
@@ -6,6 +8,7 @@ namespace SoClover.Infrastructure;
 public sealed class FileWordDictionary : IWordDictionary
 {
     private readonly string _dictionaryPath;
+    private readonly ConcurrentDictionary<string, string> _resolvedFileByNormName = new();
     private readonly ConcurrentDictionary<string, List<string>> _cachedDictionaries = new();
     private readonly Random _random = new();
 
@@ -49,10 +52,21 @@ public sealed class FileWordDictionary : IWordDictionary
         if (_cachedDictionaries.TryGetValue(language, out var cached))
             return cached;
 
-        var filePath = Path.Combine(_dictionaryPath, $"{language.ToLowerInvariant()}.txt");
+        // Resolve the dictionary file path in a way that is case- and accent-insensitive.
+        // This avoids failures on Linux where filenames are case-sensitive and may contain diacritics (e.g., "Français.txt").
+        var filePath = ResolveDictionaryFilePath(language);
 
-        if (!File.Exists(filePath))
-            throw new FileNotFoundException($"Dictionary file for language '{language}' not found at: {filePath}");
+        if (filePath is null)
+        {
+            // Optional fallback: try English when requested language is missing
+            var fallback = ResolveDictionaryFilePath("English");
+            if (fallback is null)
+            {
+                var available = GetAvailableLanguages();
+                throw new FileNotFoundException($"Dictionary file for language '{language}' not found under '{_dictionaryPath}'. Available: {string.Join(", ", available)}");
+            }
+            filePath = fallback;
+        }
 
         var lines = await File.ReadAllLinesAsync(filePath, ct);
         var words = lines
@@ -66,5 +80,58 @@ public sealed class FileWordDictionary : IWordDictionary
 
         _cachedDictionaries[language] = words;
         return words;
+    }
+
+    private string? ResolveDictionaryFilePath(string language)
+    {
+        if (string.IsNullOrWhiteSpace(language)) return null;
+        var key = Normalize(language);
+
+        if (_resolvedFileByNormName.TryGetValue(key, out var cachedPath))
+        {
+            return cachedPath;
+        }
+
+        if (!Directory.Exists(_dictionaryPath))
+        {
+            return null;
+        }
+
+        var files = Directory.EnumerateFiles(_dictionaryPath, "*.txt", SearchOption.TopDirectoryOnly).ToList();
+        foreach (var f in files)
+        {
+            var name = Path.GetFileNameWithoutExtension(f);
+            var norm = Normalize(name);
+            _resolvedFileByNormName.TryAdd(norm, f);
+        }
+
+        _resolvedFileByNormName.TryGetValue(key, out var resolved);
+        return resolved;
+    }
+
+    private IEnumerable<string> GetAvailableLanguages()
+    {
+        if (!Directory.Exists(_dictionaryPath)) yield break;
+        foreach (var f in Directory.EnumerateFiles(_dictionaryPath, "*.txt", SearchOption.TopDirectoryOnly))
+        {
+            yield return Path.GetFileNameWithoutExtension(f);
+        }
+    }
+
+    private static string Normalize(string input)
+    {
+        // Lowercase and remove diacritics to achieve accent-insensitive comparison
+        var lower = input.Trim().ToLowerInvariant();
+        var normalized = lower.Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder(capacity: normalized.Length);
+        foreach (var c in normalized)
+        {
+            var uc = CharUnicodeInfo.GetUnicodeCategory(c);
+            if (uc != UnicodeCategory.NonSpacingMark)
+            {
+                sb.Append(c);
+            }
+        }
+        return sb.ToString().Normalize(NormalizationForm.FormC);
     }
 }

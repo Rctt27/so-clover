@@ -105,6 +105,13 @@ internal sealed class GameIdJsonConverter : JsonConverter<GameId>
 
     public override void Write(Utf8JsonWriter writer, GameId value, JsonSerializerOptions options)
         => writer.WriteStringValue(value.Value);
+
+    // Support dictionary keys of type GameId
+    public override GameId ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => new(Guid.Parse(reader.GetString()!));
+
+    public override void WriteAsPropertyName(Utf8JsonWriter writer, GameId value, JsonSerializerOptions options)
+        => writer.WritePropertyName(value.Value.ToString());
 }
 
 internal sealed class PlayerIdJsonConverter : JsonConverter<PlayerId>
@@ -114,6 +121,13 @@ internal sealed class PlayerIdJsonConverter : JsonConverter<PlayerId>
 
     public override void Write(Utf8JsonWriter writer, PlayerId value, JsonSerializerOptions options)
         => writer.WriteStringValue(value.Value);
+
+    // Support dictionary keys of type PlayerId
+    public override PlayerId ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => new(Guid.Parse(reader.GetString()!));
+
+    public override void WriteAsPropertyName(Utf8JsonWriter writer, PlayerId value, JsonSerializerOptions options)
+        => writer.WritePropertyName(value.Value.ToString());
 }
 
 internal sealed class CardIdJsonConverter : JsonConverter<CardId>
@@ -123,4 +137,11 @@ internal sealed class CardIdJsonConverter : JsonConverter<CardId>
 
     public override void Write(Utf8JsonWriter writer, CardId value, JsonSerializerOptions options)
         => writer.WriteStringValue(value.Value);
+
+    // Support dictionary keys of type CardId
+    public override CardId ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => new(Guid.Parse(reader.GetString()!));
+
+    public override void WriteAsPropertyName(Utf8JsonWriter writer, CardId value, JsonSerializerOptions options)
+        => writer.WritePropertyName(value.Value.ToString());
 }
