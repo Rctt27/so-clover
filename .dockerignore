@@ -1,37 +1,15 @@
-﻿**/.dockerignore
-**/.env
-**/.git
-**/.gitignore
-**/.project
-**/.settings
-**/.toolstarget
-**/.vs
-**/.vscode
-**/.idea
-**/*.*proj.user
-**/*.dbmdl
-**/*.jfm
-**/azds.yaml
-**/bin
-**/charts
-**/docker-compose*
-**/Dockerfile*
-**/node_modules
-**/npm-debug.log
-**/obj
-**/secrets.dev.yaml
-**/values.dev.yaml
-LICENSE
-README.md
-cat > .dockerignore <<'EOF'
-# Ignore build outputs so Windows obj/bin do not get copied into Linux image
-**/bin
-**/obj
+﻿# Ignore Windows/host build outputs so they don’t enter Linux builds
+SoClover/**/bin
+SoClover/**/obj
+SoClover.Tests/**/bin
+SoClover.Tests/**/obj
 
-# Common noise
+# General noise
 .git
 .vs
-*.user
-*.suo
+.idea
+**/*.user
+**/*.suo
 *.tgz
-EOF
+node_modules
+npm-debug.log
