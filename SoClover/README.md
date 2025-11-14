@@ -1,7 +1,7 @@
 ﻿## Deployment process
 
 ### Step1: On local
-1) From \so-clover directory, create .tar archive: ```tar -czf SoClover.tgz SoClover```
+1) From \so-clover directory, create .tgz archive: ```tar -czf SoClover.tgz SoClover```
 2) Push .tgz to server to SoClover directory: ```scp .\SoClover.tgz <user>@<server_ip>:/opt/soclover/```
 
 If you updated .dockerignore -> you have to push it manually to /opt/soclover root directory as it's not part of the .tar file. 
