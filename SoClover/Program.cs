@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 using SoClover.Domain;
 using SoClover.Infrastructure;
 using SoClover.UseCases.Abstractions;
@@ -22,7 +23,8 @@ builder.Services.AddSingleton<IGameRepository, InMemoryGameRepository>();
 builder.Services.AddScoped<IGameRepository, SoClover.Infrastructure.Persistence.EfGameRepository>();
 #endif
 
-builder.Services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
+// Event publisher will be decorated by SignalR broadcaster (see below)
+builder.Services.AddSingleton<InMemoryEventPublisher>();
 builder.Services.AddSingleton<IWordDictionary>(sp => 
     new FileWordDictionary(Path.Combine(builder.Environment.WebRootPath, "dictionaries")));
 
@@ -56,6 +58,29 @@ builder.Services.AddTransient<IMoveToNextBoardUseCase, MoveToNextBoard.Handler>(
 builder.Services.AddTransient<IGetScoringUseCase, GetScoring.Handler>();
 builder.Services.AddTransient<ICompleteGameUseCase, CompleteGame.Handler>();
 
+// Add SignalR (backplane ready, but optional)
+// Note: We keep Redis backplane optional to avoid hard dependency. When you're ready,
+// add Microsoft.AspNetCore.SignalR.StackExchangeRedis package and uncomment the AddStackExchangeRedis line.
+var signalRBuilder = builder.Services.AddSignalR();
+// var redisCs = builder.Configuration.GetConnectionString("Redis");
+// if (!string.IsNullOrWhiteSpace(redisCs))
+// {
+//     signalRBuilder.AddStackExchangeRedis(redisCs);
+// }
+
+// Decorate IEventPublisher with a SignalR-based broadcaster that forwards domain events to clients
+// while still invoking the inner in-memory publisher (console log).
+builder.Services.AddSingleton<IEventPublisher>(sp =>
+{
+    var inner = sp.GetRequiredService<InMemoryEventPublisher>();
+    var hub = sp.GetRequiredService<IHubContext<SoClover.RealTime.GameHub>>();
+    var getState = sp.GetRequiredService<IGetGameStateUseCase>();
+    return new SoClover.Infrastructure.SignalREventPublisher(inner, hub, getState);
+});
+
+// System HMAC validator (for optional system-to-system HTTP calls)
+builder.Services.AddSingleton<SoClover.Infrastructure.IHmacValidator, SoClover.Infrastructure.HmacValidator>();
+
 // Add CORS for development
 builder.Services.AddCors(options =>
 {
@@ -71,6 +96,9 @@ var app = builder.Build();
 
 app.UseCors();
 app.UseStaticFiles();
+
+// Hubs
+app.MapHub<SoClover.RealTime.GameHub>("/hubs/game");
 
 // API Endpoints
 app.MapPost("/api/games", async (CreateGameRequest? request, ICreateGameUseCase useCase, CancellationToken ct) =>
@@ -133,6 +161,11 @@ app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSe
     if (!Guid.TryParse(request.PlayerId, out var playerGuid))
     {
         return Results.BadRequest(new { message = "PlayerId must be a valid GUID" });
+    }
+
+    if (playerGuid == Guid.Empty)
+    {
+        return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
     }
 
     if (string.IsNullOrWhiteSpace(request.Language))
@@ -337,7 +370,9 @@ app.MapPost("/api/games/{gameId:guid}/clues", async (Guid gameId, SetClueRequest
     try
     {
         var direction = Enum.Parse<Direction>(request.Direction);
-        var response = await useCase.Handle(new SetClue.Request(new GameId(gameId), new PlayerId(Guid.Parse(request.PlayerId)), direction, request.ClueText), ct);
+        var parsed = Guid.Parse(request.PlayerId);
+        if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
+        var response = await useCase.Handle(new SetClue.Request(new GameId(gameId), new PlayerId(parsed), direction, request.ClueText), ct);
         return Results.Ok(new { message = "Clue saved successfully" });
     }
     catch (GameNotFoundException)
@@ -356,7 +391,9 @@ app.MapPost("/api/games/{gameId:guid}/submit-board", async (Guid gameId, SubmitB
 
     try
     {
-        await useCase.Handle(new SubmitBoard.Request(new GameId(gameId), new PlayerId(Guid.Parse(request.PlayerId))), ct);
+        var parsed = Guid.Parse(request.PlayerId);
+        if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
+        await useCase.Handle(new SubmitBoard.Request(new GameId(gameId), new PlayerId(parsed)), ct);
         return Results.Ok(new { message = "Board submitted successfully" });
     }
     catch (GameNotFoundException)
@@ -396,9 +433,11 @@ app.MapPost("/api/games/{gameId:guid}/place-guessing-card", async (Guid gameId, 
     try
     {
         var position = Enum.Parse<BoardPosition>(request.Position);
+        var parsed = Guid.Parse(request.PlayerId);
+        if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
         await useCase.Handle(new PlaceGuessingCard.Request(
             new GameId(gameId),
-            new PlayerId(Guid.Parse(request.PlayerId)),
+            new PlayerId(parsed),
             request.OutsideCardIndex,
             position
         ), ct);
@@ -424,9 +463,11 @@ app.MapPost("/api/games/{gameId:guid}/swap-guessing-cards", async (Guid gameId, 
     {
         var position1 = Enum.Parse<BoardPosition>(request.Position1);
         var position2 = Enum.Parse<BoardPosition>(request.Position2);
+        var parsed = Guid.Parse(request.PlayerId);
+        if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
         await useCase.Handle(new SwapGuessingCards.Request(
             new GameId(gameId),
-            new PlayerId(Guid.Parse(request.PlayerId)),
+            new PlayerId(parsed),
             position1,
             position2
         ), ct);
@@ -456,9 +497,11 @@ app.MapPost("/api/games/{gameId:guid}/rotate-card", async (Guid gameId, RotateCa
         if (!string.IsNullOrWhiteSpace(request.Position))
         {
             var position = Enum.Parse<BoardPosition>(request.Position);
+            var parsed = Guid.Parse(request.PlayerId);
+            if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
             await useCase.Handle(new RotateCard.Request(
                 new GameId(gameId),
-                new PlayerId(Guid.Parse(request.PlayerId)),
+                new PlayerId(parsed),
                 null,
                 position,
                 rotateRight
@@ -466,9 +509,11 @@ app.MapPost("/api/games/{gameId:guid}/rotate-card", async (Guid gameId, RotateCa
         }
         else if (request.OutsideCardIndex.HasValue)
         {
+            var parsed = Guid.Parse(request.PlayerId);
+            if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
             await useCase.Handle(new RotateCard.Request(
                 new GameId(gameId),
-                new PlayerId(Guid.Parse(request.PlayerId)),
+                new PlayerId(parsed),
                 request.OutsideCardIndex.Value,
                 null,
                 rotateRight
@@ -499,9 +544,11 @@ app.MapPost("/api/games/{gameId:guid}/validate-guessing-board", async (Guid game
 
     try
     {
+        var parsed = Guid.Parse(request.PlayerId);
+        if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
         var response = await useCase.Handle(new ValidateGuessingBoard.Request(
             new GameId(gameId),
-            new PlayerId(Guid.Parse(request.PlayerId))
+            new PlayerId(parsed)
         ), ct);
         return Results.Ok(new
         {
@@ -530,9 +577,11 @@ app.MapPost("/api/games/{gameId:guid}/move-to-next-board", async (Guid gameId, M
 
     try
     {
+        var parsed = Guid.Parse(request.PlayerId);
+        if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
         var response = await useCase.Handle(new MoveToNextBoard.Request(
             new GameId(gameId),
-            new PlayerId(Guid.Parse(request.PlayerId))
+            new PlayerId(parsed)
         ), ct);
         return Results.Ok(new
         {
@@ -598,9 +647,11 @@ app.MapPost("/api/games/{gameId:guid}/complete", async (Guid gameId, CompleteGam
 
     try
     {
+        var parsed = Guid.Parse(request.PlayerId);
+        if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
         var response = await useCase.Handle(new CompleteGame.Request(
             new GameId(gameId),
-            new PlayerId(Guid.Parse(request.PlayerId))
+            new PlayerId(parsed)
         ), ct);
         return Results.Ok(new { phase = response.Phase.ToString() });
     }
@@ -619,6 +670,49 @@ app.MapPost("/api/games/{gameId:guid}/complete", async (Guid gameId, CompleteGam
     }
 })
 .WithName("CompleteGame");
+
+// Optional: System-only endpoint to force move to next board via HTTP, authenticated by HMAC
+app.MapPost("/api/system/games/{gameId:guid}/move-to-next-board", async (
+    Guid gameId,
+    HttpRequest http,
+    IMoveToNextBoardUseCase useCase,
+    IHmacValidator validator,
+    IConfiguration cfg,
+    CancellationToken ct) =>
+{
+    var secret = cfg["SystemHmacSecret"] ?? Environment.GetEnvironmentVariable("SYSTEM_HMAC_SECRET");
+    if (!validator.IsValid(http, secret))
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    try
+    {
+        var response = await useCase.Handle(new MoveToNextBoard.Request(
+            new GameId(gameId),
+            default,
+            SoClover.UseCases.Abstractions.InvocationOrigin.System
+        ), ct);
+        return Results.Ok(new
+        {
+            phase = response.Phase.ToString(),
+            nextBoardOwnerId = response.NextBoardOwnerId?.Value.ToString()
+        });
+    }
+    catch (GameNotFoundException)
+    {
+        return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (InvalidOperationInPhaseException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+})
+.WithName("System_MoveToNextBoard");
 
 // List available dictionaries from wwwroot/dictionaries (*.txt)
 app.MapGet("/api/dictionaries", (IWebHostEnvironment env) =>

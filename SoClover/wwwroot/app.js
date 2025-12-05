@@ -18,7 +18,7 @@ let gameIdInput;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize DOM element references
+    // Initialize DOM element references (these exist on the home/index page)
     playerNameInput = document.getElementById('playerName');
     charCountDisplay = document.getElementById('charCount');
     displayNameElement = document.getElementById('displayName');
@@ -32,9 +32,146 @@ document.addEventListener('DOMContentLoaded', () => {
     statusMessage = document.getElementById('statusMessage');
     gameIdInput = document.getElementById('gameIdInput');
 
-    setupEventListeners();
-    loadState();
+    // Only set up home/index page listeners if the expected elements are present.
+    const isHomePage = !!playerNameInput && !!createGameBtn;
+    if (isHomePage) {
+        try {
+            setupEventListeners();
+            loadState();
+        } catch (e) {
+            console.error('[App] Failed to initialize home page logic:', e);
+        }
+    } else {
+        // On other pages (e.g., lobby, board, guessing, etc.), we skip home page initialization.
+        console.debug('[App] Non-home page detected. Skipping home page initialization.');
+    }
 });
+
+// =============================
+// Real-time (SignalR) bootstrap
+// Centralized singleton to keep a single persistent connection
+// =============================
+(() => {
+    const RT = {
+        _connection: null,
+        _connected: false,
+        _connectingPromise: null,
+        _joinedGameKey: null, // `${gameId}|${playerId}` to avoid duplicate joins
+        _gameStateUpdatedHandlers: new Set(),
+        _serverNotificationHandlers: new Set(),
+
+        async ensureConnected() {
+            // Load SignalR client if missing
+            if (typeof window.signalR === 'undefined' || typeof window.signalR.HubConnectionBuilder === 'undefined') {
+                await this._loadSignalRClient();
+            }
+
+            if (this._connected) return;
+            if (this._connectingPromise) return this._connectingPromise;
+
+            this._connectingPromise = (async () => {
+                try {
+                    // Build connection
+                    this._connection = new window.signalR.HubConnectionBuilder()
+                        .withUrl('/hubs/game')
+                        .withAutomaticReconnect()
+                        .build();
+
+                    // Wire server → client events once
+                    this._connection.on('GameStateUpdated', (payload) => {
+                        try {
+                            for (const h of this._gameStateUpdatedHandlers) h(payload);
+                        } catch {}
+                    });
+                    this._connection.on('ServerNotification', (payload) => {
+                        try {
+                            for (const h of this._serverNotificationHandlers) h(payload);
+                        } catch {}
+                    });
+
+                    // Handle automatic reconnects: re-join current game group and trigger a resync
+                    this._connection.onreconnected(async () => {
+                        try {
+                            if (this._lastGameId && this._lastPlayerId) {
+                                await this._connection.invoke('JoinGame', String(this._lastGameId), String(this._lastPlayerId));
+                                this._joinedGameKey = `${this._lastGameId}|${this._lastPlayerId}`;
+                                // Nudge subscribers to refetch current state
+                                try {
+                                    for (const h of this._gameStateUpdatedHandlers) h({ type: 'Resync', reason: 'Reconnected' });
+                                } catch {}
+                            }
+                        } catch (e) {
+                            console.warn('[RealTime] Rejoin after reconnect failed:', e);
+                        }
+                    });
+
+                    await this._connection.start();
+                    this._connected = true;
+                } catch (e) {
+                    console.error('[RealTime] Failed to connect to SignalR hub:', e);
+                    // Do not throw: the caller will keep polling as fallback
+                } finally {
+                    this._connectingPromise = null;
+                }
+            })();
+
+            return this._connectingPromise;
+        },
+
+        async joinCurrentGame(gameId, playerId) {
+            if (!gameId || !playerId) return;
+            await this.ensureConnected();
+            if (!this._connection || this._connection.state !== 'Connected') return; // Stay silent; polling fallback remains
+
+            const key = `${gameId}|${playerId}`;
+            if (this._joinedGameKey === key) return; // already joined
+
+            try {
+                await this._connection.invoke('JoinGame', String(gameId), String(playerId));
+                this._joinedGameKey = key;
+                this._lastGameId = gameId;
+                this._lastPlayerId = playerId;
+                console.log('[RealTime] Joined SignalR group for game', gameId);
+            } catch (e) {
+                console.warn('[RealTime] JoinGame failed, will rely on polling fallback:', e);
+            }
+        },
+
+        onGameStateUpdated(handler) {
+            if (typeof handler === 'function') {
+                this._gameStateUpdatedHandlers.add(handler);
+                return () => this._gameStateUpdatedHandlers.delete(handler);
+            }
+            return () => {};
+        },
+
+        onServerNotification(handler) {
+            if (typeof handler === 'function') {
+                this._serverNotificationHandlers.add(handler);
+                return () => this._serverNotificationHandlers.delete(handler);
+            }
+            return () => {};
+        },
+
+        async _loadSignalRClient() {
+            // Dynamically inject the SignalR client from CDN as a safe default
+            // If you already serve it locally, you can replace the URL accordingly.
+            const src = 'https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js';
+            if (document.querySelector(`script[src="${src}"]`)) return new Promise(r => r());
+            await new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.async = true;
+                s.onload = () => resolve();
+                s.onerror = () => reject(new Error('Failed to load SignalR client'));
+                document.head.appendChild(s);
+            });
+        }
+    };
+
+    // Expose globally so pages can hook without duplicating logic
+    window.realTime = RT;
+})();
 
 function setupEventListeners() {
     // Player name input
@@ -344,10 +481,23 @@ function showStatusMessage(message, type = 'info') {
 }
 
 function saveState() {
+    // Merge with any existing session state to avoid losing playerId/isCreator
+    let existing = null;
+    try {
+        existing = JSON.parse(sessionStorage.getItem('soCloverState')) || null;
+    } catch {}
+
     const state = {
         playerName: playerName,
-        currentGameId: currentGameId
+        currentGameId: currentGameId,
+        // preserve playerId and isCreator if already known
+        playerId: existing && existing.playerId ? existing.playerId : undefined,
+        isCreator: existing && typeof existing.isCreator !== 'undefined' ? existing.isCreator : undefined
     };
+
+    // Remove undefined keys for cleanliness
+    Object.keys(state).forEach(k => state[k] === undefined && delete state[k]);
+
     sessionStorage.setItem('soCloverState', JSON.stringify(state));
 }
 

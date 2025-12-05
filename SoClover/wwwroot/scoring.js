@@ -1,9 +1,12 @@
+// Scope isolation to avoid global `let` collisions with app.js (e.g. `playerName`)
+(function(){
+'use strict';
+
 // Scoring Phase logic
 let gameId = null;
 let playerName = '';
 let playerId = null;
 let adminPlayerId = null;
-let pollingInterval = null;
 
 // DOM elements
 const scoringPlayerNameDisplay = document.getElementById('scoringPlayerName');
@@ -16,15 +19,37 @@ const endGameSection = document.getElementById('endGameSection');
 const endGameButton = document.getElementById('endGameButton');
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     try { if (typeof disposePhaseTimer === 'function') disposePhaseTimer(); } catch {}
     loadScoringState();
+    // Hook SignalR (centralized in app.js)
+    try {
+        await (window.realTime?.ensureConnected?.());
+        await (window.realTime?.joinCurrentGame?.(gameId, playerId));
+    } catch {}
     fetchAdminInfo();
     fetchAndDisplayScoring();
-    startPolling();
 
     // Attach End Game button click handler
     endGameButton.addEventListener('click', handleEndGame);
+
+    // Subscribe to server pushes
+    let offUpdated = () => {};
+    let offNotif = () => {};
+    try {
+        offUpdated = window.realTime?.onGameStateUpdated?.(async (_) => {
+            try {
+                await fetchAndDisplayScoring();
+                await checkGamePhase();
+            } catch {}
+        }) || (() => {});
+        offNotif = window.realTime?.onServerNotification?.((n) => {
+            if (!n) return;
+            try { showScoringStatusMessage(n.message || 'Server notification', n.type === 'warning' ? 'warning' : 'info'); } catch {}
+        }) || (() => {});
+    } catch {}
+
+    window.addEventListener('beforeunload', () => { try { offUpdated(); offNotif(); } catch {} });
 });
 
 function loadScoringState() {
@@ -72,6 +97,8 @@ async function fetchAndDisplayScoring() {
         showScoringStatusMessage('Failed to load scoring data', 'error');
     }
 }
+
+// (IIFE will be closed at end of file)
 
 function displayScoringResults(scoringData) {
     // Clear existing content
@@ -256,17 +283,4 @@ async function checkGamePhase() {
     }
 }
 
-function startPolling() {
-    // Poll every 5 seconds to check for any updates
-    pollingInterval = setInterval(() => {
-        fetchAndDisplayScoring();
-        checkGamePhase();
-    }, 5000);
-}
-
-// Cleanup on page unload
-window.addEventListener('beforeunload', () => {
-    if (pollingInterval) {
-        clearInterval(pollingInterval);
-    }
-});
+})();

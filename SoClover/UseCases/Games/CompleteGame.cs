@@ -15,10 +15,12 @@ public static class CompleteGame
     public sealed class Handler : ICompleteGameUseCase
     {
         private readonly IGameRepository _repo;
+        private readonly IEventPublisher _events;
 
-        public Handler(IGameRepository repo)
+        public Handler(IGameRepository repo, IEventPublisher events)
         {
             _repo = repo;
+            _events = events;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
@@ -28,8 +30,11 @@ public static class CompleteGame
             game.CompleteGame(request.PlayerId);
 
             await _repo.Save(game, ct);
+            await _events.Publish(new GameCompleted(game.Id, request.PlayerId), ct);
 
             return new Response(game.Phase);
         }
     }
 }
+
+public readonly record struct GameCompleted(GameId GameId, PlayerId PlayerId);

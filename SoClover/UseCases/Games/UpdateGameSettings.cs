@@ -26,11 +26,13 @@ public static class UpdateGameSettings
     {
         private readonly IGameRepository _repo;
         private readonly IWordDictionary _wordDictionary;
+        private readonly IEventPublisher _events;
 
-        public Handler(IGameRepository repo, IWordDictionary wordDictionary)
+        public Handler(IGameRepository repo, IWordDictionary wordDictionary, IEventPublisher events)
         {
             _repo = repo;
             _wordDictionary = wordDictionary;
+            _events = events;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
@@ -48,7 +50,8 @@ public static class UpdateGameSettings
             game.UpdateDurationOverrides(request.CluesDurationSeconds, request.GuessDurationSeconds);
 
             await _repo.Save(game, ct);
-
+            // Notify clients that the game state changed (settings updated)
+            await _events.Publish(new GameSettingsUpdated(game.Id, request.PlayerId), ct);
             return new Response(
                 game.Language,
                 game.CluesDurationSecondsOverride,
@@ -57,3 +60,5 @@ public static class UpdateGameSettings
         }
     }
 }
+
+public readonly record struct GameSettingsUpdated(GameId GameId, PlayerId PlayerId);

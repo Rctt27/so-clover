@@ -8,7 +8,26 @@ public interface IMoveToNextBoardUseCase : IUseCase<MoveToNextBoard.Request, Mov
 
 public static class MoveToNextBoard
 {
-    public readonly record struct Request(GameId GameId, PlayerId PlayerId);
+    public readonly record struct Request
+    {
+        public Request(GameId gameId, PlayerId playerId)
+        {
+            GameId = gameId;
+            PlayerId = playerId;
+            Origin = SoClover.UseCases.Abstractions.InvocationOrigin.Client;
+        }
+
+        public Request(GameId gameId, PlayerId playerId, SoClover.UseCases.Abstractions.InvocationOrigin origin)
+        {
+            GameId = gameId;
+            PlayerId = playerId;
+            Origin = origin;
+        }
+
+        public GameId GameId { get; }
+        public PlayerId PlayerId { get; }
+        public SoClover.UseCases.Abstractions.InvocationOrigin Origin { get; }
+    }
     public readonly record struct Response(
         GamePhase Phase,
         PlayerId? NextBoardOwnerId
@@ -47,18 +66,49 @@ public static class MoveToNextBoard
 
             // Allow move if board completed/exhausted OR time expired
             var isTimeExpired = game.PhaseEndsAtUtc.HasValue && now >= game.PhaseEndsAtUtc.Value;
-            if (!isTimeExpired && game.RemainingAttempts > 0 && game.CorrectlyPlacedPositions.Count < 4)
+
+            // Use explicit invocation origin instead of sentinel values (e.g., Guid.Empty)
+            var isSystemInvocation = request.Origin == SoClover.UseCases.Abstractions.InvocationOrigin.System;
+
+            if (!isTimeExpired && !isSystemInvocation && game.RemainingAttempts > 0 && game.CorrectlyPlacedPositions.Count < 4)
                 throw new InvalidOperationException("Cannot move to next board while attempts remain and board is not complete.");
 
-            // Générer la 5ème carte aléatoire depuis le WordsPool de la game
-            await game.EnsureWordsPoolInitializedAsync(_wordDictionary, ct);
-            var fifthCard = game.CreateRandomCard();
-
-            // Générer 5 rotations aléatoires
-            var rotations = new Rotation[5];
-            for (int i = 0; i < 5; i++)
+            // If we are moving due to time expiration and board is incomplete, record a timeout loss for current board
+            if ((isTimeExpired || isSystemInvocation) && game.CurrentGuessingBoardOwner is not null && game.CorrectlyPlacedPositions.Count < 4)
             {
-                rotations[i] = (Rotation)_random.Next(4);
+                game.RecordTimeoutLoss(now);
+            }
+
+            // Déterminer si ce passage est le dernier (après ce move, on doit entrer en Scoring)
+            var playersCount = game.Players.Count;
+            var isLastBoard = (game.CompletedBoardsCount + 1) >= playersCount;
+
+            Card fifthCard;
+            Rotation[] rotations;
+            
+
+            
+            
+
+            if (isLastBoard)
+            {
+                // Éviter toute dépendance au WordsPool lors du dernier passage (pas nécessaire et peut échouer)
+                fifthCard = new Card(CardId.New(), "x", "x", "x", "x");
+                rotations = new Rotation[5]; // valeurs par défaut non utilisées si on passe en Scoring
+                //TODO: Ne pas générer de carte factice si isLardBoard = true. On doit simplement passer à l'étape de Scoring.
+            }
+            else
+            {
+                // Générer la 5ème carte aléatoire depuis le WordsPool de la game
+                await game.EnsureWordsPoolInitializedAsync(_wordDictionary, ct);
+                fifthCard = game.CreateRandomCard();
+
+                // Générer 5 rotations aléatoires
+                rotations = new Rotation[5];
+                for (int i = 0; i < 5; i++)
+                {
+                    rotations[i] = (Rotation)_random.Next(4);
+                }
             }
 
             game.MoveToNextGuessingBoard(fifthCard, rotations, now, perBoard);

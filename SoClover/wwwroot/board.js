@@ -1,9 +1,12 @@
-﻿// Board page logic
+﻿// Scope isolation to avoid global `let` collisions with app.js (e.g. `playerName`)
+(function(){
+'use strict';
+
+// Board page logic
 let gameId = null;
 let playerName = '';
 let playerId = null;
 let boardRotation = 0; // Current board rotation: 0, 90, 180, or 270
-let pollInterval = null; // Polling interval for game state
 
 // Track saved clues
 const savedClues = {
@@ -60,14 +63,33 @@ const cardWords = {
 };
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     try { if (typeof initPhaseTimer === 'function') initPhaseTimer(); } catch {}
     loadBoardState();
+    // Hook SignalR (centralized in app.js)
+    try {
+        await (window.realTime?.ensureConnected?.());
+        await (window.realTime?.joinCurrentGame?.(gameId, playerId));
+    } catch {}
     fetchAndDisplayBoard();
     setupRotationControls();
     setupClueInputs();
     setupSubmitButton();
-    startPollingGameState();
+
+    // Subscribe to server pushes
+    let offUpdated = () => {};
+    let offNotif = () => {};
+    try {
+        offUpdated = window.realTime?.onGameStateUpdated?.(async (_) => {
+            try { await fetchAndDisplayBoard(); } catch {}
+        }) || (() => {});
+        offNotif = window.realTime?.onServerNotification?.((n) => {
+            if (!n) return;
+            try { showBoardStatusMessage(n.message || 'Server notification', n.type === 'warning' ? 'warning' : 'info'); } catch {}
+        }) || (() => {});
+    } catch {}
+
+    window.addEventListener('beforeunload', () => { try { offUpdated(); offNotif(); } catch {} });
 });
 
 function loadBoardState() {
@@ -115,12 +137,7 @@ async function fetchAndDisplayBoard() {
         if (gameState.phase === 'Guessing') {
             console.log('[Board] Phase changed to Guessing! Redirecting...');
             showBoardStatusMessage('All boards submitted! Starting guessing phase...', 'success');
-            
-            // Stop polling before redirect
-            if (pollInterval) {
-                clearInterval(pollInterval);
-            }
-            
+
             // Redirect to guessing page
             setTimeout(() => {
                 window.location.href = '/guessing.html';
@@ -152,29 +169,6 @@ async function fetchAndDisplayBoard() {
     }
 }
 
-function startPollingGameState() {
-    if (!gameId) {
-        console.log('[Board] Cannot start polling - no gameId available');
-        return;
-    }
-
-    console.log('[Board] Starting polling for game state changes...');
-    
-    // Poll every 5 seconds to check for phase changes
-    pollInterval = setInterval(() => {
-        console.log('[Board] Polling tick - checking game state');
-        fetchAndDisplayBoard();
-    }, 5000);
-
-    // Clear interval when leaving page
-    window.addEventListener('beforeunload', () => {
-        if (pollInterval) {
-            clearInterval(pollInterval);
-        }
-    });
-
-    console.log('[Board] Polling started successfully');
-}
 
 function displayBoard(board) {
     console.log('🎴 Displaying board - Top:', board.top);
@@ -419,3 +413,5 @@ async function submitBoard() {
         btnSubmitBoard.textContent = 'Submit Board';
     }
 }
+
+})();

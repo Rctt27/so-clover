@@ -1,9 +1,10 @@
-﻿// Lobby page logic
+﻿// Lobby page logic (scoped to avoid leaking globals)
+(function () {
+    'use strict';
 let gameId = null;
 let playerName = '';
 let playerId = null;
 let isCreator = false;
-let pollInterval = null;
 
 // DOM elements
 const lobbyGameIdDisplay = document.getElementById('lobbyGameId');
@@ -28,11 +29,33 @@ let gameSettings = {
 };
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Lobby] DOMContentLoaded - Initializing...');
     try { if (typeof initPhaseTimer === 'function') initPhaseTimer(); } catch {}
     setupEventListeners();
-    loadLobbyState(); // This will call startPollingGameState() after gameId is loaded
+    loadLobbyState();
+
+    // Hook SignalR (centralized in app.js)
+    try {
+        await (window.realTime?.ensureConnected?.());
+        // Join after state is loaded (gameId/playerId set in loadLobbyState)
+        // Use a microtask to ensure state variables are set
+        queueMicrotask(async () => {
+            try { await (window.realTime?.joinCurrentGame?.(gameId, playerId)); } catch {}
+        });
+
+        // Subscribe to updates: when any server-side change occurs, refresh players list
+        const offUpdated = window.realTime?.onGameStateUpdated?.(() => {
+            try { fetchAndUpdatePlayers(); } catch {}
+        }) || (() => {});
+
+        const offNotif = window.realTime?.onServerNotification?.((n) => {
+            if (!n) return;
+            try { showLobbyStatusMessage(n.message || 'Server notification', n.type === 'warning' ? 'warning' : 'info'); } catch {}
+        }) || (() => {});
+
+        window.addEventListener('beforeunload', () => { try { offUpdated(); offNotif(); } catch {} });
+    } catch {}
 });
 
 function setupEventListeners() {
@@ -92,12 +115,8 @@ function loadLobbyState() {
         // Load game settings
         loadGameSettings();
 
-        // Fetch and display all players
+        // Fetch and display all players once at load
         fetchAndUpdatePlayers();
-        
-        // Start polling now that gameId is loaded
-        console.log('[Lobby] About to start polling, gameId:', gameId);
-        startPollingGameState();
 
     } catch (error) {
         console.error('Error loading lobby state:', error);
@@ -132,12 +151,7 @@ async function fetchAndUpdatePlayers() {
         if (gameState.phase !== 'Lobby') {
             console.log('[Lobby] Game has started! Redirecting to board...');
             showLobbyStatusMessage('Game starting! Redirecting to your board...', 'success');
-            
-            // Stop polling before redirect
-            if (pollInterval) {
-                clearInterval(pollInterval);
-            }
-            
+
             // Redirect to board page
             setTimeout(() => {
                 window.location.href = '/board.html';
@@ -183,34 +197,6 @@ function updatePlayersList(players) {
     playerCountDisplay.textContent = `(${players.length})`;
 }
 
-function startPollingGameState() {
-    console.log('[Lobby] startPollingGameState called with gameId:', gameId);
-
-    if (!gameId) {
-        console.log('[Lobby] Cannot start polling - no gameId available');
-        return;
-    }
-
-    console.log('[Lobby] Starting polling interval...');
-    
-    // Call immediately first, then every 5 seconds
-    fetchAndUpdatePlayers();
-    
-    // Poll every 5 seconds to update players list
-    pollInterval = setInterval(() => {
-        console.log('[Lobby] Polling tick - calling fetchAndUpdatePlayers');
-        fetchAndUpdatePlayers();
-    }, 5000);
-
-    // Clear interval when leaving page
-    window.addEventListener('beforeunload', () => {
-        if (pollInterval) {
-            clearInterval(pollInterval);
-        }
-    });
-
-    console.log('[Lobby] Polling started successfully');
-}
 
 async function handleStartGame() {
     if (!isCreator) {
@@ -253,11 +239,6 @@ async function handleCancelGame() {
         return;
     }
 
-    // Stop polling
-    if (pollInterval) {
-        clearInterval(pollInterval);
-    }
-
     lobbyCancelBtn.disabled = true;
     lobbyCancelBtn.innerHTML = '<span class="btn-icon">⏳</span> Canceling...';
 
@@ -288,11 +269,6 @@ async function handleCancelGame() {
 function handleLeaveGame() {
     if (!confirm('Are you sure you want to leave this game?')) {
         return;
-    }
-
-    // Stop polling
-    if (pollInterval) {
-        clearInterval(pollInterval);
     }
 
     // Clear session storage and redirect to index
@@ -475,3 +451,6 @@ async function updateBackendSettings() {
         showLobbyStatusMessage('Failed to update game settings', 'error');
     }
 }
+
+// End of lobby scope IIFE
+})();

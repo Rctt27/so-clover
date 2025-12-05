@@ -515,6 +515,28 @@ public sealed class Game
         }
     }
 
+    // Record a timeout loss for the current board if it hasn't been fully guessed.
+    // Safe to call multiple times; it will overwrite with the same values for the same board.
+    public void RecordTimeoutLoss(DateTime nowUtc)
+    {
+        if (Phase != GamePhase.Guessing) return;
+        if (CurrentGuessingBoardOwner is null) return;
+
+        var isComplete = CorrectlyPlacedPositions.Count == 4;
+        if (isComplete) return; // nothing to record
+
+        var endTime = nowUtc;
+        var duration = endTime - _currentBoardStartTime;
+        _boardResults[CurrentGuessingBoardOwner.Value] = new BoardResult(
+            CurrentGuessingBoardOwner.Value,
+            _currentBoardAttempts,
+            _currentBoardStartTime,
+            endTime,
+            duration,
+            false // wasGuessed = false
+        );
+    }
+
     public GuessResult Guess(PlayerId ownerId, Direction direction, string guessedWord)
     {
         if (Phase != GamePhase.Guessing)

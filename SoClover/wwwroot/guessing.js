@@ -1,4 +1,8 @@
-﻿//TODO: Try add live mouse tracking of all guessing players when guessing a board. Do not track owner mouse movements, only guessing players.
+﻿// Scope isolation to avoid global `let` collisions with app.js (e.g. `playerName`)
+(function(){
+'use strict';
+
+//TODO: Try add live mouse tracking of all guessing players when guessing a board. Do not track owner mouse movements, only guessing players.
 
 // Guessing Phase logic
 let gameId = null;
@@ -7,7 +11,6 @@ let playerId = null;
 let boardRotation = 0;
 let guessingState = null;
 let isSpectator = false;
-let pollingInterval = null;
 
 // DOM elements
 const guessingPlayerNameDisplay = document.getElementById('guessingPlayerName');
@@ -32,13 +35,37 @@ const clueDisplays = {
 };
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     try { if (typeof initPhaseTimer === 'function') initPhaseTimer(); } catch {}
     loadGuessingState();
+    // Branch to SignalR (centralized in app.js)
+    try {
+        await (window.realTime?.ensureConnected?.());
+        await (window.realTime?.joinCurrentGame?.(gameId, playerId));
+    } catch {}
     fetchAndDisplayGuessingPhase();
     setupRotationControls();
     setupConfirmButton();
-    startPolling();
+
+    // Subscribe to server pushes
+    let offUpdated = () => {};
+    let offNotif = () => {};
+    try {
+        offUpdated = window.realTime?.onGameStateUpdated?.(async (_) => {
+            // On any state update, refetch current state
+            try { await fetchAndDisplayGuessingPhase(); } catch {}
+        }) || (() => {});
+        offNotif = window.realTime?.onServerNotification?.((n) => {
+            if (!n) return;
+            const type = n.type === 'warning' ? 'warning' : 'info';
+            try { showGuessingStatusMessage(n.message || 'Server notification', type); } catch {}
+        }) || (() => {});
+    } catch {}
+
+    // Cleanup handlers
+    window.addEventListener('beforeunload', () => {
+        try { offUpdated(); offNotif(); } catch {}
+    });
 });
 
 function loadGuessingState() {
@@ -625,16 +652,4 @@ function showGuessingStatusMessage(message, type = 'info') {
     }, 4000);
 }
 
-// Polling for real-time updates
-function startPolling() {
-    pollingInterval = setInterval(async () => {
-        await fetchAndDisplayGuessingPhase();
-    }, 1000); // Poll every 1 second
-}
-
-// Cleanup on page unload
-window.addEventListener('beforeunload', () => {
-    if (pollingInterval) {
-        clearInterval(pollingInterval);
-    }
-});
+})();
