@@ -1,3 +1,5 @@
+// TODO: Ensure that countdown can trigger MoveToNextBoard.cs when guessing countdown is over for a Board even if Board in not valid.
+
 using SoClover.Domain;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;

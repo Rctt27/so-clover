@@ -91,7 +91,8 @@ public sealed class GameProcessManager : BackgroundService
                             await _deleteGame.Handle(new DeleteGame.Request(game.Id), stoppingToken);
                             break;
                         case GamePhase.WritingClues:
-                            await _startGuessing.Handle(new StartGuessingPhase.Request(game.Id), stoppingToken);
+                            // Force transition when writing timer hits zero, even if some boards are incomplete/not submitted
+                            await _startGuessing.Handle(new StartGuessingPhase.Request(game.Id, true), stoppingToken);
                             break;
                         case GamePhase.Guessing:
                             // Triggered by system (deadline reached)

@@ -85,7 +85,7 @@ public class GamePhaseDurationTests
 
         // 2) Guessing: starting should set a per-board deadline within 1800s
         clock.Advance(TimeSpan.FromSeconds(1));
-        await startGuessing.Handle(new StartGuessingPhase.Request(gameId));
+        await startGuessing.Handle(new StartGuessingPhase.Request(gameId, true));
         var state2 = await getState.Handle(new GetGameState.Request(gameId));
         Assert.Equal(GamePhase.Guessing, state2.Phase);
         Assert.NotNull(state2.PhaseEndsAtUtc);

@@ -1,4 +1,6 @@
-﻿// Scope isolation to avoid global `let` collisions with app.js (e.g. `playerName`)
+﻿// TODO: Update card rotation animation so it's not "rolling back" when reset rotation to 0. Instead it just rotate left or right depending of user action.
+
+// Scope isolation to avoid global `let` collisions with app.js (e.g. `playerName`)
 (function(){
 'use strict';
 

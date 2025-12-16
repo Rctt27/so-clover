@@ -55,7 +55,7 @@ public class GuessingTimeoutLastBoardTests
 
         // Move to Writing and then start Guessing
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
-        await startGuessing.Handle(new StartGuessingPhase.Request(gameId));
+        await startGuessing.Handle(new StartGuessingPhase.Request(gameId, true));
 
         // Reach the end of the first board by expiring time and invoking system move
         var state1 = await getState.Handle(new GetGameState.Request(gameId));

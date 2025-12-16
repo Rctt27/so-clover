@@ -176,7 +176,7 @@ public class BreakingGameTests
         var guess = sp.GetRequiredService<IGuessUseCase>();
         var gameId = (await create.Handle(new CreateGame.Request("Admin"))).GameId;
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
-        await startGuessing.Handle(new StartGuessingPhase.Request(gameId));
+        await startGuessing.Handle(new StartGuessingPhase.Request(gameId, true));
 
         await Assert.ThrowsAsync<PlayerNotFoundException>(async () =>
             await guess.Handle(new Guess.Request(gameId, PlayerId.New(), Direction.Top, "x")));

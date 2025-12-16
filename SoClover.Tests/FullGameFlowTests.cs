@@ -75,8 +75,8 @@ public class FullGameFlowTests
         await setClue.Handle(new SetClue.Request(gameId, p2, Direction.Bottom, "Clue B3"));
         await setClue.Handle(new SetClue.Request(gameId, p2, Direction.Left,   "Clue B4"));
 
-        // Guessing phase
-        phase = (await startGuessing.Handle(new StartGuessingPhase.Request(gameId))).Phase;
+        // Guessing phase (force from test context)
+        phase = (await startGuessing.Handle(new StartGuessingPhase.Request(gameId, true))).Phase;
         Assert.Equal(GamePhase.Guessing, phase);
 
         // Prepare expected words by reading the game state

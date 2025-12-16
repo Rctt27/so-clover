@@ -1,5 +1,3 @@
-//TODO: Add logic of chrono to this phase. User must not ewceed xx minutes to write Clues. If not all Clues are written when chrono is over then replace "null" Clues by "no clue"
-
 using SoClover.Domain;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
@@ -10,7 +8,7 @@ public interface IStartGuessingPhaseUseCase : IUseCase<StartGuessingPhase.Reques
 
 public static class StartGuessingPhase
 {
-    public readonly record struct Request(GameId GameId);
+    public readonly record struct Request(GameId GameId, bool Force = false);
     public readonly record struct Response(GamePhase Phase, PlayerId CurrentBoardOwner);
 
     public sealed class Handler : IStartGuessingPhaseUseCase
@@ -39,8 +37,13 @@ public static class StartGuessingPhase
             if (game.Phase != GamePhase.WritingClues)
                 throw new InvalidOperationInPhaseException("Guessing phase can only start after WritingClues.");
 
-            // Vérifier que tous les joueurs ont soumis leur board
-            // (pour l'instant, on suppose que c'est fait via l'événement BoardSubmitted)
+            // Vérifier que tous les joueurs ont explicitement soumis leur board, sauf si force est activé
+            if (!request.Force)
+            {
+                var allSubmitted = game.Players.All(p => p.Board.IsSubmitted);
+                if (!allSubmitted)
+                    throw new InvalidOperationInPhaseException("Cannot start Guessing: not all boards were explicitly submitted.");
+            }
 
             // Choisir aléatoirement le premier joueur
             var players = game.Players.ToList();

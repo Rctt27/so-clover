@@ -36,19 +36,23 @@ public static class SubmitBoard
             var player = game.Players.FirstOrDefault(p => p.Id == request.PlayerId) 
                 ?? throw new PlayerNotFoundException(request.PlayerId);
 
-            // Check if all players have submitted their boards (all 4 clues set)
-            var allPlayersSubmitted = game.Players.All(p => 
-                p.Board.TopClue != null && 
-                p.Board.RightClue != null && 
-                p.Board.BottomClue != null && 
-                p.Board.LeftClue != null
-            );
+            // Optional: prevent submitting an incomplete board
+            var boardHasAllClues = player.Board.TopClue != null
+                                   && player.Board.RightClue != null
+                                   && player.Board.BottomClue != null
+                                   && player.Board.LeftClue != null;
+            if (!boardHasAllClues)
+                throw new InvalidOperationException("Cannot submit an incomplete board.");
+
+            // Idempotent, irreversible mark
+            player.Board.MarkSubmitted(DateTime.UtcNow);
 
             await _repo.Save(game, ct);
             await _events.Publish(new BoardSubmitted(game.Id, request.PlayerId), ct);
 
             // If all players have submitted, automatically start the guessing phase
-            if (allPlayersSubmitted)
+            var allPlayersExplicitlySubmitted = game.Players.All(p => p.Board.IsSubmitted);
+            if (allPlayersExplicitlySubmitted)
             {
                 await _startGuessingPhase.Handle(new StartGuessingPhase.Request(game.Id), ct);
             }

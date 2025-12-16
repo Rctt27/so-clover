@@ -1,4 +1,6 @@
-﻿// Lobby page logic (scoped to avoid leaking globals)
+﻿// TODO: Send setting updates only on focus lose instead of realtime to avoid server spamming + control min and max only on focus lose so user is free to type anything in the placeholder (UX)
+
+// Lobby page logic (scoped to avoid leaking globals)
 (function () {
     'use strict';
 let gameId = null;

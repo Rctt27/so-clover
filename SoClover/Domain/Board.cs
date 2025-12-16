@@ -37,6 +37,15 @@ public sealed class CloverBoard
     [JsonPropertyName("leftClue")]
     public ClueText? LeftClue { get; private set; }
 
+    // Explicit submission marker for WritingClues phase
+    [JsonInclude]
+    [JsonPropertyName("isSubmitted")]
+    public bool IsSubmitted { get; private set; }
+
+    [JsonInclude]
+    [JsonPropertyName("submittedAtUtc")]
+    public DateTime? SubmittedAtUtc { get; private set; }
+
     // Track guessed edges and persist across EF JSON round-trips
     [JsonInclude]
     [JsonPropertyName("guessedDirections")]
@@ -88,6 +97,23 @@ public sealed class CloverBoard
             default:
                 throw new ArgumentOutOfRangeException(nameof(direction));
         }
+    }
+
+    // Mark the board as explicitly submitted by the player (idempotent, irreversible during the round)
+    public void MarkSubmitted(DateTime nowUtc)
+    {
+        if (!IsSubmitted)
+        {
+            IsSubmitted = true;
+            SubmittedAtUtc = nowUtc;
+        }
+    }
+
+    // Clear submission status (intended for start of a new round/phase only)
+    public void ResetSubmission()
+    {
+        IsSubmitted = false;
+        SubmittedAtUtc = null;
     }
 
     public string GetClueText(Direction direction)
