@@ -14,6 +14,11 @@
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "1"
 
   web:
     build:
@@ -31,6 +36,11 @@
     expose:
       - "8080"
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "1"
 
   caddy:
     image: caddy:2
@@ -44,6 +54,12 @@
     depends_on:
       - web
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "1"
+    
 
 volumes:
   dbdata:
