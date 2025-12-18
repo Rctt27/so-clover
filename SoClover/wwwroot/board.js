@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupRotationControls();
     setupClueInputs();
     setupSubmitButton();
+    setupKeyboardShortcuts();
 
     // Subscribe to server pushes
     let offUpdated = () => {};
@@ -252,6 +253,13 @@ function showBoardStatusMessage(message, type = 'info') {
 function setupRotationControls() {
     btnRotateLeft.addEventListener('click', () => rotateBoardLeft());
     btnRotateRight.addEventListener('click', () => rotateBoardRight());
+}
+
+function setupKeyboardShortcuts() {
+    if (window.ShortcutManager) {
+        window.ShortcutManager.register('ArrowLeft', () => rotateBoardLeft());
+        window.ShortcutManager.register('ArrowRight', () => rotateBoardRight());
+    }
 }
 
 function rotateBoardLeft() {

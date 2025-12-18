@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     fetchAndDisplayGuessingPhase();
     setupRotationControls();
     setupConfirmButton();
+    setupKeyboardShortcuts();
 
     // Subscribe to server pushes
     let offUpdated = () => {};
@@ -489,6 +490,13 @@ function getRotationAngle(rotation) {
 function setupRotationControls() {
     btnRotateLeft.addEventListener('click', () => rotateBoardLeft());
     btnRotateRight.addEventListener('click', () => rotateBoardRight());
+}
+
+function setupKeyboardShortcuts() {
+    if (window.ShortcutManager) {
+        window.ShortcutManager.register('ArrowLeft', () => rotateBoardLeft());
+        window.ShortcutManager.register('ArrowRight', () => rotateBoardRight());
+    }
 }
 
 function rotateBoardLeft() {

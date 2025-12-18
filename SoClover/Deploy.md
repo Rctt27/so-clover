@@ -21,3 +21,23 @@ If you did not updated .dockerignore -> You can proceed to Step2
    5) ```cd /opt/soclover/SoClover```
    6) ```docker compose build --no-cache web```
 5) Run new version: ```docker compose up -d```
+
+
+### Misc: Server checks and actions
+
+1) Check partition load: ```df -h``` / ```sudo ncdu / --exclude /opt/soclover```
+2) Delete unused Docker containers: ```docker system prune -a --volumes```
+3) List Docker images: ```docker images```
+4) Empty Docker logs: ```sudo journalctl --vacuum-size=100M```
+5) Clean temporary files:
+   6) ```sudo apt clean```
+   7) ```sudo rm -rf /tmp/*```
+   8) ```sudo rm -rf /var/tmp/*```
+9) Reboot Docker: ```sudo systemctl restart docker```
+10) Stop all running Docker containers: ```docker stop $(docker ps -aq)```
+
+
+
+
+
+
