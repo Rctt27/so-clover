@@ -6,7 +6,8 @@
 let gameId = null;
 let playerName = '';
 let playerId = null;
-let boardRotation = 0; // Current board rotation: 0, 90, 180, or 270
+let boardRotation = 0; // Current board rotation normalized (0, 90, 180, 270)
+let cumulativeRotation = 0; // Cumulative rotation in degrees for smooth animation
 
 // Track saved clues
 const savedClues = {
@@ -263,21 +264,20 @@ function setupKeyboardShortcuts() {
 }
 
 function rotateBoardLeft() {
-    boardRotation = (boardRotation - 90 + 360) % 360;
+    cumulativeRotation -= 90;
+    boardRotation = (cumulativeRotation % 360 + 360) % 360;
     updateBoardRotation();
 }
 
 function rotateBoardRight() {
-    boardRotation = (boardRotation + 90) % 360;
+    cumulativeRotation += 90;
+    boardRotation = (cumulativeRotation % 360 + 360) % 360;
     updateBoardRotation();
 }
 
 function updateBoardRotation() {
-    // Remove all rotation classes
-    cloverBoard.classList.remove('rotate-0', 'rotate-90', 'rotate-180', 'rotate-270');
-
-    // Add the current rotation class
-    cloverBoard.classList.add(`rotate-${boardRotation}`);
+    // Apply the cumulative rotation directly to the style for smooth animation
+    cloverBoard.style.transform = `rotate(${cumulativeRotation}deg)`;
 
     // Update rotation indicator
     rotationIndicator.textContent = `${boardRotation}°`;

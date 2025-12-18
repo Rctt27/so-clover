@@ -1,6 +1,4 @@
-﻿// TODO: Update card rotation animation so it's not "rolling back" when reset rotation to 0. Instead it just rotate left or right depending of user action.
-
-// Scope isolation to avoid global `let` collisions with app.js (e.g. `playerName`)
+﻿// Scope isolation to avoid global `let` collisions with app.js (e.g. `playerName`)
 (function(){
 'use strict';
 
@@ -10,7 +8,8 @@
 let gameId = null;
 let playerName = '';
 let playerId = null;
-let boardRotation = 0;
+let boardRotation = 0; // Current board rotation normalized (0, 90, 180, 270)
+let cumulativeRotation = 0; // Cumulative rotation in degrees for smooth animation
 let guessingState = null;
 let isSpectator = false;
 
@@ -500,18 +499,20 @@ function setupKeyboardShortcuts() {
 }
 
 function rotateBoardLeft() {
-    boardRotation = (boardRotation - 90 + 360) % 360;
+    cumulativeRotation -= 90;
+    boardRotation = (cumulativeRotation % 360 + 360) % 360;
     updateBoardRotation();
 }
 
 function rotateBoardRight() {
-    boardRotation = (boardRotation + 90) % 360;
+    cumulativeRotation += 90;
+    boardRotation = (cumulativeRotation % 360 + 360) % 360;
     updateBoardRotation();
 }
 
 function updateBoardRotation() {
-    const rotationClass = `rotate-${boardRotation}`;
-    cloverBoard.className = `clover-board ${rotationClass}`;
+    // Apply the cumulative rotation directly to the style for smooth animation
+    cloverBoard.style.transform = `rotate(${cumulativeRotation}deg)`;
     rotationIndicator.textContent = `${boardRotation}°`;
 }
 
