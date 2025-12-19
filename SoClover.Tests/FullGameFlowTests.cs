@@ -29,7 +29,7 @@ public class FullGameFlowTests
         services.AddTransient<ISetClueUseCase, SetClue.Handler>();
         services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
         services.AddTransient<IGuessUseCase, Guess.Handler>();
-        services.AddTransient<IPlaceCardUseCase, PlaceCard.Handler>();
+        services.AddTransient<IPlaceCardToGuessUseCase, PlaceCardToGuess.Handler>();
         services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
         return services.BuildServiceProvider();
     }

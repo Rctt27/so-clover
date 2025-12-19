@@ -954,6 +954,21 @@ footer {
 }
 
 /* Animations */
+@keyframes card-fade-in {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.card-fade-in {
+    animation: card-fade-in 0.4s ease-out;
+}
+
 @keyframes fadeInDown {
     from {
         opacity: 0;

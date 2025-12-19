@@ -47,7 +47,7 @@ builder.Services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handl
 builder.Services.AddTransient<ISetClueUseCase, SetClue.Handler>();
 builder.Services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
 builder.Services.AddTransient<IGuessUseCase, Guess.Handler>();
-builder.Services.AddTransient<IPlaceCardUseCase, PlaceCard.Handler>();
+builder.Services.AddTransient<IPlaceCardToGuessUseCase, PlaceCardToGuess.Handler>();
 builder.Services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
 builder.Services.AddTransient<ISubmitBoardUseCase, SubmitBoard.Handler>();
 builder.Services.AddTransient<IPlaceGuessingCardUseCase, PlaceGuessingCard.Handler>();

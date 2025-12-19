@@ -456,7 +456,7 @@ public sealed class Game
         );
     }
 
-    public void MoveToNextGuessingBoard(Card fifthCard, Rotation[] cardRotations, DateTime nowUtc, TimeSpan perBoardDuration)
+    public void MoveToNextGuessingBoard(Card? fifthCard, Rotation[]? cardRotations, DateTime nowUtc, TimeSpan perBoardDuration)
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only move to next board during Guessing phase.");
@@ -479,6 +479,9 @@ public sealed class Game
         }
         else
         {
+            if (fifthCard == null || cardRotations == null || cardRotations.Length < 5)
+                throw new InvalidOperationException("Fifth card and 5 rotations are required for next board.");
+
             // Trouver le prochain joueur qui n'a pas encore été deviné
             var currentIndex = playersList.FindIndex(p => p.Id == CurrentGuessingBoardOwner);
             var nextIndex = (currentIndex + 1) % playersList.Count;

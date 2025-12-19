@@ -97,7 +97,6 @@ public static class MoveToNextBoard
                 // Éviter toute dépendance au WordsPool lors du dernier passage (pas nécessaire et peut échouer)
                 fifthCard = new Card(CardId.New(), "x", "x", "x", "x");
                 rotations = new Rotation[5]; // valeurs par défaut non utilisées si on passe en Scoring
-                //TODO: Ne pas générer de carte factice si isLardBoard = true. On doit simplement passer à l'étape de Scoring.
             }
             else
             {

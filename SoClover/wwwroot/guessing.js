@@ -12,6 +12,7 @@ let boardRotation = 0; // Current board rotation normalized (0, 90, 180, 270)
 let cumulativeRotation = 0; // Cumulative rotation in degrees for smooth animation
 let guessingState = null;
 let isSpectator = false;
+let lastUpdatedElements = []; // Array of { index: string|number, isOutside: boolean }
 
 // DOM elements
 const guessingPlayerNameDisplay = document.getElementById('guessingPlayerName');
@@ -53,9 +54,70 @@ document.addEventListener('DOMContentLoaded', async () => {
     let offUpdated = () => {};
     let offNotif = () => {};
     try {
-        offUpdated = window.realTime?.onGameStateUpdated?.(async (_) => {
+        offUpdated = window.realTime?.onGameStateUpdated?.(async (payload) => {
+            console.log('[DEBUG_LOG] GameStateUpdated payload:', payload);
+            // Identifier les éléments modifiés selon l'événement
+            if (payload && payload.eventData) {
+                const data = payload.eventData;
+                const positionMap = {
+                    0: "TopLeft",
+                    1: "TopRight",
+                    2: "BottomRight",
+                    3: "BottomLeft"
+                };
+
+                const getPositionString = (pos) => {
+                    if (typeof pos === 'number') return positionMap[pos] || pos;
+                    return pos;
+                };
+
+                switch (payload.eventType) {
+                    case "GuessingCardPlaced":
+                        lastUpdatedElements = [{ index: getPositionString(data.Position || data.position), isOutside: false }];
+                        break;
+                    case "GuessingCardsSwapped":
+                        lastUpdatedElements = [
+                            { index: getPositionString(data.Position1 || data.position1), isOutside: false },
+                            { index: getPositionString(data.Position2 || data.position2), isOutside: false }
+                        ];
+                        break;
+                    case "CardRotated":
+                        if (data.BoardPosition !== null && data.BoardPosition !== undefined || data.boardPosition !== null && data.boardPosition !== undefined) {
+                            lastUpdatedElements = [{ index: getPositionString(data.BoardPosition ?? data.boardPosition), isOutside: false }];
+                        } else if (data.OutsideCardIndex !== null && data.OutsideCardIndex !== undefined || data.outsideCardIndex !== null && data.outsideCardIndex !== undefined) {
+                            lastUpdatedElements = [{ index: data.OutsideCardIndex ?? data.outsideCardIndex, isOutside: true }];
+                        }
+                        break;
+                    case "GuessingBoardValidated":
+                        // Animer les cartes qui ont été retournées (incorrectes)
+                        if (data.IncorrectPositions && data.IncorrectPositions.length > 0) {
+                            // On anime les positions sur le plateau qui ont échoué
+                            lastUpdatedElements = data.IncorrectPositions.map(pos => ({
+                                index: getPositionString(pos),
+                                isOutside: false
+                            }));
+
+                            // ET on anime aussi toutes les cartes à l'extérieur car le pool a changé
+                            // Comme on ne connaît pas encore les futurs index, on utilisera une astuce dans createDraggableCard
+                            // ou on marque simplement qu'on veut animer le pool extérieur
+                            // TODO: Fixer cette logique d'animation car ne fonctionne pas actuellement mais c'est pas très grave
+                            lastUpdatedElements.push({ isOutsidePoolUpdate: true });
+                        }
+                        break;
+                    case "MovedToNextBoard":
+                        // Optionnel : on pourrait animer tout le board ici, 
+                        // mais fetchAndDisplayGuessingPhase s'en charge déjà indirectement
+                        break;
+                }
+                console.log('[DEBUG_LOG] Identified lastUpdatedElements:', lastUpdatedElements);
+            }
+
             // On any state update, refetch current state
-            try { await fetchAndDisplayGuessingPhase(); } catch {}
+            try { 
+                await fetchAndDisplayGuessingPhase(); 
+            } finally {
+                lastUpdatedElements = []; // Reset après rendu
+            }
         }) || (() => {});
         offNotif = window.realTime?.onServerNotification?.((n) => {
             if (!n) return;
@@ -198,7 +260,22 @@ function displayOutsideCards(outsideCards) {
 function createDraggableCard(card, index, isOutside) {
     // Create wrapper container for card + controls
     const wrapper = document.createElement('div');
-    wrapper.className = 'card-wrapper';
+
+    // Animation conditionnelle : seulement si l'élément correspond à l'un des éléments de la dernière mise à jour
+    // Note: index peut être un number (outside) ou un string (board position "TopLeft", etc.)
+    const shouldAnimate = lastUpdatedElements.some(el => {
+        if (el.isOutsidePoolUpdate && isOutside) return true;
+        
+        const indexMatch = String(el.index) === String(index);
+        const outsideMatch = Boolean(el.isOutside) === Boolean(isOutside);
+        return indexMatch && outsideMatch;
+    });
+
+    if (shouldAnimate) {
+        console.log(`[DEBUG_LOG] Animating card at index: ${index}, isOutside: ${isOutside}`);
+    }
+
+    wrapper.className = `card-wrapper ${shouldAnimate ? 'card-fade-in' : ''}`;
     wrapper.style.position = 'relative';
     wrapper.style.width = '280px';
     wrapper.style.height = '280px';

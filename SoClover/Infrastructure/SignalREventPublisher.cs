@@ -49,7 +49,8 @@ public sealed class SignalREventPublisher : IEventPublisher
                     eventType = evt!.GetType().Name,
                     gameId = state.GameId.Value,
                     phase = state.Phase.ToString(),
-                    phaseEndsAtUtc = state.PhaseEndsAtUtc
+                    phaseEndsAtUtc = state.PhaseEndsAtUtc,
+                    eventData = evt // Include the event data for targeted updates
                 }, ct);
 
             // Special-case: countdown warning messages

@@ -31,7 +31,7 @@ public class BreakingGameTests
         services.AddTransient<ISetClueUseCase, SetClue.Handler>();
         services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
         services.AddTransient<IGuessUseCase, Guess.Handler>();
-        services.AddTransient<IPlaceCardUseCase, PlaceCard.Handler>();
+        services.AddTransient<IPlaceCardToGuessUseCase, PlaceCardToGuess.Handler>();
         services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
         return services.BuildServiceProvider();
     }
@@ -137,17 +137,17 @@ public class BreakingGameTests
     {
         var sp = BuildProvider();
         var create = sp.GetRequiredService<ICreateGameUseCase>();
-        var place = sp.GetRequiredService<IPlaceCardUseCase>();
+        var place = sp.GetRequiredService<IPlaceCardToGuessUseCase>();
         var createResponse = await create.Handle(new CreateGame.Request("Admin"));
         var gameId = createResponse.GameId;
         var adminId = createResponse.CreatorPlayerId;
 
         await Assert.ThrowsAsync<CardWordEmptyException>(async () =>
-            await place.Handle(new PlaceCard.Request(gameId, adminId, BoardPosition.TopLeft, "", "b", "c", "d")));
+            await place.Handle(new PlaceCardToGuess.Request(gameId, adminId, BoardPosition.TopLeft, "", "b", "c", "d")));
 
         var longWord = new string('x', 33);
         await Assert.ThrowsAsync<CardWordTooLongException>(async () =>
-            await place.Handle(new PlaceCard.Request(gameId, adminId, BoardPosition.TopLeft, longWord, "b", "c", "d")));
+            await place.Handle(new PlaceCardToGuess.Request(gameId, adminId, BoardPosition.TopLeft, longWord, "b", "c", "d")));
     }
 
     [Fact]
