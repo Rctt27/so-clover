@@ -30,35 +30,56 @@ public sealed class EfGameRepository : IGameRepository
     {
         var entity = await _db.Games.AsNoTracking().FirstOrDefaultAsync(g => g.Id == id.Value, ct);
         if (entity is null) return null;
-        return JsonSerializer.Deserialize<Game>(entity.PayloadJson, _json);
+        try
+        {
+            return JsonSerializer.Deserialize<Game>(entity.PayloadJson, _json);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG_LOG] EfGameRepository ERROR deserializing game {id.Value}: {ex.Message}");
+            throw;
+        }
     }
 
     public async Task Save(Game game, CancellationToken ct = default)
     {
-        var maxRetries = 3;
+        var maxRetries = 5; // Augmenté de 3 à 5
         var delay = TimeSpan.FromMilliseconds(50);
         for (var attempt = 0; attempt <= maxRetries; attempt++)
         {
             try
             {
                 await UpsertInternal(game, ct);
+                Console.WriteLine($"[DEBUG_LOG] EfGameRepository Saved game {game.Id.Value} in phase {game.Phase}. Attempt {attempt + 1}");
                 return;
             }
             catch (DbUpdateConcurrencyException) when (attempt < maxRetries)
             {
-                // Reload and retry with backoff
-                await Task.Delay(delay + TimeSpan.FromMilliseconds(Random.Shared.Next(0, 100)), ct);
+                Console.WriteLine($"[DEBUG_LOG] EfGameRepository Concurrency conflict for game {game.Id.Value}. Retrying... (Attempt {attempt + 1})");
+                await Task.Delay(delay + TimeSpan.FromMilliseconds(Random.Shared.Next(0, 200)), ct); // Jitter augmenté
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DEBUG_LOG] EfGameRepository ERROR saving game {game.Id.Value}: {ex.GetType().Name} - {ex.Message}");
+                if (attempt >= maxRetries) throw;
+                
+                // On ajoute aussi un délai pour les autres erreurs, au cas où c'est un problème transitoire 
+                // ou un conflit de tracking qui pourrait être résolu en réessayant avec un nouveau cycle.
+                await Task.Delay(delay, ct);
             }
         }
     }
 
     private async Task UpsertInternal(Game game, CancellationToken ct)
     {
+        // On récupère l'entité AVEC tracking pour qu'EF puisse gérer la mise à jour et la concurrence correctement
         var entity = await _db.Games.FirstOrDefaultAsync(g => g.Id == game.Id.Value, ct);
         var now = DateTime.UtcNow;
         var payload = JsonSerializer.Serialize(game, _json);
+        
         if (entity is null)
         {
+            Console.WriteLine($"[DEBUG_LOG] EfGameRepository: Creating new GameEntity for {game.Id.Value}");
             entity = new GameEntity
             {
                 Id = game.Id.Value,
@@ -67,21 +88,42 @@ public sealed class EfGameRepository : IGameRepository
                 PhaseEndsAtUtc = game.PhaseEndsAtUtc,
                 UpdatedAtUtc = now,
                 PayloadJson = payload
-                // xmin handled by database
             };
             _db.Games.Add(entity);
         }
         else
         {
+            Console.WriteLine($"[DEBUG_LOG] EfGameRepository: Updating existing GameEntity for {game.Id.Value}");
             entity.Status = game.Phase.ToString();
             entity.Language = game.Language;
             entity.PhaseEndsAtUtc = game.PhaseEndsAtUtc;
             entity.UpdatedAtUtc = now;
             entity.PayloadJson = payload;
-            _db.Entry(entity).State = EntityState.Modified;
+            
+            // Pas besoin de appeler _db.Games.Update(entity) car l'entité est déjà trackée et modifiée
         }
 
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (entity != null)
+            {
+                _db.Entry(entity).State = EntityState.Detached;
+            }
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG_LOG] EfGameRepository: SaveChangesAsync ERROR: {ex.GetType().Name} - {ex.Message}");
+            if (entity != null)
+            {
+                _db.Entry(entity).State = EntityState.Detached;
+            }
+            throw;
+        }
     }
 
     public async Task Delete(GameId id, CancellationToken ct = default)

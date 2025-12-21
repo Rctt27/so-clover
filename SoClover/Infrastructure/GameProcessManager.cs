@@ -48,76 +48,100 @@ public sealed class GameProcessManager : BackgroundService
                 var games = await _repo.GetAll(stoppingToken);
                 foreach (var game in games)
                 {
-                    if (game.PhaseEndsAtUtc is not DateTime endsAt)
-                        continue;
-
-                    // Send a 3s warning during Guessing phase
-                    if (game.Phase == GamePhase.Guessing && now < endsAt)
+                    try
                     {
-                        var remaining = endsAt - now;
-                        if (remaining <= TimeSpan.FromSeconds(3) && remaining > TimeSpan.Zero)
+                        if (game.PhaseEndsAtUtc is not DateTime endsAt)
+                            continue;
+
+                        // Send a 3s warning during Guessing phase
+                        if (game.Phase == GamePhase.Guessing && now < endsAt)
                         {
-                            var key = $"{game.Id.Value}-{game.CurrentGuessingBoardOwner?.Value}-{endsAt:O}";
-                            if (_warningSent.TryAdd(key, 1))
+                            var remaining = endsAt - now;
+                            if (remaining <= TimeSpan.FromSeconds(3) && remaining > TimeSpan.Zero)
                             {
-                                // Fire-and-forget event; if it fails, next loop won't resend due to key
-                                await _events.Publish(new GuessingCountdownWarning(game.Id, 3), stoppingToken);
+                                var ownerId = game.CurrentGuessingBoardOwner;
+                                var key = $"{game.Id.Value}-{ownerId?.Value}-{endsAt:O}";
+                                if (_warningSent.TryAdd(key, 1))
+                                {
+                                    Console.WriteLine($"[DEBUG_LOG] GameProcessManager: Sending countdown warning for game {game.Id.Value}, board owner {ownerId?.Value}");
+                                    // Fire-and-forget event; if it fails, next loop won't resend due to key
+                                    await _events.Publish(new GuessingCountdownWarning(game.Id, 3), stoppingToken);
+                                }
                             }
                         }
-                    }
 
-                    // Send a 3s warning during WritingClues phase
-                    if (game.Phase == GamePhase.WritingClues && now < endsAt)
-                    {
-                        var remaining = endsAt - now;
-                        if (remaining <= TimeSpan.FromSeconds(3) && remaining > TimeSpan.Zero)
+                        // Send a 3s warning during WritingClues phase
+                        if (game.Phase == GamePhase.WritingClues && now < endsAt)
                         {
-                            var key = $"{game.Id.Value}-writing-{endsAt:O}";
-                            if (_warningSent.TryAdd(key, 1))
+                            var remaining = endsAt - now;
+                            if (remaining <= TimeSpan.FromSeconds(3) && remaining > TimeSpan.Zero)
                             {
-                                await _events.Publish(new WritingCountdownWarning(game.Id, 3), stoppingToken);
+                                var key = $"{game.Id.Value}-writing-{endsAt:O}";
+                                if (_warningSent.TryAdd(key, 1))
+                                {
+                                    await _events.Publish(new WritingCountdownWarning(game.Id, 3), stoppingToken);
+                                }
                             }
                         }
+
+                        if (now < endsAt)
+                            continue;
+
+                        // Deadline reached
+                        Console.WriteLine($"[DEBUG_LOG] GameProcessManager: Deadline reached for game {game.Id.Value} in phase {game.Phase}. EndsAt={endsAt:O}, Now={now:O}");
+                        
+                        // Avant de traiter, on vérifie si le jeu a été modifié très récemment en DB 
+                        // pour éviter de traiter une deadline qui vient d'être traitée par une autre instance 
+                        // ou un appel client qui a fait avancer le jeu.
+                        // On re-fetch le jeu pour avoir son état le plus actuel.
+                        var latestGame = await _repo.Get(game.Id, stoppingToken);
+                        if (latestGame == null || latestGame.Phase != game.Phase || latestGame.PhaseEndsAtUtc != game.PhaseEndsAtUtc)
+                        {
+                            Console.WriteLine($"[DEBUG_LOG] GameProcessManager: Skipping stale deadline for game {game.Id.Value}. Current Phase={latestGame?.Phase}, EndsAt={latestGame?.PhaseEndsAtUtc:O}");
+                            continue;
+                        }
+
+                        switch (game.Phase)
+                        {
+                            case GamePhase.Lobby:
+                                // Lobby expired without start -> cancel game
+                                await _deleteGame.Handle(new DeleteGame.Request(game.Id), stoppingToken);
+                                break;
+                            case GamePhase.WritingClues:
+                                // Force transition when writing timer hits zero, even if some boards are incomplete/not submitted
+                                await _startGuessing.Handle(new StartGuessingPhase.Request(game.Id, true), stoppingToken);
+                                break;
+                            case GamePhase.Guessing:
+                                // Triggered by system (deadline reached)
+                                await _moveNext.Handle(
+                                    new MoveToNextBoard.Request(
+                                        game.Id,
+                                        game.CurrentGuessingBoardOwner ?? default,
+                                        SoClover.UseCases.Abstractions.InvocationOrigin.System
+                                    ),
+                                    stoppingToken);
+                                break;
+                            case GamePhase.Scoring:
+                                if (game.AdminPlayerId is PlayerId adminId)
+                                {
+                                    await _completeGame.Handle(new CompleteGame.Request(game.Id, adminId), stoppingToken);
+                                }
+                                break;
+                            default:
+                                // no-op
+                                break;
+                        }
                     }
-
-                    if (now < endsAt)
-                        continue;
-
-                    // Deadline reached
-                    switch (game.Phase)
+                    catch (Exception ex)
                     {
-                        case GamePhase.Lobby:
-                            // Lobby expired without start -> cancel game
-                            await _deleteGame.Handle(new DeleteGame.Request(game.Id), stoppingToken);
-                            break;
-                        case GamePhase.WritingClues:
-                            // Force transition when writing timer hits zero, even if some boards are incomplete/not submitted
-                            await _startGuessing.Handle(new StartGuessingPhase.Request(game.Id, true), stoppingToken);
-                            break;
-                        case GamePhase.Guessing:
-                            // Triggered by system (deadline reached)
-                            await _moveNext.Handle(
-                                new MoveToNextBoard.Request(
-                                    game.Id,
-                                    game.CurrentGuessingBoardOwner ?? default,
-                                    SoClover.UseCases.Abstractions.InvocationOrigin.System
-                                ),
-                                stoppingToken);
-                            break;
-                        case GamePhase.Scoring:
-                            if (game.AdminPlayerId is PlayerId adminId)
-                            {
-                                await _completeGame.Handle(new CompleteGame.Request(game.Id, adminId), stoppingToken);
-                            }
-                            break;
-                        default:
-                            // no-op
-                            break;
+                        Console.WriteLine($"[DEBUG_LOG] GameProcessManager ERROR processing game {game.Id.Value}: {ex.Message}");
+                        // Continue to next game
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"[DEBUG_LOG] GameProcessManager CRITICAL ERROR in main loop: {ex.Message}");
                 // swallow errors to keep background loop alive; could log in a real logger
             }
 

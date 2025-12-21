@@ -1,8 +1,8 @@
-﻿// Scope isolation to avoid global `let` collisions with app.js (e.g. `playerName`)
+﻿//TODO : Il faudrait dé-localiser la rotation du Board afin que ce soit partagé par tous les Boards sinon le mouse tracking produit des choses bizarres puisque les users ne voient pas tous la même position de board.
+
+// Scope isolation to avoid global `let` collisions with app.js (e.g. `playerName`)
 (function(){
 'use strict';
-
-//TODO: Try add live mouse tracking of all guessing players when guessing a board. Do not track owner mouse movements, only guessing players.
 
 // Guessing Phase logic
 let gameId = null;
@@ -12,6 +12,7 @@ let boardRotation = 0; // Current board rotation normalized (0, 90, 180, 270)
 let cumulativeRotation = 0; // Cumulative rotation in degrees for smooth animation
 let guessingState = null;
 let isSpectator = false;
+let lastFetchTime = Date.now();
 let lastUpdatedElements = []; // Array of { index: string|number, isOutside: boolean }
 let mouseTrackerWorker = null;
 let lastMouseSampleTime = 0;
@@ -52,6 +53,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupRotationControls();
     setupConfirmButton();
     setupKeyboardShortcuts();
+
+    // Safety polling: if we haven't updated in a while and time is up, force a fetch
+    setInterval(async () => {
+        if (!gameId || !playerId) return;
+        
+        const now = Date.now();
+        // If we haven't fetched in 10s
+        if (now - lastFetchTime > 10000) {
+            console.log('[DEBUG_LOG] Safety polling: triggering refetch...');
+            await fetchAndDisplayGuessingPhase();
+            return;
+        }
+
+        // Or if time is up according to the timer element (visual check)
+        const timerEl = document.getElementById('phaseCountdownTimer');
+        if (timerEl && timerEl.classList.contains('warning')) {
+            const timeSpan = timerEl.querySelector('.phase-timer-time');
+            if (timeSpan && timeSpan.textContent === '00:00') {
+                // If it's been at 00:00 for more than 3 seconds since last fetch
+                if (now - lastFetchTime > 3000) {
+                    console.log('[DEBUG_LOG] Safety polling: timer is at 00:00, triggering refetch...');
+                    await fetchAndDisplayGuessingPhase();
+                }
+            }
+        }
+    }, 5000);
 
     // Subscribe to server pushes
     let offUpdated = () => {};
@@ -114,6 +141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                         break;
                     case "MovedToNextBoard":
+                        console.log('[DEBUG_LOG] MovedToNextBoard event received. Forcing full refresh.');
                         // Optionnel : on pourrait animer tout le board ici, 
                         // mais fetchAndDisplayGuessingPhase s'en charge déjà indirectement
                         break;
@@ -232,6 +260,9 @@ async function fetchAndDisplayGuessingPhase() {
         console.log('🎮 Game State:', gameState);
         // Update phase countdown timer from server
         try { if (typeof setPhaseDeadline === 'function') setPhaseDeadline(gameState.phaseEndsAtUtc || null); } catch {}
+
+        // Reset our local "last safety refetch" time since we just got a fresh state
+        lastFetchTime = Date.now();
 
         // Check if game has moved to Scoring phase
         if (gameState.phase === 'Scoring') {

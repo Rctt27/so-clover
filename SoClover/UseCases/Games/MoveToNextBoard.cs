@@ -1,5 +1,3 @@
-// TODO: Ensure that countdown can trigger MoveToNextBoard.cs when guessing countdown is over for a Board even if Board in not valid.
-
 using SoClover.Domain;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
@@ -68,22 +66,45 @@ public static class MoveToNextBoard
 
             // Allow move if board completed/exhausted OR time expired
             var isTimeExpired = game.PhaseEndsAtUtc.HasValue && now >= game.PhaseEndsAtUtc.Value;
-
-            // Use explicit invocation origin instead of sentinel values (e.g., Guid.Empty)
             var isSystemInvocation = request.Origin == SoClover.UseCases.Abstractions.InvocationOrigin.System;
 
-            if (!isTimeExpired && !isSystemInvocation && game.RemainingAttempts > 0 && game.CorrectlyPlacedPositions.Count < 4)
-                throw new InvalidOperationException("Cannot move to next board while attempts remain and board is not complete.");
-
-            // If we are moving due to time expiration and board is incomplete, record a timeout loss for current board
-            if ((isTimeExpired || isSystemInvocation) && game.CurrentGuessingBoardOwner is not null && game.CorrectlyPlacedPositions.Count < 4)
-            {
-                game.RecordTimeoutLoss(now);
-            }
+            Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard: Game={game.Id.Value}, Player={request.PlayerId.Value}, Origin={request.Origin}, Now={now:O}, EndsAt={game.PhaseEndsAtUtc?.ToString("O") ?? "null"}");
 
             // Déterminer si ce passage est le dernier (après ce move, on doit entrer en Scoring)
             var playersCount = game.Players.Count;
-            var isLastBoard = (game.CompletedBoardsCount + 1) >= playersCount;
+            // On utilise l'état actuel du compteur. Si on est sur le dernier board, 
+            // CompletedBoardsCount est à playersCount - 1.
+            var isLastBoard = game.CompletedBoardsCount >= (playersCount - 1);
+            
+            Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard Calculation: CompletedBoardsCount={game.CompletedBoardsCount}, PlayersCount={playersCount}, isLastBoard={isLastBoard}");
+
+            // On autorise le passage au board suivant (ou au scoring) si le temps est écoulé, 
+            // si c'est une action système, si le board est complet ou s'il n'y a plus d'essais.
+            // On s'assure ainsi que le dernier board force bien le passage en Scoring lors d'un timeout.
+            var isTimeout = isTimeExpired || isSystemInvocation;
+            var isBoardComplete = game.CorrectlyPlacedPositions.Count >= 4;
+            var noAttemptsLeft = game.RemainingAttempts <= 0;
+
+            if (!isTimeout && !isBoardComplete && !noAttemptsLeft)
+            {
+                Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard BLOCKED: isTimeout={isTimeout}, isBoardComplete={isBoardComplete}, noAttemptsLeft={noAttemptsLeft}, RemainingAttempts={game.RemainingAttempts}");
+                throw new InvalidOperationException("Cannot move to next board while attempts remain and board is not complete.");
+            }
+
+            // If we are moving due to time expiration and board is incomplete, record a timeout loss for current board
+            if (isTimeout && game.CurrentGuessingBoardOwner is not null && !isBoardComplete)
+            {
+                Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard: Recording timeout loss for owner {game.CurrentGuessingBoardOwner.Value}");
+                game.RecordTimeoutLoss(now);
+            }
+
+            // On s'assure que si on est en timeout, on force la transition même si des conditions de plateau bloquent normalement
+            if (isTimeout)
+            {
+                Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard: Timeout forcing transition. isLastBoard={isLastBoard}");
+            }
+
+            Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard: Before domain call. Current Phase={game.Phase}, CompletedBoardsCount={game.CompletedBoardsCount}, PlayersCount={playersCount}, isLastBoard={isLastBoard}");
 
             Card fifthCard;
             Rotation[] rotations;
@@ -113,6 +134,8 @@ public static class MoveToNextBoard
             }
 
             game.MoveToNextGuessingBoard(fifthCard, rotations, now, perBoard);
+
+            Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard: After domain call. New Phase={game.Phase}, CurrentOwner={game.CurrentGuessingBoardOwner?.Value.ToString() ?? "null"}");
 
             // If we just entered Scoring, set a scoring deadline
             if (game.Phase == GamePhase.Scoring)

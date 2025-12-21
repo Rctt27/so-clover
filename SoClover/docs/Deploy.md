@@ -37,6 +37,7 @@ If you did not updated .dockerignore -> You can proceed to Step2
 10) Stop all running Docker containers: ```docker stop $(docker ps -aq)```
 11) Delete unused network : ```docker network prune -f```
 12) Delete unused images : ```docker image prune -a -f```
+13) Remove obsolete containers and networks: ```docker compose down```
 
 
 

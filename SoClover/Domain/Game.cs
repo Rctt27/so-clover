@@ -468,10 +468,13 @@ public sealed class Game
         CompletedBoardsCount++;
 
         var playersList = Players.ToList();
+        
+        Console.WriteLine($"[DEBUG_LOG] Game.MoveToNextGuessingBoard: CompletedBoardsCount={CompletedBoardsCount}, TotalPlayers={playersList.Count}");
 
         // Vérifier si tous les boards ont été devinés
         if (CompletedBoardsCount >= playersList.Count)
         {
+            Console.WriteLine($"[DEBUG_LOG] Game.MoveToNextGuessingBoard: Transitioning to Scoring phase.");
             // Tous les boards ont été complétés, fin de la phase de guessing
             Phase = GamePhase.Scoring;
             CurrentGuessingBoardOwner = null;
