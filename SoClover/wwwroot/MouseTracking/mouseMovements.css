@@ -1,0 +1,59 @@
+﻿/* Mouse Movement Reconstruction Styles */
+
+.remote-cursor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 20px;
+    height: 20px;
+    pointer-events: none; /* Ne pas interférer avec les clics */
+    z-index: 10000;
+    transition: transform 0.05s linear; /* Réduit pour permettre une lecture plus granulaire tout en gardant un petit lissage */
+    will-change: transform;
+}
+
+.remote-cursor-icon {
+    width: 16px;
+    height: 16px;
+    border: 2px solid white;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.remote-cursor-label {
+    position: absolute;
+    left: 18px;
+    top: 18px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    font-family: sans-serif;
+    pointer-events: none;
+}
+
+/* 10 Couleurs distinctes pour les joueurs */
+.cursor-color-1 .remote-cursor-icon { background-color: #e6194B; }
+.cursor-color-2 .remote-cursor-icon { background-color: #3cb44b; }
+.cursor-color-3 .remote-cursor-icon { background-color: #ffe119; }
+.cursor-color-4 .remote-cursor-icon { background-color: #4363d8; }
+.cursor-color-5 .remote-cursor-icon { background-color: #f58231; }
+.cursor-color-6 .remote-cursor-icon { background-color: #911eb4; }
+.cursor-color-7 .remote-cursor-icon { background-color: #42d4f4; }
+.cursor-color-8 .remote-cursor-icon { background-color: #f032e6; }
+.cursor-color-9 .remote-cursor-icon { background-color: #bfef45; }
+.cursor-color-10 .remote-cursor-icon { background-color: #fabed4; }
+
+.cursor-color-1 .remote-cursor-label { border-left: 2px solid #e6194B; }
+.cursor-color-2 .remote-cursor-label { border-left: 2px solid #3cb44b; }
+.cursor-color-3 .remote-cursor-label { border-left: 2px solid #ffe119; }
+.cursor-color-4 .remote-cursor-label { border-left: 2px solid #4363d8; }
+.cursor-color-5 .remote-cursor-label { border-left: 2px solid #f58231; }
+.cursor-color-6 .remote-cursor-label { border-left: 2px solid #911eb4; }
+.cursor-color-7 .remote-cursor-label { border-left: 2px solid #42d4f4; }
+.cursor-color-8 .remote-cursor-label { border-left: 2px solid #f032e6; }
+.cursor-color-9 .remote-cursor-label { border-left: 2px solid #bfef45; }
+.cursor-color-10 .remote-cursor-label { border-left: 2px solid #fabed4; }

@@ -13,6 +13,9 @@ let cumulativeRotation = 0; // Cumulative rotation in degrees for smooth animati
 let guessingState = null;
 let isSpectator = false;
 let lastUpdatedElements = []; // Array of { index: string|number, isOutside: boolean }
+let mouseTrackerWorker = null;
+let lastMouseSampleTime = 0;
+const MOUSE_SAMPLE_INTERVAL = 30; // ms (plus granulaire que 50ms)
 
 // DOM elements
 const guessingPlayerNameDisplay = document.getElementById('guessingPlayerName');
@@ -45,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await (window.realTime?.ensureConnected?.());
         await (window.realTime?.joinCurrentGame?.(gameId, playerId));
     } catch {}
-    fetchAndDisplayGuessingPhase();
+    await fetchAndDisplayGuessingPhase();
     setupRotationControls();
     setupConfirmButton();
     setupKeyboardShortcuts();
@@ -53,7 +56,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Subscribe to server pushes
     let offUpdated = () => {};
     let offNotif = () => {};
+    let offMouse = () => {};
     try {
+        offMouse = window.realTime?.onGuessingMouseMoved?.((data) => {
+            console.log('[DEBUG_LOG] GuessingMouseMoved received', data);
+            MouseMovementBuilder.renderRemoteMouse(data);
+        });
+
         offUpdated = window.realTime?.onGameStateUpdated?.(async (payload) => {
             console.log('[DEBUG_LOG] GameStateUpdated payload:', payload);
             // Identifier les éléments modifiés selon l'événement
@@ -128,9 +137,61 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Cleanup handlers
     window.addEventListener('beforeunload', () => {
-        try { offUpdated(); offNotif(); } catch {}
+        stopMouseTracking();
+        try { offUpdated(); offNotif(); offMouse(); } catch {}
     });
 });
+
+function setupMouseTracking() {
+    if (isSpectator) return;
+    if (mouseTrackerWorker) return; // Already running
+
+    if (window.Worker) {
+        mouseTrackerWorker = new Worker('MouseTracking/mouseTrackerWorker.js');
+        
+        mouseTrackerWorker.onmessage = function(e) {
+            const payload = e.data;
+            // Send to server via SignalR
+            window.realTime?.sendMousePositions?.(payload.gameId, payload.playerId, payload.positions);
+        };
+
+        mouseTrackerWorker.postMessage({
+            type: 'INIT',
+            data: { gameId, playerId }
+        });
+
+        document.addEventListener('mousemove', handleMouseMove);
+    }
+}
+
+function handleMouseMove(e) {
+    if (!mouseTrackerWorker) return;
+
+    // Throttle to 50ms before sending to worker to avoid overwhelming message channel
+    const now = Date.now();
+    if (now - lastMouseSampleTime < MOUSE_SAMPLE_INTERVAL) return;
+    lastMouseSampleTime = now;
+
+    // Coordonnées relatives au <body>
+    const x = e.pageX;
+    const y = e.pageY;
+
+    mouseTrackerWorker.postMessage({
+        type: 'MOUSE_MOVE',
+        data: { x, y, timestamp: now }
+    });
+}
+
+function stopMouseTracking() {
+    if (mouseTrackerWorker) {
+        document.removeEventListener('mousemove', handleMouseMove);
+        mouseTrackerWorker.terminate();
+        mouseTrackerWorker = null;
+    }
+    
+    // Nettoyer les curseurs distants via le builder
+    MouseMovementBuilder.cleanupRemoteCursors();
+}
 
 function loadGuessingState() {
     const savedState = sessionStorage.getItem('soCloverState');
@@ -174,6 +235,7 @@ async function fetchAndDisplayGuessingPhase() {
 
         // Check if game has moved to Scoring phase
         if (gameState.phase === 'Scoring') {
+            stopMouseTracking();
             showGuessingStatusMessage('All boards completed! Moving to scoring...', 'success');
             setTimeout(() => {
                 window.location.href = '/scoring.html';
@@ -182,6 +244,7 @@ async function fetchAndDisplayGuessingPhase() {
         }
 
         if (gameState.phase !== 'Guessing') {
+            stopMouseTracking();
             showGuessingStatusMessage('Not in guessing phase', 'error');
             return;
         }
@@ -194,7 +257,21 @@ async function fetchAndDisplayGuessingPhase() {
         guessingState = gameState.guessingState;
 
         // Check if player is spectator (board owner)
+        const oldIsSpectator = isSpectator;
         isSpectator = guessingState.currentBoardOwnerId === playerId;
+
+        // Reset or setup mouse tracking if role changed or board swapped
+        // We always cleanup cursors when board changes to avoid ghost cursors from previous board
+        MouseMovementBuilder.cleanupRemoteCursors();
+        
+        if (isSpectator) {
+            stopMouseTracking();
+        } else {
+            // Re-setup to ensure we are tracking if not spectator
+            // setupMouseTracking handles the "already running" check if needed, 
+            // but here we want to ensure it's active for the new board.
+            setupMouseTracking();
+        }
 
         if (isSpectator) {
             spectatorMessage.style.display = 'block';

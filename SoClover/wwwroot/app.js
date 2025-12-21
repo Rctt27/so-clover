@@ -153,6 +153,20 @@ document.addEventListener('DOMContentLoaded', () => {
             return () => {};
         },
 
+        onGuessingMouseMoved(callback) {
+            this._connection?.on('GuessingMouseMoved', callback);
+            return () => this._connection?.off('GuessingMouseMoved', callback);
+        },
+
+        async sendMousePositions(gameId, playerId, positions) {
+            if (!this._connected) return;
+            try {
+                await this._connection.invoke('SendMousePositions', String(gameId), String(playerId), positions);
+            } catch (e) {
+                console.warn('[RealTime] SendMousePositions failed:', e);
+            }
+        },
+
         async _loadSignalRClient() {
             // Dynamically inject the SignalR client from CDN as a safe default
             // If you already serve it locally, you can replace the URL accordingly.

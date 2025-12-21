@@ -35,6 +35,9 @@ If you did not updated .dockerignore -> You can proceed to Step2
    8) ```sudo rm -rf /var/tmp/*```
 9) Reboot Docker: ```sudo systemctl restart docker```
 10) Stop all running Docker containers: ```docker stop $(docker ps -aq)```
+11) Delete unused network : ```docker network prune -f```
+12) Delete unused images : ```docker image prune -a -f```
+
 
 
 
