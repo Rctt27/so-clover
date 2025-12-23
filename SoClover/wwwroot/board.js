@@ -241,7 +241,7 @@ function extractWordsFromDirection(directionState) {
 }
 
 function showBoardStatusMessage(message, type = 'info') {
-    boardStatusMessage.textContent = message;
+    boardStatusMessage.innerHTML = message;
     boardStatusMessage.className = `status-message ${type}`;
     boardStatusMessage.style.display = 'block';
 

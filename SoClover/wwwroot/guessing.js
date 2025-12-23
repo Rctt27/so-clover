@@ -839,7 +839,7 @@ function updateAttemptsInfo(remainingAttempts) {
 }
 
 function showGuessingStatusMessage(message, type = 'info') {
-    guessingStatusMessage.textContent = message;
+    guessingStatusMessage.innerHTML = message;
     guessingStatusMessage.className = `status-message ${type}`;
     guessingStatusMessage.style.display = 'block';
 

@@ -1,6 +1,4 @@
-﻿// TODO: "Copy to clipboard" button doesn't work when testing in remote on docker server but do work on locl docker instance
-
-// Lobby page logic (scoped to avoid leaking globals)
+﻿// Lobby page logic (scoped to avoid leaking globals)
 (function () {
     'use strict';
 let gameId = null;
@@ -301,7 +299,7 @@ function handleCopyGameId() {
 }
 
 function showLobbyStatusMessage(message, type = 'info') {
-    lobbyStatusMessage.textContent = message;
+    lobbyStatusMessage.innerHTML = message;
     lobbyStatusMessage.className = `status-message ${type}`;
     lobbyStatusMessage.style.display = 'block';
 

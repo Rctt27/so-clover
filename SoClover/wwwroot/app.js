@@ -485,7 +485,7 @@ function showNoGame() {
 }
 
 function showStatusMessage(message, type = 'info') {
-    statusMessage.textContent = message;
+    statusMessage.innerHTML = message;
     statusMessage.className = `status-message ${type}`;
     statusMessage.style.display = 'block';
 

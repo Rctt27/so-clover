@@ -74,6 +74,20 @@ public sealed class SignalREventPublisher : IEventPublisher
                             seconds = writeWarn.SecondsRemaining
                         }, ct);
                     break;
+                case SoClover.UseCases.Games.BoardSubmitted boardSub:
+                {
+                    var player = state.Players.FirstOrDefault(p => p.PlayerId == boardSub.PlayerId);
+                    if (player != null)
+                    {
+                        await _hub.Clients.Group($"game-{state.GameId.Value}")
+                            .SendAsync("ServerNotification", new
+                            {
+                                type = "info",
+                                message = $"<strong>{player.Name}</strong> submitted a board"
+                            }, ct);
+                    }
+                    break;
+                }
             }
         }
         catch
