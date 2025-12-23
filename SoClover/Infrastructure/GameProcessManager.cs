@@ -53,7 +53,6 @@ public sealed class GameProcessManager : BackgroundService
                         if (game.PhaseEndsAtUtc is not DateTime endsAt)
                             continue;
 
-                        // Send a 3s warning during Guessing phase
                         if (game.Phase == GamePhase.Guessing && now < endsAt)
                         {
                             var remaining = endsAt - now;

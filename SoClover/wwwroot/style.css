@@ -476,6 +476,11 @@ header .subtitle {
     color: white;
 }
 
+.status-message.warning {
+    background: #FF9800;
+    color: white;
+}
+
 footer {
     text-align: center;
     color: white;

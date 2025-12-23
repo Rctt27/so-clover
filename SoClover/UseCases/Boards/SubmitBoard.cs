@@ -1,4 +1,5 @@
-﻿using SoClover.Domain;
+﻿// TODO: Broadcast event to notify other players when a player submits its board. Will be useful later to test AI player usecases.
+using SoClover.Domain;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
 

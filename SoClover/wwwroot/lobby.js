@@ -1,4 +1,6 @@
-﻿// Lobby page logic (scoped to avoid leaking globals)
+﻿// TODO: "Copy to clipboard" button doesn't work when testing in remote on docker server but do work on locl docker instance
+
+// Lobby page logic (scoped to avoid leaking globals)
 (function () {
     'use strict';
 let gameId = null;
