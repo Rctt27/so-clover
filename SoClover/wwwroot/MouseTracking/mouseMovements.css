@@ -7,24 +7,30 @@
     width: 20px;
     height: 20px;
     pointer-events: none; /* Ne pas interférer avec les clics */
-    z-index: 10000;
-    transition: transform 0.05s linear; /* Réduit pour permettre une lecture plus granulaire tout en gardant un petit lissage */
+    z-index: 1000;
+    transition: transform 0.05s linear;
     will-change: transform;
+    /* Suppression des marges pour aligner la pointe à 0,0 */
+    margin-left: 0; 
+    margin-top: 0;
 }
 
 .remote-cursor-icon {
     width: 16px;
     height: 16px;
     border: 2px solid white;
-    border-radius: 50% 50% 50% 0;
-    transform: rotate(-45deg);
+    border-radius: 50% 50% 50% 0; /* Forme de goutte */
+    transform: rotate(-45deg); /* Pointe en haut à gauche */
     box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    position: relative;
+    top: -16px;
+    left: -8px;
 }
 
 .remote-cursor-label {
     position: absolute;
-    left: 18px;
-    top: 18px;
+    left: 12px;
+    top: -16px;
     background: rgba(0, 0, 0, 0.7);
     color: white;
     padding: 2px 6px;

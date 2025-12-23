@@ -55,8 +55,8 @@ public sealed class GameHub : Hub
 
     public class MouseMoveDto
     {
-        public int X { get; set; }
-        public int Y { get; set; }
+        public double NX { get; set; }
+        public double NY { get; set; }
         public long T { get; set; }
     }
 
@@ -68,14 +68,14 @@ public sealed class GameHub : Hub
             return; // ignore invalid
         }
 
-        Console.WriteLine($"[DEBUG_LOG] SendMousePositions from {playerId} in game {gameId}. Count: {positions.Count}");
-
         // Throttle (still applied to the whole batch to avoid spam)
         var key = (gameId, playerId);
         var now = DateTime.UtcNow;
         var last = _lastMouse.GetOrAdd(key, DateTime.MinValue);
         if (now - last < MouseRate) return;
         _lastMouse[key] = now;
+
+        // Console.WriteLine($"[DEBUG_LOG] SendMousePositions from {playerId} in game {gameId}. Count: {positions.Count}");
 
         // Validate membership and phase
         var state = await _getState.Handle(new GetGameState.Request(new GameId(gid)), CancellationToken.None);

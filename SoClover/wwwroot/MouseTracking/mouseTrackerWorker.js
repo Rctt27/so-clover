@@ -2,10 +2,10 @@
 let lastPosition = null;
 let gameId = null;
 let playerId = null;
-const TOLERANCE = 1;
-const MAX_POSITIONS = 30; // Un peu plus pour compenser la fréquence accrue
-const SEND_INTERVAL = 100; // ms - Envoi périodique forcé
-let flushTimer = null;
+const TOLERANCE = 0.0005; // Tolérance sur les coordonnées normalisées
+const MAX_POSITIONS = 50; // On accumule plus avant d'envoyer
+const INACTIVITY_DELAY = 250; // ms d'inactivité avant d'envoyer le payload (fin de mouvement)
+let inactivityTimer = null;
 
 self.onmessage = function(e) {
     const { type, data } = e.data;
@@ -15,33 +15,44 @@ self.onmessage = function(e) {
         playerId = data.playerId;
         positions = [];
         lastPosition = null;
-        if (flushTimer) clearInterval(flushTimer);
-        flushTimer = setInterval(sendPayload, SEND_INTERVAL);
+        if (inactivityTimer) clearTimeout(inactivityTimer);
     } else if (type === 'MOUSE_MOVE') {
         if (!gameId || !playerId) return;
 
-        const { x, y, timestamp } = data;
+        const { nx, ny, timestamp } = data;
         
-        // Comparaison avec la position précédente (tolérance 1px)
+        // Comparaison avec la position précédente (tolérance faible sur les valeurs normalisées)
         const isSamePosition = lastPosition && 
-            Math.abs(lastPosition.x - x) <= TOLERANCE && 
-            Math.abs(lastPosition.y - y) <= TOLERANCE;
+            Math.abs(lastPosition.nx - nx) < TOLERANCE && 
+            Math.abs(lastPosition.ny - ny) < TOLERANCE;
 
         if (isSamePosition) {
             return;
         }
 
-        const newPos = { x, y, t: timestamp };
+        const newPos = { nx, ny, t: timestamp };
         positions.push(newPos);
         lastPosition = newPos;
 
+        // On réinitialise le timer d'inactivité à chaque mouvement
+        if (inactivityTimer) clearTimeout(inactivityTimer);
+        
+        // Si on atteint la limite de positions, on envoie immédiatement pour ne pas perdre en fluidité
+        // ou créer des payloads trop lourds. Sinon, on attend la fin du mouvement.
         if (positions.length >= MAX_POSITIONS) {
             sendPayload();
+        } else {
+            inactivityTimer = setTimeout(sendPayload, INACTIVITY_DELAY);
         }
     }
 };
 
 function sendPayload() {
+    if (inactivityTimer) {
+        clearTimeout(inactivityTimer);
+        inactivityTimer = null;
+    }
+
     if (positions.length === 0) return;
 
     self.postMessage({

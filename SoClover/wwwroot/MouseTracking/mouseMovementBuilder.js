@@ -7,6 +7,19 @@ const MouseMovementBuilder = (function() {
     const remoteCursors = new Map(); // playerId -> { element, lastPos, colorClass }
     const playerColors = new Map(); // playerId -> colorIndex
     const CURSOR_COLORS_COUNT = 10;
+    let cursorsContainer = null;
+    let containerRect = null;
+
+    /**
+     * Initialise ou récupère le conteneur des curseurs
+     */
+    function getCursorsContainer() {
+        if (!cursorsContainer) {
+            cursorsContainer = document.getElementById('remoteCursorsLayer');
+        }
+        
+        return cursorsContainer;
+    }
 
     /**
      * Récupère ou attribue une couleur persistante pour un joueur
@@ -34,7 +47,11 @@ const MouseMovementBuilder = (function() {
 
         if (!rPlayerId || !positions || positions.length === 0) return;
 
-        console.debug(`[MouseTracking] Receiving ${positions.length} positions from ${rPlayerName} (${rPlayerId})`, positions);
+        const container = getCursorsContainer();
+        if (!container) {
+            console.warn('[MouseTracking] No cursors container found');
+            return;
+        }
 
         let cursor = remoteCursors.get(rPlayerId);
 
@@ -56,7 +73,7 @@ const MouseMovementBuilder = (function() {
 
             el.appendChild(icon);
             el.appendChild(label);
-            document.body.appendChild(el);
+            container.appendChild(el);
 
             cursor = { 
                 element: el, 
@@ -72,6 +89,7 @@ const MouseMovementBuilder = (function() {
 
         // Démarrage du traitement de la file si non déjà en cours
         if (!cursor.isProcessing) {
+            console.log(`[MouseTracking] Starting queue processing for ${rPlayerName}`);
             processQueue(rPlayerId);
         }
     }
@@ -82,19 +100,43 @@ const MouseMovementBuilder = (function() {
      */
     function processQueue(playerId) {
         const cursor = remoteCursors.get(playerId);
-        if (!cursor || cursor.positionQueue.length === 0) {
-            if (cursor) cursor.isProcessing = false;
+        if (!cursor) return;
+
+        if (cursor.positionQueue.length === 0) {
+            cursor.isProcessing = false;
             return;
         }
 
         cursor.isProcessing = true;
         const nextPos = cursor.positionQueue.shift();
-        const x = nextPos.x ?? nextPos.X;
-        const y = nextPos.y ?? nextPos.Y;
-        const t = nextPos.t ?? nextPos.T;
+        
+        // Robustesse sur les noms de propriétés (nx/ny ou NX/NY)
+        const nx = nextPos.nx !== undefined ? nextPos.nx : (nextPos.NX !== undefined ? nextPos.NX : 0);
+        const ny = nextPos.ny !== undefined ? nextPos.ny : (nextPos.NY !== undefined ? nextPos.NY : 0);
+        const t = nextPos.t !== undefined ? nextPos.t : (nextPos.T !== undefined ? nextPos.T : 0);
 
         if (cursor.element) {
-            cursor.element.style.transform = `translate(${x}px, ${y}px)`;
+            const board = document.getElementById('cloverBoard');
+            const layout = document.getElementById('guessingLayout');
+
+            if (board && layout) {
+                const boardRect = board.getBoundingClientRect();
+                const layoutRect = layout.getBoundingClientRect();
+
+                // Centre du board par rapport au viewport
+                const boardCenterX = boardRect.left + boardRect.width / 2;
+                const boardCenterY = boardRect.top + boardRect.height / 2;
+
+                // Position cible par rapport au viewport
+                const targetX = boardCenterX + (nx * boardRect.width);
+                const targetY = boardCenterY + (ny * boardRect.height);
+
+                // Position relative au layout (parent du curseur qui est en position: absolute)
+                const finalX = targetX - layoutRect.left;
+                const finalY = targetY - layoutRect.top;
+
+                cursor.element.style.transform = `translate3d(${finalX}px, ${finalY}px, 0)`;
+            }
         }
 
         // Calcul du délai pour le prochain point

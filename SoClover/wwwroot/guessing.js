@@ -31,6 +31,7 @@ const rotationIndicator = document.getElementById('rotationIndicator');
 const btnConfirmBoard = document.getElementById('btnConfirmBoard');
 const attemptsInfo = document.getElementById('attemptsInfo');
 const guessingStatusMessage = document.getElementById('guessingStatusMessage');
+const guessingLayout = document.getElementById('guessingLayout');
 
 // Clue displays
 const clueDisplays = {
@@ -195,18 +196,26 @@ function setupMouseTracking() {
 function handleMouseMove(e) {
     if (!mouseTrackerWorker) return;
 
-    // Throttle to 50ms before sending to worker to avoid overwhelming message channel
-    const now = Date.now();
+    // Throttle to avoid overwhelming message channel
+    const now = performance.now();
     if (now - lastMouseSampleTime < MOUSE_SAMPLE_INTERVAL) return;
     lastMouseSampleTime = now;
 
-    // Coordonnées relatives au <body>
-    const x = e.pageX;
-    const y = e.pageY;
+    // Référentiel : Centre du cloverBoard
+    const board = document.getElementById('cloverBoard');
+    if (!board) return;
+
+    const rect = board.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    // nx et ny sont les distances relatives au centre du board, normalisées par sa taille
+    const nx = (e.clientX - centerX) / rect.width;
+    const ny = (e.clientY - centerY) / rect.height;
 
     mouseTrackerWorker.postMessage({
         type: 'MOUSE_MOVE',
-        data: { x, y, timestamp: now }
+        data: { nx, ny, timestamp: now }
     });
 }
 
