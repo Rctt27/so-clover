@@ -970,21 +970,12 @@ footer {
     max-width: 1800px;
 }
 
-.spectator-message {
-    background: #fff3cd;
-    border: 2px solid #ffc107;
-    border-radius: 8px;
-    padding: 1rem;
-    margin: 1rem 0;
-    text-align: center;
-    font-weight: 600;
-    color: #856404;
-}
 
 .guessing-board-section {
     padding: 2rem;
     flex: 1;
     max-width: 1000px;
+    position: relative; /* Pour servir d'ancrage au layer des curseurs */
 }
 
 .guessing-layout {
@@ -1022,6 +1013,7 @@ footer {
     flex-direction: column;
     align-items: center;
     gap: 1.5rem;
+    position: relative; /* Ajouté pour servir d'ancre au layer des curseurs */
 }
 
 .guessing-board-wrapper {

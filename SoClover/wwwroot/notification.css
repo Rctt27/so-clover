@@ -32,6 +32,68 @@
     color: white;
 }
 
+/* From Top Notification */
+/* TODO: Better top-right positioning for close-btn */
+.from-top-notification {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 16px 40px 16px 24px;
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    font-weight: 500;
+    z-index: 2000;
+    background: #2196F3;
+    color: white;
+    animation: slideInFromTop 0.5s ease-out;
+    max-width: 90%;
+    width: auto;
+    text-align: center;
+}
+
+.from-top-notification .close-btn {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.from-top-notification .close-btn:hover {
+    opacity: 1;
+}
+
+@keyframes slideInFromTop {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -100px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+@keyframes slideOutToTop {
+    from {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+    to {
+        opacity: 0;
+        transform: translate(-50%, -100px);
+    }
+}
+
+.from-top-notification.hiding {
+    animation: slideOutToTop 0.5s ease-in forwards;
+}
+
 @keyframes slideInRight {
     from {
         opacity: 0;

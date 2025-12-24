@@ -12,6 +12,7 @@ let boardRotation = 0; // Current board rotation normalized (0, 90, 180, 270)
 let cumulativeRotation = 0; // Cumulative rotation in degrees for smooth animation
 let guessingState = null;
 let isSpectator = false;
+let lastBoardOwnerId = null;
 let lastFetchTime = Date.now();
 let lastUpdatedElements = []; // Array of { index: string|number, isOutside: boolean }
 let mouseTrackerWorker = null;
@@ -21,7 +22,6 @@ const MOUSE_SAMPLE_INTERVAL = 30; // ms (plus granulaire que 50ms)
 // DOM elements
 const guessingPlayerNameDisplay = document.getElementById('guessingPlayerName');
 const boardOwnerNameDisplay = document.getElementById('boardOwnerName');
-const spectatorMessage = document.getElementById('spectatorMessage');
 const leftOutsideCardsContainer = document.getElementById('leftOutsideCards');
 const rightOutsideCardsContainer = document.getElementById('rightOutsideCards');
 const cloverBoard = document.getElementById('cloverBoard');
@@ -314,11 +314,12 @@ async function fetchAndDisplayGuessingPhase() {
         }
 
         if (isSpectator) {
-            spectatorMessage.style.display = 'block';
             btnConfirmBoard.disabled = true;
-        } else {
-            spectatorMessage.style.display = 'none';
+            if (lastBoardOwnerId !== guessingState.currentBoardOwnerId) {
+                showFromTopNotification("It's your Board! Watch the players trying to guess it!", 10000);
+            }
         }
+        lastBoardOwnerId = guessingState.currentBoardOwnerId;
 
         // Display board owner name
         boardOwnerNameDisplay.textContent = guessingState.currentBoardOwnerName || 'Unknown';
@@ -855,6 +856,53 @@ function showGuessingStatusMessage(message, type = 'info') {
     setTimeout(() => {
         guessingStatusMessage.style.display = 'none';
     }, 4000);
+}
+
+let currentTopNotification = null;
+
+function showFromTopNotification(message, duration = 10000) {
+    if (currentTopNotification) {
+        currentTopNotification.remove();
+    }
+
+    const notification = document.createElement('div');
+    notification.className = 'from-top-notification';
+    
+    const content = document.createElement('span');
+    content.className = 'notif-content';
+    content.textContent = message;
+    
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'close-btn';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.onclick = () => {
+        hideNotification(notification);
+    };
+
+    notification.appendChild(content);
+    notification.appendChild(closeBtn);
+    document.body.appendChild(notification);
+    currentTopNotification = notification;
+
+    const timeoutId = setTimeout(() => {
+        hideNotification(notification);
+    }, duration);
+
+    function hideNotification(notif) {
+        if (!notif.parentNode) return;
+        notif.classList.add('hiding');
+        notif.addEventListener('animationend', (e) => {
+            if (e.animationName === 'slideOutToTop') {
+                if (notif.parentNode) {
+                    notif.remove();
+                }
+                if (currentTopNotification === notif) {
+                    currentTopNotification = null;
+                }
+            }
+        });
+        clearTimeout(timeoutId);
+    }
 }
 
 })();

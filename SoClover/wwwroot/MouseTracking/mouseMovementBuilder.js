@@ -117,23 +117,15 @@ const MouseMovementBuilder = (function() {
 
         if (cursor.element) {
             const board = document.getElementById('cloverBoard');
-            const layout = document.getElementById('guessingLayout');
+            const container = getCursorsContainer();
 
-            if (board && layout) {
+            if (board && container) {
                 const boardRect = board.getBoundingClientRect();
-                const layoutRect = layout.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
 
-                // Centre du board par rapport au viewport
-                const boardCenterX = boardRect.left + boardRect.width / 2;
-                const boardCenterY = boardRect.top + boardRect.height / 2;
-
-                // Position cible par rapport au viewport
-                const targetX = boardCenterX + (nx * boardRect.width);
-                const targetY = boardCenterY + (ny * boardRect.height);
-
-                // Position relative au layout (parent du curseur qui est en position: absolute)
-                const finalX = targetX - layoutRect.left;
-                const finalY = targetY - layoutRect.top;
+                // On utilise les dimensions du board pour plus de précision si le container est très proche
+                const finalX = (boardRect.left - containerRect.left) + (boardRect.width / 2) + (nx * boardRect.width);
+                const finalY = (boardRect.top - containerRect.top) + (boardRect.height / 2) + (ny * boardRect.height);
 
                 cursor.element.style.transform = `translate3d(${finalX}px, ${finalY}px, 0)`;
             }

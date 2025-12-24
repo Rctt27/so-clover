@@ -28,9 +28,6 @@
 
             <!-- Guessing Layout: Left Cards + Board + Right Cards -->
             <div class="guessing-layout" id="guessingLayout">
-                <!-- Overlay for remote cursors -->
-                <div id="remoteCursorsLayer" class="remote-cursors-layer"></div>
-
                 <!-- Left Outside Cards -->
                 <div class="outside-cards-column left-cards" id="leftOutsideCards">
                     <!-- Cards will be dynamically added here -->
@@ -38,18 +35,19 @@
 
                 <!-- Board to Guess Section -->
                 <section class="card guessing-board-section">
+
                     <h2>Board to Guess</h2>
                     <div class="info-row">
                         <span class="label">Player's board:</span>
                         <strong id="boardOwnerName"></strong>
                     </div>
 
-                    <div id="spectatorMessage" class="spectator-message" style="display: none;">
-                        <p>⏸️ You are spectating this board. Watch other players guess!</p>
-                    </div>
 
                     <!-- Central Board with Rotation Controls -->
                     <div class="central-board-area">
+                        <!-- Overlay for remote cursors -->
+                        <div id="remoteCursorsLayer" class="remote-cursors-layer"></div>
+
                         <!-- Board Rotation Controls -->
                         <div class="board-rotation-controls">
                             <button id="btnRotateLeft" class="btn-rotate" title="Rotate board left">↶</button>
