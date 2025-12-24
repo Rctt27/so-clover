@@ -19,6 +19,8 @@ let mouseTrackerWorker = null;
 let lastMouseSampleTime = 0;
 const MOUSE_SAMPLE_INTERVAL = 30; // ms (plus granulaire que 50ms)
 
+let selectedClickCard = null; // Stocke l'élément DOM de la carte sélectionnée via clic
+
 // DOM elements
 const guessingPlayerNameDisplay = document.getElementById('guessingPlayerName');
 const boardOwnerNameDisplay = document.getElementById('boardOwnerName');
@@ -258,6 +260,12 @@ function loadGuessingState() {
 }
 
 async function fetchAndDisplayGuessingPhase() {
+    // Si une carte était sélectionnée via clic, on essaie de la retrouver après le rafraîchissement
+    const selectedId = selectedClickCard ? { 
+        index: selectedClickCard.dataset.cardIndex, 
+        isOutside: selectedClickCard.dataset.isOutside === 'true' 
+    } : null;
+
     try {
         const response = await fetch(`/api/games/${gameId}/state?playerId=${playerId}&includeSecrets=false`);
 
@@ -332,6 +340,18 @@ async function fetchAndDisplayGuessingPhase() {
 
         // Display guessed positions
         displayGuessedPositions(guessingState.guessedPositions, guessingState.correctlyPlacedPositions);
+
+        // Restaurer la sélection si possible
+        if (selectedId) {
+            const selector = `.card-slot[data-card-index="${selectedId.index}"][data-is-outside="${selectedId.isOutside}"]`;
+            const newElement = document.querySelector(selector);
+            if (newElement && !newElement.classList.contains('locked')) {
+                selectedClickCard = newElement;
+                selectedClickCard.classList.add('selected');
+            } else {
+                selectedClickCard = null;
+            }
+        }
 
         // Update attempts info
         updateAttemptsInfo(guessingState.remainingAttempts);
@@ -457,16 +477,78 @@ function createDraggableCard(card, index, isOutside) {
         // Drag and drop handlers
         cardDiv.addEventListener('dragstart', handleDragStart);
         cardDiv.addEventListener('dragend', handleDragEnd);
+
+        // Click handler for Tablet/Alternative selection
+        cardDiv.addEventListener('click', (e) => {
+            if (isSpectator) return;
+            e.stopPropagation();
+
+            if (selectedClickCard && selectedClickCard !== cardDiv && isOutside === false) {
+                // If a card is already selected and we click a card on the board, it's a swap/placement attempt
+                const dropZone = cardDiv.closest('.drop-zone');
+                if (dropZone) {
+                    handleCardPlacement(selectedClickCard, dropZone).then(() => deselectCard());
+                    return;
+                }
+            }
+            
+            handleCardSelection(cardDiv);
+        });
     }
 
     return wrapper;
 }
+
+function handleCardSelection(cardDiv) {
+    // If clicking a locked card, deselect any current selection and do nothing
+    if (cardDiv.classList.contains('locked')) {
+        deselectCard();
+        return;
+    }
+
+    // If clicking the same card, deselect it
+    if (selectedClickCard === cardDiv) {
+        deselectCard();
+        return;
+    }
+
+    // Deselect previous card if any
+    if (selectedClickCard) {
+        selectedClickCard.classList.remove('selected');
+    }
+
+    // Select the new card
+    selectedClickCard = cardDiv;
+    selectedClickCard.classList.add('selected');
+}
+
+function deselectCard() {
+    if (selectedClickCard) {
+        selectedClickCard.classList.remove('selected');
+        selectedClickCard = null;
+    }
+}
+
+// Add global click listener for deselection when clicking outside
+document.addEventListener('click', (e) => {
+    if (!selectedClickCard) return;
+
+    // Check if click is on a card slot or a drop zone
+    const isCardOrDropZone = e.target.closest('.card-slot') || e.target.closest('.drop-zone');
+    
+    if (!isCardOrDropZone) {
+        deselectCard();
+    }
+});
 
 function displayGuessedPositions(guessedPositions, correctlyPlacedPositions) {
     const positions = ['TopLeft', 'TopRight', 'BottomRight', 'BottomLeft'];
 
     positions.forEach(position => {
         const dropZone = document.getElementById(`dropZone${position}`);
+        // Ne pas vider la dropZone si elle contient la carte sélectionnée pour éviter de perdre l'événement de clic en cours
+        // En fait, on reconstruit tout le DOM à chaque fetch, donc c'est difficile de garder l'élément.
+        // On va s'assurer que si on clique sur une carte déjà sur le board, elle est sélectionnée.
         dropZone.innerHTML = '';
         dropZone.className = 'drop-zone';
 
@@ -495,8 +577,39 @@ function displayGuessedPositions(guessedPositions, correctlyPlacedPositions) {
             dropZone.addEventListener('dragover', handleDragOver);
             dropZone.addEventListener('drop', handleDrop);
             dropZone.addEventListener('dragleave', handleDragLeave);
+
+            // Click handler for Tablet/Alternative drop
+            dropZone.addEventListener('click', async (e) => {
+                if (selectedClickCard) {
+                    await handleCardPlacement(selectedClickCard, dropZone);
+                    deselectCard();
+                }
+            });
         }
     });
+}
+
+async function handleCardPlacement(sourceCard, targetDropZone) {
+    const targetPosition = targetDropZone.dataset.position;
+    const isOutside = sourceCard.dataset.isOutside === 'true';
+
+    if (!isOutside) {
+        // Card is being moved from one board position to another - swap them
+        const sourcePosition = sourceCard.dataset.cardIndex;
+        // If target already has a card, it's a swap. If not, it's still a swap in the back-end logic
+        await swapBoardCards(sourcePosition, targetPosition);
+        await fetchAndDisplayGuessingPhase(); // Refresh display
+        return;
+    }
+
+    try {
+        const cardIndex = parseInt(sourceCard.dataset.cardIndex);
+        await placeCardOnBoard(cardIndex, targetPosition);
+        await fetchAndDisplayGuessingPhase(); // Refresh display
+    } catch (error) {
+        console.error('Error placing card:', error);
+        showGuessingStatusMessage('Failed to place card. Please try again.', 'error');
+    }
 }
 
 let draggedCard = null;
@@ -529,25 +642,7 @@ async function handleDrop(e) {
     if (!draggedCard) return;
 
     const dropZone = e.currentTarget;
-    const targetPosition = dropZone.dataset.position;
-    const isOutside = draggedCard.dataset.isOutside === 'true';
-
-    if (!isOutside) {
-        // Card is being moved from one board position to another - swap them
-        const sourcePosition = draggedCard.dataset.cardIndex; // For board cards, cardIndex is the position string (e.g., "TopLeft")
-        await swapBoardCards(sourcePosition, targetPosition);
-        await fetchAndDisplayGuessingPhase(); // Refresh display
-        return;
-    }
-
-    try {
-        const cardIndex = parseInt(draggedCard.dataset.cardIndex);
-        await placeCardOnBoard(cardIndex, targetPosition);
-        await fetchAndDisplayGuessingPhase(); // Refresh display
-    } catch (error) {
-        console.error('Error placing card:', error);
-        showGuessingStatusMessage('Failed to place card. Please try again.', 'error');
-    }
+    await handleCardPlacement(draggedCard, dropZone);
 }
 
 async function placeCardOnBoard(outsideCardIndex, position) {

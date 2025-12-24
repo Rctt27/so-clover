@@ -1126,6 +1126,13 @@ footer {
     cursor: grabbing;
 }
 
+.card-slot.selected {
+    outline: 4px solid #2196F3;
+    box-shadow: 0 0 15px rgba(33, 150, 243, 0.5);
+    transform: scale(1.02);
+    z-index: 100;
+}
+
 .card-slot.locked {
     cursor: not-allowed;
     opacity: 0.8;
