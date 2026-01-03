@@ -15,9 +15,9 @@ public class GenerateGameCard
     }
 
     [Theory]
-    [InlineData("Français", @"^[A-ZÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ\-\s]+$")]
-    [InlineData("English", @"^[A-Z\-\s]+$")]
-    [InlineData("Portuguese", @"^[A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇ\-\s]+$")]
+    [InlineData("Français_OFF", @"^[a-zA-ZÀÂÄÉÈÊËÏÎÔÙÛÜŸÇàâäéèêëïîôùûüÿç\-\s]+$")]
+    [InlineData("English_(from_FR_OFF)", @"^[a-zA-Z\-\s]+$")]
+    [InlineData("Portuguese_(from_FR_OFF)", @"^[a-zA-ZÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüç\-\s]+$")]
     public async Task ShouldCreateCardWithFourRandomWords(string language, string characterPattern)
     {
         // Arrange
@@ -74,9 +74,9 @@ public class GenerateGameCard
     }
 
     [Theory]
-    [InlineData("Français", 60)]
-    [InlineData("English", 60)]
-    [InlineData("Portuguese", 60)]
+    [InlineData("Français_OFF", 60)]
+    [InlineData("English_(from_FR_OFF)", 60)]
+    [InlineData("Portuguese_(from_FR_OFF)", 60)]
     public async Task ShouldCreateMultipleCardsWithDifferentWords(string language, int cardCount)
     {
         // Arrange
@@ -145,9 +145,9 @@ public class GenerateGameCard
     }
 
     [Theory]
-    [InlineData("Français")]
-    [InlineData("English")]
-    [InlineData("Portuguese")]
+    [InlineData("Français_OFF")]
+    [InlineData("English_(from_FR_OFF)")]
+    [InlineData("Portuguese_(from_FR_OFF)")]
     public async Task ShouldRespectCardWordValidationRules(string language)
     {
         // Arrange

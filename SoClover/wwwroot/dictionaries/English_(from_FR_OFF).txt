@@ -108,7 +108,6 @@ Butterfly
 Road
 Felt
 Fire
-Border
 Beer
 Judge
 Vegetation
@@ -123,7 +122,6 @@ Card
 Porcelain
 Pump
 Toy
-Basket
 Weak
 Knight
 Foot
@@ -152,7 +150,6 @@ Fall
 Snail
 Garden
 Spear
-Stamp
 Sewing
 Exit
 Plant
@@ -170,7 +167,6 @@ Story
 Day
 Shield
 Control
-Pipe
 Magic
 Slow
 Berry
@@ -183,7 +179,6 @@ Instrument
 Limit
 Pirate
 Ghost
-Storm
 Hot-Water Bottle
 Soldier
 Big
@@ -197,7 +192,6 @@ Hot
 Mermaid
 Apron
 Cube
-Bar
 Strip
 War
 Sailor
@@ -234,7 +228,6 @@ Console
 Voice
 Container
 Cell
-Lightning
 Telephone
 Music
 Canteen
@@ -244,7 +237,6 @@ Alarm
 Space
 Wool
 Dungeon
-Ring
 Cane
 Basket
 Forbidden
@@ -257,15 +249,12 @@ Zoo
 Letter
 Safari
 Sewer
-Engine
 Tank
 Limb
 Towel
 Perfume
 Witness
-Sausage
 DIY
-Ticket
 Branch
 Duvet
 Soap
@@ -289,7 +278,6 @@ Spice
 Life
 Heavy
 Tea
-Room
 Belt
 Bark
 Wind
@@ -327,7 +315,6 @@ Armor
 Curtain
 Battery
 Circle
-Sock
 Door
 Cow
 Nerf
@@ -377,7 +364,6 @@ Smell
 Bite
 Fashion
 Film
-Tile
 Cat
 Disc
 Monster
@@ -399,7 +385,6 @@ Puzzle
 Cougar
 Stone
 Cinema
-Cup
 Jump
 Dream
 Ireland
@@ -413,12 +398,10 @@ Whip
 Sledgehammer
 Photo
 Orchard
-Show
 Mouse
 Yellow
 Toilet
 Earth
-Room
 Mustard
 Operation
 Legacy
@@ -468,7 +451,6 @@ Brown
 Cutlery
 Biscuit
 Craft
-Shell
 Flea
 Net
 Bomb
@@ -538,14 +520,12 @@ Donkey
 Virgin
 Cup
 Park
-Fire
 Sister
 Hotel
 Drum
 Poison
 Diamond
 Book
-Soft
 Kitchen
 Finger
 Notice
@@ -561,7 +541,6 @@ Axe
 Chain
 Cold
 Avocado
-Hair
 Cotton
 Chief
 Square
@@ -582,7 +561,6 @@ Recent
 Diaper
 Devil
 Mint
-Cave
 Shark
 Baby Bottle
 Ear
@@ -592,7 +570,6 @@ Peace
 Basin
 Roller
 Hook
-Oil
 Luck
 Blanket
 Pearl
@@ -724,7 +701,6 @@ Machine
 Curry
 Game
 Canvas
-Stroke
 Soup
 Vegetable
 Mousse

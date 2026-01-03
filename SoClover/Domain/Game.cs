@@ -127,7 +127,7 @@ public sealed class Game
     public Game(GameId id, string? language = null)
     {
         Id = id;
-        Language = string.IsNullOrWhiteSpace(language) ? "Français" : language.Trim();
+        Language = string.IsNullOrWhiteSpace(language) ? "Français_OFF" : language.Trim();
     }
 
     // Backward/compat helper used by use cases: check if a given player is admin based on player flag.

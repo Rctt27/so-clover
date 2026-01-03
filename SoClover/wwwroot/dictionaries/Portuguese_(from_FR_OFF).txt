@@ -1,6 +1,4 @@
-﻿Lâmpada
-Pera
-Casa
+﻿Pera
 Balaclava
 Bombeiro
 Lagoa
@@ -25,10 +23,7 @@ Teia
 Caranguejo
 Flauta
 Paixão
-Campo
-Cabana
 Aliança
-Antigo
 Tigre
 Fuga
 Alvo
@@ -45,7 +40,6 @@ Desvantagem
 Pinheiro
 Pimenta
 Chapéu
-Grande
 Carvalho
 Balsa
 Suspeito
@@ -53,20 +47,16 @@ Portátil
 Casa
 Palco
 Audição
-Concha
 Detergente
 Castelo
-Doce
 Plástico
 Lazer
 Metal
 Farol
 Herói
-Rato
 Congelar
 Raio
 Bota
-Cavaleiro
 Mineiro
 Branco
 Fábula
@@ -83,13 +73,11 @@ Louco
 Animal
 Plano
 Maçã
-Corrente
 Exposição
 Navio
 Lava
 Sobremesa
 Deus
-Banco
 Vestido
 Visão
 Azul
@@ -107,8 +95,6 @@ Rosto
 Borboleta
 Estrada
 Feltro
-Fogo
-Fronteira
 Cerveja
 Juiz
 Vegetação
@@ -118,12 +104,9 @@ Fronteira
 Tora
 Mestre
 Pele
-Bicicleta
 Mapa
 Porcelana
-Bomba
 Brinquedo
-Cesta
 Fraco
 Cavaleiro
 Pé
@@ -140,23 +123,18 @@ Poesia
 Pirulito
 Lama
 Granada
-Lixo
 Garra
-Corda
 Paraíso
 Parte
 Mãe
 Dinamite
 Alicate
-Outono
 Caracol
 Jardim
 Lança
-Carimbo
 Costura
 Saída
 Planta
-Vela
 Antigo
 Boletim
 Corda
@@ -183,7 +161,6 @@ Instrumento
 Limite
 Pirata
 Fantasma
-Tempestade
 Bolsa de Água Quente
 Soldado
 Grande
@@ -217,7 +194,6 @@ Religião
 Guarda-chuva
 Aventura
 Vermelho
-Linha
 Curto
 Bebida
 Cavalo
@@ -234,7 +210,6 @@ Consola
 Voz
 Recipiente
 Cela
-Relâmpago
 Telefone
 Música
 Cantil
@@ -244,7 +219,6 @@ Alarme
 Espaço
 Lã
 Masmorra
-Anel
 Bengala
 Cesta
 Proibido
@@ -263,9 +237,7 @@ Membro
 Guardanapo
 Perfume
 Testemunha
-Salsicha
 Faça Você Mesmo
-Ingresso
 Filial
 Edredom
 Sabonete
@@ -328,7 +300,6 @@ Cortinas
 Bateria
 Círculo
 Meia
-Tamanho
 Vaca
 Nerf
 Avião
@@ -377,7 +348,6 @@ Cheiro
 Mordida
 Moda
 Filme
-Azulejo
 Gato
 Disco
 Monstro
@@ -454,7 +424,6 @@ Labirinto
 Festa
 Assassino
 Pó
-Mesa
 Cogumelo
 Camião
 Igreja
@@ -468,7 +437,6 @@ Marrom
 Talheres
 Biscoito
 Artesanato
-Concha
 Pulga
 Rede
 Bomba
@@ -498,7 +466,6 @@ Neve
 Tesoura
 Palácio
 Asa
-Noite
 Árvore
 Escola
 Balão
@@ -512,8 +479,6 @@ Sentido
 Ponte
 Rápido
 Luz
-Caixa
-Pimenta
 Peixe
 Cadeado
 Interior
@@ -536,7 +501,6 @@ Pombo
 Robô
 Burro
 Virgem
-Xícara
 Parque
 Fogo
 Irmã
@@ -554,16 +518,13 @@ Fundo
 Folha
 Carreira
 Pêndulo
-Mesa
 Botão
 Sindicato
 Machado
 Corrente
 Frio
 Abacate
-Cabelo
 Algodão
-Chefe
 Quadrado
 Sal
 Mesa
@@ -582,7 +543,6 @@ Recente
 Fralda
 Diabo
 Hortelã
-Caverna
 Tubarão
 Mamadeira
 Orelha
@@ -592,7 +552,6 @@ Paz
 Bacia
 Rolo
 Gancho
-Óleo
 Sorte
 Cobertor
 Pérola
@@ -630,7 +589,6 @@ Trem
 Urso
 Solitário
 Túmulo
-Quarto
 Heroína
 Cabelo
 Ferramenta
@@ -723,8 +681,6 @@ Outono
 Máquina
 Curry
 Jogo
-Tela
-AVC
 Sopa
 Legumes
 Mousse
@@ -755,7 +711,6 @@ Concha
 Desafio
 Amigo
 Cabo
-Caverna
 Sol
 Concerto
 Material
@@ -786,7 +741,6 @@ Mágico
 Estúdio
 Caverna
 Mosquito
-Pincel
 Pesadelo
 Peito
 Núcleo
