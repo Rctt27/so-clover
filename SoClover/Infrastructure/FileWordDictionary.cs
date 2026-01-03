@@ -53,7 +53,7 @@ public sealed class FileWordDictionary : IWordDictionary
             return cached;
 
         // Resolve the dictionary file path in a way that is case- and accent-insensitive.
-        // This avoids failures on Linux where filenames are case-sensitive and may contain diacritics (e.g., "Français.txt").
+        // This avoids failures on Linux where filenames are case-sensitive and may contain diacritics (e.g., "Français_OFF.txt").
         var filePath = ResolveDictionaryFilePath(language);
 
         if (filePath is null)
