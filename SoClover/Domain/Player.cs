@@ -14,7 +14,7 @@ public sealed class Player
 
     [JsonInclude]
     [JsonPropertyName("isAdmin")]
-    public bool IsAdmin { get; private set; }
+    public bool IsAdmin { get; internal set; }
 
     // Ensure the board is persisted and rehydrated when using EF JSON snapshots
     [JsonInclude]

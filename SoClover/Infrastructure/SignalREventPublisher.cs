@@ -2,7 +2,9 @@
 using Microsoft.AspNetCore.SignalR;
 using SoClover.Domain;
 using SoClover.UseCases.Abstractions;
-using SoClover.UseCases.Games;
+using SoClover.UseCases.Errors;
+using SoClover.UseCases.Gameplay;
+using SoClover.UseCases.GameLogics;
 
 namespace SoClover.Infrastructure;
 
@@ -38,26 +40,34 @@ public sealed class SignalREventPublisher : IEventPublisher
             return; // nothing to broadcast without a game
         }
 
+        // Optimization: Do not broadcast individual clue updates to everyone during WritingClues phase.
+        // This is personal information and causes unnecessary re-renders for other players.
+        if (evt is ClueSet)
+        {
+            return; 
+        }
+
         // Optional: sanity check game still exists (ignore exceptions to avoid breaking the flow)
         try
         {
             var state = await _getState.Handle(new GetGameState.Request(gameId.Value), ct);
             // Keep payload compact: signal that state changed; clients refetch if needed
-            await _hub.Clients.Group($"game-{state.GameId.Value}")
+            await _hub.Clients.Group($"game-{state.GameId}")
                 .SendAsync("GameStateUpdated", new
                 {
                     eventType = evt!.GetType().Name,
-                    gameId = state.GameId.Value,
+                    gameId = state.GameId,
                     phase = state.Phase.ToString(),
                     phaseEndsAtUtc = state.PhaseEndsAtUtc,
-                    eventData = evt // Include the event data for targeted updates
+                    eventData = evt, // Include the event data for targeted updates
+                    gameState = state // Full state (public view)
                 }, ct);
 
             // Special-case: countdown warning messages
             switch (evt)
             {
-                case SoClover.UseCases.Games.GuessingCountdownWarning guessWarn:
-                    await _hub.Clients.Group($"game-{state.GameId.Value}")
+                case SoClover.UseCases.GameLogics.GuessingCountdownWarning guessWarn:
+                    await _hub.Clients.Group($"game-{state.GameId}")
                         .SendAsync("ServerNotification", new
                         {
                             type = "warning",
@@ -65,8 +75,8 @@ public sealed class SignalREventPublisher : IEventPublisher
                             seconds = guessWarn.SecondsRemaining
                         }, ct);
                     break;
-                case SoClover.UseCases.Games.WritingCountdownWarning writeWarn:
-                    await _hub.Clients.Group($"game-{state.GameId.Value}")
+                case SoClover.UseCases.GameLogics.WritingCountdownWarning writeWarn:
+                    await _hub.Clients.Group($"game-{state.GameId}")
                         .SendAsync("ServerNotification", new
                         {
                             type = "warning",
@@ -74,20 +84,64 @@ public sealed class SignalREventPublisher : IEventPublisher
                             seconds = writeWarn.SecondsRemaining
                         }, ct);
                     break;
-                case SoClover.UseCases.Games.BoardSubmitted boardSub:
+                case SoClover.UseCases.Gameplay.BoardSubmitted boardSub:
                 {
-                    var player = state.Players.FirstOrDefault(p => p.PlayerId == boardSub.PlayerId);
+                    var player = state.Players.FirstOrDefault(p => p.PlayerId == boardSub.PlayerId.Value);
                     if (player != null)
                     {
-                        await _hub.Clients.Group($"game-{state.GameId.Value}")
+                        await _hub.Clients.Group($"game-{state.GameId}")
                             .SendAsync("ServerNotification", new
                             {
                                 type = "info",
-                                message = $"<strong>{player.Name}</strong> submitted a board"
+                                message = $"<strong>{player.Name}</strong> submitted a board",
+                                senderId = boardSub.PlayerId.Value.ToString()
                             }, ct);
                     }
                     break;
                 }
+                case SoClover.UseCases.GameLogics.PlayerJoined playerJoined:
+                {
+                    var player = state.Players.FirstOrDefault(p => p.PlayerId == playerJoined.PlayerId.Value);
+                    if (player != null)
+                    {
+                        // Send specific event for client handlers to update UI and notify
+                        await _hub.Clients.Group($"game-{state.GameId}")
+                            .SendAsync("PlayerJoined", new
+                            {
+                                playerId = player.PlayerId,
+                                playerName = player.Name
+                            }, ct);
+                    }
+                    break;
+                }
+                case SoClover.UseCases.GameLogics.PlayerLeft playerLeft:
+                {
+                    // Note: player is already removed from state.Players in the backend
+                    // We might need to handle notification differently if we want the name.
+                    // For now, at least notify of departure.
+                    await _hub.Clients.Group($"game-{state.GameId}")
+                        .SendAsync("ServerNotification", new
+                        {
+                            type = "info",
+                            message = "Un joueur a quitté la partie"
+                        }, ct);
+                    break;
+                }
+                case SoClover.UseCases.GameLogics.GameDeleted:
+                {
+                    await _hub.Clients.Group($"game-{gameId.Value}")
+                        .SendAsync("GameDeleted", new { gameId = gameId.Value }, ct);
+                    break;
+                }
+            }
+        }
+        catch (GameNotFoundException)
+        {
+            // If the game was just deleted, Handle might throw GameNotFoundException
+            if (evt is SoClover.UseCases.GameLogics.GameDeleted)
+            {
+                await _hub.Clients.Group($"game-{gameId.Value}")
+                    .SendAsync("GameDeleted", new { gameId = gameId.Value }, ct);
             }
         }
         catch

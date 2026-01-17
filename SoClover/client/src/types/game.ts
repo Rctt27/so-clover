@@ -1,0 +1,113 @@
+﻿export type Role = 'Spectator' | 'PlayerBoardOwner' | 'PlayerGuesser' | 'PlayerWritingClue';
+
+export type GamePhase = 'Initial' | 'Lobby' | 'WritingClues' | 'Guessing' | 'Scoring';
+
+export type ConnectionStatus = 'Disconnected' | 'Connecting' | 'Connected' | 'Reconnecting';
+
+// Backend API Response Types
+export interface GameStateResponse {
+  gameId: string;
+  language: string;
+  cluesDurationSecondsOverride: number | null;
+  guessDurationSecondsOverride: number | null;
+  phase: GamePhase;
+  adminPlayerId: string | null;
+  phaseEndsAtUtc: string | null;
+  players: PlayerStateResponse[];
+  guessingState: GuessingPhaseStateResponse | null;
+}
+
+export interface PlayerStateResponse {
+  playerId: string;
+  name: string;
+  board: BoardStateResponse;
+}
+
+export interface BoardStateResponse {
+  top: DirectionStateResponse;
+  right: DirectionStateResponse;
+  bottom: DirectionStateResponse;
+  left: DirectionStateResponse;
+}
+
+export interface DirectionStateResponse {
+  direction: string; // "Top", "Right", "Bottom", "Left"
+  hasCard: boolean;
+  isGuessed: boolean;
+  clueLabel: string | null;
+  expectedWord: string | null;
+  card: CardInfoResponse | null;
+}
+
+export interface CardInfoResponse {
+  cardId: string;
+  topWord: string;
+  rightWord: string;
+  bottomWord: string;
+  leftWord: string;
+  rotation: string; // "None", "Clockwise90", "Clockwise180", "Clockwise270"
+}
+
+export interface GuessingPhaseStateResponse {
+  currentBoardOwnerId: string | null;
+  currentBoardOwnerName: string | null;
+  outsideCards: (CardInfoResponse | null)[];
+  guessedPositions: Record<string, CardInfoResponse | null>;
+  correctlyPlacedPositions: string[];
+  remainingAttempts: number;
+  currentBoardClues: ClueInfoResponse[];
+  cumulativeBoardRotation: number;
+}
+
+export interface ClueInfoResponse {
+  direction: string;
+  text: string;
+}
+
+export interface ScoringBoardResponse {
+  playerId: string;
+  playerName: string;
+  attempts: number;
+  durationSeconds: number;
+}
+
+export interface GameScoringResponse {
+  successfulBoards: ScoringBoardResponse[];
+  failedBoards: ScoringBoardResponse[];
+}
+
+// Internal Client-side Types
+export interface CardData {
+  words: [string, string, string, string]; // [top, right, bottom, left]
+  rotation: number; // in degrees: 0, 90, 180, 270
+}
+
+export interface CluePosition {
+  text: string;
+  playerId: string | null;
+}
+
+export interface BoardData {
+  cards: (CardData | null)[]; // 4 cards in positions [TopLeft, TopRight, BottomLeft, BottomRight]
+  rotation: number;
+  clues: {
+    top: CluePosition;
+    right: CluePosition;
+    bottom: CluePosition;
+    left: CluePosition;
+  };
+}
+
+// Utility function to convert backend rotation to degrees
+export function rotationToDegrees(rotation: string): number {
+  switch (rotation) {
+    case 'None': return 0;
+    case 'Clockwise90': 
+    case 'Right90': return 90;
+    case 'Clockwise180': 
+    case 'Right180': return 180;
+    case 'Clockwise270': 
+    case 'Right270': return 270;
+    default: return 0;
+  }
+}

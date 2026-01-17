@@ -53,6 +53,14 @@ public sealed class OrientedCard
         return new OrientedCard(Card, next);
     }
 
+    public OrientedCard Rotate(int steps)
+    {
+        int current = (int)Rotation;
+        int next = (current + steps) % 4;
+        if (next < 0) next += 4;
+        return new OrientedCard(Card, (Rotation)next);
+    }
+
     private static Direction Rotate(Direction direction, Rotation rotation)
     {
         var offset = (int)rotation;

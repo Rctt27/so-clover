@@ -1,10 +1,13 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SoClover.Domain;
 using SoClover.Infrastructure;
 using SoClover.UseCases.Abstractions;
-using SoClover.UseCases.Games;
+using SoClover.UseCases.Gameplay;
+using SoClover.UseCases.GameLogics;
+using SoClover.UseCases.Gameplay;
+using SoClover.UseCases.GameLogics;
 using Xunit;
 
 namespace SoClover.Tests;

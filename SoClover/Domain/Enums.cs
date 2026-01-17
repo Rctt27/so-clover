@@ -21,8 +21,7 @@ public enum GamePhase
     Lobby = 0,
     WritingClues = 1,
     Guessing = 2,
-    Scoring = 3,
-    Completed = 4
+    Scoring = 3
 }
 
 public enum BoardPosition

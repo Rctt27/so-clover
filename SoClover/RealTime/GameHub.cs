@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 using SoClover.Domain;
-using SoClover.UseCases.Games;
+using SoClover.UseCases.GameLogics;
 
 namespace SoClover.RealTime;
 
@@ -24,7 +24,7 @@ public sealed class GameHub : Hub
 
         var response = await _getState.Handle(new GetGameState.Request(new GameId(gid)), CancellationToken.None);
 
-        var isMember = response.Players.Any(p => p.PlayerId.Value == pid);
+        var isMember = response.Players.Any(p => p.PlayerId == pid);
         if (!isMember)
         {
             throw new HubException("Unauthorized: player not in game");
@@ -79,7 +79,7 @@ public sealed class GameHub : Hub
 
         // Validate membership and phase
         var state = await _getState.Handle(new GetGameState.Request(new GameId(gid)), CancellationToken.None);
-        var player = state.Players.FirstOrDefault(p => p.PlayerId.Value == pid);
+        var player = state.Players.FirstOrDefault(p => p.PlayerId == pid);
         if (player is null) return; // not part of game
         if (state.Phase != GamePhase.Guessing || state.GuessingState is null) return; // only during GuessingPhase
 
@@ -91,5 +91,11 @@ public sealed class GameHub : Hub
             playerName = player.Name,
             positions
         });
+    }
+
+    public async Task BroadcastBoardRotation(string gameId, int cumulativeRotation)
+    {
+        if (!Guid.TryParse(gameId, out _)) return;
+        await Clients.OthersInGroup(GroupName(gameId)).SendAsync("BoardRotationUpdated", new { cumulativeRotation });
     }
 }

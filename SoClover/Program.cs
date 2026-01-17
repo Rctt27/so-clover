@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.SignalR;
 using SoClover.Domain;
 using SoClover.Infrastructure;
 using SoClover.UseCases.Abstractions;
-using SoClover.UseCases.Boards;
 using SoClover.UseCases.Errors;
-using SoClover.UseCases.Games;
+using SoClover.UseCases.Gameplay;
+using SoClover.UseCases.GameLogics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,7 +52,10 @@ builder.Services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
 builder.Services.AddTransient<ISubmitBoardUseCase, SubmitBoard.Handler>();
 builder.Services.AddTransient<IPlaceGuessingCardUseCase, PlaceGuessingCard.Handler>();
 builder.Services.AddTransient<ISwapGuessingCardsUseCase, SwapGuessingCards.Handler>();
+builder.Services.AddTransient<ISwapOutsidePoolCardsUseCase, SwapOutsidePoolCards.Handler>();
+builder.Services.AddTransient<IReturnGuessingCardUseCase, ReturnGuessingCard.Handler>();
 builder.Services.AddTransient<IRotateCardUseCase, RotateCard.Handler>();
+builder.Services.AddTransient<IRotateBoardUseCase, RotateBoard.Handler>();
 builder.Services.AddTransient<IValidateGuessingBoardUseCase, ValidateGuessingBoard.Handler>();
 builder.Services.AddTransient<IMoveToNextBoardUseCase, MoveToNextBoard.Handler>();
 builder.Services.AddTransient<IGetScoringUseCase, GetScoring.Handler>();
@@ -61,7 +64,21 @@ builder.Services.AddTransient<ICompleteGameUseCase, CompleteGame.Handler>();
 // Add SignalR (backplane ready, but optional)
 // Note: We keep Redis backplane optional to avoid hard dependency. When you're ready,
 // add Microsoft.AspNetCore.SignalR.StackExchangeRedis package and uncomment the AddStackExchangeRedis line.
-var signalRBuilder = builder.Services.AddSignalR();
+var signalRBuilder = builder.Services.AddSignalR()
+    .AddJsonProtocol(options => 
+    {
+        options.PayloadSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
+
+builder.Services.ConfigureHttpJsonOptions(options => 
+{
+    options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+});
+
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.JsonOptions>(options =>
+{
+    options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+});
 // var redisCs = builder.Configuration.GetConnectionString("Redis");
 // if (!string.IsNullOrWhiteSpace(redisCs))
 // {
@@ -223,15 +240,18 @@ app.MapGet("/api/games/{gameId:guid}/state", async (Guid gameId, string? playerI
         var response = await useCase.Handle(new GetGameState.Request(new GameId(gameId), includeSecrets, requestingPlayerId), ct);
         var result = new
         {
-            gameId = response.GameId.Value,
+            gameId = response.GameId,
+            language = response.Language,
+            cluesDurationSecondsOverride = response.CluesDurationSecondsOverride,
+            guessDurationSecondsOverride = response.GuessDurationSecondsOverride,
             phase = response.Phase.ToString(),
             phaseEndsAtUtc = response.PhaseEndsAtUtc,
-            adminPlayerId = response.AdminPlayerId?.Value.ToString(),
+            adminPlayerId = response.AdminPlayerId?.ToString(),
             guessingState = response.GuessingState == null ? null : new
             {
-                currentBoardOwnerId = response.GuessingState.CurrentBoardOwnerId?.Value,
+                currentBoardOwnerId = response.GuessingState.CurrentBoardOwnerId,
                 currentBoardOwnerName = response.GuessingState.CurrentBoardOwnerName,
-                outsideCards = response.GuessingState.OutsideCards.Select(c => new
+                outsideCards = response.GuessingState.OutsideCards.Select(c => c == null ? null : new
                 {
                     cardId = c.CardId,
                     topWord = c.TopWord,
@@ -262,7 +282,7 @@ app.MapGet("/api/games/{gameId:guid}/state", async (Guid gameId, string? playerI
             },
             players = response.Players.Select(p => new
             {
-                playerId = p.PlayerId.Value,
+                playerId = p.PlayerId,
                 name = p.Name,
                 board = new
                 {
@@ -484,6 +504,94 @@ app.MapPost("/api/games/{gameId:guid}/swap-guessing-cards", async (Guid gameId, 
 })
 .WithName("SwapGuessingCards");
 
+app.MapPost("/api/games/{gameId:guid}/swap-outside-pool-cards", async (Guid gameId, SwapOutsidePoolCardsRequest? request, ISwapOutsidePoolCardsUseCase useCase, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(request?.PlayerId))
+        return Results.BadRequest(new { message = "PlayerId is required" });
+
+    try
+    {
+        var parsed = Guid.Parse(request.PlayerId);
+        if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
+        await useCase.Handle(new SwapOutsidePoolCards.Request(
+            new GameId(gameId),
+            new PlayerId(parsed),
+            request.Index1,
+            request.Index2
+        ), ct);
+        return Results.Ok(new { message = "Pool cards swapped successfully" });
+    }
+    catch (GameNotFoundException)
+    {
+        return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (ArgumentOutOfRangeException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+})
+.WithName("SwapOutsidePoolCards");
+
+app.MapPost("/api/games/{gameId:guid}/return-guessing-card", async (Guid gameId, ReturnGuessingCardRequest? request, IReturnGuessingCardUseCase useCase, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(request?.PlayerId))
+        return Results.BadRequest(new { message = "PlayerId is required" });
+
+    try
+    {
+        var position = Enum.Parse<BoardPosition>(request.Position);
+        var parsed = Guid.Parse(request.PlayerId);
+        if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
+        await useCase.Handle(new ReturnGuessingCard.Request(
+            new GameId(gameId),
+            new PlayerId(parsed),
+            position
+        ), ct);
+        return Results.Ok(new { message = "Card returned successfully" });
+    }
+    catch (GameNotFoundException)
+    {
+        return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+})
+.WithName("ReturnGuessingCard");
+
+app.MapPost("/api/games/{gameId:guid}/rotate-board", async (Guid gameId, RotateBoardRequest? request, IRotateBoardUseCase useCase, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(request?.PlayerId))
+        return Results.BadRequest(new { message = "PlayerId is required" });
+
+    try
+    {
+        var parsed = Guid.Parse(request.PlayerId!);
+        if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
+        await useCase.Handle(new RotateBoard.Request(
+            new GameId(gameId),
+            new PlayerId(parsed),
+            request.CumulativeRotation
+        ), ct);
+
+        return Results.Ok(new { message = "Board rotated successfully" });
+    }
+    catch (GameNotFoundException)
+    {
+        return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+})
+.WithName("RotateBoard");
+
 app.MapPost("/api/games/{gameId:guid}/rotate-card", async (Guid gameId, RotateCardRequest? request, IRotateCardUseCase useCase, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request?.PlayerId))
@@ -491,7 +599,7 @@ app.MapPost("/api/games/{gameId:guid}/rotate-card", async (Guid gameId, RotateCa
 
     try
     {
-        var rotateRight = request.Direction?.ToLower() != "left";
+        int steps = request.Steps ?? (request.Direction?.ToLower() == "left" ? -1 : 1);
 
         // Determine if rotating board card or outside card
         if (!string.IsNullOrWhiteSpace(request.Position))
@@ -504,7 +612,7 @@ app.MapPost("/api/games/{gameId:guid}/rotate-card", async (Guid gameId, RotateCa
                 new PlayerId(parsed),
                 null,
                 position,
-                rotateRight
+                steps
             ), ct);
         }
         else if (request.OutsideCardIndex.HasValue)
@@ -516,7 +624,7 @@ app.MapPost("/api/games/{gameId:guid}/rotate-card", async (Guid gameId, RotateCa
                 new PlayerId(parsed),
                 request.OutsideCardIndex.Value,
                 null,
-                rotateRight
+                steps
             ), ct);
         }
         else
@@ -752,7 +860,10 @@ record SetClueRequest(string PlayerId, string Direction, string ClueText);
 record SubmitBoardRequest(string PlayerId);
 record PlaceGuessingCardRequest(string PlayerId, int OutsideCardIndex, string Position);
 record SwapGuessingCardsRequest(string PlayerId, string Position1, string Position2);
-record RotateCardRequest(string PlayerId, string? Position = null, int? OutsideCardIndex = null, string? Direction = null);
+record SwapOutsidePoolCardsRequest(string PlayerId, int Index1, int Index2);
+record ReturnGuessingCardRequest(string PlayerId, string Position);
+record RotateBoardRequest(string PlayerId, int CumulativeRotation);
+record RotateCardRequest(string PlayerId, string? Position = null, int? OutsideCardIndex = null, string? Direction = null, int? Steps = null);
 record ValidateGuessingBoardRequest(string PlayerId);
 record MoveToNextBoardRequest(string PlayerId);
 record CompleteGameRequest(string PlayerId);

@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using SoClover.UseCases.Abstractions;
 
 namespace SoClover.Tests;

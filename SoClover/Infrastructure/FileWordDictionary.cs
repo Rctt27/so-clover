@@ -105,8 +105,21 @@ public sealed class FileWordDictionary : IWordDictionary
             _resolvedFileByNormName.TryAdd(norm, f);
         }
 
-        _resolvedFileByNormName.TryGetValue(key, out var resolved);
-        return resolved;
+        if (_resolvedFileByNormName.TryGetValue(key, out var resolved))
+        {
+            return resolved;
+        }
+
+        // Second pass: try partial match for languages like "Français" matching "Français_OFF"
+        foreach (var kv in _resolvedFileByNormName)
+        {
+            if (kv.Key.StartsWith(key, StringComparison.OrdinalIgnoreCase))
+            {
+                return kv.Value;
+            }
+        }
+
+        return null;
     }
 
     private IEnumerable<string> GetAvailableLanguages()

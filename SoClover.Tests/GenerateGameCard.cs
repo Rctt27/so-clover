@@ -1,4 +1,4 @@
-ï»¿using SoClover.Domain;
+using SoClover.Domain;
 using SoClover.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
@@ -15,9 +15,9 @@ public class GenerateGameCard
     }
 
     [Theory]
-    [InlineData("FranÃ§ais_OFF", @"^[a-zA-ZÃ€Ã‚Ã„Ã‰ÃˆÃŠÃ‹ÃÃÃ”Ã™Ã›ÃœÅ¸Ã‡Ã Ã¢Ã¤Ã©Ã¨ÃªÃ«Ã¯Ã®Ã´Ã¹Ã»Ã¼Ã¿Ã§\-\s]+$")]
+    [InlineData("Français_OFF", @"^[a-zA-ZÀÂÄÉÈÊËÏÎÔÙÛÜŸÇàâäéèêëïîôùûüÿç\-\s]+$")]
     [InlineData("English_(from_FR_OFF)", @"^[a-zA-Z\-\s]+$")]
-    [InlineData("Portuguese_(from_FR_OFF)", @"^[a-zA-ZÃÃ€Ã‚ÃƒÃ‰ÃŠÃÃ“Ã”Ã•ÃšÃœÃ‡Ã¡Ã Ã¢Ã£Ã©ÃªÃ­Ã³Ã´ÃµÃºÃ¼Ã§\-\s]+$")]
+    [InlineData("Portuguese_(from_FR_OFF)", @"^[a-zA-ZÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüç\-\s]+$")]
     public async Task ShouldCreateCardWithFourRandomWords(string language, string characterPattern)
     {
         // Arrange
@@ -55,7 +55,7 @@ public class GenerateGameCard
         Assert.False(string.IsNullOrWhiteSpace(card.RightWord));
         Assert.False(string.IsNullOrWhiteSpace(card.BottomWord));
         Assert.False(string.IsNullOrWhiteSpace(card.LeftWord));
-        _testOutputHelper.WriteLine("âœ“ All words are non-empty");
+        _testOutputHelper.WriteLine("? All words are non-empty");
 
         // Verify word length constraints (from Card.cs)
         _testOutputHelper.WriteLine("Verifying word length constraints (max 32 characters)...");
@@ -63,18 +63,18 @@ public class GenerateGameCard
         Assert.True(card.RightWord.Length <= 32);
         Assert.True(card.BottomWord.Length <= 32);
         Assert.True(card.LeftWord.Length <= 32);
-        _testOutputHelper.WriteLine("âœ“ All words respect length constraints");
+        _testOutputHelper.WriteLine("? All words respect length constraints");
 
         // Verify words come from dictionary (basic check)
         _testOutputHelper.WriteLine($"Verifying words match {language} character pattern...");
         var allWords = new[] { card.TopWord, card.RightWord, card.BottomWord, card.LeftWord };
         Assert.All(allWords, word => Assert.Matches(characterPattern, word));
-        _testOutputHelper.WriteLine($"âœ“ All words match {language} character pattern");
+        _testOutputHelper.WriteLine($"? All words match {language} character pattern");
         _testOutputHelper.WriteLine("=== Test Passed ===\n");
     }
 
     [Theory]
-    [InlineData("FranÃ§ais_OFF", 60)]
+    [InlineData("Français_OFF", 60)]
     [InlineData("English_(from_FR_OFF)", 60)]
     [InlineData("Portuguese_(from_FR_OFF)", 60)]
     public async Task ShouldCreateMultipleCardsWithDifferentWords(string language, int cardCount)
@@ -98,13 +98,13 @@ public class GenerateGameCard
             cards.Add(card);
             _testOutputHelper.WriteLine($"Card {i + 1}/{cardCount} created - Remaining words in pool: {wordsPool.RemainingWordsCount}");
         }
-        _testOutputHelper.WriteLine($"\nâœ“ Successfully created {cardCount} cards");
+        _testOutputHelper.WriteLine($"\n? Successfully created {cardCount} cards");
 
         // Assert - Verify all cards have unique IDs
         _testOutputHelper.WriteLine("\nVerifying all cards have unique IDs...");
         var uniqueIds = cards.Select(c => c.Id).Distinct().Count();
         Assert.Equal(cardCount, uniqueIds);
-        _testOutputHelper.WriteLine($"âœ“ All {cardCount} cards have unique IDs");
+        _testOutputHelper.WriteLine($"? All {cardCount} cards have unique IDs");
 
         // Assert - Verify NO word is used more than once across ALL cards
         _testOutputHelper.WriteLine("\nVerifying word uniqueness across all cards...");
@@ -122,7 +122,7 @@ public class GenerateGameCard
 
         if (duplicates.Any())
         {
-            _testOutputHelper.WriteLine("\nâŒ DUPLICATES FOUND:");
+            _testOutputHelper.WriteLine("\n? DUPLICATES FOUND:");
             foreach (var dup in duplicates)
             {
                 _testOutputHelper.WriteLine($"  - '{dup.Word}' appears {dup.Count} times");
@@ -131,7 +131,7 @@ public class GenerateGameCard
 
         Assert.Empty(duplicates);
         Assert.Equal(allWords.Count, uniqueWords.Count);
-        _testOutputHelper.WriteLine("âœ“ All words are unique across all cards (WordsPool ensures no reuse)");
+        _testOutputHelper.WriteLine("? All words are unique across all cards (WordsPool ensures no reuse)");
 
         // Assert - Verify WordsPool correctly decremented available words
         _testOutputHelper.WriteLine($"\nVerifying WordsPool word consumption...");
@@ -139,13 +139,13 @@ public class GenerateGameCard
         _testOutputHelper.WriteLine($"Words remaining in pool: {expectedRemainingWords}");
         _testOutputHelper.WriteLine($"Words consumed: {cardCount * 4}");
         Assert.True(expectedRemainingWords >= 0, "WordsPool should have non-negative remaining words");
-        _testOutputHelper.WriteLine("âœ“ WordsPool correctly tracked word consumption");
+        _testOutputHelper.WriteLine("? WordsPool correctly tracked word consumption");
 
         _testOutputHelper.WriteLine("\n=== Test Passed ===\n");
     }
 
     [Theory]
-    [InlineData("FranÃ§ais_OFF")]
+    [InlineData("Français_OFF")]
     [InlineData("English_(from_FR_OFF)")]
     [InlineData("Portuguese_(from_FR_OFF)")]
     public async Task ShouldRespectCardWordValidationRules(string language)
@@ -172,7 +172,7 @@ public class GenerateGameCard
         // Assert - Card constructor validates words, so if we get here, validation passed
         _testOutputHelper.WriteLine("\nStep 3: Validating card is not null...");
         Assert.NotNull(card);
-        _testOutputHelper.WriteLine("  âœ“ Card is not null");
+        _testOutputHelper.WriteLine("  ? Card is not null");
 
         // Double-check that Card validation would accept these words
         _testOutputHelper.WriteLine("\nStep 4: Testing Card constructor validation by creating a new Card with same words...");
@@ -189,12 +189,12 @@ public class GenerateGameCard
 
         _testOutputHelper.WriteLine("\nStep 5: Verifying test card is not null...");
         Assert.NotNull(testCard);
-        _testOutputHelper.WriteLine("  âœ“ Test card is not null");
+        _testOutputHelper.WriteLine("  ? Test card is not null");
 
         _testOutputHelper.WriteLine("\nStep 6: Validation complete!");
-        _testOutputHelper.WriteLine("  âœ“ All words from CardFactory pass Card constructor validation");
-        _testOutputHelper.WriteLine("  âœ“ Words are non-empty (length > 0)");
-        _testOutputHelper.WriteLine("  âœ“ Words are within max length (â‰¤ 32 characters)");
+        _testOutputHelper.WriteLine("  ? All words from CardFactory pass Card constructor validation");
+        _testOutputHelper.WriteLine("  ? Words are non-empty (length > 0)");
+        _testOutputHelper.WriteLine("  ? Words are within max length (= 32 characters)");
         _testOutputHelper.WriteLine("=== Test Passed ===\n");
     }
 
@@ -240,7 +240,7 @@ public class GenerateGameCard
 
             if (wordGroups.Any())
             {
-                _testOutputHelper.WriteLine($"\nâŒ DUPLICATES FOUND in {fileName}:");
+                _testOutputHelper.WriteLine($"\n? DUPLICATES FOUND in {fileName}:");
                 foreach (var duplicate in wordGroups)
                 {
                     _testOutputHelper.WriteLine($"  - '{duplicate.Word}' appears {duplicate.Count} times");
@@ -250,7 +250,7 @@ public class GenerateGameCard
 
             var uniqueWords = words.Distinct().ToList();
             _testOutputHelper.WriteLine($"Unique words: {uniqueWords.Count}");
-            _testOutputHelper.WriteLine($"âœ“ No duplicates found in '{fileName}'");
+            _testOutputHelper.WriteLine($"? No duplicates found in '{fileName}'");
 
             // Additional validation - ensure uniqueness count matches
             Assert.Equal(words.Count, uniqueWords.Count);

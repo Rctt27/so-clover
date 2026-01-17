@@ -44,7 +44,7 @@ public sealed class Game
 
     [JsonInclude]
     [JsonPropertyName("outsideCards")]
-    public List<OrientedCard> OutsideCards { get; private set; } = new();
+    public List<OrientedCard?> OutsideCards { get; private set; } = new();
 
     [JsonInclude]
     [JsonPropertyName("guessedCardPositions")]
@@ -67,6 +67,10 @@ public sealed class Game
     [JsonInclude]
     [JsonPropertyName("completedBoardsCount")]
     public int CompletedBoardsCount { get; private set; } = 0;
+
+    [JsonInclude]
+    [JsonPropertyName("cumulativeBoardRotation")]
+    public int CumulativeBoardRotation { get; private set; } = 0;
 
     // Scoring tracking
     [JsonInclude]
@@ -145,6 +149,23 @@ public sealed class Game
         if (player.IsAdmin)
         {
             AdminPlayerId = player.Id;
+        }
+    }
+
+    public void RemovePlayer(PlayerId playerId)
+    {
+        if (Phase != GamePhase.Lobby)
+            throw new InvalidOperationInPhaseException("Cannot leave after game start.");
+            
+        _players.Remove(playerId);
+        
+        if (AdminPlayerId == playerId)
+        {
+            AdminPlayerId = _players.Keys.FirstOrDefault();
+            if (AdminPlayerId is PlayerId newAdminId)
+            {
+                _players[newAdminId].IsAdmin = true;
+            }
         }
     }
 
@@ -252,16 +273,20 @@ public sealed class Game
             throw new InvalidOperationInPhaseException("Guessing phase can only start after WritingClues.");
 
         var owner = RequirePlayer(firstBoardOwner);
+        if (owner.Board.TopLeft == null || owner.Board.TopRight == null || owner.Board.BottomRight == null || owner.Board.BottomLeft == null)
+            throw new InvalidOperationException("Cannot start guessing phase with an incomplete board.");
+
         CurrentGuessingBoardOwner = firstBoardOwner;
 
         // Récupérer les 4 cartes originales du board avec rotations randomisées
-        OutsideCards = new List<OrientedCard>
+        OutsideCards = new List<OrientedCard?>
         {
             new OrientedCard(owner.Board.TopLeft!.Card, cardRotations[0]),
             new OrientedCard(owner.Board.TopRight!.Card, cardRotations[1]),
             new OrientedCard(owner.Board.BottomRight!.Card, cardRotations[2]),
             new OrientedCard(owner.Board.BottomLeft!.Card, cardRotations[3]),
-            new OrientedCard(fifthCard, cardRotations[4]) // 5ème carte avec rotation aléatoire
+            new OrientedCard(fifthCard, cardRotations[4]), // 5ème carte avec rotation aléatoire
+            null // 6ème slot vide
         };
 
         // Réinitialiser les positions devinées
@@ -283,6 +308,7 @@ public sealed class Game
 
         Phase = GamePhase.Guessing;
         PhaseEndsAtUtc = nowUtc + perBoardDuration;
+        CumulativeBoardRotation = 0;
     }
 
     public void PlaceCardOnGuessingBoard(int outsideCardIndex, BoardPosition position)
@@ -297,16 +323,31 @@ public sealed class Game
         if (CorrectlyPlacedPositions.Contains(position))
             throw new InvalidOperationException("Cannot place card on a locked position.");
 
-        // Si la position est déjà occupée, remettre la carte dans OutsideCards
+        var newCard = OutsideCards[outsideCardIndex];
+        if (newCard == null)
+            throw new InvalidOperationException("No card at the specified pool index.");
+
+        OrientedCard? displacedCard = null;
+        // Si la position est déjà occupée, on va remettre cette carte dans le pool à l'index utilisé
         if (GuessedCardPositions[position] != null)
         {
-            OutsideCards.Add(GuessedCardPositions[position]!);
+            displacedCard = GuessedCardPositions[position];
         }
 
-        // Placer la nouvelle carte
-        var card = OutsideCards[outsideCardIndex];
-        GuessedCardPositions[position] = card;
-        OutsideCards.RemoveAt(outsideCardIndex);
+        // Placer la nouvelle carte avec compensation de la rotation du plateau
+        // pour conserver son orientation absolue (visuelle par rapport au joueur).
+        int stepsToCompensate = CumulativeBoardRotation / 90;
+        GuessedCardPositions[position] = newCard.Rotate(-stepsToCompensate);
+        
+        // Mettre la carte déplacée dans le pool avec la rotation inverse (si nécessaire)
+        if (displacedCard != null)
+        {
+            OutsideCards[outsideCardIndex] = displacedCard.Rotate(stepsToCompensate);
+        }
+        else
+        {
+            OutsideCards[outsideCardIndex] = null;
+        }
     }
 
     public void SwapGuessingCards(BoardPosition position1, BoardPosition position2)
@@ -323,8 +364,49 @@ public sealed class Game
             (GuessedCardPositions[position2], GuessedCardPositions[position1]);
     }
 
+    public void SwapOutsidePoolCards(int index1, int index2)
+    {
+        if (Phase != GamePhase.Guessing)
+            throw new InvalidOperationInPhaseException("Can only swap pool cards during Guessing phase.");
+
+        if (index1 < 0 || index1 >= OutsideCards.Count || index2 < 0 || index2 >= OutsideCards.Count)
+            throw new ArgumentOutOfRangeException("Indices must be within the range of OutsideCards.");
+
+        (OutsideCards[index1], OutsideCards[index2]) = (OutsideCards[index2], OutsideCards[index1]);
+    }
+
+    public void ReturnGuessingCard(BoardPosition position)
+    {
+        if (Phase != GamePhase.Guessing)
+            throw new InvalidOperationInPhaseException("Can only return cards during Guessing phase.");
+
+        if (CorrectlyPlacedPositions.Contains(position))
+            throw new InvalidOperationException("Cannot return a locked card.");
+
+        var card = GuessedCardPositions[position];
+        if (card != null)
+        {
+            // Inverser la compensation lors du retour dans le pool
+            int stepsToInvert = CumulativeBoardRotation / 90;
+            var orientedCard = card.Rotate(stepsToInvert);
+            
+            // Trouver le premier slot vide dans le pool
+            int emptySlotIndex = OutsideCards.FindIndex(c => c == null);
+            if (emptySlotIndex != -1)
+            {
+                OutsideCards[emptySlotIndex] = orientedCard;
+            }
+            else
+            {
+                OutsideCards.Add(orientedCard);
+            }
+            
+            GuessedCardPositions[position] = null;
+        }
+    }
+
     // Unified card rotation method - handles both board and outside cards
-    public void RotateCard(BoardPosition position, bool rotateRight = true)
+    public void RotateCard(BoardPosition position, int steps)
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only rotate cards during Guessing phase.");
@@ -334,22 +416,35 @@ public sealed class Game
 
         var card = GuessedCardPositions[position];
         if (card == null)
+        {
+            Console.WriteLine($"[DEBUG_LOG] Domain Game.RotateCard Error: No card found at position {position}");
             throw new InvalidOperationException("No card at this position to rotate.");
+        }
 
-        GuessedCardPositions[position] = rotateRight ? card.RotateRight() : card.RotateLeft();
+        GuessedCardPositions[position] = card.Rotate(steps);
+        Console.WriteLine($"[DEBUG_LOG] Domain Game.RotateCard Success: Position={position}, NewSteps={steps}, NewRotation={GuessedCardPositions[position]?.Rotation}");
     }
 
-    public void RotateCard(int outsideCardIndex, bool rotateRight = true)
+    public void RotateCard(int outsideCardIndex, int steps)
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only rotate cards during Guessing phase.");
 
         if (outsideCardIndex < 0 || outsideCardIndex >= OutsideCards.Count)
+        {
+            Console.WriteLine($"[DEBUG_LOG] Domain Game.RotateCard Error: Invalid OutsideCardIndex {outsideCardIndex}. Pool size={OutsideCards.Count}");
             throw new ArgumentOutOfRangeException(nameof(outsideCardIndex));
+        }
 
-        OutsideCards[outsideCardIndex] = rotateRight
-            ? OutsideCards[outsideCardIndex].RotateRight()
-            : OutsideCards[outsideCardIndex].RotateLeft();
+        var card = OutsideCards[outsideCardIndex];
+        if (card == null)
+        {
+            throw new InvalidOperationException("No card at the specified pool index to rotate.");
+        }
+
+        OutsideCards[outsideCardIndex] = card.Rotate(steps);
+        
+        Console.WriteLine($"[DEBUG_LOG] Domain Game.RotateCard Success: OutsideIndex={outsideCardIndex}, NewSteps={steps}, NewRotation={OutsideCards[outsideCardIndex]!.Rotation}");
     }
 
     public GuessValidationResult ValidateGuessingBoard()
@@ -405,7 +500,16 @@ public sealed class Game
             var card = GuessedCardPositions[pos];
             if (card != null)
             {
-                OutsideCards.Add(card);
+                // Trouver le premier slot vide dans le pool
+                int emptySlotIndex = OutsideCards.FindIndex(c => c == null);
+                if (emptySlotIndex != -1)
+                {
+                    OutsideCards[emptySlotIndex] = card;
+                }
+                else
+                {
+                    OutsideCards.Add(card);
+                }
                 GuessedCardPositions[pos] = null;
             }
         }
@@ -422,6 +526,8 @@ public sealed class Game
             var endTime = DateTime.UtcNow;
             var duration = endTime - _currentBoardStartTime;
 
+            Console.WriteLine($"[DEBUG_LOG] Game.ValidateGuessingBoard: SUCCESS for {CurrentGuessingBoardOwner.Value}. Attempts: {_currentBoardAttempts}");
+
             _boardResults[CurrentGuessingBoardOwner.Value] = new BoardResult(
                 CurrentGuessingBoardOwner.Value,
                 _currentBoardAttempts,
@@ -436,6 +542,8 @@ public sealed class Game
         {
             var endTime = DateTime.UtcNow;
             var duration = endTime - _currentBoardStartTime;
+
+            Console.WriteLine($"[DEBUG_LOG] Game.ValidateGuessingBoard: FAILURE for {CurrentGuessingBoardOwner.Value}. Attempts: {_currentBoardAttempts}");
 
             _boardResults[CurrentGuessingBoardOwner.Value] = new BoardResult(
                 CurrentGuessingBoardOwner.Value,
@@ -494,13 +602,14 @@ public sealed class Game
             CurrentGuessingBoardOwner = nextOwner.Id;
 
             // Réinitialiser l'état de guessing pour le nouveau board
-            OutsideCards = new List<OrientedCard>
+            OutsideCards = new List<OrientedCard?>
             {
                 new OrientedCard(nextOwner.Board.TopLeft!.Card, cardRotations[0]),
                 new OrientedCard(nextOwner.Board.TopRight!.Card, cardRotations[1]),
                 new OrientedCard(nextOwner.Board.BottomRight!.Card, cardRotations[2]),
                 new OrientedCard(nextOwner.Board.BottomLeft!.Card, cardRotations[3]),
-                new OrientedCard(fifthCard, cardRotations[4])
+                new OrientedCard(fifthCard, cardRotations[4]),
+                null
             };
 
             GuessedCardPositions = new Dictionary<BoardPosition, OrientedCard?>
@@ -518,6 +627,7 @@ public sealed class Game
             _currentBoardStartTime = nowUtc;
             _currentBoardAttempts = 0;
             PhaseEndsAtUtc = nowUtc + perBoardDuration;
+            CumulativeBoardRotation = 0;
         }
     }
 
@@ -533,6 +643,9 @@ public sealed class Game
 
         var endTime = nowUtc;
         var duration = endTime - _currentBoardStartTime;
+
+        Console.WriteLine($"[DEBUG_LOG] Game.RecordTimeoutLoss: FAILURE for {CurrentGuessingBoardOwner.Value}. Attempts: {_currentBoardAttempts}");
+
         _boardResults[CurrentGuessingBoardOwner.Value] = new BoardResult(
             CurrentGuessingBoardOwner.Value,
             _currentBoardAttempts,
@@ -553,10 +666,6 @@ public sealed class Game
         if (correct)
         {
             player.Board.MarkGuessed(direction);
-            if (Players.All(p => p.Board.IsComplete()))
-            {
-                Phase = GamePhase.Completed;
-            }
         }
         return new GuessResult(correct, expected);
     }
@@ -567,8 +676,14 @@ public sealed class Game
             throw new InvalidOperationInPhaseException("Can only complete game from Scoring phase.");
         if (playerId != AdminPlayerId)
             throw new UnauthorizedAccessException("Only the admin can complete the game.");
+    }
 
-        Phase = GamePhase.Completed;
+    public void RotateBoard(int rotation)
+    {
+        if (Phase != GamePhase.Guessing)
+            throw new InvalidOperationInPhaseException("Can only rotate board during Guessing phase.");
+        
+        CumulativeBoardRotation = rotation;
     }
 
     private Player RequirePlayer(PlayerId playerId)

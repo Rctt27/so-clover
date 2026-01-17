@@ -1,5 +1,4 @@
-﻿/** TODO: Try to implement a way so mouse position adapts to board rotation value so mouse tracking remains accurate even if players are not sharing same roation value
-/**
+﻿/**
  * Builder pour la reconstruction des mouvements de souris des autres joueurs
  */
 const MouseMovementBuilder = (function() {

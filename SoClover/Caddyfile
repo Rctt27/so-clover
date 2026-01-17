@@ -2,15 +2,35 @@
 # Current mode: IP-only server (no domain). Serves HTTP on :80 and self-signed TLS on :443.
 # Browsers will show a warning for the self-signed certificate until a real domain is configured.
 
+{
+    debug
+}
+
 :80 {
     encode gzip
-    reverse_proxy web:8080
+    reverse_proxy web:8080 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+    log {
+        output stdout
+    }
 }
 
 :443 {
     tls internal
     encode gzip
-    reverse_proxy web:8080
+    reverse_proxy web:8080 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+    log {
+        output stdout
+    }
 }
 
 # When you have a real domain pointing (A/AAAA) to this server, replace the above

@@ -1,4 +1,4 @@
-﻿using SoClover.UseCases.Abstractions;
+using SoClover.UseCases.Abstractions;
 
 namespace SoClover.Tests;
 

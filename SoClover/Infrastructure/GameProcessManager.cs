@@ -1,7 +1,8 @@
 ﻿using Microsoft.Extensions.Hosting;
 using SoClover.Domain;
 using SoClover.UseCases.Abstractions;
-using SoClover.UseCases.Games;
+using SoClover.UseCases.Gameplay;
+using SoClover.UseCases.GameLogics;
 using System.Collections.Concurrent;
 
 namespace SoClover.Infrastructure;

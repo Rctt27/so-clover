@@ -1,8 +1,11 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using SoClover.Domain;
 using SoClover.Infrastructure;
 using SoClover.UseCases.Abstractions;
-using SoClover.UseCases.Games;
+using SoClover.UseCases.Gameplay;
+using SoClover.UseCases.GameLogics;
+using SoClover.UseCases.Gameplay;
+using SoClover.UseCases.GameLogics;
 using Xunit;
 
 namespace SoClover.Tests;
@@ -63,7 +66,7 @@ public class GuessingTimeoutLastBoardTests
         Assert.NotNull(state1.PhaseEndsAtUtc);
         // Advance clock to after deadline
         clock.Set(state1.PhaseEndsAtUtc!.Value.AddSeconds(1));
-        await moveNext.Handle(new MoveToNextBoard.Request(gameId, state1.AdminPlayerId ?? default, InvocationOrigin.System));
+        await moveNext.Handle(new MoveToNextBoard.Request(gameId, new PlayerId(state1.AdminPlayerId ?? default), InvocationOrigin.System));
 
         // We should now be on the last board (second player)
         var state2 = await getState.Handle(new GetGameState.Request(gameId));
@@ -73,14 +76,14 @@ public class GuessingTimeoutLastBoardTests
 
         // Place one card on the board (as the non-owner player)
         var currentOwner = state2.GuessingState!.CurrentBoardOwnerId!.Value;
-        var placerId = state2.Players.Select(p => p.PlayerId).First(p => p.Value != currentOwner.Value);
+        var placerId = state2.Players.Select(p => p.PlayerId).First(p => p != currentOwner);
         // Place outside card index 0 on TopLeft
-        await placeGuessing.Handle(new PlaceGuessingCard.Request(gameId, placerId, 0, BoardPosition.TopLeft));
+        await placeGuessing.Handle(new PlaceGuessingCard.Request(gameId, new PlayerId(placerId), 0, BoardPosition.TopLeft));
 
         // Expire the timer on the last board and trigger system move
         state2 = await getState.Handle(new GetGameState.Request(gameId));
         clock.Set(state2.PhaseEndsAtUtc!.Value.AddSeconds(1));
-        var response = await moveNext.Handle(new MoveToNextBoard.Request(gameId, placerId, InvocationOrigin.System));
+        var response = await moveNext.Handle(new MoveToNextBoard.Request(gameId, new PlayerId(placerId), InvocationOrigin.System));
 
         // Expect transition to Scoring
         Assert.Equal(GamePhase.Scoring, response.Phase);

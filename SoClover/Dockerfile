@@ -1,7 +1,17 @@
 ﻿# Multi-stage Dockerfile for SoClover ASP.NET app
 
 # ------------------------
-# Build stage
+# Build Client stage (React)
+# ------------------------
+FROM node:20-alpine AS build-client
+WORKDIR /src/client
+COPY SoClover/client/package*.json ./
+RUN npm install
+COPY SoClover/client/ ./
+RUN npm run build
+
+# ------------------------
+# Build stage (.NET)
 # ------------------------
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
@@ -15,9 +25,17 @@ COPY SoClover/SoClover.csproj SoClover/
 # Restore
 RUN dotnet restore SoClover/SoClover.csproj
 
-# Copy the full source and publish Release
+# Copy the full source
 COPY . .
-RUN dotnet publish SoClover/SoClover.csproj -c Release -o /app/publish --no-restore
+
+# Clean existing wwwroot except dictionaries (which are needed by the backend)
+# and move legacy-vanilla to a backup or just remove it if we want to be sure it's not served.
+RUN rm -rf SoClover/wwwroot/legacy-vanilla SoClover/wwwroot/MouseTracking SoClover/wwwroot/index.html
+
+# Copy the React build results to wwwroot
+COPY --from=build-client /src/client/dist ./SoClover/wwwroot/
+
+RUN dotnet publish SoClover/SoClover.csproj -c Release -o /app/publish --no-restore -p:DOCKER_BUILD=true
 
 # ------------------------
 # Runtime stage

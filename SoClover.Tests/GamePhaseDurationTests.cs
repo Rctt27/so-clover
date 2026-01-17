@@ -1,9 +1,10 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using SoClover.Domain;
 using SoClover.Infrastructure;
 using SoClover.UseCases.Abstractions;
-using SoClover.UseCases.Games;
+using SoClover.UseCases.Gameplay;
+using SoClover.UseCases.GameLogics;
 using Xunit;
 
 namespace SoClover.Tests;
