@@ -1,4 +1,5 @@
-﻿using SoClover.Domain;
+﻿using System.Text.Json.Serialization;
+using SoClover.Domain;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
 
@@ -56,6 +57,6 @@ public static class RotateBoard
 }
 
 public readonly record struct BoardRotated(
-    GameId GameId,
-    PlayerId PlayerId,
-    int CumulativeRotation);
+    [property: JsonPropertyName("gameId")] GameId GameId,
+    [property: JsonPropertyName("playerId")] PlayerId PlayerId,
+    [property: JsonPropertyName("cumulativeRotation")] int CumulativeRotation);

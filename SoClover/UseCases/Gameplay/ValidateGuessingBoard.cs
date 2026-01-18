@@ -1,4 +1,5 @@
-﻿using SoClover.Domain;
+﻿using System.Text.Json.Serialization;
+using SoClover.Domain;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
 
@@ -10,11 +11,11 @@ public static class ValidateGuessingBoard
 {
     public readonly record struct Request(GameId GameId, PlayerId PlayerId);
     public readonly record struct Response(
-        IReadOnlyList<BoardPosition> CorrectPositions,
-        IReadOnlyList<BoardPosition> IncorrectPositions,
-        int RemainingAttempts,
-        bool IsComplete,
-        bool ShouldMoveToNext
+        [property: JsonPropertyName("correctPositions")] IReadOnlyList<BoardPosition> CorrectPositions,
+        [property: JsonPropertyName("incorrectPositions")] IReadOnlyList<BoardPosition> IncorrectPositions,
+        [property: JsonPropertyName("remainingAttempts")] int RemainingAttempts,
+        [property: JsonPropertyName("isComplete")] bool IsComplete,
+        [property: JsonPropertyName("shouldMoveToNext")] bool ShouldMoveToNext
     );
 
     public sealed class Handler : IValidateGuessingBoardUseCase
@@ -69,10 +70,10 @@ public static class ValidateGuessingBoard
 }
 
 public readonly record struct GuessingBoardValidated(
-    GameId GameId,
-    PlayerId PlayerId,
-    IReadOnlyList<BoardPosition> CorrectPositions,
-    IReadOnlyList<BoardPosition> IncorrectPositions,
-    int RemainingAttempts,
-    bool IsComplete
+    [property: JsonPropertyName("gameId")] GameId GameId,
+    [property: JsonPropertyName("playerId")] PlayerId PlayerId,
+    [property: JsonPropertyName("correctPositions")] IReadOnlyList<BoardPosition> CorrectPositions,
+    [property: JsonPropertyName("incorrectPositions")] IReadOnlyList<BoardPosition> IncorrectPositions,
+    [property: JsonPropertyName("remainingAttempts")] int RemainingAttempts,
+    [property: JsonPropertyName("isComplete")] bool IsComplete
 );

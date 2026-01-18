@@ -1,15 +1,14 @@
-﻿import { useState, useEffect, useRef } from 'react'
-import { 
-  DndContext, 
-  DragEndEvent, 
-  PointerSensor, 
-  KeyboardSensor, 
-  useSensor, 
+import { useState, useEffect, useRef } from 'react'
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
   useSensors,
   closestCenter,
   DragStartEvent,
-  DragOverlay,
-  defaultDropAnimationSideEffects
+  DragOverlay
 } from '@dnd-kit/core'
 import { LayoutGroup } from 'framer-motion'
 import { useGameStore, useGuessingStore } from '../../core/store'
@@ -60,18 +59,15 @@ export const GuessingPage = () => {
   });
 
   useEffect(() => {
-    // On n'écrase le mapping local que si on n'est pas en train de draguer ou si les cartes ont réellement changé d'identités
-    // ou si c'est la première fois qu'on reçoit les cartes.
-    const currentCardIds = Object.values(poolMapping).filter(Boolean).map(c => c!.cardId).sort().join(',');
-    const nextCardIds = outsideCards.filter(Boolean).map(c => c!.cardId).sort().join(',');
-
-    if (currentCardIds !== nextCardIds || Object.values(poolMapping).every(v => v === null)) {
-      const mapping: Record<number, CardInfoResponse | null> = {};
-      outsideCards.forEach((card, i) => {
-        mapping[i] = card;
-      });
-      setPoolMapping(mapping);
-    }
+    // Toujours synchroniser poolMapping avec outsideCards du store
+    // Cela garantit la cohérence avec le backend après chaque mise à jour SignalR
+    const mapping: Record<number, CardInfoResponse | null> = {
+      0: null, 1: null, 2: null, 3: null, 4: null, 5: null
+    };
+    outsideCards.forEach((card, i) => {
+      if (i < 6) mapping[i] = card;
+    });
+    setPoolMapping(mapping);
   }, [outsideCards]);
 
   const sensors = useSensors(
@@ -89,6 +85,11 @@ export const GuessingPage = () => {
 
   const isMyBoard = currentBoardOwnerId === playerId
 
+  // Valeur sécurisée de la rotation (fallback à 0 si undefined/NaN)
+  const safeCumulativeRotation = typeof cumulativeBoardRotation === 'number' && !isNaN(cumulativeBoardRotation)
+    ? cumulativeBoardRotation
+    : 0
+
   // Déclencher la notification si c'est notre plateau et qu'on ne l'a pas encore fait pour ce plateau précis
   useEffect(() => {
     if (isMyBoard && currentBoardOwnerId && notifiedBoardId.current !== currentBoardOwnerId) {
@@ -104,13 +105,16 @@ export const GuessingPage = () => {
     const { active } = event;
     const cardId = active.id as string;
     
-    // Si c'est une carte du board, on veut désactiver temporairement les transitions de rotation
-    // pour éviter les sauts visuels lors du drag (vu qu'on utilise un overlay)
-    
     setSelectedCardId(cardId);
     setActiveCard(active.data.current?.card || null);
     setActiveData(active.data.current as any);
   }
+
+  const handleDragMove = () => {
+    if (isMyBoard || isValidationPending || canMoveToNext) return;
+    // On pourrait ajouter une logique ici si nécessaire, 
+    // mais dnd-kit gère déjà la position de l'overlay.
+  };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     if (isMyBoard || isValidationPending) return;
@@ -121,9 +125,6 @@ export const GuessingPage = () => {
 
     const activeData = active.data.current;
     if (!activeData || !over) {
-      setActiveCard(null);
-      setActiveData(null);
-      setSelectedCardId(null);
       return;
     }
 
@@ -139,7 +140,10 @@ export const GuessingPage = () => {
       ? Object.entries(guessedPositions).find(([_, card]) => card?.cardId === activeData.card.cardId)?.[0]
       : Object.entries(poolMapping).find(([_, card]) => card?.cardId === activeData.card.cardId)?.[0];
 
-    if (!sourceSlot) return;
+    if (!sourceSlot) {
+      // Fallback si la recherche par ID échoue (ne devrait pas arriver si les IDs sont stables)
+      return;
+    }
 
     // Déterminer la cible
     const isOverBoard = ['TopLeft', 'TopRight', 'BottomRight', 'BottomLeft'].includes(overId) || overId.startsWith('board-');
@@ -162,65 +166,47 @@ export const GuessingPage = () => {
       if (sourceSlot !== targetSlot) {
         setSwappingCards({ activePos: sourceSlot, displacedPos: targetSlot });
         await swapGuessingCards(sourceSlot, targetSlot);
-        setSwappingCards(null);
+        setTimeout(() => setSwappingCards(null), 500);
       }
     }
     // Cas 2: Pool -> Board
     else if (!isFromBoard && isOverBoard) {
-      const existingCard = guessedPositions[targetSlot];
-      if (existingCard) {
-        setSwappingCards({ activePos: `pool-${sourceSlot}`, displacedPos: targetSlot });
+      setSwappingCards({ activePos: `pool-${sourceSlot}`, displacedPos: targetSlot });
+
+      // sourceSlot est l'index dans poolMapping qui est synchronisé avec outsideCards du store
+      // On utilise cet index directement car poolMapping reflète l'état du backend
+      const poolIndex = Number(sourceSlot);
+      if (!isNaN(poolIndex) && poolIndex >= 0 && poolIndex < 6) {
+        // Vérification de cohérence: s'assurer que la carte existe à cet index
+        const cardAtIndex = outsideCards[poolIndex];
+        if (cardAtIndex && cardAtIndex.cardId === activeData.card.cardId) {
+          await placeGuessingCard(poolIndex, targetSlot);
+        } else {
+          // Désynchronisation détectée - rafraîchir l'état
+          console.warn('[GuessingPage] Pool desync detected, refreshing state');
+          await fetchGameState();
+        }
       }
-      // Le backend attend l'index dans la liste outsideCards réelle, pas le slot index
-      const realIndex = outsideCards.findIndex(c => c && c.cardId === activeData.card.cardId);
-      if (realIndex !== -1) {
-        await placeGuessingCard(realIndex, targetSlot);
-      }
-      setSwappingCards(null);
+      setTimeout(() => setSwappingCards(null), 500);
     }
     // Cas 3: Board -> Pool
     else if (isFromBoard && isOverPool) {
-      const existingCard = poolMapping[Number(targetSlot)];
-      if (existingCard) {
-        setSwappingCards({ activePos: sourceSlot, displacedPos: `pool-${targetSlot}` });
-      }
+      setSwappingCards({ 
+        activePos: sourceSlot, 
+        displacedPos: `pool-${targetSlot}`
+      });
       await returnGuessingCard(sourceSlot);
-      setSwappingCards(null);
+      // On attend un peu que l'animation se termine avant de reset swappingCards
+      setTimeout(() => setSwappingCards(null), 500);
     }
-  // Cas 4: Pool -> Pool (Local UI Swap + Sync)
+  // Cas 4: Pool -> Pool (Swap)
     else if (!isFromBoard && !isOverBoard && isOverPool) {
       const sIdx = Number(sourceSlot);
       const tIdx = Number(targetSlot);
-      if (sIdx !== tIdx) {
-        // Find cards before swap for optimistic mapping
-        const sourceCard = poolMapping[sIdx];
-        const targetCard = poolMapping[tIdx];
-
-        if (!sourceCard) return;
-
-        // Optimistic UI update
-        const newMapping = { ...poolMapping };
-        newMapping[sIdx] = targetCard;
-        newMapping[tIdx] = sourceCard;
-        setPoolMapping(newMapping);
-        
-        // Sync with backend using the real indices in outsideCards
-        // On cherche les indices réels dans la liste immuable du store
-        const activeRealIndex = outsideCards.findIndex(c => c && c.cardId === sourceCard.cardId);
-        
-        // Pour la cible, si c'est vide, on essaie de déduire l'index réel
-        let targetRealIndex = -1;
-        if (targetCard) {
-          targetRealIndex = outsideCards.findIndex(c => c && c.cardId === targetCard.cardId);
-        } else {
-          // Si le slot est vide, on cherche un index null dans outsideCards qui correspondrait au slot
-          // En fait, poolMapping est censé être aligné sur outsideCards au début.
-          targetRealIndex = tIdx; 
-        }
-
-        if (activeRealIndex !== -1 && targetRealIndex !== -1 && activeRealIndex !== targetRealIndex) {
-          await swapOutsidePoolCards(activeRealIndex, targetRealIndex);
-        }
+      if (sIdx !== tIdx && !isNaN(sIdx) && !isNaN(tIdx)) {
+        // Pas de mise à jour optimiste - on laisse SignalR synchroniser poolMapping via outsideCards
+        // Cela évite les désynchronisations entre l'état local et le backend
+        await swapOutsidePoolCards(sIdx, tIdx);
       }
     }
   }
@@ -271,8 +257,9 @@ export const GuessingPage = () => {
   const handleRotateBoard = (direction: 'Left' | 'Right') => {
     if (isMyBoard || isValidationPending) return
     const rotationDelta = direction === 'Right' ? 90 : -90
-    const newRotation = cumulativeBoardRotation + rotationDelta
-    setCumulativeBoardRotation(newRotation)
+    const newRotation = safeCumulativeRotation + rotationDelta
+    // Mark as local change to set timestamp and prevent race conditions with SignalR updates
+    setCumulativeBoardRotation(newRotation, true)
     broadcastBoardRotation(newRotation)
   }
 
@@ -290,10 +277,10 @@ export const GuessingPage = () => {
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
+      onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
     >
-      <LayoutGroup id="guessing-layout">
-        <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col min-h-screen">
           {/* Header Info */}
           <div className="bg-white/30 backdrop-blur-sm shadow-sm p-4 text-center">
             <h1 className="text-2xl font-bold text-gray-800">
@@ -304,13 +291,14 @@ export const GuessingPage = () => {
             </p>
           </div>
 
+          <LayoutGroup>
           <div className="flex flex-1 items-center justify-between px-8 py-4 gap-8 overflow-hidden">
             {/* Pool Gauche */}
             <div className="flex-none">
-              <OutsideCardPool 
-                cards={poolLeft} 
-                startIndex={0} 
-                disabled={isMyBoard || canMoveToNext} 
+              <OutsideCardPool
+                cards={poolLeft}
+                startIndex={0}
+                disabled={isMyBoard || canMoveToNext}
                 swappingPositions={swappingCards}
               />
             </div>
@@ -318,17 +306,19 @@ export const GuessingPage = () => {
             {/* Board Central */}
             <div className="flex-1 flex flex-col items-center justify-center gap-8 min-w-0">
               <div className="relative">
-                <Board 
+                <Board
+                  key={currentBoardOwnerId || 'no-board'}
                   cards={boardCards}
                   guessedCards={boardGuessedCards}
                   swappingPositions={swappingCards}
-                  rotation={cumulativeBoardRotation}
+                  rotation={safeCumulativeRotation}
                   clues={clues}
                   animateEntry={true}
                   showClueInputs={false}
                   disabled={isMyBoard || isValidationPending || canMoveToNext}
                   isLocked={isMyBoard || isValidationPending || canMoveToNext}
                   correctPositions={correctlyPlacedPositions}
+                  ownerId={currentBoardOwnerId || undefined}
                 />
               </div>
 
@@ -397,38 +387,29 @@ export const GuessingPage = () => {
 
             {/* Pool Droit */}
             <div className="flex-none">
-              <OutsideCardPool 
-                cards={poolRight} 
-                startIndex={3} 
-                disabled={isMyBoard || canMoveToNext} 
+              <OutsideCardPool
+                cards={poolRight}
+                startIndex={3}
+                disabled={isMyBoard || canMoveToNext}
                 swappingPositions={swappingCards}
               />
             </div>
           </div>
+          </LayoutGroup>
         </div>
-      </LayoutGroup>
 
       <DragOverlay
-        dropAnimation={{
-          duration: 300,
-          easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
-          sideEffects: defaultDropAnimationSideEffects({
-            styles: {
-              active: {
-                opacity: '0',
-              },
-            },
-          }),
-        }}
+        dropAnimation={null}
       >
         {activeCard && activeData ? (
           <div className="w-[180px] h-[180px] cursor-grabbing shadow-2xl scale-110 z-[1000]">
-            <DraggableCard 
-              card={activeCard} 
-              index={activeData.index} 
+            <DraggableCard
+              card={activeCard}
+              index={activeData.index}
               isOutside={activeData.isOutside}
               disabled={true}
               isSelected={true}
+              dragRotationOverride={activeData.isOutside ? 0 : -safeCumulativeRotation}
             />
           </div>
         ) : null}

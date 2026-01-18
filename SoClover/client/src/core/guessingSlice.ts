@@ -14,12 +14,13 @@ export interface GuessingSlice {
   // État local (UI)
   selectedCardId: string | null // Pour le mode tablette / clic-clic
   cumulativeBoardRotation: number
+  lastLocalRotationTimestamp: number // Timestamp of last local rotation to prevent race conditions
   isValidationPending: boolean
   validationResults: { correctPositions: string[], incorrectPositions: string[] } | null
 
   // Actions
   setGuessingState: (state: Partial<GuessingSlice>) => void
-  setCumulativeBoardRotation: (rotation: number) => void
+  setCumulativeBoardRotation: (rotation: number, isLocalChange?: boolean) => void
   setIsValidationPending: (pending: boolean) => void
   setValidationResults: (results: { correctPositions: string[], incorrectPositions: string[] } | null) => void
   setSelectedCardId: (id: string | null) => void
@@ -42,11 +43,15 @@ export const createGuessingSlice: StateCreator<GuessingSlice> = (set) => ({
 
   selectedCardId: null,
   cumulativeBoardRotation: 0,
+  lastLocalRotationTimestamp: 0,
   isValidationPending: false,
   validationResults: null,
 
   setGuessingState: (state) => set((prev) => ({ ...prev, ...state })),
-  setCumulativeBoardRotation: (rotation) => set({ cumulativeBoardRotation: rotation }),
+  setCumulativeBoardRotation: (rotation, isLocalChange = false) => set({
+    cumulativeBoardRotation: rotation,
+    ...(isLocalChange ? { lastLocalRotationTimestamp: Date.now() } : {})
+  }),
   setIsValidationPending: (pending) => set({ isValidationPending: pending }),
   setValidationResults: (results) => set({ validationResults: results }),
   setSelectedCardId: (id) => set({ selectedCardId: id }),
@@ -65,6 +70,7 @@ export const createGuessingSlice: StateCreator<GuessingSlice> = (set) => ({
     currentBoardClues: [],
     selectedCardId: null,
     cumulativeBoardRotation: 0,
+    lastLocalRotationTimestamp: 0,
     isValidationPending: false,
     validationResults: null,
   }),

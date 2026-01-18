@@ -21,13 +21,13 @@ export const useSignalR = () => {
 
   const refreshGameState = useCallback(async () => {
     if (!gameId) {
-      console.warn('[useSignalR] Cannot refresh state: missing gameId');
+      // console.warn('[useSignalR] Cannot refresh state: missing gameId');
       return;
     }
     try {
-      console.log('[useSignalR] Refreshing game state for gameId:', gameId, 'playerId:', playerId);
+      // console.log('[useSignalR] Refreshing game state for gameId:', gameId, 'playerId:', playerId);
       const state = await gameApi.getGameState(gameId);
-      console.log('[useSignalR] New state fetched:', state);
+      // console.log('[useSignalR] New state fetched:', state);
       
       if (!state) {
         console.error('[useSignalR] Fetched state is null or undefined');
@@ -66,11 +66,11 @@ export const useSignalR = () => {
     };
 
     const handleStateUpdated = (data: any) => {
-      console.log('[SignalR] GameStateUpdated received:', data);
+      // console.log('[SignalR] GameStateUpdated received:', data);
       
       // Si le message contient le state complet, on l'utilise directement pour éviter un fetch
       if (data && data.gameState) {
-        console.log('[SignalR] Using embedded gameState from message');
+        // console.log('[SignalR] Using embedded gameState from message');
         updateStateFromResponse(data.gameState);
         return;
       }
@@ -86,7 +86,7 @@ export const useSignalR = () => {
       ];
 
       if (data && (guessingEvents.includes(data.eventType) || guessingEvents.includes(data.eventData?.eventType))) {
-        console.log(`[SignalR] Guessing event detected (${data.eventType}), refreshing state`);
+        // console.log(`[SignalR] Guessing event detected (${data.eventType}), refreshing state`);
         refreshGameState();
       } else {
         // Pour les autres événements, le throttle ou le refresh global suffit
@@ -95,7 +95,7 @@ export const useSignalR = () => {
     };
 
     const handleServerNotification = (data: any) => {
-      console.log('[SignalR] ServerNotification', data);
+      // console.log('[SignalR] ServerNotification', data);
       if (!data) return;
 
       const { type, message, senderId } = data;
@@ -114,7 +114,7 @@ export const useSignalR = () => {
     };
 
     const handlePlayerJoined = (data: any) => {
-      console.log('[SignalR] PlayerJoined', data);
+      // console.log('[SignalR] PlayerJoined', data);
       
       if (!data || !data.playerName) return;
 
@@ -141,14 +141,31 @@ export const useSignalR = () => {
     };
 
     const handleBoardRotationUpdated = (data: any) => {
-      console.log('[SignalR] BoardRotationUpdated received:', data);
+      // console.log('[SignalR] BoardRotationUpdated received:', data);
       if (data && typeof data.cumulativeRotation === 'number') {
+        // Ignore own rotation events to prevent overwriting local state
+        // The local player already updated their state optimistically
+        if (data.playerId === playerId) {
+          // console.log('[SignalR] Ignoring own BoardRotationUpdated event');
+          return;
+        }
+
+        // Check if we recently made a local rotation (within 500ms)
+        // This prevents race conditions where an old update from another player
+        // arrives after we've already made a new local rotation
+        const lastLocalRotation = useGuessingStore.getState().lastLocalRotationTimestamp;
+        const timeSinceLocalRotation = Date.now() - lastLocalRotation;
+        if (timeSinceLocalRotation < 500) {
+          // console.log('[SignalR] Ignoring BoardRotationUpdated - local rotation in progress');
+          return;
+        }
+
         setCumulativeBoardRotation(data.cumulativeRotation);
       }
     };
 
-    const handleGuessingBoardValidated = (data: any) => {
-      console.log('[SignalR] GuessingBoardValidated received (handled by GameStateUpdated):', data);
+    const handleGuessingBoardValidated = (_data: any) => {
+      // console.log('[SignalR] GuessingBoardValidated received (handled by GameStateUpdated):', _data);
     };
 
     signalRClient.on('GameStateUpdated', handleStateUpdated);

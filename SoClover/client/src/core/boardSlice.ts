@@ -12,6 +12,7 @@ export interface BoardSlice {
   updateMyBoardCards: (cards: (CardData | null)[]) => void
   updateMyBoardRotation: (rotation: number) => void
   updateMyClue: (position: 'top' | 'right' | 'bottom' | 'left', text: string) => void
+  setMyBoardSubmitted: (isSubmitted: boolean) => void
   setOtherBoard: (playerId: string, board: BoardData) => void
   setCurrentBoardOwner: (playerId: string | null) => void
   resetBoards: () => void
@@ -23,7 +24,7 @@ export const createBoardSlice: StateCreator<BoardSlice> = (set) => ({
   currentBoardOwner: null,
 
   setMyBoard: (board) => {
-    console.log('[boardSlice] setMyBoard called with:', board)
+    // console.log('[boardSlice] setMyBoard called with:', board)
     set({ myBoard: board })
   },
 
@@ -59,6 +60,16 @@ export const createBoardSlice: StateCreator<BoardSlice> = (set) => ({
             playerId: state.myBoard.clues[position].playerId
           }
         }
+      }
+    }
+  }),
+  
+  setMyBoardSubmitted: (isSubmitted) => set((state) => {
+    if (!state.myBoard) return state
+    return {
+      myBoard: {
+        ...state.myBoard,
+        isSubmitted
       }
     }
   }),

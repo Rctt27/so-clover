@@ -289,6 +289,9 @@ public sealed class Game
             null // 6ème slot vide
         };
 
+        // Randomiser l'ordre des cartes dans le pool pour éviter toute déduction basée sur la position
+        ShuffleOutsideCards();
+
         // Réinitialiser les positions devinées
         GuessedCardPositions = new Dictionary<BoardPosition, OrientedCard?>
         {
@@ -612,6 +615,9 @@ public sealed class Game
                 null
             };
 
+            // Randomiser l'ordre des cartes dans le pool pour éviter toute déduction basée sur la position
+            ShuffleOutsideCards();
+
             GuessedCardPositions = new Dictionary<BoardPosition, OrientedCard?>
             {
                 { BoardPosition.TopLeft, null },
@@ -627,7 +633,7 @@ public sealed class Game
             _currentBoardStartTime = nowUtc;
             _currentBoardAttempts = 0;
             PhaseEndsAtUtc = nowUtc + perBoardDuration;
-            CumulativeBoardRotation = 0;
+            CumulativeBoardRotation = 0; // On réinitialise la rotation pour le nouveau plateau
         }
     }
 
@@ -691,6 +697,26 @@ public sealed class Game
         if (!_players.TryGetValue(playerId, out var player))
             throw new PlayerNotFoundException(playerId);
         return player;
+    }
+
+    /// <summary>
+    /// Shuffles the OutsideCards list (excluding the last null slot) using Fisher-Yates algorithm.
+    /// This ensures cards are randomly positioned in the pool, making deduction harder.
+    /// </summary>
+    private void ShuffleOutsideCards()
+    {
+        // We shuffle only the first 5 elements (indices 0-4), keeping the 6th slot (index 5) as null
+        var cardsToShuffle = OutsideCards.Take(5).ToList();
+
+        // Fisher-Yates shuffle
+        for (int i = cardsToShuffle.Count - 1; i > 0; i--)
+        {
+            int j = Random.Shared.Next(i + 1);
+            (cardsToShuffle[i], cardsToShuffle[j]) = (cardsToShuffle[j], cardsToShuffle[i]);
+        }
+
+        // Rebuild the OutsideCards list with shuffled cards + null slot
+        OutsideCards = new List<OrientedCard?>(cardsToShuffle) { null };
     }
 }
 

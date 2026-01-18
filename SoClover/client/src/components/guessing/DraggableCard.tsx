@@ -5,7 +5,6 @@ import { Card } from '../shared/Card'
 import { CardInfoResponse, rotationToDegrees } from '../../types/game'
 import { useGameStore, useGuessingStore } from '../../core/store'
 import { gameApi } from '../../api/game-api'
-import { useGameActions } from '../../hooks/useGameActions'
 import correctIcon from '../../assets/images/correctGuess.svg'
 
 export interface DraggableCardProps {
@@ -18,30 +17,67 @@ export interface DraggableCardProps {
   isSelected?: boolean
   disabled?: boolean
   isDisplaced?: boolean
+  /** Override rotation compensation (used in DragOverlay to keep card visually straight) */
+  dragRotationOverride?: number
 }
 
-export const DraggableCard = ({ 
-  card, 
-  index, 
-  isOutside, 
-  isLocked = false, 
+export const DraggableCard = ({
+  card,
+  index,
+  isOutside,
+  isLocked = false,
   isCorrect = false,
   onClick,
   isSelected = false,
   disabled = false,
-  isDisplaced = false
+  isDisplaced = false,
+  dragRotationOverride
 }: DraggableCardProps) => {
   const { gameId, playerId, role } = useGameStore()
   const { cumulativeBoardRotation, isValidationPending } = useGuessingStore()
-  const { fetchGameState } = useGameActions()
-  
-  // Normalisation de la rotation pour éviter les sauts lors des animations
-  const boardRotationDeg = !isOutside ? cumulativeBoardRotation : 0;
-  const rawRotation = rotationToDegrees(card.rotation) + boardRotationDeg;
-  const rotation = (rawRotation % 360 + 360) % 360
-  
+
+  // Rotation du backend (normalisée 0-270)
+  const backendRotation = rotationToDegrees(card.rotation);
+
+  // Rotation continue pour les animations fluides (peut dépasser 360° ou être négative)
+  // On garde une trace de la rotation précédente et du cardId pour détecter les changements de carte
+  const prevBackendRotationRef = useRef<number | null>(null);
+  const prevCardIdRef = useRef<string>(card.cardId);
+  const [continuousRotation, setContinuousRotation] = useState(backendRotation);
+
+  // Quand la rotation backend change, calculer le delta et l'appliquer de manière continue
+  useEffect(() => {
+    // Si la carte a changé, réinitialiser complètement
+    if (prevCardIdRef.current !== card.cardId) {
+      prevCardIdRef.current = card.cardId;
+      prevBackendRotationRef.current = backendRotation;
+      setContinuousRotation(backendRotation);
+      return;
+    }
+
+    if (prevBackendRotationRef.current === null) {
+      // Première initialisation
+      prevBackendRotationRef.current = backendRotation;
+      setContinuousRotation(backendRotation);
+      return;
+    }
+
+    const prevRotation = prevBackendRotationRef.current;
+    let delta = backendRotation - prevRotation;
+
+    // Prendre le chemin le plus court (évite le rollback 270->0 qui ferait -270° au lieu de +90°)
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+
+    // Ne mettre à jour que si le delta est non nul
+    if (delta !== 0) {
+      setContinuousRotation(prev => prev + delta);
+    }
+    prevBackendRotationRef.current = backendRotation;
+  }, [backendRotation, card.cardId]);
+
   const canInteract = !isLocked && !disabled && !isValidationPending && role === 'PlayerGuesser'
-  
+
   const [isRotating, setIsRotating] = useState(false)
   const [rotationVisualOffset, setRotationVisualOffset] = useState(0)
   const cardRef = useRef<HTMLDivElement>(null!)
@@ -104,14 +140,19 @@ export const DraggableCard = ({
       setIsRotating(false)
       setRotationVisualOffset(0)
 
-      if (steps !== 0 && gameId && playerId) {
+      if (gameId && playerId) {
+        // Si steps est 0, c'est un clic simple sur le coin -> on tourne de 90° (1 step)
+        // Sinon on utilise le nombre de steps calculé par le drag
+        const finalSteps = steps === 0 ? 1 : steps;
+        
         try {
           const SlotPositions = ['TopLeft', 'TopRight', 'BottomRight', 'BottomLeft']
           const boardPosition = !isOutside ? SlotPositions[index] : undefined
           const outsideIndex = isOutside ? index : undefined
-          
-          await gameApi.rotateGuessingCard(gameId, playerId, steps, boardPosition, outsideIndex !== undefined ? outsideIndex : undefined)
-          await fetchGameState(false)
+
+          await gameApi.rotateGuessingCard(gameId, playerId, finalSteps, boardPosition, outsideIndex !== undefined ? outsideIndex : undefined)
+          // Note: Pas de fetchGameState ici - SignalR gère la synchronisation pour les autres joueurs
+          // et le joueur local a déjà fait la mise à jour visuelle via rotationVisualOffset
         } catch (error) {
           console.error('Failed to rotate card:', error)
         }
@@ -124,15 +165,25 @@ export const DraggableCard = ({
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [isRotating, rotationVisualOffset, gameId, playerId, isOutside, index, fetchGameState])
+  }, [isRotating, rotationVisualOffset, gameId, playerId, isOutside, index])
 
   // Déterminer si on survole une autre carte pour l'effet de swap
   const isOverOtherCard = over && over.id !== id && (over.id as string).startsWith('board-');
 
   // On ne veut pas appliquer le transform directement si on utilise DragOverlay
-  const style = (transform) ? {
+  // Mais on en a besoin pour la position initiale lors du drag start
+  const style = transform ? {
     transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    visibility: isDragging ? 'hidden' as const : 'visible' as const,
   } : undefined
+
+  // La compensation de rotation pour que la carte reste droite face au joueur pendant le drag
+  // Si dragRotationOverride est fourni (ex: DragOverlay), on l'utilise directement.
+  // Sinon, si la carte vient du board et est en train d'être draggée, on compense la rotation du board.
+  // Si elle vient du pool (0°), on ne fait rien.
+  const dragRotationCompensation = dragRotationOverride !== undefined
+    ? dragRotationOverride
+    : (isDragging ? (isOutside ? 0 : -cumulativeBoardRotation) : 0);
 
   return (
     <motion.div
@@ -140,8 +191,8 @@ export const DraggableCard = ({
         setNodeRef(node)
         if (node) cardRef.current = node as HTMLDivElement
       }}
-      layout
       layoutId={`card-${card.cardId}`}
+      layout
       className={`relative transition-shadow duration-200 ${
         isSelected ? 'ring-4 ring-clover rounded-xl shadow-2xl' : 'hover:shadow-lg'
       } ${!canInteract ? 'cursor-default opacity-90' : (isRotating ? 'cursor-grabbing' : 'cursor-grab active:cursor-grabbing')} ${
@@ -151,22 +202,30 @@ export const DraggableCard = ({
         width: '100%',
         height: '100%',
         zIndex: isDisplaced ? 150 : (isOverOtherCard ? 50 : (isDragging ? 1000 : 'auto')),
-        opacity: isDragging ? 0 : 1,
         pointerEvents: isDragging ? 'none' : 'auto',
         ...style,
       }}
-      onClick={onClick}
-      whileHover={canInteract && !isDragging && !isRotating ? { scale: 1.05, zIndex: 100 } : {}}
-      whileTap={canInteract && !isDragging && !isRotating ? { scale: 0.95 } : {}}
+      initial={{ opacity: 0, scale: 0.8 }}
       animate={{
-        ...(isCorrect ? { 
+        opacity: 1,
+        scale: 1,
+        rotate: dragRotationCompensation,
+        ...(isCorrect ? {
           scale: [1, 1.1, 1],
         } : {}),
         ...(isDisplaced ? {
           scale: [1, 1.1, 1.1, 1],
         } : {})
       }}
+      exit={{ opacity: 0, scale: 0.8 }}
+      onClick={onClick}
+      whileHover={canInteract && !isDragging && !isRotating ? { scale: 1.05, zIndex: 100 } : {}}
+      whileTap={canInteract && !isDragging && !isRotating ? { scale: 0.95 } : {}}
       transition={{
+        layout: { duration: 0.3, ease: 'easeOut' },
+        opacity: { duration: 0.2 },
+        scale: { duration: 0.2 },
+        rotate: { duration: 0 },
         ...(isDisplaced ? { duration: 0.8, times: [0, 0.2, 0.8, 1] } : {})
       }}
     >
@@ -183,9 +242,9 @@ export const DraggableCard = ({
           opacity: { duration: 0.1 }
         }}
       >
-        <Card 
-          words={[card.topWord, card.rightWord, card.bottomWord, card.leftWord]} 
-          rotation={rotation + rotationVisualOffset}
+        <Card
+          words={[card.topWord, card.rightWord, card.bottomWord, card.leftWord]}
+          rotation={continuousRotation + rotationVisualOffset}
           disableAnimation={isDragging || isDisplaced || isRotating}
         />
       </motion.div>

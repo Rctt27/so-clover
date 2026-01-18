@@ -56,6 +56,18 @@ export const useGameStateUpdate = () => {
     // 5. Mise à jour des plateaux
     state.players.forEach(p => {
       const clientBoard = convertBackendBoardToClientBoard(p.board, p.playerId);
+      
+      // Preserve local rotation during WritingClues phase as it's not stored on server
+      if (state.phase === 'WritingClues') {
+        const currentMyBoard = useBoardStore.getState().myBoard;
+        const currentOtherBoards = useBoardStore.getState().otherBoards;
+        
+        const existingBoard = p.playerId === myPlayerId ? currentMyBoard : currentOtherBoards[p.playerId];
+        if (existingBoard) {
+          clientBoard.rotation = existingBoard.rotation;
+        }
+      }
+
       if (p.playerId === myPlayerId) {
         setMyBoard(clientBoard);
       } else {
@@ -65,6 +77,9 @@ export const useGameStateUpdate = () => {
 
     // 6. Mise à jour de l'état de guessing
     if (state.guessingState) {
+      const currentOwnerId = useGuessingStore.getState().currentBoardOwnerId;
+      const isNewBoard = currentOwnerId !== state.guessingState.currentBoardOwnerId;
+
       setCurrentBoardOwner(state.guessingState.currentBoardOwnerId);
       setGuessingState({
         currentBoardOwnerId: state.guessingState.currentBoardOwnerId,
@@ -74,7 +89,9 @@ export const useGameStateUpdate = () => {
         correctlyPlacedPositions: state.guessingState.correctlyPlacedPositions,
         remainingAttempts: state.guessingState.remainingAttempts,
         currentBoardClues: state.guessingState.currentBoardClues,
-        cumulativeBoardRotation: state.guessingState.cumulativeBoardRotation
+        // Ne mettre à jour cumulativeBoardRotation que lors d'un changement de Board
+        // pour éviter d'écraser les modifications locales non persistées
+        ...(isNewBoard ? { cumulativeBoardRotation: state.guessingState.cumulativeBoardRotation ?? 0 } : {})
       });
     } else {
       setCurrentBoardOwner(null);

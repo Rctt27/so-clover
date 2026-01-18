@@ -1,4 +1,4 @@
-// TODO: Implémenter un UseCase RotateGuessingBoard sur la même logique que RotateCards afin que durant la phase de Guessing les PlayerGuesser puissent partager la valeur de rotation du Board au lieu d'avoir chacun leur propre valeur local de rotation du guessing Board.
+using System.Text.Json.Serialization;
 using SoClover.Domain;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
@@ -88,8 +88,8 @@ public static class RotateCard
 }
 
 public readonly record struct CardRotated(
-    GameId GameId,
-    PlayerId PlayerId,
-    int? OutsideCardIndex,
-    BoardPosition? BoardPosition,
-    int Steps);
+    [property: JsonPropertyName("gameId")] GameId GameId,
+    [property: JsonPropertyName("playerId")] PlayerId PlayerId,
+    [property: JsonPropertyName("outsideCardIndex")] int? OutsideCardIndex,
+    [property: JsonPropertyName("boardPosition")] BoardPosition? BoardPosition,
+    [property: JsonPropertyName("steps")] int Steps);

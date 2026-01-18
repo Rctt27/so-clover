@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
+using System.Text.Json.Serialization;
 using SoClover.Domain;
 using SoClover.Infrastructure;
 using SoClover.UseCases.Abstractions;
@@ -67,6 +68,7 @@ builder.Services.AddTransient<ICompleteGameUseCase, CompleteGame.Handler>();
 var signalRBuilder = builder.Services.AddSignalR()
     .AddJsonProtocol(options => 
     {
+        options.PayloadSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.PayloadSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 
@@ -566,17 +568,19 @@ app.MapPost("/api/games/{gameId:guid}/return-guessing-card", async (Guid gameId,
 
 app.MapPost("/api/games/{gameId:guid}/rotate-board", async (Guid gameId, RotateBoardRequest? request, IRotateBoardUseCase useCase, CancellationToken ct) =>
 {
-    if (string.IsNullOrWhiteSpace(request?.PlayerId))
-        return Results.BadRequest(new { message = "PlayerId is required" });
+    if (string.IsNullOrWhiteSpace(request?.PlayerId) || !request.CumulativeRotation.HasValue)
+    {
+        return Results.BadRequest(new { message = "PlayerId and CumulativeRotation are required" });
+    }
 
     try
     {
-        var parsed = Guid.Parse(request.PlayerId!);
+        var parsed = Guid.Parse(request.PlayerId);
         if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
         await useCase.Handle(new RotateBoard.Request(
             new GameId(gameId),
             new PlayerId(parsed),
-            request.CumulativeRotation
+            request.CumulativeRotation.Value
         ), ct);
 
         return Results.Ok(new { message = "Board rotated successfully" });
@@ -584,6 +588,10 @@ app.MapPost("/api/games/{gameId:guid}/rotate-board", async (Guid gameId, RotateB
     catch (GameNotFoundException)
     {
         return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (InvalidOperationInPhaseException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
     }
     catch (InvalidOperationException ex)
     {
@@ -637,6 +645,10 @@ app.MapPost("/api/games/{gameId:guid}/rotate-card", async (Guid gameId, RotateCa
     catch (GameNotFoundException)
     {
         return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (InvalidOperationInPhaseException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
     }
     catch (InvalidOperationException ex)
     {
@@ -862,7 +874,9 @@ record PlaceGuessingCardRequest(string PlayerId, int OutsideCardIndex, string Po
 record SwapGuessingCardsRequest(string PlayerId, string Position1, string Position2);
 record SwapOutsidePoolCardsRequest(string PlayerId, int Index1, int Index2);
 record ReturnGuessingCardRequest(string PlayerId, string Position);
-record RotateBoardRequest(string PlayerId, int CumulativeRotation);
+record RotateBoardRequest(
+    [property: JsonPropertyName("playerId")] string PlayerId, 
+    [property: JsonPropertyName("cumulativeRotation")] int? CumulativeRotation);
 record RotateCardRequest(string PlayerId, string? Position = null, int? OutsideCardIndex = null, string? Direction = null, int? Steps = null);
 record ValidateGuessingBoardRequest(string PlayerId);
 record MoveToNextBoardRequest(string PlayerId);

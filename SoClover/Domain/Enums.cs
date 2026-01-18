@@ -18,6 +18,7 @@ public enum Rotation
 
 public enum GamePhase
 {
+    Initial = -1,
     Lobby = 0,
     WritingClues = 1,
     Guessing = 2,

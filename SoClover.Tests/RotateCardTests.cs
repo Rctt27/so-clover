@@ -32,7 +32,8 @@ public class RotateCardTests
         game.InitializeWordsPoolAsync(new DummyDictionary()).Wait();
         game.StartWritingPhase(DateTime.UtcNow, TimeSpan.FromMinutes(5));
         
-        var owner = game.Players.First(p => p.Id == ownerId);
+        var localOwnerId = ownerId;
+        var owner = game.Players.First(p => p.Id == localOwnerId);
         owner.Board.Place(BoardPosition.TopLeft,     new OrientedCard(new Card(CardId.New(), "A1", "A2", "A3", "A4")));
         owner.Board.Place(BoardPosition.TopRight,    new OrientedCard(new Card(CardId.New(), "B1", "B2", "B3", "B4")));
         owner.Board.Place(BoardPosition.BottomRight, new OrientedCard(new Card(CardId.New(), "C1", "C2", "C3", "C4")));
@@ -53,8 +54,10 @@ public class RotateCardTests
         var repoMock = new Mock<IGameRepository>();
         repoMock.Setup(r => r.Get(game.Id, It.IsAny<CancellationToken>())).ReturnsAsync(game);
         var eventsMock = new Mock<IEventPublisher>();
+        var clockMock = new Mock<IClock>();
+        clockMock.Setup(c => c.UtcNow).Returns(DateTime.UtcNow);
         
-        var handler = new RotateCard.Handler(repoMock.Object, eventsMock.Object);
+        var handler = new RotateCard.Handler(repoMock.Object, eventsMock.Object, clockMock.Object);
         var initialRotation = game.OutsideCards[0]!.Rotation;
 
         // Act
@@ -77,8 +80,10 @@ public class RotateCardTests
         var repoMock = new Mock<IGameRepository>();
         repoMock.Setup(r => r.Get(game.Id, It.IsAny<CancellationToken>())).ReturnsAsync(game);
         var eventsMock = new Mock<IEventPublisher>();
+        var clockMock = new Mock<IClock>();
+        clockMock.Setup(c => c.UtcNow).Returns(DateTime.UtcNow);
         
-        var handler = new RotateCard.Handler(repoMock.Object, eventsMock.Object);
+        var handler = new RotateCard.Handler(repoMock.Object, eventsMock.Object, clockMock.Object);
         var initialRotation = game.GuessedCardPositions[BoardPosition.TopLeft]!.Rotation;
 
         // Act
@@ -98,8 +103,10 @@ public class RotateCardTests
         var repoMock = new Mock<IGameRepository>();
         repoMock.Setup(r => r.Get(game.Id, It.IsAny<CancellationToken>())).ReturnsAsync(game);
         var eventsMock = new Mock<IEventPublisher>();
+        var clockMock = new Mock<IClock>();
+        clockMock.Setup(c => c.UtcNow).Returns(DateTime.UtcNow);
         
-        var handler = new RotateCard.Handler(repoMock.Object, eventsMock.Object);
+        var handler = new RotateCard.Handler(repoMock.Object, eventsMock.Object, clockMock.Object);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() => 

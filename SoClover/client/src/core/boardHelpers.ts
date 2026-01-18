@@ -27,12 +27,14 @@ export function convertBackendBoardToClientBoard(
   const bottomRightCard = boardState.bottom.card // Direction.Bottom -> BottomRight
   const bottomLeftCard = boardState.left.card    // Direction.Left -> BottomLeft
 
+  /*
   console.log('[boardHelpers] Converting backend board to client board:', {
     topLeftCard,
     topRightCard,
     bottomRightCard,
     bottomLeftCard
   })
+  */
 
   // Convertir chaque carte en CardData
   // Array order: [TopLeft, TopRight, BottomRight, BottomLeft]
@@ -78,11 +80,12 @@ export function convertBackendBoardToClientBoard(
     } : null
   ]
 
-  console.log('[boardHelpers] Converted cards:', cards)
+  // console.log('[boardHelpers] Converted cards:', cards)
 
   return {
     cards,
     rotation: 0, // Par défaut, pas de rotation du plateau
+    isSubmitted: boardState.isSubmitted,
     clues: {
       top: {
         text: boardState.top.clueLabel || '',

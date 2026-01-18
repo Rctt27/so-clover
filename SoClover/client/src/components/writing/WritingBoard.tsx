@@ -48,6 +48,7 @@ export const WritingBoard = () => {
           animateEntry={true} 
           showClueInputs={true}
           onClueSave={submitClue}
+          disabled={myBoard.isSubmitted}
           clues={{
             top: myBoard.clues.top.text,
             right: myBoard.clues.right.text,

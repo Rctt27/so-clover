@@ -29,6 +29,7 @@ export const OutsideCardPool = ({
           <PoolSlot key={slotId} id={slotId} disabled={disabled || isValidationPending}>
             {card && (
               <DraggableCard
+                key={card.cardId}
                 card={card}
                 index={slotIndex}
                 isOutside={true}

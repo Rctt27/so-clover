@@ -23,7 +23,11 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
   const theme = CONSTANTS.THEME_CONFIG
 
   useEffect(() => {
-    setLocalValue(value)
+    // On ne met à jour la valeur locale que si l'utilisateur n'est pas en train d'éditer le champ
+    // Cela évite de perdre la saisie en cours lors d'une mise à jour de l'état global (ex: SignalR)
+    if (document.activeElement !== inputRef.current) {
+      setLocalValue(value)
+    }
   }, [value])
 
   const handleSave = async () => {
@@ -90,12 +94,16 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
   }
 
   const getBorderColor = () => {
-    switch (status) {
-      case 'saving': return theme.clueBorderColorSaving
-      case 'error': return theme.clueBorderColorError
-      case 'success': return theme.clueBorderColor // On garde le vert ou on pourrait flasher un vert plus brillant
-      default: return theme.clueBorderColor
+    if (status === 'saving') return theme.clueBorderColorSaving
+    if (status === 'error') return theme.clueBorderColorError
+    
+    // Feedback visuel pendant la saisie (si différent de la valeur sauvegardée)
+    const isDirty = localValue.trim() !== value.trim()
+    if (isDirty && status === 'idle') {
+      return '#2196F3' // Bleu (identique au legacy board.js)
     }
+    
+    return theme.clueBorderColor
   }
 
   const shakeAnimation = {

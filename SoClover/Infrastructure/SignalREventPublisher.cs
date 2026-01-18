@@ -51,6 +51,12 @@ public sealed class SignalREventPublisher : IEventPublisher
         try
         {
             var state = await _getState.Handle(new GetGameState.Request(gameId.Value), ct);
+
+            // Optimization: In WritingClues phase, we DON'T broadcast the full gameState to everyone.
+            // The public state lacks personal secrets (cards) and would overwrite local player data.
+            // Clients will instead refetch their own state via the API which includes their secrets.
+            object? gameStateToSend = state.Phase == GamePhase.WritingClues ? null : state;
+
             // Keep payload compact: signal that state changed; clients refetch if needed
             await _hub.Clients.Group($"game-{state.GameId}")
                 .SendAsync("GameStateUpdated", new
@@ -60,7 +66,7 @@ public sealed class SignalREventPublisher : IEventPublisher
                     phase = state.Phase.ToString(),
                     phaseEndsAtUtc = state.PhaseEndsAtUtc,
                     eventData = evt, // Include the event data for targeted updates
-                    gameState = state // Full state (public view)
+                    gameState = gameStateToSend // Include full state only if safe
                 }, ct);
 
             // Special-case: countdown warning messages
@@ -131,6 +137,17 @@ public sealed class SignalREventPublisher : IEventPublisher
                 {
                     await _hub.Clients.Group($"game-{gameId.Value}")
                         .SendAsync("GameDeleted", new { gameId = gameId.Value }, ct);
+                    break;
+                }
+                case SoClover.UseCases.Gameplay.BoardRotated boardRotated:
+                {
+                    // Emit specific BoardRotationUpdated event for targeted sync without full state refresh
+                    await _hub.Clients.Group($"game-{state.GameId}")
+                        .SendAsync("BoardRotationUpdated", new
+                        {
+                            cumulativeRotation = boardRotated.CumulativeRotation,
+                            playerId = boardRotated.PlayerId.Value.ToString()
+                        }, ct);
                     break;
                 }
             }

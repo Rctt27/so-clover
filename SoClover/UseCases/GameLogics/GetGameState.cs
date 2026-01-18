@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using SoClover.Domain;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
@@ -11,62 +12,63 @@ public static class GetGameState
     public readonly record struct Request(GameId GameId, bool IncludeSecrets = false, PlayerId? RequestingPlayerId = null);
 
     public sealed record Response(
-        Guid GameId,
-        string Language,
-        int? CluesDurationSecondsOverride,
-        int? GuessDurationSecondsOverride,
-        GamePhase Phase,
-        Guid? AdminPlayerId,
-        DateTime? PhaseEndsAtUtc,
-        IReadOnlyList<PlayerState> Players,
-        GuessingPhaseState? GuessingState
+        [property: JsonPropertyName("gameId")] Guid GameId,
+        [property: JsonPropertyName("language")] string Language,
+        [property: JsonPropertyName("cluesDurationSecondsOverride")] int? CluesDurationSecondsOverride,
+        [property: JsonPropertyName("guessDurationSecondsOverride")] int? GuessDurationSecondsOverride,
+        [property: JsonPropertyName("phase")] GamePhase Phase,
+        [property: JsonPropertyName("adminPlayerId")] Guid? AdminPlayerId,
+        [property: JsonPropertyName("phaseEndsAtUtc")] DateTime? PhaseEndsAtUtc,
+        [property: JsonPropertyName("players")] IReadOnlyList<PlayerState> Players,
+        [property: JsonPropertyName("guessingState")] GuessingPhaseState? GuessingState
     );
 
     public sealed record PlayerState(
-        Guid PlayerId,
-        string Name,
-        BoardState Board
+        [property: JsonPropertyName("playerId")] Guid PlayerId,
+        [property: JsonPropertyName("name")] string Name,
+        [property: JsonPropertyName("board")] BoardState Board
     );
 
     public sealed record BoardState(
-        DirectionState Top,
-        DirectionState Right,
-        DirectionState Bottom,
-        DirectionState Left
+        [property: JsonPropertyName("top")] DirectionState Top,
+        [property: JsonPropertyName("right")] DirectionState Right,
+        [property: JsonPropertyName("bottom")] DirectionState Bottom,
+        [property: JsonPropertyName("left")] DirectionState Left,
+        [property: JsonPropertyName("isSubmitted")] bool IsSubmitted
     );
 
     public sealed record DirectionState(
-        Direction Direction,
-        bool HasCard,
-        bool IsGuessed,
-        string? ClueLabel,
-        string? ExpectedWord, // populated only if IncludeSecrets = true
-        CardInfo? Card // populated only if IncludeSecrets = true
+        [property: JsonPropertyName("direction")] Direction Direction,
+        [property: JsonPropertyName("hasCard")] bool HasCard,
+        [property: JsonPropertyName("isGuessed")] bool IsGuessed,
+        [property: JsonPropertyName("clueLabel")] string? ClueLabel,
+        [property: JsonPropertyName("expectedWord")] string? ExpectedWord, // populated only if IncludeSecrets = true
+        [property: JsonPropertyName("card")] CardInfo? Card // populated only if IncludeSecrets = true
     );
 
     public sealed record CardInfo(
-        string CardId,
-        string TopWord,
-        string RightWord,
-        string BottomWord,
-        string LeftWord,
-        string Rotation
+        [property: JsonPropertyName("cardId")] string CardId,
+        [property: JsonPropertyName("topWord")] string TopWord,
+        [property: JsonPropertyName("rightWord")] string RightWord,
+        [property: JsonPropertyName("bottomWord")] string BottomWord,
+        [property: JsonPropertyName("leftWord")] string LeftWord,
+        [property: JsonPropertyName("rotation")] string Rotation
     );
 
     public sealed record GuessingPhaseState(
-        Guid? CurrentBoardOwnerId,
-        string? CurrentBoardOwnerName,
-        IReadOnlyList<CardInfo?> OutsideCards,
-        Dictionary<BoardPosition, CardInfo?> GuessedPositions,
-        IReadOnlyList<BoardPosition> CorrectlyPlacedPositions,
-        int RemainingAttempts,
-        IReadOnlyList<ClueInfo> CurrentBoardClues,
-        int CumulativeBoardRotation
+        [property: JsonPropertyName("currentBoardOwnerId")] Guid? CurrentBoardOwnerId,
+        [property: JsonPropertyName("currentBoardOwnerName")] string? CurrentBoardOwnerName,
+        [property: JsonPropertyName("outsideCards")] IReadOnlyList<CardInfo?> OutsideCards,
+        [property: JsonPropertyName("guessedPositions")] Dictionary<BoardPosition, CardInfo?> GuessedPositions,
+        [property: JsonPropertyName("correctlyPlacedPositions")] IReadOnlyList<BoardPosition> CorrectlyPlacedPositions,
+        [property: JsonPropertyName("remainingAttempts")] int RemainingAttempts,
+        [property: JsonPropertyName("currentBoardClues")] IReadOnlyList<ClueInfo> CurrentBoardClues,
+        [property: JsonPropertyName("cumulativeBoardRotation")] int CumulativeBoardRotation
     );
 
     public sealed record ClueInfo(
-        Direction Direction,
-        string Text
+        [property: JsonPropertyName("direction")] Direction Direction,
+        [property: JsonPropertyName("text")] string Text
     );
 
     public sealed class Handler : IGetGameStateUseCase
@@ -92,10 +94,11 @@ public static class GetGameState
                     p.Id.Value,
                     p.Name,
                     new BoardState(
-                        BuildDirectionState(p, Direction.Top, includeSecretsForPlayer),
-                        BuildDirectionState(p, Direction.Right, includeSecretsForPlayer),
-                        BuildDirectionState(p, Direction.Bottom, includeSecretsForPlayer),
-                        BuildDirectionState(p, Direction.Left, includeSecretsForPlayer)
+                        BuildDirectionState(p, Direction.Top, includeSecretsForPlayer, game.Phase),
+                        BuildDirectionState(p, Direction.Right, includeSecretsForPlayer, game.Phase),
+                        BuildDirectionState(p, Direction.Bottom, includeSecretsForPlayer, game.Phase),
+                        BuildDirectionState(p, Direction.Left, includeSecretsForPlayer, game.Phase),
+                        p.Board.IsSubmitted
                     )
                 );
                 })
@@ -165,7 +168,7 @@ public static class GetGameState
                 guessingState);
         }
 
-        private static DirectionState BuildDirectionState(Player player, Direction direction, bool includeSecrets)
+        private static DirectionState BuildDirectionState(Player player, Direction direction, bool includeSecrets, GamePhase phase)
         {
             var board = player.Board;
             var orientedCard = direction switch
@@ -180,14 +183,18 @@ public static class GetGameState
             var hasCard = orientedCard is not null;
             var isGuessed = board.IsDirectionGuessed(direction);
 
-            string? label = direction switch
+            string? label = null;
+            if (includeSecrets || phase == GamePhase.Guessing || phase == GamePhase.Scoring)
             {
-                Direction.Top => board.TopClue?.Value,
-                Direction.Right => board.RightClue?.Value,
-                Direction.Bottom => board.BottomClue?.Value,
-                Direction.Left => board.LeftClue?.Value,
-                _ => null
-            };
+                label = direction switch
+                {
+                    Direction.Top => board.TopClue?.Value,
+                    Direction.Right => board.RightClue?.Value,
+                    Direction.Bottom => board.BottomClue?.Value,
+                    Direction.Left => board.LeftClue?.Value,
+                    _ => null
+                };
+            }
 
             string? expected = null;
             CardInfo? cardInfo = null;

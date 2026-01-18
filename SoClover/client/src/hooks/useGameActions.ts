@@ -6,7 +6,7 @@ import { useGameStateUpdate } from './useGameStateUpdate'
 
 export const useGameActions = () => {
   const { gameId, playerId } = useGameStore()
-  const { updateMyClue } = useBoardStore()
+  const { updateMyClue, setMyBoardSubmitted } = useBoardStore()
   const { setIsValidationPending, setValidationResults } = useGuessingStore()
   const { notifySuccess, notifyError, notifyInfo } = useNotifications()
   const { updateStateFromResponse } = useGameStateUpdate()
@@ -47,6 +47,7 @@ export const useGameActions = () => {
 
     try {
       await gameApi.submitBoard(gameId, playerId)
+      setMyBoardSubmitted(true)
       notifySuccess('Plateau soumis avec succès !')
     } catch (error) {
       console.error('[useGameActions] Failed to submit board:', error)
@@ -121,6 +122,10 @@ export const useGameActions = () => {
 
   const broadcastBoardRotation = async (cumulativeRotation: number) => {
     if (!gameId || !playerId) return
+    if (typeof cumulativeRotation !== 'number' || isNaN(cumulativeRotation)) {
+      console.warn('[useGameActions] Invalid rotation value:', cumulativeRotation)
+      return
+    }
     try {
       await gameApi.rotateBoard(gameId, playerId, cumulativeRotation);
     } catch (error) {

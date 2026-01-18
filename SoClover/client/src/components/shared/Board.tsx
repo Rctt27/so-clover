@@ -1,3 +1,4 @@
+import React, { useRef, useLayoutEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useDroppable } from '@dnd-kit/core'
 import { Card } from './Card'
@@ -5,7 +6,7 @@ import { ClueInput } from './ClueInput'
 import { CardData } from '../../types/game'
 import { DraggableCard } from '../guessing/DraggableCard'
 import { CONSTANTS } from '../../core/constants'
-import { degreesToRotationIndex, LOGICAL_SLOTS } from '../../core/utils'
+import { LOGICAL_SLOTS } from '../../core/utils'
 import boardImage from '../../assets/images/Board.png'
 
 export interface BoardProps {
@@ -27,6 +28,7 @@ export interface BoardProps {
   disabled?: boolean;
   isLocked?: boolean;
   correctPositions?: string[];
+  ownerId?: string;
 }
 
 export const Board = ({ 
@@ -42,32 +44,48 @@ export const Board = ({
   animateEntry = false,
   disabled = false,
   isLocked = false,
-  correctPositions = []
+  correctPositions = [],
+  ownerId
 }: BoardProps) => {
   // Dimensions de référence de Board.png
   const REFERENCE_SIZE = 1190
-  const CARD_SIZE = 320 // Taille de Card_320px.png
+  const CARD_SIZE = 320 // Taille d'origine restaurée
 
   const { board: boardAnim } = CONSTANTS.THEME_CONFIG.animations;
-  const rotationTransition = { duration: 0.5, ease: 'easeInOut' };
+  
+  // Gestion de la transition de rotation pour éviter le "spinning" lors du changement de board
+  const lastOwnerId = useRef(ownerId);
+  const [shouldAnimateRotation, setShouldAnimateRotation] = useState(true);
 
-  // Centres des emplacements VISUELS (coordonnées x, y sur 1190px)
-  // Ces positions sont fixes sur l'écran.
+  // useLayoutEffect garantit que shouldAnimateRotation est mis à false AVANT le paint
+  // Cela évite le "jumping" visuel lors du changement de Board
+  useLayoutEffect(() => {
+    if (ownerId !== lastOwnerId.current) {
+      setShouldAnimateRotation(false);
+      lastOwnerId.current = ownerId;
+      // Réactiver l'animation après le premier rendu du nouveau board
+      const timer = setTimeout(() => setShouldAnimateRotation(true), 50);
+      return () => clearTimeout(timer);
+    }
+  }, [ownerId]);
+
+  const rotationTransition = shouldAnimateRotation ? { duration: 0.5, ease: 'easeInOut' } : { duration: 0 };
+
+  // Centres des emplacements logiques par défaut (0°) sur l'image de 1190px
   const visualSlots = [
-    { x: 426, y: 433 }, // Visual Top-Left (Index 0)
-    { x: 753, y: 433 }, // Visual Top-Right (Index 1)
-    { x: 753, y: 760 }, // Visual Bottom-Right (Index 2)
-    { x: 426, y: 760 }, // Visual Bottom-Left (Index 3)
+    { x: 428, y: 428 }, // Visual Top-Left (Index 0)
+    { x: 762, y: 428 }, // Visual Top-Right (Index 1)
+    { x: 762, y: 762 }, // Visual Bottom-Right (Index 2)
+    { x: 428, y: 762 }, // Visual Bottom-Left (Index 3)
   ]
 
-  const rotIdx = degreesToRotationIndex(rotation);
-
-  // Fonction pour calculer le style d'un slot en fonction de son index VISUEL
-  const getVisualSlotStyle = (visualIndex: number) => {
-    const slot = visualSlots[visualIndex]
+  // Fonction pour calculer le style d'un slot
+  const getSlotStyle = (index: number) => {
+    const slot = visualSlots[index]
+    
     const leftPx = slot.x - (CARD_SIZE / 2)
     const topPx = slot.y - (CARD_SIZE / 2)
-    
+
     return {
       position: 'absolute' as const,
       left: `${(leftPx / REFERENCE_SIZE) * 100}%`,
@@ -77,9 +95,17 @@ export const Board = ({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 20
     }
   }
+
+  // Calcul du mapping entre position visuelle et slot logique selon la rotation
+  // Rotation horaire (90, 180, 270)
+  const safeRotation = typeof rotation === 'number' && !isNaN(rotation) ? rotation : 0;
+  const getLogicalIndexFromVisual = (vIndex: number) => {
+    const rotationIndex = Math.round(((safeRotation % 360 + 360) % 360) / 90) % 4;
+    return (vIndex - rotationIndex + 4) % 4;
+  }
+
 
   const handleSaveClue = async (position: 'top' | 'right' | 'bottom' | 'left', text: string) => {
     if (onClueSave) {
@@ -100,6 +126,7 @@ export const Board = ({
               position={pos} 
               value={clueValue} 
               onSave={(text) => handleSaveClue(pos, text)} 
+              disabled={disabled}
             />
           </div>
         );
@@ -132,101 +159,114 @@ export const Board = ({
           minWidth: 'min(800px, 100vw - 2rem)',
         }}
       >
+        {/* Layer 1: Fixed Droppable Layer (collision zones) - zIndex: 10 */}
+        <div className="absolute inset-0" style={{ zIndex: 10 }}>
+          {[0, 1, 2, 3].map((vIndex) => {
+            const lIndex = getLogicalIndexFromVisual(vIndex);
+            const logicalPosName = LOGICAL_SLOTS[lIndex];
+            const isSlotLocked = isLocked || correctPositions.includes(logicalPosName);
+            
+            return (
+              <DroppableSlot 
+                key={vIndex} 
+                id={logicalPosName} 
+                style={getSlotStyle(vIndex)}
+                disabled={disabled || isSlotLocked}
+              >
+                <div className="w-full h-full" />
+              </DroppableSlot>
+            );
+          })}
+        </div>
+
+        {/* Layer 2: Rotating Content (Board + Cards + Clues) - zIndex: 20 */}
         <motion.div
           className="absolute inset-0"
           initial={animateEntry ? boardAnim.initial : false}
-          animate={{ 
+          animate={{
             ...boardAnim.animate,
-            rotate: rotation 
+            rotate: safeRotation
+          }}
+          style={{ 
+            zIndex: 20,
+            pointerEvents: 'none'
           }}
           transition={{
             rotate: rotationTransition,
             default: animateEntry ? boardAnim.transition : { duration: 0.5 }
           }}
         >
+          {/* Board Image */}
           <img
             src={boardImage}
             alt="Board"
             className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-            style={{ zIndex: 0 }}
             draggable={false}
           />
 
-          {/* Clues display - In Guessing phase (read-only), we put them inside the same motion.div for perfect sync */}
+          {/* Cards */}
+          {LOGICAL_SLOTS.map((logicalPosName, lIndex) => {
+            const cardData = cards[lIndex];
+            const guessedCard = guessedCards?.[lIndex];
+            
+            if (!cardData && !guessedCard) return null;
+
+            const isSlotLocked = isLocked || correctPositions.includes(logicalPosName);
+            const isDisplaced = !!(swappingPositions && swappingPositions.displacedPos === logicalPosName);
+            
+            // On positionne la carte au slot VISUEL par défaut (index logique) 
+            // car le conteneur motion.div applique déjà la rotation globale du plateau.
+            const vIndex = lIndex;
+
+            return (
+              <div key={logicalPosName} style={getSlotStyle(vIndex)}>
+                <div className="w-full h-full pointer-events-auto">
+                  {guessedCard ? (
+                    <DraggableCard 
+                      key={guessedCard.cardId}
+                      card={guessedCard}
+                      index={lIndex}
+                      isOutside={false}
+                      disabled={disabled}
+                      isLocked={isSlotLocked}
+                      isCorrect={correctPositions.includes(logicalPosName)}
+                      isDisplaced={isDisplaced}
+                    />
+                  ) : cardData ? (
+                    <Card 
+                      words={cardData.words} 
+                      rotation={cardData.rotation} 
+                      animateEntry={animateEntry} 
+                    />
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Clues (Read-only) */}
           {!showClueInputs && (
-            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
+            <div className="absolute inset-0 pointer-events-none">
               <div className="relative w-full h-full pointer-events-none">
                 {renderClues(false)}
               </div>
             </div>
           )}
+
+          {/* Clues (Input mode) */}
+          {showClueInputs && (
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="relative w-full h-full pointer-events-none">
+                {renderClues(true)}
+              </div>
+            </div>
+          )}
         </motion.div>
 
-        {/* Cards container - Les slots dnd-kit sont fixes ici */}
-        <div className="absolute inset-0" style={{ zIndex: 10 }}>
-          {[0, 1, 2, 3].map((vIndex) => {
-            // On trouve quelle position LOGIQUE correspond à ce slot VISUEL
-            const lIndex = (vIndex + rotIdx) % 4;
-            const logicalPosName = LOGICAL_SLOTS[lIndex];
-            
-            const isDisplaced = !!(swappingPositions && swappingPositions.displacedPos === logicalPosName);
-            const isSlotLocked = isLocked || correctPositions.includes(logicalPosName);
-            
-            return (
-              <DroppableSlot 
-                key={logicalPosName} 
-                id={logicalPosName} 
-                style={getVisualSlotStyle(vIndex)}
-                disabled={disabled || isSlotLocked}
-              >
-                {guessedCards?.[lIndex] ? (
-                  <DraggableCard 
-                    card={guessedCards[lIndex]!}
-                    index={lIndex}
-                    isOutside={false}
-                    disabled={disabled}
-                    isLocked={isSlotLocked}
-                    isCorrect={correctPositions.includes(logicalPosName)}
-                    isDisplaced={isDisplaced}
-                  />
-                ) : cards[lIndex] ? (
-                  <motion.div
-                    key={`static-${lIndex}`}
-                    animate={{ rotate: rotation }}
-                    transition={rotationTransition}
-                    style={{ 
-                      width: '100%', 
-                      height: '100%',
-                    }}
-                  >
-                    <Card 
-                      words={cards[lIndex]!.words} 
-                      rotation={cards[lIndex]!.rotation} 
-                      animateEntry={animateEntry} 
-                    />
-                  </motion.div>
-                ) : null}
-              </DroppableSlot>
-            );
-          })}
+        {/* Additional content (cursors, etc.) */}
+        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 100 }}>
+          {children}
         </div>
-
-        {/* Clue Layer (Input mode) - We keep it outside for z-index 30, but with same transition */}
-        {showClueInputs && (
-          <motion.div 
-            className="absolute inset-0 pointer-events-none" 
-            style={{ zIndex: 30 }}
-            animate={{ rotate: rotation }}
-            transition={rotationTransition}
-          >
-            <div className="relative w-full h-full pointer-events-none">
-              {renderClues(true)}
-            </div>
-          </motion.div>
-        )}
-
-        {/* Additional content (clues, cursors, etc.) */}
-        {children}
       </div>
     </div>
   )
@@ -249,7 +289,7 @@ const DroppableSlot = ({ id, style, children, disabled }: DroppableSlotProps) =>
     <div 
       ref={setNodeRef} 
       style={style}
-      className={`rounded-lg transition-colors duration-200 ${isOver ? 'bg-clover/20 ring-4 ring-clover/50 scale-105 z-50' : ''}`}
+      className={`rounded-lg transition-all duration-200 ${isOver ? 'bg-clover/30 ring-8 ring-clover/50 scale-105 z-50 shadow-[0_0_20px_rgba(76,175,80,0.4)]' : ''}`}
     >
       {children}
     </div>

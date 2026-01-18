@@ -28,6 +28,7 @@ export interface BoardStateResponse {
   right: DirectionStateResponse;
   bottom: DirectionStateResponse;
   left: DirectionStateResponse;
+  isSubmitted: boolean;
 }
 
 export interface DirectionStateResponse {
@@ -90,6 +91,7 @@ export interface CluePosition {
 export interface BoardData {
   cards: (CardData | null)[]; // 4 cards in positions [TopLeft, TopRight, BottomLeft, BottomRight]
   rotation: number;
+  isSubmitted: boolean;
   clues: {
     top: CluePosition;
     right: CluePosition;

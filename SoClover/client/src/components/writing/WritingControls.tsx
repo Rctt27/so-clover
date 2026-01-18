@@ -38,7 +38,7 @@ export const WritingControls = () => {
   const allCluesFilled = Object.values(myBoard.clues).every(clue => clue.text.trim() !== '')
 
   const handleSubmit = async () => {
-    if (!allCluesFilled || isSubmitting) return
+    if (!allCluesFilled || isSubmitting || myBoard.isSubmitted) return
 
     setIsSubmitting(true)
     try {
@@ -48,12 +48,15 @@ export const WritingControls = () => {
     }
   }
 
+  const isActuallySubmitted = myBoard.isSubmitted
+
   return (
     <div className="flex flex-col items-center gap-6 w-full max-w-md mx-auto mt-8">
       <div className="flex items-center gap-4">
         <button
           onClick={() => handleRotate('left')}
-          className="p-3 rounded-full bg-white shadow-md hover:bg-gray-50 transition-colors border border-gray-200 focus:outline-none focus:ring-2 focus:ring-clover"
+          disabled={isActuallySubmitted}
+          className={`p-3 rounded-full bg-white shadow-md transition-colors border border-gray-200 focus:outline-none focus:ring-2 focus:ring-clover ${isActuallySubmitted ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
           title="Tourner à gauche (←)"
           aria-label="Tourner le plateau à gauche"
         >
@@ -69,7 +72,8 @@ export const WritingControls = () => {
 
         <button
           onClick={() => handleRotate('right')}
-          className="p-3 rounded-full bg-white shadow-md hover:bg-gray-50 transition-colors border border-gray-200 focus:outline-none focus:ring-2 focus:ring-clover"
+          disabled={isActuallySubmitted}
+          className={`p-3 rounded-full bg-white shadow-md transition-colors border border-gray-200 focus:outline-none focus:ring-2 focus:ring-clover ${isActuallySubmitted ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
           title="Tourner à droite (→)"
           aria-label="Tourner le plateau à droite"
         >
@@ -81,15 +85,17 @@ export const WritingControls = () => {
       </div>
 
       <motion.button
-        whileHover={allCluesFilled && !isSubmitting ? { scale: 1.02 } : {}}
-        whileTap={allCluesFilled && !isSubmitting ? { scale: 0.98 } : {}}
+        whileHover={allCluesFilled && !isSubmitting && !isActuallySubmitted ? { scale: 1.02 } : {}}
+        whileTap={allCluesFilled && !isSubmitting && !isActuallySubmitted ? { scale: 0.98 } : {}}
         onClick={handleSubmit}
-        disabled={!allCluesFilled || isSubmitting}
+        disabled={!allCluesFilled || isSubmitting || isActuallySubmitted}
         className={`
           w-full py-4 px-8 rounded-xl font-bold text-white transition-all duration-300
-          ${allCluesFilled && !isSubmitting 
-            ? 'bg-clover hover:bg-clover-dark shadow-lg shadow-clover/20' 
-            : 'bg-gray-300 cursor-not-allowed'}
+          ${isActuallySubmitted 
+            ? 'bg-green-500 cursor-default shadow-md' 
+            : allCluesFilled && !isSubmitting 
+              ? 'bg-clover hover:bg-clover-dark shadow-lg shadow-clover/20' 
+              : 'bg-gray-300 cursor-not-allowed'}
         `}
       >
         {isSubmitting ? (
@@ -100,14 +106,22 @@ export const WritingControls = () => {
             </svg>
             Soumission...
           </span>
+        ) : isActuallySubmitted ? (
+          'Plateau Soumis ✓'
         ) : (
           allCluesFilled ? 'Soumettre le plateau' : 'Saisissez les 4 indices'
         )}
       </motion.button>
 
-      {!allCluesFilled && (
+      {!allCluesFilled && !isActuallySubmitted && (
         <p className="text-xs text-gray-400">
           Vous devez renseigner un indice pour chaque paire de mots avant de pouvoir soumettre.
+        </p>
+      )}
+
+      {isActuallySubmitted && (
+        <p className="text-sm font-medium text-green-600 animate-pulse">
+          En attente des autres joueurs...
         </p>
       )}
     </div>
