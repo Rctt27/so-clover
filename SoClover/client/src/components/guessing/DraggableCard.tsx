@@ -185,14 +185,19 @@ export const DraggableCard = ({
     ? dragRotationOverride
     : (isDragging ? (isOutside ? 0 : -cumulativeBoardRotation) : 0);
 
+  // Désactiver l'animation de layout pour les actions locales (isDisplaced = transition en cours)
+  // Cela évite l'animation de "vol" de la carte pour le joueur qui fait l'action
+  // Les autres joueurs verront toujours l'animation via SignalR car leur isDisplaced sera false
+  const shouldAnimateLayout = !isDisplaced && !isDragging;
+
   return (
     <motion.div
       ref={(node) => {
         setNodeRef(node)
         if (node) cardRef.current = node as HTMLDivElement
       }}
-      layoutId={`card-${card.cardId}`}
-      layout
+      layoutId={shouldAnimateLayout ? `card-${card.cardId}` : undefined}
+      layout={shouldAnimateLayout}
       className={`relative transition-shadow duration-200 ${
         isSelected ? 'ring-4 ring-clover rounded-xl shadow-2xl' : 'hover:shadow-lg'
       } ${!canInteract ? 'cursor-default opacity-90' : (isRotating ? 'cursor-grabbing' : 'cursor-grab active:cursor-grabbing')} ${
@@ -233,13 +238,10 @@ export const DraggableCard = ({
         className="w-full h-full"
         {...listeners}
         {...attributes}
-        animate={{ 
-          scale: isDragging ? 1.05 : 1,
-          opacity: isDragging ? 0.4 : 1
-        }}
-        transition={{ 
-          scale: { duration: 0.1 },
-          opacity: { duration: 0.1 }
+        style={{
+          // Cacher complètement la carte pendant le drag (pas de fade-out)
+          // pour donner l'impression que le joueur "possède" la carte
+          visibility: isDragging ? 'hidden' : 'visible'
         }}
       >
         <Card

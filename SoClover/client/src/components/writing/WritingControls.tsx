@@ -1,20 +1,20 @@
-﻿import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useBoardStore } from '../../core/store'
 import { useGameActions } from '../../hooks/useGameActions'
+import { BoardRotationControls } from '../shared/BoardRotationControls'
 
 export const WritingControls = () => {
   const { myBoard, updateMyBoardRotation } = useBoardStore()
   const { submitBoard } = useGameActions()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  if (!myBoard) return null
-
   const handleRotate = useCallback((direction: 'left' | 'right') => {
+    if (!myBoard) return
     const currentRotation = myBoard.rotation || 0
     const newRotation = direction === 'left' ? currentRotation - 90 : currentRotation + 90
     updateMyBoardRotation(newRotation)
-  }, [myBoard.rotation, updateMyBoardRotation])
+  }, [myBoard?.rotation, updateMyBoardRotation])
 
   // Keyboard navigation for rotation
   useEffect(() => {
@@ -35,6 +35,8 @@ export const WritingControls = () => {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleRotate])
 
+  if (!myBoard) return null
+
   const allCluesFilled = Object.values(myBoard.clues).every(clue => clue.text.trim() !== '')
 
   const handleSubmit = async () => {
@@ -52,37 +54,11 @@ export const WritingControls = () => {
 
   return (
     <div className="flex flex-col items-center gap-6 w-full max-w-md mx-auto mt-8">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => handleRotate('left')}
-          disabled={isActuallySubmitted}
-          className={`p-3 rounded-full bg-white shadow-md transition-colors border border-gray-200 focus:outline-none focus:ring-2 focus:ring-clover ${isActuallySubmitted ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
-          title="Tourner à gauche (←)"
-          aria-label="Tourner le plateau à gauche"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-            <path d="M3 3v5h5" />
-          </svg>
-        </button>
-
-        <div className="text-sm font-medium text-gray-500 bg-gray-100 px-4 py-2 rounded-full">
-          Rotation: {((myBoard.rotation % 360 + 360) % 360)}°
-        </div>
-
-        <button
-          onClick={() => handleRotate('right')}
-          disabled={isActuallySubmitted}
-          className={`p-3 rounded-full bg-white shadow-md transition-colors border border-gray-200 focus:outline-none focus:ring-2 focus:ring-clover ${isActuallySubmitted ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
-          title="Tourner à droite (→)"
-          aria-label="Tourner le plateau à droite"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-            <path d="M21 3v5h-5" />
-          </svg>
-        </button>
-      </div>
+      <BoardRotationControls
+        rotation={myBoard.rotation || 0}
+        onRotate={handleRotate}
+        disabled={isActuallySubmitted}
+      />
 
       <motion.button
         whileHover={allCluesFilled && !isSubmitting && !isActuallySubmitted ? { scale: 1.02 } : {}}

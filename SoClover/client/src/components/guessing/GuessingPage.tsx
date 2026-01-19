@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   DndContext,
   DragEndEvent,
@@ -18,6 +18,8 @@ import { Board } from '../shared/Board'
 import { OutsideCardPool } from './OutsideCardPool'
 import { DraggableCard } from './DraggableCard'
 import { CardData, rotationToDegrees, CardInfoResponse } from '../../types/game'
+import { createRotationCompensationModifier } from '../../core/dragModifiers'
+import { BoardRotationControls } from '../shared/BoardRotationControls'
 
 export const GuessingPage = () => {
   const { playerId } = useGameStore()
@@ -104,7 +106,12 @@ export const GuessingPage = () => {
     if (isMyBoard || isValidationPending || canMoveToNext) return;
     const { active } = event;
     const cardId = active.id as string;
-    
+
+    // Empêcher le scroll involontaire pendant le drag
+    // Le navigateur peut scroller quand un élément focusé change de position
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+
     setSelectedCardId(cardId);
     setActiveCard(active.data.current?.card || null);
     setActiveData(active.data.current as any);
@@ -112,11 +119,25 @@ export const GuessingPage = () => {
 
   const handleDragMove = () => {
     if (isMyBoard || isValidationPending || canMoveToNext) return;
-    // On pourrait ajouter une logique ici si nécessaire, 
+    // On pourrait ajouter une logique ici si nécessaire,
     // mais dnd-kit gère déjà la position de l'overlay.
   };
 
+  const handleDragCancel = () => {
+    // Restaurer le scroll en cas d'annulation du drag
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+
+    setSelectedCardId(null);
+    setActiveCard(null);
+    setActiveData(null);
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
+    // Restaurer le scroll
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+
     if (isMyBoard || isValidationPending) return;
     const { active, over } = event;
     setSelectedCardId(null);
@@ -254,9 +275,15 @@ export const GuessingPage = () => {
   const isBoardGuessed = correctlyPlacedPositions.length === 4
   const canMoveToNext = isBoardGuessed || (remainingAttempts === 0 && !isValidationPending)
 
-  const handleRotateBoard = (direction: 'Left' | 'Right') => {
+  // Modifier pour compenser le décalage curseur/carte quand le board est rotaté
+  // Le modifier obtient isOutside directement depuis active.data.current de dnd-kit
+  const dragModifiers = useMemo(() => {
+    return [createRotationCompensationModifier(safeCumulativeRotation)]
+  }, [safeCumulativeRotation])
+
+  const handleRotateBoard = (direction: 'left' | 'right') => {
     if (isMyBoard || isValidationPending) return
-    const rotationDelta = direction === 'Right' ? 90 : -90
+    const rotationDelta = direction === 'right' ? 90 : -90
     const newRotation = safeCumulativeRotation + rotationDelta
     // Mark as local change to set timestamp and prevent race conditions with SignalR updates
     setCumulativeBoardRotation(newRotation, true)
@@ -273,12 +300,15 @@ export const GuessingPage = () => {
   }
 
   return (
-    <DndContext 
+    <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
+      modifiers={dragModifiers}
+      autoScroll={false}
       onDragStart={handleDragStart}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
       <div className="flex flex-col min-h-screen">
           {/* Header Info */}
@@ -325,15 +355,12 @@ export const GuessingPage = () => {
               {/* Contrôles de rotation globale et validation */}
               <div className="flex flex-col items-center gap-6">
                 {!isMyBoard && (
-                  <div className="flex items-center gap-8">
-                    <button
-                      onClick={() => handleRotateBoard('Left')}
+                  <div className="flex flex-col items-center gap-4">
+                    <BoardRotationControls
+                      rotation={safeCumulativeRotation}
+                      onRotate={handleRotateBoard}
                       disabled={isValidationPending || isBoardGuessed}
-                      className="bg-white/80 hover:bg-white text-clover p-4 rounded-full shadow-xl transition-all hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Faire pivoter le plateau vers la gauche"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
-                    </button>
+                    />
 
                     <button
                       onClick={canMoveToNext ? nextBoard : validateBoard}
@@ -349,15 +376,6 @@ export const GuessingPage = () => {
                           Validation...
                         </div>
                       ) : canMoveToNext ? "Plateau suivant" : "Valider le plateau"}
-                    </button>
-
-                    <button
-                      onClick={() => handleRotateBoard('Right')}
-                      disabled={isValidationPending || isBoardGuessed}
-                      className="bg-white/80 hover:bg-white text-clover p-4 rounded-full shadow-xl transition-all hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Faire pivoter le plateau vers la droite"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path></svg>
                     </button>
                   </div>
                 )}

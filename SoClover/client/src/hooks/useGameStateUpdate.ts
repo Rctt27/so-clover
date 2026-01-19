@@ -77,8 +77,16 @@ export const useGameStateUpdate = () => {
 
     // 6. Mise à jour de l'état de guessing
     if (state.guessingState) {
-      const currentOwnerId = useGuessingStore.getState().currentBoardOwnerId;
+      const guessingState = useGuessingStore.getState();
+      const currentOwnerId = guessingState.currentBoardOwnerId;
       const isNewBoard = currentOwnerId !== state.guessingState.currentBoardOwnerId;
+      const isFirstLoad = currentOwnerId === null;
+
+      // Mettre à jour la rotation UNIQUEMENT dans ces cas :
+      // 1. Premier chargement (page refresh) - restaurer depuis le serveur
+      // 2. Changement de board - le serveur réinitialise à 0
+      // Dans tous les autres cas, la rotation locale fait foi (évite les race conditions)
+      const shouldUpdateRotation = isFirstLoad || isNewBoard;
 
       setCurrentBoardOwner(state.guessingState.currentBoardOwnerId);
       setGuessingState({
@@ -89,9 +97,7 @@ export const useGameStateUpdate = () => {
         correctlyPlacedPositions: state.guessingState.correctlyPlacedPositions,
         remainingAttempts: state.guessingState.remainingAttempts,
         currentBoardClues: state.guessingState.currentBoardClues,
-        // Ne mettre à jour cumulativeBoardRotation que lors d'un changement de Board
-        // pour éviter d'écraser les modifications locales non persistées
-        ...(isNewBoard ? { cumulativeBoardRotation: state.guessingState.cumulativeBoardRotation ?? 0 } : {})
+        ...(shouldUpdateRotation ? { cumulativeBoardRotation: state.guessingState.cumulativeBoardRotation ?? 0 } : {})
       });
     } else {
       setCurrentBoardOwner(null);
