@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using SoClover.Domain;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Gameplay;
@@ -7,34 +8,27 @@ using System.Collections.Concurrent;
 
 namespace SoClover.Infrastructure;
 
+/// <summary>
+/// Background service that manages game phase timeouts.
+/// Uses IServiceScopeFactory to properly consume scoped services (like EfGameRepository)
+/// from a singleton background service.
+/// </summary>
 public sealed class GameProcessManager : BackgroundService
 {
-    private readonly IGameRepository _repo;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IClock _clock;
-    private readonly IStartGuessingPhaseUseCase _startGuessing;
-    private readonly IMoveToNextBoardUseCase _moveNext;
-    private readonly IDeleteGameUseCase _deleteGame;
-    private readonly ICompleteGameUseCase _completeGame;
     private readonly IEventPublisher _events;
 
     // Track which countdown warnings have been sent (per game/board/deadline)
     private readonly ConcurrentDictionary<string, byte> _warningSent = new();
 
     public GameProcessManager(
-        IGameRepository repo,
+        IServiceScopeFactory scopeFactory,
         IClock clock,
-        IStartGuessingPhaseUseCase startGuessing,
-        IMoveToNextBoardUseCase moveNext,
-        IDeleteGameUseCase deleteGame,
-        ICompleteGameUseCase completeGame,
         IEventPublisher events)
     {
-        _repo = repo;
+        _scopeFactory = scopeFactory;
         _clock = clock;
-        _startGuessing = startGuessing;
-        _moveNext = moveNext;
-        _deleteGame = deleteGame;
-        _completeGame = completeGame;
         _events = events;
     }
 
@@ -45,8 +39,16 @@ public sealed class GameProcessManager : BackgroundService
         {
             try
             {
+                // Create a new scope for each iteration to get fresh scoped services
+                using var scope = _scopeFactory.CreateScope();
+                var repo = scope.ServiceProvider.GetRequiredService<IGameRepository>();
+                var startGuessing = scope.ServiceProvider.GetRequiredService<IStartGuessingPhaseUseCase>();
+                var moveNext = scope.ServiceProvider.GetRequiredService<IMoveToNextBoardUseCase>();
+                var deleteGame = scope.ServiceProvider.GetRequiredService<IDeleteGameUseCase>();
+                var completeGame = scope.ServiceProvider.GetRequiredService<ICompleteGameUseCase>();
+
                 var now = _clock.UtcNow;
-                var games = await _repo.GetAll(stoppingToken);
+                var games = await repo.GetAll(stoppingToken);
                 foreach (var game in games)
                 {
                     try
@@ -89,12 +91,12 @@ public sealed class GameProcessManager : BackgroundService
 
                         // Deadline reached
                         Console.WriteLine($"[DEBUG_LOG] GameProcessManager: Deadline reached for game {game.Id.Value} in phase {game.Phase}. EndsAt={endsAt:O}, Now={now:O}");
-                        
-                        // Avant de traiter, on vérifie si le jeu a été modifié très récemment en DB 
-                        // pour éviter de traiter une deadline qui vient d'être traitée par une autre instance 
+
+                        // Avant de traiter, on vérifie si le jeu a été modifié très récemment en DB
+                        // pour éviter de traiter une deadline qui vient d'être traitée par une autre instance
                         // ou un appel client qui a fait avancer le jeu.
                         // On re-fetch le jeu pour avoir son état le plus actuel.
-                        var latestGame = await _repo.Get(game.Id, stoppingToken);
+                        var latestGame = await repo.Get(game.Id, stoppingToken);
                         if (latestGame == null || latestGame.Phase != game.Phase || latestGame.PhaseEndsAtUtc != game.PhaseEndsAtUtc)
                         {
                             Console.WriteLine($"[DEBUG_LOG] GameProcessManager: Skipping stale deadline for game {game.Id.Value}. Current Phase={latestGame?.Phase}, EndsAt={latestGame?.PhaseEndsAtUtc:O}");
@@ -105,15 +107,15 @@ public sealed class GameProcessManager : BackgroundService
                         {
                             case GamePhase.Lobby:
                                 // Lobby expired without start -> cancel game
-                                await _deleteGame.Handle(new DeleteGame.Request(game.Id), stoppingToken);
+                                await deleteGame.Handle(new DeleteGame.Request(game.Id), stoppingToken);
                                 break;
                             case GamePhase.WritingClues:
                                 // Force transition when writing timer hits zero, even if some boards are incomplete/not submitted
-                                await _startGuessing.Handle(new StartGuessingPhase.Request(game.Id, true), stoppingToken);
+                                await startGuessing.Handle(new StartGuessingPhase.Request(game.Id, true), stoppingToken);
                                 break;
                             case GamePhase.Guessing:
                                 // Triggered by system (deadline reached)
-                                await _moveNext.Handle(
+                                await moveNext.Handle(
                                     new MoveToNextBoard.Request(
                                         game.Id,
                                         game.CurrentGuessingBoardOwner ?? default,
@@ -124,7 +126,7 @@ public sealed class GameProcessManager : BackgroundService
                             case GamePhase.Scoring:
                                 if (game.AdminPlayerId is PlayerId adminId)
                                 {
-                                    await _completeGame.Handle(new CompleteGame.Request(game.Id, adminId), stoppingToken);
+                                    await completeGame.Handle(new CompleteGame.Request(game.Id, adminId), stoppingToken);
                                 }
                                 break;
                             default:

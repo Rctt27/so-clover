@@ -56,8 +56,15 @@ export const gameApi = {
     const url = `/api/games/${gameId}/state?includeSecrets=false${playerId ? `&playerId=${playerId}` : ''}`;
     const response = await fetch(url);
     if (!response.ok) {
-      if (response.status === 401 || response.status === 403 || response.status === 404) {
-        // Similaire à securityHelper.js, on pourrait rediriger ou lever une erreur spécifique
+      if (response.status === 404) {
+        const error = new Error('Game not found') as Error & { status: number };
+        error.status = 404;
+        throw error;
+      }
+      if (response.status === 401 || response.status === 403) {
+        const error = new Error('Unauthorized') as Error & { status: number };
+        error.status = response.status;
+        throw error;
       }
       throw new Error('Failed to fetch game state');
     }

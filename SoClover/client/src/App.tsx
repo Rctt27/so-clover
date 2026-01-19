@@ -1,6 +1,7 @@
 ﻿import { motion, AnimatePresence } from 'framer-motion'
 import { Wifi, WifiOff, Loader2 } from 'lucide-react'
 import { useSignalR } from './hooks/useSignalR'
+import { useTimeoutSafetyPolling } from './hooks/useTimeoutSafetyPolling'
 import { useGameStore } from './core/store'
 import { HomeScreen } from './components/home/HomeScreen'
 import { LobbyPage } from './components/lobby/LobbyPage'
@@ -12,6 +13,7 @@ import { Timer } from './components/shared/Timer'
 
 function App() {
   useSignalR();
+  useTimeoutSafetyPolling();
   const connectionStatus = useGameStore(s => s.connectionStatus);
   const phase = useGameStore(s => s.phase);
   const gameId = useGameStore(s => s.gameId);

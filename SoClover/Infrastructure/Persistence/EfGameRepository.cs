@@ -14,12 +14,16 @@ public sealed class EfGameRepository : IGameRepository
     public EfGameRepository(GameDbContext db)
     {
         _db = db;
-        _json = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        // Configuration JSON explicite pour éviter les comportements implicites de JsonSerializerDefaults.Web
+        _json = new JsonSerializerOptions
         {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            PropertyNameCaseInsensitive = true,
             WriteIndented = false,
             DefaultIgnoreCondition = JsonIgnoreCondition.Never
         };
-        _json.Converters.Add(new JsonStringEnumConverter());
+        // Enum converter avec allowIntegerValues pour rétrocompatibilité
+        _json.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: true));
         _json.Converters.Add(new GameIdJsonConverter());
         _json.Converters.Add(new PlayerIdJsonConverter());
         _json.Converters.Add(new CardIdJsonConverter());
@@ -137,7 +141,27 @@ public sealed class EfGameRepository : IGameRepository
     public async Task<IReadOnlyList<Game>> GetAll(CancellationToken ct = default)
     {
         var list = await _db.Games.AsNoTracking().ToListAsync(ct);
-        return list.Select(e => JsonSerializer.Deserialize<Game>(e.PayloadJson, _json)!).ToList();
+        var games = new List<Game>();
+        foreach (var e in list)
+        {
+            try
+            {
+                var game = JsonSerializer.Deserialize<Game>(e.PayloadJson, _json);
+                if (game != null)
+                {
+                    games.Add(game);
+                }
+            }
+            catch (JsonException ex)
+            {
+                // Log the error but skip corrupted game to avoid blocking the entire loop
+                Console.WriteLine($"[ERROR] EfGameRepository.GetAll: Deserialization failed for game {e.Id}");
+                Console.WriteLine($"[ERROR] JSON excerpt: {e.PayloadJson.Substring(0, Math.Min(200, e.PayloadJson.Length))}");
+                Console.WriteLine($"[ERROR] Exception: {ex.Message}");
+                // Continue to next game instead of failing
+            }
+        }
+        return games;
     }
 }
 
