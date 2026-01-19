@@ -1,5 +1,3 @@
-// TODO: S'assurer que le serveur lors de l'initialisation d'un Board randomise bien la position et la rotation des Cards placées dans le OutsideCardPool.
-
 using SoClover.Domain;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
