@@ -1,8 +1,13 @@
-﻿# Ignore Windows/host build outputs so they don’t enter Linux builds
+# Ignore Windows/host build outputs so they don't enter Linux builds
 SoClover/**/bin
 SoClover/**/obj
 SoClover.Tests/**/bin
 SoClover.Tests/**/obj
+
+# Frontend build outputs
+SoClover/client/dist
+SoClover/client/node_modules
+SoClover/wwwroot/legacy-vanilla
 
 # General noise
 .git
@@ -13,3 +18,27 @@ SoClover.Tests/**/obj
 *.tgz
 node_modules
 npm-debug.log
+*.log
+
+# Docker and CI
+docker-compose.yml
+docker-compose.*.yml
+Dockerfile
+.dockerignore
+.github
+
+# IDE
+.vscode
+.vscode/**/*
+
+# Environment and local
+.env
+.env.local
+.claude
+.output.txt
+
+# Other
+.gitignore
+README.md
+CLAUDE.md
+nul

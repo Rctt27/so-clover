@@ -1,14 +1,13 @@
 ﻿# Multi-stage Dockerfile for SoClover ASP.NET app
 
-# ------------------------
-# Build Client stage (React)
-# ------------------------
-FROM node:20-alpine AS build-client
-WORKDIR /src/client
-COPY SoClover/client/package*.json ./
-RUN npm install
-COPY SoClover/client/ ./
-RUN npm run build
+  # ------------------------                                                                                                                                                                                                                                                                                                               
+  # Build Client stage (React)                                                                                                                                                                                                                                                                                                             
+  # ------------------------                                                                                                                                                                                                                                                                                                               
+  FROM node:20-alpine AS build-client                                                                                                                                                                                                                                                                                                      
+  WORKDIR /src/client                                                                                                                                                                                                                                                                                                                      
+  COPY SoClover/client/ ./                                                                                                                                                                                                                                                                                                                 
+  RUN npm install                                                                                                                                                                                                                                                                                                                          
+  RUN npm run build    
 
 # ------------------------
 # Build stage (.NET)
