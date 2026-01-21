@@ -1,4 +1,5 @@
 import { StateCreator } from 'zustand'
+import { generateId } from './generateId'
 
 export type NotificationType = 'success' | 'error' | 'info' | 'warning'
 
@@ -32,7 +33,7 @@ export const createNotificationSlice: StateCreator<NotificationSlice> = (set) =>
       ...state.notifications,
       {
         ...notification,
-        id: crypto.randomUUID(),
+        id: generateId(),
         createdAt: Date.now(),
       }
     ]

@@ -20,6 +20,11 @@ import { DraggableCard } from './DraggableCard'
 import { CardData, rotationToDegrees, CardInfoResponse } from '../../types/game'
 import { createRotationCompensationModifier } from '../../core/dragModifiers'
 import { BoardRotationControls } from '../shared/BoardRotationControls'
+import {
+  RemoteCursorsLayer,
+  useLocalCursorEmitter,
+  useMouseTrackingEnabled
+} from '../../features/mouseTracking'
 
 export const GuessingPage = () => {
   const { playerId } = useGameStore()
@@ -49,6 +54,10 @@ export const GuessingPage = () => {
   } = useGameActions()
   const { notifyTopCenter } = useNotifications()
   const notifiedBoardId = useRef<string | null>(null)
+
+  // Mouse tracking
+  const boardRef = useRef<HTMLDivElement>(null)
+  const isMouseTrackingEnabled = useMouseTrackingEnabled()
   
   const [activeCard, setActiveCard] = useState<CardInfoResponse | null>(null)
   const [activeData, setActiveData] = useState<any | null>(null)
@@ -86,6 +95,9 @@ export const GuessingPage = () => {
   }, [fetchGameState])
 
   const isMyBoard = currentBoardOwnerId === playerId
+
+  // Activer l'émission locale seulement si pas owner du board
+  useLocalCursorEmitter(boardRef, isMouseTrackingEnabled && !isMyBoard)
 
   // Valeur sécurisée de la rotation (fallback à 0 si undefined/NaN)
   const safeCumulativeRotation = typeof cumulativeBoardRotation === 'number' && !isNaN(cumulativeBoardRotation)
@@ -337,6 +349,7 @@ export const GuessingPage = () => {
             <div className="flex-1 flex flex-col items-center justify-center gap-8 min-w-0">
               <div className="relative">
                 <Board
+                  ref={boardRef}
                   key={currentBoardOwnerId || 'no-board'}
                   cards={boardCards}
                   guessedCards={boardGuessedCards}
@@ -354,31 +367,34 @@ export const GuessingPage = () => {
 
               {/* Contrôles de rotation globale et validation */}
               <div className="flex flex-col items-center gap-6">
-                {!isMyBoard && (
-                  <div className="flex flex-col items-center gap-4">
-                    <BoardRotationControls
-                      rotation={safeCumulativeRotation}
-                      onRotate={handleRotateBoard}
-                      disabled={isValidationPending || isBoardGuessed}
-                    />
+                {/* Espace fixe pour maintenir l'alignement vertical constant */}
+                <div className="flex flex-col items-center gap-4" style={{ minHeight: '160px' }}>
+                  {!isMyBoard && (
+                    <>
+                      <BoardRotationControls
+                        rotation={safeCumulativeRotation}
+                        onRotate={handleRotateBoard}
+                        disabled={isValidationPending || isBoardGuessed}
+                      />
 
-                    <button
-                      onClick={canMoveToNext ? nextBoard : validateBoard}
-                      disabled={isValidationPending || (!isBoardFull && !canMoveToNext)}
-                      className={`px-12 py-4 rounded-full text-white font-bold text-xl shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 ${
-                        canMoveToNext ? 'bg-blue-600 hover:bg-blue-700 shadow-blue/30' :
-                        isBoardFull ? 'bg-clover hover:bg-clover-dark shadow-clover/30' : 'bg-gray-400'
-                      }`}
-                    >
-                      {isValidationPending ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Validation...
-                        </div>
-                      ) : canMoveToNext ? "Plateau suivant" : "Valider le plateau"}
-                    </button>
-                  </div>
-                )}
+                      <button
+                        onClick={canMoveToNext ? nextBoard : validateBoard}
+                        disabled={isValidationPending || (!isBoardFull && !canMoveToNext)}
+                        className={`px-12 py-4 rounded-full text-white font-bold text-xl shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 ${
+                          canMoveToNext ? 'bg-blue-600 hover:bg-blue-700 shadow-blue/30' :
+                          isBoardFull ? 'bg-clover hover:bg-clover-dark shadow-clover/30' : 'bg-gray-400'
+                        }`}
+                      >
+                        {isValidationPending ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Validation...
+                          </div>
+                        ) : canMoveToNext ? "Plateau suivant" : "Valider le plateau"}
+                      </button>
+                    </>
+                  )}
+                </div>
                 
                 <div className="text-center text-gray-700 bg-white/20 p-4 rounded-lg backdrop-blur-md border border-white/30 max-w-md">
                   <p className="text-sm italic">
@@ -432,6 +448,12 @@ export const GuessingPage = () => {
           </div>
         ) : null}
       </DragOverlay>
+
+      {/* Remote Cursors Layer - Global overlay */}
+      <RemoteCursorsLayer
+        boardRef={boardRef}
+        enabled={isMouseTrackingEnabled}
+      />
     </DndContext>
   )
 }

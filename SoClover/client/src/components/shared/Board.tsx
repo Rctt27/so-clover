@@ -31,22 +31,22 @@ export interface BoardProps {
   ownerId?: string;
 }
 
-export const Board = ({ 
-  cards, 
-  rotation = 0, 
-  clues, 
+export const Board = React.forwardRef<HTMLDivElement, BoardProps>(({
+  cards,
+  rotation = 0,
+  clues,
   guessedCards,
   swappingPositions,
-  showClueInputs = false, 
+  showClueInputs = false,
   onClueSave,
-  children, 
-  className = '', 
+  children,
+  className = '',
   animateEntry = false,
   disabled = false,
   isLocked = false,
   correctPositions = [],
   ownerId
-}: BoardProps) => {
+}, ref) => {
   // Dimensions de référence de Board.png
   const REFERENCE_SIZE = 1190
   const CARD_SIZE = 320 // Taille d'origine restaurée
@@ -152,6 +152,7 @@ export const Board = ({
   return (
     <div className="flex justify-center w-full">
       <div
+        ref={ref}
         className={`relative w-full aspect-square ${className}`}
         style={{
           width: '100%',
@@ -270,7 +271,9 @@ export const Board = ({
       </div>
     </div>
   )
-}
+});
+
+Board.displayName = 'Board';
 
 interface DroppableSlotProps {
   id: string;

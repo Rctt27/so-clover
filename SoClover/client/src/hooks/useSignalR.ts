@@ -1,6 +1,6 @@
 ﻿import { useEffect, useCallback } from 'react';
 import { signalRClient } from '../api/signalr-client';
-import { useGameStore, usePresenceStore, useGuessingStore } from '../core/store';
+import { useGameStore, useGuessingStore } from '../core/store';
 import { HubConnectionState } from '@microsoft/signalr';
 import { gameApi } from '../api/game-api';
 import { useNotifications } from './useNotifications';
@@ -15,7 +15,6 @@ export const useSignalR = () => {
   const resetAuth = useGameStore(s => s.resetAuth);
 
   const setCumulativeBoardRotation = useGuessingStore(s => s.setCumulativeBoardRotation);
-  const updateMousePosition = usePresenceStore(s => s.updateMousePosition);
   const { notifyInfo, notifyWarning } = useNotifications();
   const { updateStateFromResponse } = useGameStateUpdate();
 
@@ -115,7 +114,7 @@ export const useSignalR = () => {
 
     const handlePlayerJoined = (data: any) => {
       // console.log('[SignalR] PlayerJoined', data);
-      
+
       if (!data || !data.playerName) return;
 
       // Évite de se notifier soi-même
@@ -127,13 +126,8 @@ export const useSignalR = () => {
       }
     };
 
-    const handleMouseMoved = (data: any) => {
-      const { playerId: senderId, positions } = data;
-      if (positions && positions.length > 0) {
-        const lastPos = positions[positions.length - 1];
-        updateMousePosition(senderId, lastPos.nx, lastPos.ny);
-      }
-    };
+    // Note: GuessingMouseMoved est maintenant géré par RemoteCursorsLayer
+    // L'ancien handler a été retiré pour éviter les duplications
 
     const handleGameDeleted = () => {
       console.log('[SignalR] GameDeleted');
@@ -171,7 +165,7 @@ export const useSignalR = () => {
     signalRClient.on('GameStateUpdated', handleStateUpdated);
     signalRClient.on('ServerNotification', handleServerNotification);
     signalRClient.on('PlayerJoined', handlePlayerJoined);
-    signalRClient.on('GuessingMouseMoved', handleMouseMoved);
+    // GuessingMouseMoved est maintenant géré par RemoteCursorsLayer
     signalRClient.on('GameDeleted', handleGameDeleted);
     signalRClient.on('BoardRotationUpdated', handleBoardRotationUpdated);
     signalRClient.on('GuessingBoardValidated', handleGuessingBoardValidated);
@@ -197,7 +191,7 @@ export const useSignalR = () => {
       signalRClient.off('GameStateUpdated', handleStateUpdated);
       signalRClient.off('ServerNotification', handleServerNotification);
       signalRClient.off('PlayerJoined', handlePlayerJoined);
-      signalRClient.off('GuessingMouseMoved', handleMouseMoved);
+      // GuessingMouseMoved cleanup géré par RemoteCursorsLayer
       signalRClient.off('GameDeleted', handleGameDeleted);
       signalRClient.off('BoardRotationUpdated', handleBoardRotationUpdated);
       signalRClient.off('GuessingBoardValidated', handleGuessingBoardValidated);
@@ -206,5 +200,5 @@ export const useSignalR = () => {
       // Note: SignalR n'a pas de méthode 'off' pour ces événements,
       // mais on peut les réinitialiser à des fonctions vides si nécessaire.
     };
-  }, [gameId, playerId, phase, setConnectionStatus, setIsInitializing, updateMousePosition, notifyInfo, notifyWarning, refreshGameState, resetAuth]);
+  }, [gameId, playerId, phase, setConnectionStatus, setIsInitializing, notifyInfo, notifyWarning, refreshGameState, resetAuth]);
 };
