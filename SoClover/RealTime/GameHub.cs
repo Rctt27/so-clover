@@ -89,6 +89,7 @@ public sealed class GameHub : Hub
         {
             playerId,
             playerName = player.Name,
+            cursorColorIndex = player.CursorColorIndex,
             positions
         });
     }

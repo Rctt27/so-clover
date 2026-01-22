@@ -22,7 +22,7 @@ export const GameManagementCard: React.FC = () => {
       setIsGameAdmin(true);
       setPhase('Lobby');
       // Optimistic update: add self to players list to avoid empty list during SignalR connection
-      setPlayers([{ playerId: response.playerId, name: playerName! }]);
+      setPlayers([{ playerId: response.playerId, name: playerName!, cursorColorIndex: 0 }]);
       // On laisse useSignalR gérer le refreshGameState une fois connecté
     } catch (err: any) {
       setError(err.message || 'Erreur lors de la création de la partie');

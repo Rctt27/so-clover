@@ -20,6 +20,7 @@ export interface MousePayload {
 export interface RemoteMouseData {
   playerId: string;
   playerName: string;
+  cursorColorIndex?: number; // Optionnel pour rétrocompatibilité
   positions: NormalizedPosition[];
 }
 

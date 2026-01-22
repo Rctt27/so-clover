@@ -30,7 +30,11 @@ export const useGameStateUpdate = () => {
     });
 
     // 2. Mise à jour des joueurs
-    const playersList = state.players.map(p => ({ playerId: p.playerId, name: p.name }));
+    const playersList = state.players.map(p => ({
+      playerId: p.playerId,
+      name: p.name,
+      cursorColorIndex: p.cursorColorIndex
+    }));
     setPlayers(playersList);
 
     // 3. Suis-je admin ?
@@ -88,6 +92,14 @@ export const useGameStateUpdate = () => {
       // Dans tous les autres cas, la rotation locale fait foi (évite les race conditions)
       const shouldUpdateRotation = isFirstLoad || isNewBoard;
 
+      // TOUJOURS inclure cumulativeBoardRotation pour éviter les valeurs stale pendant les re-renders
+      // Choisir la source en fonction du contexte :
+      // - Premier chargement ou nouveau board → utiliser valeur serveur (réinitialisation à 0)
+      // - Autres cas → préserver rotation locale (éviter race conditions avec rotations utilisateur)
+      const rotationToUse = shouldUpdateRotation
+        ? (state.guessingState.cumulativeBoardRotation ?? 0)  // Serveur
+        : guessingState.cumulativeBoardRotation;               // Local (préservation)
+
       setCurrentBoardOwner(state.guessingState.currentBoardOwnerId);
       setGuessingState({
         currentBoardOwnerId: state.guessingState.currentBoardOwnerId,
@@ -97,7 +109,7 @@ export const useGameStateUpdate = () => {
         correctlyPlacedPositions: state.guessingState.correctlyPlacedPositions,
         remainingAttempts: state.guessingState.remainingAttempts,
         currentBoardClues: state.guessingState.currentBoardClues,
-        ...(shouldUpdateRotation ? { cumulativeBoardRotation: state.guessingState.cumulativeBoardRotation ?? 0 } : {})
+        cumulativeBoardRotation: rotationToUse  // TOUJOURS inclus
       });
     } else {
       setCurrentBoardOwner(null);

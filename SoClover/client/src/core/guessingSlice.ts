@@ -47,7 +47,15 @@ export const createGuessingSlice: StateCreator<GuessingSlice> = (set) => ({
   isValidationPending: false,
   validationResults: null,
 
-  setGuessingState: (state) => set((prev) => ({ ...prev, ...state })),
+  setGuessingState: (state) => set((prev) => {
+    // Protection supplémentaire : toujours préserver cumulativeBoardRotation
+    // sauf si explicitement fournie dans l'update
+    const nextState = { ...prev, ...state };
+    if (!('cumulativeBoardRotation' in state)) {
+      nextState.cumulativeBoardRotation = prev.cumulativeBoardRotation;
+    }
+    return nextState;
+  }),
   setCumulativeBoardRotation: (rotation, isLocalChange = false) => set({
     cumulativeBoardRotation: rotation,
     ...(isLocalChange ? { lastLocalRotationTimestamp: Date.now() } : {})

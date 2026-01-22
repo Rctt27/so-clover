@@ -34,6 +34,7 @@ public sealed class Game
     [JsonPropertyName("guessDurationSecondsOverride")]
     public int? GuessDurationSecondsOverride { get; private set; }
 
+    private const int CURSOR_COLORS_COUNT = 10;
     private readonly Dictionary<PlayerId, Player> _players = new();
     private WordsPool? _wordsPool;
 
@@ -143,6 +144,10 @@ public sealed class Game
     {
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("Cannot join after game start.");
+
+        // Attribuer une couleur de curseur au joueur
+        player.SetCursorColorIndex(GetNextAvailableColorIndex());
+
         _players[player.Id] = player;
 
         // Set admin if this player is marked as admin
@@ -690,6 +695,21 @@ public sealed class Game
             throw new InvalidOperationInPhaseException("Can only rotate board during Guessing phase.");
         
         CumulativeBoardRotation = rotation;
+    }
+
+    private int GetNextAvailableColorIndex()
+    {
+        var usedColors = _players.Values.Select(p => p.CursorColorIndex).ToHashSet();
+
+        // Chercher une couleur non utilisée (1-10)
+        for (int i = 1; i <= CURSOR_COLORS_COUNT; i++)
+        {
+            if (!usedColors.Contains(i))
+                return i;
+        }
+
+        // Toutes les couleurs sont utilisées : attribution aléatoire
+        return Random.Shared.Next(1, CURSOR_COLORS_COUNT + 1);
     }
 
     private Player RequirePlayer(PlayerId playerId)

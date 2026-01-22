@@ -20,25 +20,55 @@ class RemoteCursorsStore {
   private cursors = new Map<string, RemoteCursorState>();
   private buffers = new Map<string, CursorBuffer>();
   private listeners = new Set<CursorStoreListener>();
-  private colorAssignments = new Map<string, number>();
-  private nextColorIndex = 1;
+  private knownPlayerColors = new Map<string, number>();
 
   /**
-   * Obtient ou attribue une couleur pour un joueur
+   * Initialise les couleurs depuis le game state (appelé au mount)
    */
-  private getColorIndex(playerId: string): number {
-    if (!this.colorAssignments.has(playerId)) {
-      this.colorAssignments.set(playerId, this.nextColorIndex);
-      this.nextColorIndex = (this.nextColorIndex % CURSOR_COLORS_COUNT) + 1;
+  initializePlayerColors(players: Array<{ playerId: string; cursorColorIndex: number }>): void {
+    players.forEach((p) => {
+      if (p.cursorColorIndex > 0) {
+        this.knownPlayerColors.set(p.playerId, p.cursorColorIndex);
+      }
+    });
+  }
+
+  /**
+   * Obtient la couleur d'un joueur (serveur ou fallback)
+   */
+  private getColorIndex(playerId: string, serverColor?: number): number {
+    // Priorité 1: couleur fournie par le serveur dans l'event
+    if (serverColor && serverColor > 0) {
+      this.knownPlayerColors.set(playerId, serverColor);
+      return serverColor;
     }
-    return this.colorAssignments.get(playerId)!;
+
+    // Priorité 2: couleur connue du cache
+    if (this.knownPlayerColors.has(playerId)) {
+      return this.knownPlayerColors.get(playerId)!;
+    }
+
+    // Priorité 3: fallback déterministe basé sur le hash du playerId
+    return this.hashToColorIndex(playerId);
+  }
+
+  /**
+   * Fallback déterministe : hash du playerId vers colorIndex
+   */
+  private hashToColorIndex(playerId: string): number {
+    let hash = 0;
+    for (let i = 0; i < playerId.length; i++) {
+      hash = ((hash << 5) - hash) + playerId.charCodeAt(i);
+      hash |= 0;
+    }
+    return (Math.abs(hash) % CURSOR_COLORS_COUNT) + 1;
   }
 
   /**
    * Appelé lors de la réception de positions via SignalR
    */
   receivePositions(data: RemoteMouseData): void {
-    const { playerId, playerName, positions } = data;
+    const { playerId, playerName, cursorColorIndex, positions } = data;
 
     // Créer le buffer si nécessaire
     if (!this.buffers.has(playerId)) {
@@ -53,7 +83,7 @@ class RemoteCursorsStore {
       this.cursors.set(playerId, {
         playerId,
         playerName,
-        colorIndex: this.getColorIndex(playerId),
+        colorIndex: this.getColorIndex(playerId, cursorColorIndex),
         currentPos: null,
         isActive: true,
         lastUpdate: Date.now(),
@@ -114,14 +144,13 @@ class RemoteCursorsStore {
   }
 
   /**
-   * Nettoie tous les curseurs
+   * Nettoie tous les curseurs (mais préserve les couleurs connues)
    */
   cleanup(): void {
     this.cursors.clear();
     this.buffers.forEach((buffer) => buffer.clear());
     this.buffers.clear();
-    this.colorAssignments.clear();
-    this.nextColorIndex = 1;
+    // NE PAS effacer knownPlayerColors - elles persistent pendant la partie!
     this.notify();
   }
 

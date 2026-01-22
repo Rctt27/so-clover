@@ -11,7 +11,7 @@ import { useEffect, useRef } from 'react';
 import { cursorRenderer } from '../receiver/CursorRenderer';
 import { remoteCursorsStore } from '../receiver/RemoteCursorsStore';
 import { signalRClient } from '../../../api/signalr-client';
-import { useGuessingStore } from '../../../core/store';
+import { useGuessingStore, useGameStore } from '../../../core/store';
 import type { RemoteMouseData } from '../types';
 import '../styles/remoteCursors.css';
 
@@ -23,6 +23,19 @@ interface Props {
 export function RemoteCursorsLayer({ boardRef, enabled }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const currentBoardOwnerId = useGuessingStore((s) => s.currentBoardOwnerId);
+  const players = useGameStore((s) => s.players);
+
+  // Initialise les couleurs des joueurs depuis le game state
+  useEffect(() => {
+    if (players.length > 0) {
+      remoteCursorsStore.initializePlayerColors(
+        players.map((p) => ({
+          playerId: p.playerId,
+          cursorColorIndex: p.cursorColorIndex,
+        }))
+      );
+    }
+  }, [players]);
 
   // Écoute SignalR
   useEffect(() => {

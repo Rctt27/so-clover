@@ -21,12 +21,18 @@ public sealed class Player
     [JsonPropertyName("board")]
     public CloverBoard Board { get; private set; } = new();
 
+    [JsonInclude]
+    [JsonPropertyName("cursorColorIndex")]
+    public int CursorColorIndex { get; private set; } = 0;
+
     public Player(PlayerId id, string name, bool isAdmin = false)
     {
         Id = id;
         Name = RequireName(name);
         IsAdmin = isAdmin;
     }
+
+    internal void SetCursorColorIndex(int colorIndex) => CursorColorIndex = colorIndex;
 
     private static string RequireName(string? input)
     {

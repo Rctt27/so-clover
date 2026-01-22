@@ -20,6 +20,7 @@ export interface GameStateResponse {
 export interface PlayerStateResponse {
   playerId: string;
   name: string;
+  cursorColorIndex: number;
   board: BoardStateResponse;
 }
 

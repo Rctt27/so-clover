@@ -64,21 +64,15 @@ export const GuessingPage = () => {
   const [swappingCards, setSwappingCards] = useState<{ activePos: string, displacedPos: string } | null>(null)
 
   // Mapping local pour les slots du pool (0-5)
-  // On initialise ou on met à jour le mapping quand outsideCards change
-  const [poolMapping, setPoolMapping] = useState<Record<number, CardInfoResponse | null>>({
-    0: null, 1: null, 2: null, 3: null, 4: null, 5: null
-  });
-
-  useEffect(() => {
-    // Toujours synchroniser poolMapping avec outsideCards du store
-    // Cela garantit la cohérence avec le backend après chaque mise à jour SignalR
+  // Optimisé avec useMemo pour éviter les re-renders inutiles
+  const poolMapping = useMemo(() => {
     const mapping: Record<number, CardInfoResponse | null> = {
       0: null, 1: null, 2: null, 3: null, 4: null, 5: null
     };
     outsideCards.forEach((card, i) => {
       if (i < 6) mapping[i] = card;
     });
-    setPoolMapping(mapping);
+    return mapping;
   }, [outsideCards]);
 
   const sensors = useSensors(

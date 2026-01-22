@@ -13,7 +13,7 @@ interface GameState {
   role: Role
   isGameAdmin: boolean
   connectionStatus: ConnectionStatus
-  players: Array<{ playerId: string, name: string }>
+  players: Array<{ playerId: string, name: string, cursorColorIndex: number }>
   isInitializing: boolean
   phaseEndsAtUtc: string | null
   settings: {
@@ -28,7 +28,7 @@ interface GameState {
   setPlayerId: (playerId: string | null) => void
   setPlayerName: (playerName: string | null) => void
   setConnectionStatus: (status: ConnectionStatus) => void
-  setPlayers: (players: Array<{ playerId: string, name: string }>) => void
+  setPlayers: (players: Array<{ playerId: string, name: string, cursorColorIndex: number }>) => void
   setPhaseEndsAtUtc: (deadline: string | null) => void
   setSettings: (settings: { language: string, cluesDurationSeconds: number, guessDurationSeconds: number }) => void
   setIsInitializing: (isInitializing: boolean) => void

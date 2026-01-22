@@ -26,6 +26,7 @@ public static class GetGameState
     public sealed record PlayerState(
         [property: JsonPropertyName("playerId")] Guid PlayerId,
         [property: JsonPropertyName("name")] string Name,
+        [property: JsonPropertyName("cursorColorIndex")] int CursorColorIndex,
         [property: JsonPropertyName("board")] BoardState Board
     );
 
@@ -93,6 +94,7 @@ public static class GetGameState
                     return new PlayerState(
                     p.Id.Value,
                     p.Name,
+                    p.CursorColorIndex,
                     new BoardState(
                         BuildDirectionState(p, Direction.Top, includeSecretsForPlayer, game.Phase),
                         BuildDirectionState(p, Direction.Right, includeSecretsForPlayer, game.Phase),
