@@ -52,3 +52,6 @@ packages/
 *.snupkg
 project.lock.json
 project.fragment.lock.json
+
+# Documentation & Specs
+Specs/
