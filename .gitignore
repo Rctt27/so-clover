@@ -55,3 +55,6 @@ project.fragment.lock.json
 
 # Documentation & Specs
 Specs/
+
+# Git worktrees
+.worktrees/
