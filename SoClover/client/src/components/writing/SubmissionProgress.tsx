@@ -10,15 +10,17 @@ export const SubmissionProgress = () => {
   const mySubmitted = myBoard?.isSubmitted ? 1 : 0
   const submittedCount = mySubmitted + otherSubmittedCount
 
+  if (totalCount === 0) return null
+
   return (
     <div className="flex flex-col items-center gap-2">
       <p className="text-sm text-gray-600 font-medium">
         {submittedCount}/{totalCount} joueurs ont soumis leur plateau
       </p>
       <div className="flex gap-2">
-        {players.map((_player, index) => (
+        {players.map((player, index) => (
           <div
-            key={index}
+            key={player.playerId}
             className={`w-3 h-3 rounded-full transition-colors duration-500 ${
               index < submittedCount ? 'bg-green-500' : 'bg-gray-300'
             }`}
