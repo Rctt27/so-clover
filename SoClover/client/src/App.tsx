@@ -1,15 +1,32 @@
-﻿import { motion, AnimatePresence } from 'framer-motion'
+import { lazy, Suspense } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Wifi, WifiOff, Loader2 } from 'lucide-react'
 import { useSignalR } from './hooks/useSignalR'
 import { useTimeoutSafetyPolling } from './hooks/useTimeoutSafetyPolling'
 import { useGameStore } from './core/store'
 import { HomeScreen } from './components/home/HomeScreen'
 import { LobbyPage } from './components/lobby/LobbyPage'
-import { WritingBoard } from './components/writing/WritingBoard'
-import { GuessingPage } from './components/guessing/GuessingPage'
-import { ScoringPage } from './components/scoring/ScoringPage'
 import { NotificationContainer } from './components/shared/NotificationContainer'
 import { Timer } from './components/shared/Timer'
+import { ConnectionOverlay } from './components/shared/ConnectionOverlay'
+
+const WritingBoard = lazy(() => import('./components/writing/WritingBoard').then(m => ({ default: m.WritingBoard })))
+const GuessingPage = lazy(() => import('./components/guessing/GuessingPage').then(m => ({ default: m.GuessingPage })))
+const ScoringPage = lazy(() => import('./components/scoring/ScoringPage').then(m => ({ default: m.ScoringPage })))
+
+const phaseVariants = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -20 },
+}
+
+const phaseTransition = { duration: 0.3 }
+
+const PhaseLoader = () => (
+  <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+    <Loader2 className="w-10 h-10 text-clover animate-spin" />
+  </div>
+)
 
 function App() {
   useSignalR();
@@ -36,7 +53,7 @@ function App() {
         ) : (
           <WifiOff size={18} className="text-red-500" />
         )}
-        
+
         {connectionStatus === 'Connected' && hasDeadline ? (
           <Timer />
         ) : (
@@ -47,7 +64,7 @@ function App() {
       {/* Global Loader - Only during initial lobby load */}
       <AnimatePresence>
         {isInitializing && phase === 'Lobby' && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -62,18 +79,50 @@ function App() {
       <main className="flex-1 flex flex-col items-center justify-center w-full">
         {phase === 'Initial' && <HomeScreen />}
         {phase === 'Lobby' && <LobbyPage />}
-        {phase === 'WritingClues' && <WritingBoard />}
-        {phase === 'Guessing' && <GuessingPage />}
-        {phase === 'Scoring' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="w-full max-w-4xl"
-          >
-            <ScoringPage />
-          </motion.div>
-        )}
+
+        <Suspense fallback={<PhaseLoader />}>
+          <AnimatePresence mode="wait">
+            {phase === 'WritingClues' && (
+              <motion.div
+                key="writing"
+                variants={phaseVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={phaseTransition}
+                className="w-full"
+              >
+                <WritingBoard />
+              </motion.div>
+            )}
+            {phase === 'Guessing' && (
+              <motion.div
+                key="guessing"
+                variants={phaseVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={phaseTransition}
+                className="w-full"
+              >
+                <GuessingPage />
+              </motion.div>
+            )}
+            {phase === 'Scoring' && (
+              <motion.div
+                key="scoring"
+                variants={phaseVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={phaseTransition}
+                className="w-full max-w-4xl"
+              >
+                <ScoringPage />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Suspense>
 
         {phase !== 'Initial' && phase !== 'Lobby' && phase !== 'WritingClues' && phase !== 'Guessing' && phase !== 'Scoring' && (
           <div className="text-center bg-white p-8 rounded-3xl shadow-xl border border-slate-100 max-w-lg">
@@ -86,6 +135,9 @@ function App() {
           </div>
         )}
       </main>
+
+      {/* Connection Overlay — rendered above everything else */}
+      <ConnectionOverlay status={connectionStatus} />
     </div>
   )
 }
