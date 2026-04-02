@@ -3,6 +3,7 @@ import { Board } from '../shared/Board'
 import { useBoardStore, useGameStore } from '../../core/store'
 import { useGameActions } from '../../hooks/useGameActions'
 import { WritingControls } from './WritingControls'
+import { SubmissionProgress } from './SubmissionProgress'
 
 export const WritingBoard = () => {
   const myBoard = useBoardStore(s => s.myBoard)
@@ -59,6 +60,14 @@ export const WritingBoard = () => {
       </div>
 
       <WritingControls />
+
+      {myBoard.isSubmitted && (
+        <div className="flex flex-col items-center gap-2 py-4">
+          <p className="text-green-600 font-semibold">Plateau soumis !</p>
+          <p className="text-gray-500 text-sm">En attente des autres joueurs...</p>
+          <SubmissionProgress />
+        </div>
+      )}
 
       <div className="text-center text-sm text-gray-500 max-w-2xl px-4 mt-8">
         <p className="mb-2">
