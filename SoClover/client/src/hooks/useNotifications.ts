@@ -3,9 +3,7 @@ import { useNotificationStore } from '../core/store'
 import { NotificationType, NotificationPosition } from '../core/notificationSlice'
 
 export const useNotifications = () => {
-  // eslint-disable-next-line @typescript-eslint/no-deprecated
   const addNotification = useNotificationStore((state) => state.addNotification)
-  // eslint-disable-next-line @typescript-eslint/no-deprecated
   const removeNotification = useNotificationStore((state) => state.removeNotification)
 
   const notifySuccess = useCallback((
@@ -80,7 +78,6 @@ export const useNotifications = () => {
     notifyWarning,
     notifyTopCenter,
     dismiss: removeNotification,
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
     notifications: useNotificationStore((state) => state.notifications)
   }
 }
