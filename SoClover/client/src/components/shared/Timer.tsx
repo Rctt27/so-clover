@@ -30,6 +30,14 @@ export const Timer = () => {
 
   if (timeLeft === null) return null
 
+  if (timeLeft === 0) {
+    return (
+      <span className="text-amber-500 animate-pulse text-sm font-medium">
+        Transition en cours...
+      </span>
+    )
+  }
+
   const minutes = Math.floor(timeLeft / 60)
     .toString()
     .padStart(2, '0')
