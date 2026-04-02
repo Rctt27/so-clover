@@ -4,6 +4,7 @@ export const SubmissionProgress = () => {
   const myBoard = useBoardStore(s => s.myBoard)
   const otherBoards = useBoardStore(s => s.otherBoards)
   const players = useGameStore(s => s.players)
+  const myPlayerId = useGameStore(s => s.playerId)
 
   const totalCount = players.length
   const otherSubmittedCount = Object.values(otherBoards).filter(b => b.isSubmitted).length
@@ -18,14 +19,19 @@ export const SubmissionProgress = () => {
         {submittedCount}/{totalCount} joueurs ont soumis leur plateau
       </p>
       <div className="flex gap-2">
-        {players.map((player, index) => (
-          <div
-            key={player.playerId}
-            className={`w-3 h-3 rounded-full transition-colors duration-500 ${
-              index < submittedCount ? 'bg-green-500' : 'bg-gray-300'
-            }`}
-          />
-        ))}
+        {players.map((player) => {
+          const isSubmitted = player.playerId === myPlayerId
+            ? myBoard?.isSubmitted ?? false
+            : otherBoards[player.playerId]?.isSubmitted ?? false
+          return (
+            <div
+              key={player.playerId}
+              className={`w-3 h-3 rounded-full transition-colors duration-500 ${
+                isSubmitted ? 'bg-green-500' : 'bg-gray-300'
+              }`}
+            />
+          )
+        })}
       </div>
     </div>
   )

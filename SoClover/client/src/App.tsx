@@ -77,8 +77,34 @@ function App() {
       </AnimatePresence>
 
       <main className="flex-1 flex flex-col items-center justify-center w-full">
-        {phase === 'Initial' && <HomeScreen />}
-        {phase === 'Lobby' && <LobbyPage />}
+        <AnimatePresence mode="wait">
+          {phase === 'Initial' && (
+            <motion.div
+              key="initial"
+              variants={phaseVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={phaseTransition}
+              className="w-full"
+            >
+              <HomeScreen />
+            </motion.div>
+          )}
+          {phase === 'Lobby' && (
+            <motion.div
+              key="lobby"
+              variants={phaseVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={phaseTransition}
+              className="w-full"
+            >
+              <LobbyPage />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <Suspense fallback={<PhaseLoader />}>
           <AnimatePresence mode="wait">
