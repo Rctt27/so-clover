@@ -23,7 +23,7 @@ const phaseVariants = {
 const phaseTransition = { duration: 0.3 }
 
 const PhaseLoader = () => (
-  <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+  <div className="flex flex-col items-center justify-center min-h-screen">
     <Loader2 className="w-10 h-10 text-clover animate-spin" />
   </div>
 )
