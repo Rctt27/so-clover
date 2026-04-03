@@ -37,6 +37,14 @@ docker compose build --no-cache web    # Build (from SoClover/)
 docker compose up -d                   # Start services
 ```
 
+### Développement local (full-stack)
+```bash
+# Terminal 1 — Backend
+dotnet watch --project SoClover
+# Terminal 2 — Frontend (depuis SoClover/client/)
+npm run dev   # Proxy automatique vers localhost:5000
+```
+
 ## Architecture
 
 ### Backend Structure
@@ -47,8 +55,10 @@ docker compose up -d                   # Start services
 
 ### Frontend Structure (SoClover/client/)
 - **components/**: Page-based organization (home, lobby, writing, guessing, scoring) + shared components.
+- **components/guards/**: `RoleGuard` — protège les routes selon le rôle/phase du joueur.
+- **features/**: Feature modules (ex: `mouseTracking/` — suivi curseur temps réel via SignalR).
 - **core/**: Zustand slices (boardSlice, guessingSlice, notificationSlice), helpers, constants.
-- **hooks/**: useSignalR, useGameActions, useGameStateUpdate, usePermissions.
+- **hooks/**: useSignalR, useGameActions, useGameStateUpdate, usePermissions, useNotifications, useTimeoutSafetyPolling.
 - **api/**: HTTP client (game-api.ts) and SignalR client (signalr-client.ts).
 - **types/**: TypeScript definitions (game.ts).
 
@@ -57,6 +67,8 @@ docker compose up -d                   # Start services
 - **Repository Pattern**: `InMemoryGameRepository` (DEBUG) / `EfGameRepository` (RELEASE).
 - **Event Publishing**: Domain actions → `IEventPublisher` → `SignalREventPublisher` → Client updates.
 - **State Machine**: Lobby → WritingClues → Guessing → Scoring.
+- **Zustand Persist**: Le store global utilise `persist` middleware (localStorage). En cas d'état incohérent lors du debug, vider le localStorage peut être nécessaire.
+- **Mouse Tracking**: Suivi des curseurs joueurs via SignalR — `features/mouseTracking/` côté client, `wwwroot/MouseTracking/` côté serveur.
 
 ### Game Flow
 1. Create game → Players join lobby
@@ -100,3 +112,10 @@ SignalR hub at `/hubs/game`.
 - UseCases contain nested `Handler` classes implementing `IUseCase<TRequest, TResponse>`.
 - React components use PascalCase, hooks/utilities use camelCase.
 - Zustand for state management with separate slices.
+
+### Frontend – Design & Assets
+
+- **Avant tout travail visuel**, explorer `SoClover/client/src/assets/styles/` pour réutiliser les variables CSS et styles existants.
+- Les couleurs, espacements, animations et autres tokens visuels doivent être centralisés dans `assets/styles/` — jamais hardcodés inline dans les composants.
+- Si une valeur visuelle (ex: palette de confettis, timing d'animation) n'existe pas encore dans les styles centralisés, la créer dans le fichier approprié de `assets/styles/` avant de l'utiliser dans le composant.
+- Réutiliser les assets existants (`public/sounds/`, `public/images/`) plutôt que d'en embarquer de nouveaux sans vérification préalable.
