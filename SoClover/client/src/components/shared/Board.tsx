@@ -1,6 +1,5 @@
 import React, { useRef, useLayoutEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { useDroppable } from '@dnd-kit/core'
 import { Card } from './Card'
 import { ClueInput } from './ClueInput'
 import { CardData } from '../../types/game'
@@ -19,7 +18,7 @@ export interface BoardProps {
     left: string;
   };
   guessedCards?: (import('../../types/game').CardInfoResponse | null)[]; // For DraggableCards in Guessing
-  swappingPositions?: { activePos: string, displacedPos: string } | null;
+  displacedSlot?: string | null;
   showClueInputs?: boolean;
   onClueSave?: (position: 'top' | 'right' | 'bottom' | 'left', text: string) => Promise<void>;
   children?: React.ReactNode;
@@ -29,14 +28,22 @@ export interface BoardProps {
   isLocked?: boolean;
   correctPositions?: string[];
   ownerId?: string;
+  /** Currently highlighted drop target slot id (from dragState.targetSlot) */
+  highlightedSlot?: string | null;
+  /** Drag handlers factory from useCardDrag */
+  dragHandlers?: (slotId: string, cardId: string) => { onPointerDown: (e: React.PointerEvent) => void };
+  /** Card id currently being dragged (to hide it in source slot) */
+  dragSourceCardId?: string | null;
+  /** Slot currently hovered during drag (to show target visual on card) */
+  dragTargetSlot?: string | null;
 }
 
-export const Board = React.forwardRef<HTMLDivElement, BoardProps>(({
+export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
   cards,
   rotation = 0,
   clues,
   guessedCards,
-  swappingPositions,
+  displacedSlot,
   showClueInputs = false,
   onClueSave,
   children,
@@ -45,14 +52,18 @@ export const Board = React.forwardRef<HTMLDivElement, BoardProps>(({
   disabled = false,
   isLocked = false,
   correctPositions = [],
-  ownerId
+  ownerId,
+  highlightedSlot,
+  dragHandlers,
+  dragSourceCardId,
+  dragTargetSlot,
 }, ref) => {
   // Dimensions de référence de Board.png
   const REFERENCE_SIZE = 1190
   const CARD_SIZE = 320 // Taille d'origine restaurée
 
   const { board: boardAnim } = CONSTANTS.THEME_CONFIG.animations;
-  
+
   // Gestion de la transition de rotation pour éviter le "spinning" lors du changement de board
   const lastOwnerId = useRef(ownerId);
   const [shouldAnimateRotation, setShouldAnimateRotation] = useState(true);
@@ -82,7 +93,7 @@ export const Board = React.forwardRef<HTMLDivElement, BoardProps>(({
   // Fonction pour calculer le style d'un slot
   const getSlotStyle = (index: number) => {
     const slot = visualSlots[index]
-    
+
     const leftPx = slot.x - (CARD_SIZE / 2)
     const topPx = slot.y - (CARD_SIZE / 2)
 
@@ -115,36 +126,36 @@ export const Board = React.forwardRef<HTMLDivElement, BoardProps>(({
 
   const renderClues = (isInput: boolean) => {
     if (!clues && !isInput) return null;
-    
+
     return (['top', 'right', 'bottom', 'left'] as const).map((pos) => {
       const clueValue = clues?.[pos] || '';
-      
+
       if (isInput) {
         return (
           <div key={pos} className="pointer-events-auto">
-            <ClueInput 
-              position={pos} 
-              value={clueValue} 
-              onSave={(text) => handleSaveClue(pos, text)} 
+            <ClueInput
+              position={pos}
+              value={clueValue}
+              onSave={(text) => handleSaveClue(pos, text)}
               disabled={disabled}
             />
           </div>
         );
       }
-      
+
       if (clueValue) {
         return (
           <div key={pos} className="pointer-events-auto">
-            <ClueInput 
-              position={pos} 
-              value={clueValue} 
-              onSave={async () => {}} 
+            <ClueInput
+              position={pos}
+              value={clueValue}
+              onSave={async () => {}}
               disabled={true}
             />
           </div>
         );
       }
-      
+
       return null;
     });
   };
@@ -160,22 +171,24 @@ export const Board = React.forwardRef<HTMLDivElement, BoardProps>(({
           minWidth: 'min(800px, 100vw - 2rem)',
         }}
       >
-        {/* Layer 1: Fixed Droppable Layer (collision zones) - zIndex: 10 */}
+        {/* Layer 1: Drop target hit zones - zIndex: 10 */}
         <div className="absolute inset-0" style={{ zIndex: 10 }}>
           {[0, 1, 2, 3].map((vIndex) => {
             const lIndex = getLogicalIndexFromVisual(vIndex);
             const logicalPosName = LOGICAL_SLOTS[lIndex];
-            const isSlotLocked = isLocked || correctPositions.includes(logicalPosName);
-            
             return (
-              <DroppableSlot 
-                key={vIndex} 
-                id={logicalPosName} 
+              <div
+                key={vIndex}
+                data-slot-id={logicalPosName}
                 style={getSlotStyle(vIndex)}
-                disabled={disabled || isSlotLocked}
+                className={`rounded-lg transition-all duration-200 ${
+                  highlightedSlot === logicalPosName
+                    ? 'bg-clover/30 ring-8 ring-clover/50 scale-105 z-50 shadow-[0_0_20px_rgba(76,175,80,0.4)]'
+                    : ''
+                }`}
               >
                 <div className="w-full h-full" />
-              </DroppableSlot>
+              </div>
             );
           })}
         </div>
@@ -188,7 +201,7 @@ export const Board = React.forwardRef<HTMLDivElement, BoardProps>(({
             ...boardAnim.animate,
             rotate: safeRotation
           }}
-          style={{ 
+          style={{
             zIndex: 20,
             pointerEvents: 'none'
           }}
@@ -209,13 +222,13 @@ export const Board = React.forwardRef<HTMLDivElement, BoardProps>(({
           {LOGICAL_SLOTS.map((logicalPosName, lIndex) => {
             const cardData = cards[lIndex];
             const guessedCard = guessedCards?.[lIndex];
-            
+
             if (!cardData && !guessedCard) return null;
 
             const isSlotLocked = isLocked || correctPositions.includes(logicalPosName);
-            const isDisplaced = !!(swappingPositions && swappingPositions.displacedPos === logicalPosName);
-            
-            // On positionne la carte au slot VISUEL par défaut (index logique) 
+            const isDisplaced = !!(displacedSlot && displacedSlot === logicalPosName);
+
+            // On positionne la carte au slot VISUEL par défaut (index logique)
             // car le conteneur motion.div applique déjà la rotation globale du plateau.
             const vIndex = lIndex;
 
@@ -223,7 +236,7 @@ export const Board = React.forwardRef<HTMLDivElement, BoardProps>(({
               <div key={logicalPosName} style={getSlotStyle(vIndex)}>
                 <div className="w-full h-full pointer-events-auto">
                   {guessedCard ? (
-                    <DraggableCard 
+                    <DraggableCard
                       key={guessedCard.cardId}
                       card={guessedCard}
                       index={lIndex}
@@ -232,12 +245,19 @@ export const Board = React.forwardRef<HTMLDivElement, BoardProps>(({
                       isLocked={isSlotLocked}
                       isCorrect={correctPositions.includes(logicalPosName)}
                       isDisplaced={isDisplaced}
+                      isDragSource={dragSourceCardId === guessedCard.cardId}
+                      isDragTarget={dragTargetSlot === logicalPosName}
+                      onPointerDown={
+                        dragHandlers
+                          ? dragHandlers(logicalPosName, guessedCard.cardId).onPointerDown
+                          : undefined
+                      }
                     />
                   ) : cardData ? (
-                    <Card 
-                      words={cardData.words} 
-                      rotation={cardData.rotation} 
-                      animateEntry={animateEntry} 
+                    <Card
+                      words={cardData.words}
+                      rotation={cardData.rotation}
+                      animateEntry={animateEntry}
                     />
                   ) : null}
                 </div>
@@ -271,30 +291,6 @@ export const Board = React.forwardRef<HTMLDivElement, BoardProps>(({
       </div>
     </div>
   )
-});
+}));
 
 Board.displayName = 'Board';
-
-interface DroppableSlotProps {
-  id: string;
-  style: React.CSSProperties;
-  children: React.ReactNode;
-  disabled?: boolean;
-}
-
-const DroppableSlot = ({ id, style, children, disabled }: DroppableSlotProps) => {
-  const { isOver, setNodeRef } = useDroppable({
-    id,
-    disabled
-  });
-
-  return (
-    <div 
-      ref={setNodeRef} 
-      style={style}
-      className={`rounded-lg transition-all duration-200 ${isOver ? 'bg-clover/30 ring-8 ring-clover/50 scale-105 z-50 shadow-[0_0_20px_rgba(76,175,80,0.4)]' : ''}`}
-    >
-      {children}
-    </div>
-  );
-}
