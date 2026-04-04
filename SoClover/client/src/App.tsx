@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Wifi, WifiOff, Loader2 } from 'lucide-react'
 import { useSignalR } from './hooks/useSignalR'
@@ -6,13 +6,16 @@ import { useTimeoutSafetyPolling } from './hooks/useTimeoutSafetyPolling'
 import { useGameStore } from './core/store'
 import { HomeScreen } from './components/home/HomeScreen'
 import { LobbyPage } from './components/lobby/LobbyPage'
+import { ScoringPage } from './components/scoring/ScoringPage'
 import { NotificationContainer } from './components/shared/NotificationContainer'
 import { Timer } from './components/shared/Timer'
 import { ConnectionOverlay } from './components/shared/ConnectionOverlay'
 
 const WritingBoard = lazy(() => import('./components/writing/WritingBoard').then(m => ({ default: m.WritingBoard })))
 const GuessingPage = lazy(() => import('./components/guessing/GuessingPage').then(m => ({ default: m.GuessingPage })))
-const ScoringPage = lazy(() => import('./components/scoring/ScoringPage').then(m => ({ default: m.ScoringPage })))
+
+const PHASE_TRANSITION_MS = 300
+const MAIN_PHASES = new Set(['WritingClues', 'Guessing', 'Scoring'])
 
 const phaseVariants = {
   initial: { opacity: 0, y: 20 },
@@ -20,13 +23,56 @@ const phaseVariants = {
   exit: { opacity: 0, y: -20 },
 }
 
-const phaseTransition = { duration: 0.3 }
+const phaseTransition = { duration: PHASE_TRANSITION_MS / 1000 }
 
 const PhaseLoader = () => (
   <div className="flex flex-col items-center justify-center min-h-screen">
     <Loader2 className="w-10 h-10 text-clover animate-spin" />
   </div>
 )
+
+/**
+ * Gère les transitions entre WritingClues, Guessing et Scoring.
+ *
+ * N'utilise PAS AnimatePresence — contourne le bug Framer Motion 11.x
+ * (safeToRemove stale ref avec mode="wait") en pilotant manuellement la séquence :
+ *   1. L'ancienne phase joue son animation de sortie (300ms).
+ *   2. Une fois le timeout écoulé, `displayed` bascule sur la nouvelle phase.
+ *   3. La nouvelle phase entre avec son animation d'entrée.
+ * → Une seule phase dans le DOM à tout moment.
+ */
+function PhaseRouter() {
+  const phase = useGameStore(s => s.phase)
+  const [displayed, setDisplayed] = useState(phase)
+
+  useEffect(() => {
+    if (phase === displayed) return
+    const t = setTimeout(() => setDisplayed(phase), PHASE_TRANSITION_MS)
+    return () => clearTimeout(t)
+  }, [phase])
+
+  if (!MAIN_PHASES.has(displayed)) return null
+
+  const isExiting = phase !== displayed
+
+  return (
+    <Suspense fallback={<PhaseLoader />}>
+      <motion.div
+        key={displayed}
+        initial={{ opacity: 0, y: 20 }}
+        animate={isExiting ? { opacity: 0, y: -20 } : { opacity: 1, y: 0 }}
+        transition={phaseTransition}
+        className={displayed === 'Scoring' ? 'w-full max-w-4xl' : 'w-full'}
+        onAnimationStart={(def) => console.log(`%c[PhaseRouter] ${displayed} → anim start: "${def}"`, 'color: #0ea5e9')}
+        onAnimationComplete={(def) => console.log(`%c[PhaseRouter] ${displayed} → anim complete: "${def}"`, 'color: #0ea5e9')}
+      >
+        {displayed === 'WritingClues' && <WritingBoard />}
+        {displayed === 'Guessing' && <GuessingPage />}
+        {displayed === 'Scoring' && <ScoringPage />}
+      </motion.div>
+    </Suspense>
+  )
+}
 
 function App() {
   useSignalR();
@@ -36,10 +82,19 @@ function App() {
   const gameId = useGameStore(s => s.gameId);
   const isInitializing = useGameStore(s => s.isInitializing);
   const hasDeadline = useGameStore(state => !!state.phaseEndsAtUtc);
-
-  console.log('[App] Render - phase:', phase, 'gameId:', gameId, 'connection:', connectionStatus);
-
   const role = useGameStore(state => state.role);
+
+  // ─── [DEBUG] Tracker les changements de phase ───────────────────────────────
+  const prevPhaseRef = useRef(phase);
+  useEffect(() => {
+    if (phase !== prevPhaseRef.current) {
+      console.log(`%c[App] Phase: ${prevPhaseRef.current} → ${phase}`, 'color: #9333ea; font-weight: bold');
+      prevPhaseRef.current = phase;
+    } else {
+      console.log(`%c[App] Re-render (phase stable: ${phase})`, 'color: #94a3b8');
+    }
+  });
+  // ────────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-clover-light flex flex-col p-4">
@@ -77,6 +132,7 @@ function App() {
       </AnimatePresence>
 
       <main className="flex-1 flex flex-col items-center justify-center w-full">
+        {/* Initial et Lobby : transitions simples via AnimatePresence mode="wait" */}
         <AnimatePresence mode="wait">
           {phase === 'Initial' && (
             <motion.div
@@ -106,49 +162,8 @@ function App() {
           )}
         </AnimatePresence>
 
-        <Suspense fallback={<PhaseLoader />}>
-          <AnimatePresence mode="wait">
-            {phase === 'WritingClues' && (
-              <motion.div
-                key="writing"
-                variants={phaseVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={phaseTransition}
-                className="w-full"
-              >
-                <WritingBoard />
-              </motion.div>
-            )}
-            {phase === 'Guessing' && (
-              <motion.div
-                key="guessing"
-                variants={phaseVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={phaseTransition}
-                className="w-full"
-              >
-                <GuessingPage />
-              </motion.div>
-            )}
-            {phase === 'Scoring' && (
-              <motion.div
-                key="scoring"
-                variants={phaseVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={phaseTransition}
-                className="w-full max-w-4xl"
-              >
-                <ScoringPage />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </Suspense>
+        {/* WritingClues, Guessing, Scoring : transitions séquentielles sans AnimatePresence */}
+        <PhaseRouter />
 
         {phase !== 'Initial' && phase !== 'Lobby' && phase !== 'WritingClues' && phase !== 'Guessing' && phase !== 'Scoring' && (
           <div className="text-center bg-white p-8 rounded-3xl shadow-xl border border-slate-100 max-w-lg">

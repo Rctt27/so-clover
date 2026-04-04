@@ -1,27 +1,47 @@
-﻿import { useCallback } from 'react';
+import { useCallback } from 'react';
 import { useGameStore, useBoardStore, useGuessingStore } from '../core/store';
-import { GameStateResponse } from '../types/game';
+import { GamePhase, GameStateResponse } from '../types/game';
 import { convertBackendBoardToClientBoard } from '../core/boardHelpers';
 
+// La phase ne peut qu'avancer — jamais régresser (évite les oscillations dues aux events SignalR tardifs)
+const PHASE_ORDER: GamePhase[] = ['Initial', 'Lobby', 'WritingClues', 'Guessing', 'Scoring'];
+
 export const useGameStateUpdate = () => {
-  const { 
-    setPhase, 
-    setPlayers, 
-    setPhaseEndsAtUtc, 
-    setSettings, 
+  const {
+    setPhase,
+    setPlayers,
+    setPhaseEndsAtUtc,
+    setSettings,
     setRole,
     playerId: myPlayerId,
     setIsGameAdmin
   } = useGameStore();
-  
+
   const { setMyBoard, setOtherBoard, setCurrentBoardOwner } = useBoardStore();
   const { setGuessingState } = useGuessingStore();
 
   const updateStateFromResponse = useCallback((state: GameStateResponse) => {
     if (!state) return;
 
+    console.log(`%c[updateStateFromResponse] appelé — phase entrante: "${state.phase}"`, 'color: #6366f1');
+
     // 1. Mise à jour de l'état global
-    setPhase(state.phase);
+    // La phase ne peut qu'avancer : un event SignalR tardif (ex: validation Guessing arrivant
+    // après que fetchGameState ait déjà setté Scoring) ne doit pas faire régresser la phase.
+    const currentPhase = useGameStore.getState().phase;
+    const incomingPhaseIndex = PHASE_ORDER.indexOf(state.phase);
+    const currentPhaseIndex = PHASE_ORDER.indexOf(currentPhase);
+    if (incomingPhaseIndex >= currentPhaseIndex) {
+      if (state.phase !== currentPhase) {
+        console.log(`%c[updateStateFromResponse] setPhase: "${currentPhase}" → "${state.phase}"`, 'color: #9333ea; font-weight: bold');
+      }
+      setPhase(state.phase);
+    } else {
+      console.warn(
+        `%c[updateStateFromResponse] RÉGRESSION BLOQUÉE: "${currentPhase}" → "${state.phase}" (event SignalR tardif)`,
+        'color: #dc2626; font-weight: bold'
+      );
+    }
     setPhaseEndsAtUtc(state.phaseEndsAtUtc);
     setSettings({
       language: state.language,
@@ -60,12 +80,12 @@ export const useGameStateUpdate = () => {
     // 5. Mise à jour des plateaux
     state.players.forEach(p => {
       const clientBoard = convertBackendBoardToClientBoard(p.board, p.playerId);
-      
+
       // Preserve local rotation during WritingClues phase as it's not stored on server
       if (state.phase === 'WritingClues') {
         const currentMyBoard = useBoardStore.getState().myBoard;
         const currentOtherBoards = useBoardStore.getState().otherBoards;
-        
+
         const existingBoard = p.playerId === myPlayerId ? currentMyBoard : currentOtherBoards[p.playerId];
         if (existingBoard) {
           clientBoard.rotation = existingBoard.rotation;
@@ -115,17 +135,17 @@ export const useGameStateUpdate = () => {
       setCurrentBoardOwner(null);
     }
   }, [
-    setPhase, 
-    setPlayers, 
-    setPhaseEndsAtUtc, 
-    setSettings, 
-    setRole, 
-    myPlayerId, 
-    setIsGameAdmin, 
-    setMyBoard, 
-    setOtherBoard, 
-    setCurrentBoardOwner, 
-    setGuessingState
+    setPhase,
+    setPlayers,
+    setPhaseEndsAtUtc,
+    setSettings,
+    setRole,
+    myPlayerId,
+    setIsGameAdmin,
+    setMyBoard,
+    setOtherBoard,
+    setCurrentBoardOwner,
+    setGuessingState,
   ]);
 
   return { updateStateFromResponse };

@@ -1,4 +1,4 @@
-﻿import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { signalRClient } from '../api/signalr-client';
 import { useGameStore, useGuessingStore } from '../core/store';
 import { HubConnectionState } from '@microsoft/signalr';
@@ -14,20 +14,25 @@ export const useSignalR = () => {
   const setIsInitializing = useGameStore(s => s.setIsInitializing);
   const resetAuth = useGameStore(s => s.resetAuth);
 
+  // Ref pour éviter que phase soit dans les deps du useEffect principal.
+  // Sans cette ref, chaque changement de phase recycle l'effect → refreshGameState()
+  // pendant l'exit animation → re-renders d'AnimatePresence → PresenceContext périmé
+  // → safeToRemove jamais appelé → page blanche.
+  const phaseRef = useRef(phase);
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
+
   const setCumulativeBoardRotation = useGuessingStore(s => s.setCumulativeBoardRotation);
   const { notifyInfo, notifyWarning } = useNotifications();
   const { updateStateFromResponse } = useGameStateUpdate();
 
   const refreshGameState = useCallback(async () => {
     if (!gameId) {
-      // console.warn('[useSignalR] Cannot refresh state: missing gameId');
       return;
     }
+    console.log('%c[useSignalR] refreshGameState — GET /state', 'color: #0891b2');
     try {
-      // console.log('[useSignalR] Refreshing game state for gameId:', gameId, 'playerId:', playerId);
       const state = await gameApi.getGameState(gameId);
-      // console.log('[useSignalR] New state fetched:', state);
-      
+
       if (!state) {
         console.error('[useSignalR] Fetched state is null or undefined');
         return;
@@ -42,6 +47,8 @@ export const useSignalR = () => {
   }, [gameId, playerId, updateStateFromResponse, setIsInitializing]);
 
   useEffect(() => {
+    console.log(`%c[useSignalR] useEffect setup (phase="${phase}", gameId="${gameId}")`, 'color: #0891b2; font-weight: bold');
+
     const connect = async () => {
       setConnectionStatus('Connecting');
       if (gameId) setIsInitializing(true);
@@ -50,11 +57,11 @@ export const useSignalR = () => {
         setConnectionStatus('Connected');
 
         if (gameId && playerId) {
-          console.log(`[SignalR] Connected, joining game ${gameId} for player ${playerId}`);
+          console.log(`[useSignalR] JoinGame: gameId=${gameId}, playerId=${playerId}`);
           await signalRClient.invoke('JoinGame', gameId, playerId);
           refreshGameState();
         } else {
-          console.log('[SignalR] Connected but missing gameId or playerId', { gameId, playerId });
+          console.log('[useSignalR] Connected but missing gameId or playerId', { gameId, playerId });
           setIsInitializing(false);
         }
       } catch (err) {
@@ -65,43 +72,42 @@ export const useSignalR = () => {
     };
 
     const handleStateUpdated = (data: any) => {
-      // console.log('[SignalR] GameStateUpdated received:', data);
-      
+      console.log(`%c[useSignalR] GameStateUpdated reçu — phase="${data?.phase}", eventType="${data?.eventData?.eventType ?? data?.eventType ?? '?'}", hasGameState=${!!data?.gameState}`, 'color: #0891b2');
+
       // Si le message contient le state complet, on l'utilise directement pour éviter un fetch
       if (data && data.gameState) {
-        // console.log('[SignalR] Using embedded gameState from message');
+        console.log(`%c[useSignalR] → utilise gameState embarqué (phase="${data.gameState.phase}")`, 'color: #0891b2');
         updateStateFromResponse(data.gameState);
         return;
       }
 
       // Fallback: On rafraîchit l'état via API si nécessaire
       const guessingEvents = [
-        'CardRotated', 
-        'GuessingCardPlaced', 
-        'GuessingCardsSwapped', 
+        'CardRotated',
+        'GuessingCardPlaced',
+        'GuessingCardsSwapped',
         'GuessingCardReturned',
         'GuessingCardRotated',
         'OutsidePoolCardsSwapped'
       ];
 
       if (data && (guessingEvents.includes(data.eventType) || guessingEvents.includes(data.eventData?.eventType))) {
-        // console.log(`[SignalR] Guessing event detected (${data.eventType}), refreshing state`);
+        console.log(`%c[useSignalR] → guessing event, refreshGameState()`, 'color: #0891b2');
         refreshGameState();
       } else {
-        // Pour les autres événements, le throttle ou le refresh global suffit
+        console.log(`%c[useSignalR] → fallback refreshGameState()`, 'color: #0891b2');
         refreshGameState();
       }
     };
 
     const handleServerNotification = (data: any) => {
-      // console.log('[SignalR] ServerNotification', data);
       if (!data) return;
 
       const { type, message, senderId } = data;
 
       // Filter out notifications sent by the current player (e.g., Board submitted)
       if (senderId && senderId === playerId) {
-        console.log('[SignalR] Skipping notification for current player');
+        console.log('[useSignalR] Skipping notification for current player');
         return;
       }
 
@@ -113,44 +119,33 @@ export const useSignalR = () => {
     };
 
     const handlePlayerJoined = (data: any) => {
-      // console.log('[SignalR] PlayerJoined', data);
-
       if (!data || !data.playerName) return;
 
       // Évite de se notifier soi-même
       if (data.playerId === playerId) return;
 
-      // Notification uniquement durant la phase Lobby
-      if (phase === 'Lobby') {
+      // Notification uniquement durant la phase Lobby (via ref pour ne pas mettre phase dans les deps)
+      if (phaseRef.current === 'Lobby') {
         notifyInfo(`<strong>${data.playerName}</strong> a rejoint la partie`);
       }
     };
 
-    // Note: GuessingMouseMoved est maintenant géré par RemoteCursorsLayer
-    // L'ancien handler a été retiré pour éviter les duplications
-
     const handleGameDeleted = () => {
-      console.log('[SignalR] GameDeleted');
+      console.log('[useSignalR] GameDeleted');
       resetAuth();
     };
 
     const handleBoardRotationUpdated = (data: any) => {
-      // console.log('[SignalR] BoardRotationUpdated received:', data);
       if (data && typeof data.cumulativeRotation === 'number') {
         // Ignore own rotation events to prevent overwriting local state
-        // The local player already updated their state optimistically
         if (data.playerId === playerId) {
-          // console.log('[SignalR] Ignoring own BoardRotationUpdated event');
           return;
         }
 
         // Check if we recently made a local rotation (within 500ms)
-        // This prevents race conditions where an old update from another player
-        // arrives after we've already made a new local rotation
         const lastLocalRotation = useGuessingStore.getState().lastLocalRotationTimestamp;
         const timeSinceLocalRotation = Date.now() - lastLocalRotation;
         if (timeSinceLocalRotation < 500) {
-          // console.log('[SignalR] Ignoring BoardRotationUpdated - local rotation in progress');
           return;
         }
 
@@ -159,19 +154,18 @@ export const useSignalR = () => {
     };
 
     const handleGuessingBoardValidated = (_data: any) => {
-      // console.log('[SignalR] GuessingBoardValidated received (handled by GameStateUpdated):', _data);
+      // Handled by GameStateUpdated
     };
 
     signalRClient.on('GameStateUpdated', handleStateUpdated);
     signalRClient.on('ServerNotification', handleServerNotification);
     signalRClient.on('PlayerJoined', handlePlayerJoined);
-    // GuessingMouseMoved est maintenant géré par RemoteCursorsLayer
     signalRClient.on('GameDeleted', handleGameDeleted);
     signalRClient.on('BoardRotationUpdated', handleBoardRotationUpdated);
     signalRClient.on('GuessingBoardValidated', handleGuessingBoardValidated);
 
     const connection = signalRClient.getConnection();
-    
+
     const onReconnecting = () => setConnectionStatus('Reconnecting');
     const onReconnected = () => setConnectionStatus('Connected');
     const onClose = () => setConnectionStatus('Disconnected');
@@ -183,22 +177,22 @@ export const useSignalR = () => {
     if (signalRClient.state === HubConnectionState.Disconnected) {
       connect();
     } else if (signalRClient.state === HubConnectionState.Connected && gameId && playerId) {
+        console.log(`%c[useSignalR] Déjà connecté → JoinGame + refreshGameState`, 'color: #0891b2');
         signalRClient.invoke('JoinGame', gameId, playerId);
         refreshGameState();
     }
 
     return () => {
+      console.log(`%c[useSignalR] useEffect cleanup (phase="${phase}")`, 'color: #f97316; font-weight: bold');
       signalRClient.off('GameStateUpdated', handleStateUpdated);
       signalRClient.off('ServerNotification', handleServerNotification);
       signalRClient.off('PlayerJoined', handlePlayerJoined);
-      // GuessingMouseMoved cleanup géré par RemoteCursorsLayer
       signalRClient.off('GameDeleted', handleGameDeleted);
       signalRClient.off('BoardRotationUpdated', handleBoardRotationUpdated);
       signalRClient.off('GuessingBoardValidated', handleGuessingBoardValidated);
-
-      // Cleanup des callbacks de cycle de vie (approximatif pour SignalR JS client)
-      // Note: SignalR n'a pas de méthode 'off' pour ces événements,
-      // mais on peut les réinitialiser à des fonctions vides si nécessaire.
     };
-  }, [gameId, playerId, phase, setConnectionStatus, setIsInitializing, notifyInfo, notifyWarning, refreshGameState, resetAuth]);
+  // Note: 'phase' intentionnellement absent des deps — géré via phaseRef.
+  // Ajouter phase ici recyclerait l'effect à chaque transition → refreshGameState()
+  // pendant l'exit animation → re-renders AnimatePresence → safeToRemove périmé → page blanche.
+  }, [gameId, playerId, setConnectionStatus, setIsInitializing, notifyInfo, notifyWarning, refreshGameState, resetAuth]);
 };

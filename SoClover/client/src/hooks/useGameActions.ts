@@ -135,10 +135,12 @@ export const useGameActions = () => {
 
   const nextBoard = async () => {
     if (!gameId || !playerId) return
-    
+
     setLoading(true)
     try {
       await gameApi.moveToNextBoard(gameId, playerId)
+      // Fetch updated state immediately to reflect phase change (Guessing -> Scoring)
+      // This ensures ScoringPage receives state before 30s deadline completes
       await fetchGameState(false)
     } catch (error) {
       console.error('[useGameActions] Failed to move to next board:', error)

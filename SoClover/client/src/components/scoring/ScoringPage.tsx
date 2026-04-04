@@ -37,6 +37,14 @@ export const ScoringPage: React.FC = () => {
   const [isEndingGame, setIsEndingGame] = useState(false);
 
   // Charger les données de scoring
+  const phase = useGameStore(s => s.phase);
+
+  // [DEBUG] Mount / Unmount
+  useEffect(() => {
+    console.log('%c[ScoringPage] MOUNTED', 'color: #ef4444; font-weight: bold');
+    return () => console.log('%c[ScoringPage] UNMOUNTED', 'color: #ef4444; font-weight: bold');
+  }, []);
+
   useEffect(() => {
     const fetchScoring = async () => {
       if (!gameId) return;
@@ -55,7 +63,7 @@ export const ScoringPage: React.FC = () => {
     };
 
     fetchScoring();
-  }, [gameId]);
+  }, [gameId, phase]);
 
   // Note: La redirection quand la partie est terminée (GameDeleted) est gérée
   // automatiquement par useSignalR qui appelle resetAuth() sur l'événement GameDeleted

@@ -23,6 +23,7 @@ export const GuessingPage = () => {
     isValidationPending,
     remainingAttempts,
     correctlyPlacedPositions,
+    resetGuessingState,
   } = useGuessingStore()
   const {
     fetchGameState,
@@ -125,6 +126,15 @@ export const GuessingPage = () => {
   )
 
   // ─── Effects ────────────────────────────────────────────────────────────────
+
+  // [DEBUG] Mount / Unmount
+  useEffect(() => {
+    console.log('%c[GuessingPage] MOUNTED', 'color: #f59e0b; font-weight: bold');
+    return () => {
+      console.log('%c[GuessingPage] UNMOUNTED', 'color: #f59e0b; font-weight: bold');
+      resetGuessingState();
+    }
+  }, [resetGuessingState])
 
   useEffect(() => {
     fetchGameState()
