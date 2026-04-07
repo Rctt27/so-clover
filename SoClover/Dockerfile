@@ -46,8 +46,20 @@ WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080 \
     DOTNET_ENVIRONMENT=Production
 
+# curl pour HEALTHCHECK + utilisateur non-root pour la sécurité
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && addgroup --system --gid 1001 appgroup \
+    && adduser --system --uid 1001 --ingroup appgroup appuser
+
 # Copy published output
 COPY --from=build /app/publish .
 
+USER appuser
+
 EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -sf http://localhost:8080/health || exit 1
+
 ENTRYPOINT ["dotnet", "SoClover.dll"]
