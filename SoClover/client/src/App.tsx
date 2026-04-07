@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Wifi, WifiOff, Loader2 } from 'lucide-react'
 import { useSignalR } from './hooks/useSignalR'
+import { useGameSounds } from './hooks/useGameSounds'
 import { useTimeoutSafetyPolling } from './hooks/useTimeoutSafetyPolling'
 import { useGameStore } from './core/store'
 import { HomeScreen } from './components/home/HomeScreen'
@@ -32,6 +33,7 @@ const PhaseLoader = () => (
 
 function App() {
   useSignalR();
+  useGameSounds();
   useTimeoutSafetyPolling();
   const connectionStatus = useGameStore(s => s.connectionStatus);
   const phase = useGameStore(s => s.phase);

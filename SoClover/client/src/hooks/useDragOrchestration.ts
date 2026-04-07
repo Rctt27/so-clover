@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { CardInfoResponse } from '../types/game'
 import { LOGICAL_SLOTS } from '../core/utils'
+import { useGuessingStore } from '../core/store'
 import { useGameActions } from './useGameActions'
 import { playSound } from '../core/sounds'
 
@@ -118,8 +119,9 @@ export function useDragOrchestration(deps: UseDragOrchestrationDeps): UseDragOrc
         if (fromBoard && toBoard) {
           setDisplacedSlot(targetSlot)
           setSwapAnimationKey((k) => k + 1)
-          await swapGuessingCards(sourceSlot, targetSlot)
+          // Son joué localement pour zéro latence ; les autres joueurs le reçoivent via `useGameSounds` sur event SignalR — voir Story 9
           playSound('cardSwap')
+          await swapGuessingCards(sourceSlot, targetSlot)
           scheduleAnimationReset()
           return
         }
@@ -137,10 +139,14 @@ export function useDragOrchestration(deps: UseDragOrchestrationDeps): UseDragOrc
 
           const cardAtIndex = outsideCards[poolIndex]
           if (cardAtIndex) {
+            // Distinction cardPlace / cardSwap selon l'occupation du slot cible
+            // Lu via getState() pour éviter de re-render le hook sur chaque changement de position
+            const isSlotOccupied = useGuessingStore.getState().guessedPositions[targetSlot] != null
             setDisplacedSlot(targetSlot)
             setSwapAnimationKey((k) => k + 1)
+            // Son joué localement pour zéro latence ; les autres joueurs le reçoivent via `useGameSounds` sur event SignalR — voir Story 9
+            playSound(isSlotOccupied ? 'cardSwap' : 'cardPlace')
             await placeGuessingCard(poolIndex, targetSlot)
-            playSound('cardPlace')
             scheduleAnimationReset()
           } else {
             console.warn('[useDragOrchestration] Pool desync detected at index', poolIndex, '— refreshing state')
@@ -156,7 +162,7 @@ export function useDragOrchestration(deps: UseDragOrchestrationDeps): UseDragOrc
           setDisplacedSlot(sourceSlot)
           setSwapAnimationKey((k) => k + 1)
           await returnGuessingCard(sourceSlot)
-          playSound('cardPlace')
+          // Pas de son sur un retour vers le pool (action neutre)
           scheduleAnimationReset()
           return
         }
@@ -170,9 +176,10 @@ export function useDragOrchestration(deps: UseDragOrchestrationDeps): UseDragOrc
 
           if (isNaN(sIdx) || isNaN(tIdx) || sIdx === tIdx || sIdx < 0 || sIdx > 5 || tIdx < 0 || tIdx > 5) return
 
+          // Son joué localement pour zéro latence ; les autres joueurs le reçoivent via `useGameSounds` sur event SignalR — voir Story 9
+          playSound('cardSwap')
           // No optimistic update — let SignalR synchronise outsideCards via the store
           await swapOutsidePoolCards(sIdx, tIdx)
-          playSound('cardSwap')
         }
       } finally {
         pendingRef.current = false

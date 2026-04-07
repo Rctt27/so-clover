@@ -6,6 +6,8 @@ import { useGameStore, useGuessingStore } from '../../core/store'
 import { gameApi } from '../../api/game-api'
 import correctIcon from '../../assets/images/correctGuess.svg'
 import { playSound } from '../../core/sounds'
+import { CONSTANTS } from '../../core/constants'
+import { LOGICAL_SLOTS } from '../../core/utils'
 
 export interface DraggableCardProps {
   card: CardInfoResponse
@@ -44,6 +46,14 @@ export const DraggableCard = ({
 }: DraggableCardProps) => {
   const { gameId, playerId, role } = useGameStore()
   const { cumulativeBoardRotation, isValidationPending } = useGuessingStore()
+  const validationResults = useGuessingStore((s) => s.validationResults)
+
+  // Position logique de la carte sur le board (undefined pour les cartes du pool)
+  const boardPosition: string | undefined = !isOutside ? LOGICAL_SLOTS[index] : undefined
+  const isIncorrect =
+    boardPosition != null && (validationResults?.incorrectPositions?.includes(boardPosition) ?? false)
+  const isNewlyCorrect =
+    boardPosition != null && (validationResults?.correctPositions?.includes(boardPosition) ?? false)
 
   // Rotation du backend (normalisée 0-270)
   const backendRotation = rotationToDegrees(card.rotation);
@@ -146,6 +156,7 @@ export const DraggableCard = ({
         // Sinon on utilise le nombre de steps calculé par le drag
         const finalSteps = steps === 0 ? 1 : steps;
 
+        // Son local déclencheur ; spectateurs via `useGameSounds`/`CardRotated` — voir Story 9
         playSound('cardRotate')
 
         try {
@@ -209,7 +220,10 @@ export const DraggableCard = ({
         } : {}),
         ...(isDisplaced ? {
           scale: [1.05, 0.98, 1],
-        } : {})
+        } : {}),
+        // Feedback de validation (Story 8.6) — prend le pas sur les autres animations de scale
+        ...(isIncorrect ? CONSTANTS.THEME_CONFIG.animations.incorrectShake.animate : {}),
+        ...(isNewlyCorrect ? CONSTANTS.THEME_CONFIG.animations.correctPulse.animate : {}),
       }}
       exit={{ opacity: 0, scale: 0.8 }}
       onClick={onClick}

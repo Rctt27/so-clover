@@ -1,12 +1,18 @@
-﻿import { useEffect, useState } from 'react'
+﻿import { useEffect, useRef, useState } from 'react'
 import { useGameStore } from '../../core/store'
+import { playSound } from '../../core/sounds'
+import { CONSTANTS } from '../../core/constants'
 
 export const Timer = () => {
   const phaseEndsAtUtc = useGameStore((state) => state.phaseEndsAtUtc)
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
   const [isWarning, setIsWarning] = useState(false)
+  const warningSoundPlayedRef = useRef(false)
 
   useEffect(() => {
+    // Réinitialiser le guard à chaque nouvelle phase (nouveau deadline)
+    warningSoundPlayedRef.current = false
+
     if (!phaseEndsAtUtc) {
       setTimeLeft(null)
       setIsWarning(false)
@@ -20,6 +26,14 @@ export const Timer = () => {
       const diff = Math.max(0, Math.ceil((deadline - now) / 1000))
       setTimeLeft(diff)
       setIsWarning(diff <= 30)
+
+      if (
+        diff === CONSTANTS.TIMER_SOUND_WARNING_SECONDS &&
+        !warningSoundPlayedRef.current
+      ) {
+        warningSoundPlayedRef.current = true
+        playSound('timerWarning')
+      }
     }
 
     calculateTimeLeft()

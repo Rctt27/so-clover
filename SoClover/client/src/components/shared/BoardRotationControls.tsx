@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+
 interface BoardRotationControlsProps {
   rotation: number
   onRotate: (direction: 'left' | 'right') => void
@@ -10,6 +12,17 @@ export const BoardRotationControls = ({
   disabled = false
 }: BoardRotationControlsProps) => {
   const normalizedRotation = ((rotation % 360) + 360) % 360
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (disabled) return
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (e.key === 'ArrowLeft') onRotate('left')
+      else if (e.key === 'ArrowRight') onRotate('right')
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onRotate, disabled])
 
   return (
     <div className="flex items-center gap-4">

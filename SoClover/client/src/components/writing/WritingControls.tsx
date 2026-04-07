@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useBoardStore } from '../../core/store'
 import { useGameActions } from '../../hooks/useGameActions'
 import { BoardRotationControls } from '../shared/BoardRotationControls'
+import { playSound } from '../../core/sounds'
 
 export const WritingControls = () => {
   const { myBoard, updateMyBoardRotation } = useBoardStore()
@@ -13,27 +14,9 @@ export const WritingControls = () => {
     if (!myBoard) return
     const currentRotation = myBoard.rotation || 0
     const newRotation = direction === 'left' ? currentRotation - 90 : currentRotation + 90
+    playSound('boardRotate')
     updateMyBoardRotation(newRotation)
   }, [myBoard?.rotation, updateMyBoardRotation])
-
-  // Keyboard navigation for rotation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return
-      }
-
-      if (e.key === 'ArrowLeft') {
-        handleRotate('left')
-      } else if (e.key === 'ArrowRight') {
-        handleRotate('right')
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleRotate])
 
   if (!myBoard) return null
 

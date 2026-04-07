@@ -64,12 +64,6 @@ export const GuessingControls = React.memo(({
     prevRemainingAttemptsRef.current = remainingAttempts
   }, [remainingAttempts, isBoardGuessed])
 
-  // Wrapper onRotate pour jouer le son boardRotate
-  const handleRotate = (direction: 'left' | 'right') => {
-    playSound('boardRotate')
-    onRotate(direction)
-  }
-
   return (
     <div className="flex flex-col items-center gap-6">
       {/* Espace fixe pour maintenir l'alignement vertical constant */}
@@ -78,7 +72,7 @@ export const GuessingControls = React.memo(({
           <>
             <BoardRotationControls
               rotation={rotation}
-              onRotate={handleRotate}
+              onRotate={onRotate}
               disabled={isValidationPending || isBoardGuessed}
             />
 

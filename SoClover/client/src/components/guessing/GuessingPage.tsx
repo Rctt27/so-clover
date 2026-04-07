@@ -9,6 +9,7 @@ import { DraggableCard } from './DraggableCard'
 import { GuessingBoardSection } from './GuessingBoardSection'
 import { GuessingControls } from './GuessingControls'
 import { CardData, rotationToDegrees, CardInfoResponse } from '../../types/game'
+import { playSound } from '../../core/sounds'
 
 export const GuessingPage = () => {
   const { playerId } = useGameStore()
@@ -155,6 +156,7 @@ export const GuessingPage = () => {
     if (isMyBoard || isValidationPending) return
     const rotationDelta = direction === 'right' ? 90 : -90
     const newRotation = safeCumulativeRotation + rotationDelta
+    playSound('boardRotate')
     setCumulativeBoardRotation(newRotation, true)
     broadcastBoardRotation(newRotation)
   }, [isMyBoard, isValidationPending, safeCumulativeRotation, setCumulativeBoardRotation, broadcastBoardRotation])

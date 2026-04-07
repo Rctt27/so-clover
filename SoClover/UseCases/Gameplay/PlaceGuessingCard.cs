@@ -1,4 +1,5 @@
-﻿using SoClover.Domain;
+﻿using System.Text.Json.Serialization;
+using SoClover.Domain;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
 
@@ -39,13 +40,21 @@ public static class PlaceGuessingCard
             if (game.CurrentGuessingBoardOwner == request.PlayerId)
                 throw new InvalidOperationException("Board owner cannot participate in guessing their own board.");
 
+            var wasSlotOccupied = game.GuessedCardPositions[request.Position] != null;
             game.PlaceCardOnGuessingBoard(request.OutsideCardIndex, request.Position);
             await _repo.Save(game, ct);
-            await _events.Publish(new GuessingCardPlaced(game.Id, request.PlayerId, request.OutsideCardIndex, request.Position), ct);
+            await _events.Publish(
+                new GuessingCardPlaced(game.Id, request.PlayerId, request.OutsideCardIndex, request.Position, wasSlotOccupied),
+                ct);
 
             return new Response();
         }
     }
 }
 
-public readonly record struct GuessingCardPlaced(GameId GameId, PlayerId PlayerId, int OutsideCardIndex, BoardPosition Position);
+public readonly record struct GuessingCardPlaced(
+    [property: JsonPropertyName("gameId")] GameId GameId,
+    [property: JsonPropertyName("playerId")] PlayerId PlayerId,
+    [property: JsonPropertyName("outsideCardIndex")] int OutsideCardIndex,
+    [property: JsonPropertyName("boardPosition")] BoardPosition Position,
+    [property: JsonPropertyName("wasSlotOccupied")] bool WasSlotOccupied);
