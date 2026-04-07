@@ -100,14 +100,23 @@ builder.Services.AddSingleton<IEventPublisher>(sp =>
 // System HMAC validator (for optional system-to-system HTTP calls)
 builder.Services.AddSingleton<SoClover.Infrastructure.IHmacValidator, SoClover.Infrastructure.HmacValidator>();
 
-// Add CORS for development
+// CORS : permissif en dev, restreint au domaine en production
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        if (builder.Environment.IsDevelopment())
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyMethod()
+                  .AllowAnyHeader();
+        }
+        else
+        {
+            policy.WithOrigins("https://soclover.couttet.fr")
+                  .AllowAnyMethod()
+                  .AllowAnyHeader();
+        }
     });
 });
 
