@@ -860,6 +860,8 @@ app.MapGet("/api/dictionaries", (IWebHostEnvironment env) =>
     }
 });
 
+app.MapGet("/health", () => Results.Ok());
+
 app.MapFallbackToFile("index.html");
 
 app.Run();
