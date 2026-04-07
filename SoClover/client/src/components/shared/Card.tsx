@@ -46,7 +46,7 @@ export const Card = ({ words, rotation = 0, className = '', animateEntry = false
         rotate: rotation 
       }}
       transition={disableAnimation ? { duration: 0 } : {
-        rotate: { duration: 0.5, ease: 'easeInOut' },
+        rotate: { duration: 0.5, ease: 'easeInOut' as const },
         default: animateEntry ? cardAnim.transition : { duration: 0.5 }
       }}
     >

@@ -26,12 +26,12 @@
       board: {
         initial: { opacity: 0, scale: 0.9 },
         animate: { opacity: 1, scale: 1 },
-        transition: { duration: 0.8, ease: "easeOut" }
+        transition: { duration: 0.8, ease: "easeOut" as const }
       },
       card: {
         initial: { opacity: 0, scale: 0.8 },
         animate: { opacity: 1, scale: 1 },
-        transition: { duration: 0.5, ease: "backOut", delay: 0.8 } // Délai pour attendre la fin de l'animation du Board
+        transition: { duration: 0.5, ease: "backOut" as const, delay: 0.8 } // Délai pour attendre la fin de l'animation du Board
       },
       incorrectShake: {
         animate: {
@@ -49,7 +49,7 @@
       cardSnap: {
         animate: {
           scale: [1.05, 0.98, 1],
-          transition: { duration: 0.3, ease: 'easeOut' }
+          transition: { duration: 0.3, ease: 'easeOut' as const }
         }
       }
     }

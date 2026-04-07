@@ -80,7 +80,7 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
     }
   }, [ownerId]);
 
-  const rotationTransition = shouldAnimateRotation ? { duration: 0.5, ease: 'easeInOut' } : { duration: 0 };
+  const rotationTransition = shouldAnimateRotation ? { duration: 0.5, ease: 'easeInOut' as const } : { duration: 0 };
 
   // Centres des emplacements logiques par défaut (0°) sur l'image de 1190px
   const visualSlots = [
