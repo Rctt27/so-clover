@@ -1,5 +1,6 @@
 ﻿import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 import { CONSTANTS } from '../core/constants';
+import { isDebug } from '../core/debug';
 
 class SignalRClient {
   private connection: HubConnection | null = null;
@@ -14,7 +15,7 @@ class SignalRClient {
       this.connection = new HubConnectionBuilder()
         .withUrl(this.url)
         .withAutomaticReconnect()
-        .configureLogging(LogLevel.Information)
+        .configureLogging(isDebug ? LogLevel.Debug : LogLevel.Warning)
         .build();
     }
     return this.connection;
