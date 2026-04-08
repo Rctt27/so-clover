@@ -1,9 +1,10 @@
-﻿import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
+﻿import { create, StateCreator } from 'zustand'
+import { persist, createJSONStorage, devtools } from 'zustand/middleware'
 import { Role, GamePhase, ConnectionStatus } from '../types/game'
 import { createNotificationSlice, NotificationSlice } from './notificationSlice'
 import { createBoardSlice, BoardSlice } from './boardSlice'
 import { createGuessingSlice, GuessingSlice } from './guessingSlice'
+import { isDebug } from './debug'
 
 interface GameState {
   gameId: string | null
@@ -35,61 +36,68 @@ interface GameState {
   resetAuth: () => void
 }
 
-export const useGameStore = create<GameState>()(
-  persist(
-    (set) => ({
-      gameId: null,
-      playerId: null,
-      playerName: null,
-      phase: 'Initial',
-      role: 'PlayerWritingClue',
-      isGameAdmin: false,
-      isInitializing: false,
-      connectionStatus: 'Disconnected',
-      players: [],
-      phaseEndsAtUtc: null,
-      settings: {
-        language: 'Français_OFF',
-        cluesDurationSeconds: 300,
-        guessDurationSeconds: 300
-      },
-      setPhase: (phase) => set({ phase }),
-      setRole: (role) => set({ role }),
-      setIsGameAdmin: (isGameAdmin) => set({ isGameAdmin }),
-      setGameId: (gameId) => set({ gameId }),
-      setPlayerId: (playerId) => set({ playerId }),
-      setPlayerName: (playerName) => set({ playerName }),
-      setConnectionStatus: (status) => set({ connectionStatus: status }),
-      setPlayers: (players) => set({ players }),
-      setPhaseEndsAtUtc: (phaseEndsAtUtc) => set({ phaseEndsAtUtc }),
-      setSettings: (settings) => set({ settings }),
-      setIsInitializing: (isInitializing) => set({ isInitializing }),
-      resetAuth: () => set({ 
-        playerId: null, 
-        playerName: null, 
-        gameId: null, 
-        role: 'PlayerWritingClue', 
-        isGameAdmin: false, 
-        players: [],
-        phase: 'Initial',
-        phaseEndsAtUtc: null,
-        settings: {
-          language: 'Français_OFF',
-          cluesDurationSeconds: 300,
-          guessDurationSeconds: 300
-        }
-      }),
-    }),
-    {
-      name: 'so-clover-storage', // Nom de la clé dans sessionStorage pour le store entier ou partitionné
-      storage: createJSONStorage(() => sessionStorage),
-      partialize: (state) => ({ 
-        playerId: state.playerId, 
-        playerName: state.playerName,
-        gameId: state.gameId
-      }), // Persistance de l'identité et de la session de jeu
+const gameStateCreator: StateCreator<GameState> = (set) => ({
+  gameId: null,
+  playerId: null,
+  playerName: null,
+  phase: 'Initial',
+  role: 'PlayerWritingClue',
+  isGameAdmin: false,
+  isInitializing: false,
+  connectionStatus: 'Disconnected',
+  players: [],
+  phaseEndsAtUtc: null,
+  settings: {
+    language: 'Français_OFF',
+    cluesDurationSeconds: 300,
+    guessDurationSeconds: 300
+  },
+  setPhase: (phase) => set({ phase }),
+  setRole: (role) => set({ role }),
+  setIsGameAdmin: (isGameAdmin) => set({ isGameAdmin }),
+  setGameId: (gameId) => set({ gameId }),
+  setPlayerId: (playerId) => set({ playerId }),
+  setPlayerName: (playerName) => set({ playerName }),
+  setConnectionStatus: (status) => set({ connectionStatus: status }),
+  setPlayers: (players) => set({ players }),
+  setPhaseEndsAtUtc: (phaseEndsAtUtc) => set({ phaseEndsAtUtc }),
+  setSettings: (settings) => set({ settings }),
+  setIsInitializing: (isInitializing) => set({ isInitializing }),
+  resetAuth: () => set({
+    playerId: null,
+    playerName: null,
+    gameId: null,
+    role: 'PlayerWritingClue',
+    isGameAdmin: false,
+    players: [],
+    phase: 'Initial',
+    phaseEndsAtUtc: null,
+    settings: {
+      language: 'Français_OFF',
+      cluesDurationSeconds: 300,
+      guessDurationSeconds: 300
     }
-  )
+  }),
+})
+
+const persistConfig = {
+  name: 'so-clover-storage', // Nom de la clé dans sessionStorage pour le store entier ou partitionné
+  storage: createJSONStorage(() => sessionStorage),
+  partialize: (state: GameState) => ({
+    playerId: state.playerId,
+    playerName: state.playerName,
+    gameId: state.gameId
+  }), // Persistance de l'identité et de la session de jeu
+}
+
+type GameStoreMutators = [['zustand/persist', unknown]]
+
+export const useGameStore = create<GameState>()(
+  (
+    isDebug
+      ? devtools(persist(gameStateCreator, persistConfig), { name: 'GameStore' })
+      : persist(gameStateCreator, persistConfig)
+  ) as StateCreator<GameState, [], GameStoreMutators>
 )
 
 interface PresenceState {
@@ -97,7 +105,7 @@ interface PresenceState {
   updateMousePosition: (playerId: string, x: number, y: number) => void
 }
 
-export const usePresenceStore = create<PresenceState>((set) => ({
+const presenceStoreDef: StateCreator<PresenceState> = (set) => ({
   micePositions: {},
   updateMousePosition: (playerId, x, y) => set((state) => ({
     micePositions: {
@@ -105,7 +113,11 @@ export const usePresenceStore = create<PresenceState>((set) => ({
       [playerId]: { x, y }
     }
   })),
-}))
+})
+
+export const usePresenceStore = create<PresenceState>()(
+  (isDebug ? devtools(presenceStoreDef, { name: 'PresenceStore' }) : presenceStoreDef) as StateCreator<PresenceState>
+)
 
 /**
  * @deprecated Use useNotifications hook instead of direct store access
@@ -115,9 +127,9 @@ export const useNotificationStore = create<NotificationSlice>()(
 )
 
 export const useBoardStore = create<BoardSlice>()(
-  createBoardSlice
+  (isDebug ? devtools(createBoardSlice, { name: 'BoardStore' }) : createBoardSlice) as StateCreator<BoardSlice>
 )
 
 export const useGuessingStore = create<GuessingSlice>()(
-  createGuessingSlice
+  (isDebug ? devtools(createGuessingSlice, { name: 'GuessingStore' }) : createGuessingSlice) as StateCreator<GuessingSlice>
 )
