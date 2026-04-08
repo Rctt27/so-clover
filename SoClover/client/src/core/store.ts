@@ -122,6 +122,7 @@ export const usePresenceStore = create<PresenceState>()(
 /**
  * @deprecated Use useNotifications hook instead of direct store access
  */
+// Deprecated store — no devtools wrapping needed
 export const useNotificationStore = create<NotificationSlice>()(
   createNotificationSlice
 )
