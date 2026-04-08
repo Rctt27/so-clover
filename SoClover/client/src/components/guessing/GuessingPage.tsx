@@ -10,6 +10,7 @@ import { GuessingBoardSection } from './GuessingBoardSection'
 import { GuessingControls } from './GuessingControls'
 import { CardData, rotationToDegrees, CardInfoResponse } from '../../types/game'
 import { playSound } from '../../core/sounds'
+import { debugLog } from '../../core/debug'
 
 export const GuessingPage = () => {
   const { playerId } = useGameStore()
@@ -130,9 +131,9 @@ export const GuessingPage = () => {
 
   // [DEBUG] Mount / Unmount
   useEffect(() => {
-    console.log('%c[GuessingPage] MOUNTED', 'color: #f59e0b; font-weight: bold');
+    debugLog('GuessingPage', 'MOUNTED');
     return () => {
-      console.log('%c[GuessingPage] UNMOUNTED', 'color: #f59e0b; font-weight: bold');
+      debugLog('GuessingPage', 'UNMOUNTED');
       resetGuessingState();
     }
   }, [resetGuessingState])

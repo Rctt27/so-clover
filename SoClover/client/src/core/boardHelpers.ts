@@ -4,6 +4,7 @@ import {
   BoardStateResponse,
   rotationToDegrees
 } from '../types/game'
+import { isDebug } from './debug'
 
 /**
  * Convertit les données backend d'un plateau en BoardData utilisable par le client
@@ -27,14 +28,12 @@ export function convertBackendBoardToClientBoard(
   const bottomRightCard = boardState.bottom.card // Direction.Bottom -> BottomRight
   const bottomLeftCard = boardState.left.card    // Direction.Left -> BottomLeft
 
-  /*
-  console.log('[boardHelpers] Converting backend board to client board:', {
+  if (isDebug) console.log('[boardHelpers] Converting backend board to client board:', {
     topLeftCard,
     topRightCard,
     bottomRightCard,
     bottomLeftCard
   })
-  */
 
   // Convertir chaque carte en CardData
   // Array order: [TopLeft, TopRight, BottomRight, BottomLeft]
@@ -80,7 +79,7 @@ export function convertBackendBoardToClientBoard(
     } : null
   ]
 
-  // console.log('[boardHelpers] Converted cards:', cards)
+  if (isDebug) console.log('[boardHelpers] Converted cards:', cards)
 
   return {
     cards,

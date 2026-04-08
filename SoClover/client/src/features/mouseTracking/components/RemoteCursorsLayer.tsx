@@ -14,6 +14,7 @@ import { signalRClient } from '../../../api/signalr-client';
 import { useGuessingStore, useGameStore } from '../../../core/store';
 import type { RemoteMouseData } from '../types';
 import '../styles/remoteCursors.css';
+import { debugLog } from '../../../core/debug';
 
 interface Props {
   boardRef: React.RefObject<HTMLElement>;
@@ -56,11 +57,11 @@ export function RemoteCursorsLayer({ boardRef, enabled }: Props) {
   useEffect(() => {
     if (!enabled || !containerRef.current || !boardRef.current) return;
 
-    console.log('[MouseTracking] Starting renderer for board owner:', currentBoardOwnerId);
+    debugLog('MouseTracking', 'Starting renderer for board owner:', currentBoardOwnerId);
     cursorRenderer.start(containerRef.current, boardRef.current);
 
     return () => {
-      console.log('[MouseTracking] Stopping renderer and cleaning up cursors');
+      debugLog('MouseTracking', 'Stopping renderer and cleaning up cursors');
       cursorRenderer.stop();
       remoteCursorsStore.cleanup();
     };

@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef } from 'react'
+import { debugLog } from './core/debug'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Wifi, WifiOff, Loader2 } from 'lucide-react'
 import { useSignalR } from './hooks/useSignalR'
@@ -46,10 +47,10 @@ function App() {
   const prevPhaseRef = useRef(phase);
   useEffect(() => {
     if (phase !== prevPhaseRef.current) {
-      console.log(`%c[App] Phase: ${prevPhaseRef.current} → ${phase}`, 'color: #9333ea; font-weight: bold');
+      debugLog('App', `Phase: ${prevPhaseRef.current} → ${phase}`);
       prevPhaseRef.current = phase;
     } else {
-      console.log(`%c[App] Re-render (phase stable: ${phase})`, 'color: #94a3b8');
+      debugLog('App', `Re-render (phase stable: ${phase})`);
     }
   });
   // ────────────────────────────────────────────────────────────────────────────

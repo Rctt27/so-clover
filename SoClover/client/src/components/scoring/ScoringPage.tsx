@@ -4,6 +4,7 @@ import { useGameStore } from '../../core/store';
 import { gameApi } from '../../api/game-api';
 import { GameScoringResponse, ScoringBoardResponse } from '../../types/game';
 import { Trophy, Users, XCircle, Clock, Target, LogOut } from 'lucide-react';
+import { debugLog } from '../../core/debug';
 
 const formatDuration = (seconds: number): string => {
   if (seconds < 60) {
@@ -41,8 +42,8 @@ export const ScoringPage: React.FC = () => {
 
   // [DEBUG] Mount / Unmount
   useEffect(() => {
-    console.log('%c[ScoringPage] MOUNTED', 'color: #ef4444; font-weight: bold');
-    return () => console.log('%c[ScoringPage] UNMOUNTED', 'color: #ef4444; font-weight: bold');
+    debugLog('ScoringPage', 'MOUNTED');
+    return () => debugLog('ScoringPage', 'UNMOUNTED');
   }, []);
 
   useEffect(() => {
