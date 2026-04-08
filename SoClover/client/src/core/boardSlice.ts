@@ -26,7 +26,7 @@ export const createBoardSlice: StateCreator<BoardSlice> = (set) => ({
 
   setMyBoard: (board) => {
     debugLog('boardSlice', 'setMyBoard called with:', board)
-    set({ myBoard: board })
+    set({ myBoard: board }, false, 'BoardStore/setMyBoard')
   },
 
   updateMyBoardCards: (cards) => set((state) => {
@@ -37,7 +37,7 @@ export const createBoardSlice: StateCreator<BoardSlice> = (set) => ({
         cards
       }
     }
-  }),
+  }, false, 'BoardStore/updateMyBoardCards'),
 
   updateMyBoardRotation: (rotation) => set((state) => {
     if (!state.myBoard) return state
@@ -47,7 +47,7 @@ export const createBoardSlice: StateCreator<BoardSlice> = (set) => ({
         rotation
       }
     }
-  }),
+  }, false, 'BoardStore/updateMyBoardRotation'),
 
   updateMyClue: (position, text) => set((state) => {
     if (!state.myBoard) return state
@@ -63,7 +63,7 @@ export const createBoardSlice: StateCreator<BoardSlice> = (set) => ({
         }
       }
     }
-  }),
+  }, false, 'BoardStore/updateMyClue'),
   
   setMyBoardSubmitted: (isSubmitted) => set((state) => {
     if (!state.myBoard) return state
@@ -73,20 +73,20 @@ export const createBoardSlice: StateCreator<BoardSlice> = (set) => ({
         isSubmitted
       }
     }
-  }),
+  }, false, 'BoardStore/setMyBoardSubmitted'),
 
   setOtherBoard: (playerId, board) => set((state) => ({
     otherBoards: {
       ...state.otherBoards,
       [playerId]: board
     }
-  })),
+  }), false, 'BoardStore/setOtherBoard'),
 
-  setCurrentBoardOwner: (playerId) => set({ currentBoardOwner: playerId }),
+  setCurrentBoardOwner: (playerId) => set({ currentBoardOwner: playerId }, false, 'BoardStore/setCurrentBoardOwner'),
 
   resetBoards: () => set({
     myBoard: null,
     otherBoards: {},
     currentBoardOwner: null
-  })
+  }, false, 'BoardStore/resetBoards')
 })
