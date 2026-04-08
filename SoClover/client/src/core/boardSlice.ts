@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand'
 import { BoardData, CardData } from '../types/game'
-import { isDebug } from './debug'
+import { debugLog } from './debug'
 
 export interface BoardSlice {
   // Board state
@@ -25,7 +25,7 @@ export const createBoardSlice: StateCreator<BoardSlice> = (set) => ({
   currentBoardOwner: null,
 
   setMyBoard: (board) => {
-    if (isDebug) console.log('[boardSlice] setMyBoard called with:', board)
+    debugLog('boardSlice', 'setMyBoard called with:', board)
     set({ myBoard: board })
   },
 
