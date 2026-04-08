@@ -36,6 +36,8 @@ dotnet ef database update --project SoClover
 docker compose build --no-cache web    # Build (from SoClover/)
 docker compose up -d                   # Start services
 ```
+- Pas de reverse proxy dans compose (Caddy supprimé) — l'app écoute directement sur le port exposé.
+- Les secrets PostgreSQL viennent de `SoClover/.env` (ne pas committer `.env`).
 
 ### Développement local (full-stack)
 ```bash
@@ -91,6 +93,9 @@ Tests use `TestClock` for time control and `InMemoryGameRepository` for isolatio
 - RELEASE mode uses PostgreSQL (`DATABASE_URL` or `ConnectionStrings:GameDb`)
 - Word dictionaries in `wwwroot/dictionaries/` (en.txt, fr.txt, pt.txt)
 - Game settings in `wwwroot/game_settings.json`
+- Env vars centralisées dans `SoClover/.env` (PostgreSQL + VITE_*) — template : `SoClover/.env.example`
+- Vite lit les vars depuis `SoClover/` (`envDir: '../'` dans `vite.config.ts`) — ne pas créer de `client/.env`
+- Debug local : créer `SoClover/.env.local` avec `VITE_DEBUG_MODE=true` (gitignored)
 
 ## API Endpoints
 
@@ -112,6 +117,8 @@ SignalR hub at `/hubs/game`.
 - UseCases contain nested `Handler` classes implementing `IUseCase<TRequest, TResponse>`.
 - React components use PascalCase, hooks/utilities use camelCase.
 - Zustand for state management with separate slices.
+- Logs frontend verbeux : utiliser `debugLog(source, message)` de `core/debug.ts` — jamais `console.log` directement.
+- Zustand DevTools activés uniquement si `isDebug` (conditionnel sur `VITE_DEBUG_MODE`).
 
 ### Frontend – Design & Assets
 
