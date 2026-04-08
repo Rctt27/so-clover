@@ -55,14 +55,14 @@ export const createGuessingSlice: StateCreator<GuessingSlice> = (set) => ({
       nextState.cumulativeBoardRotation = prev.cumulativeBoardRotation;
     }
     return nextState;
-  }),
+  }, false, 'GuessingStore/setGuessingState'),
   setCumulativeBoardRotation: (rotation, isLocalChange = false) => set({
     cumulativeBoardRotation: rotation,
     ...(isLocalChange ? { lastLocalRotationTimestamp: Date.now() } : {})
-  }),
-  setIsValidationPending: (pending) => set({ isValidationPending: pending }),
-  setValidationResults: (results) => set({ validationResults: results }),
-  setSelectedCardId: (id) => set({ selectedCardId: id }),
+  }, false, 'GuessingStore/setCumulativeBoardRotation'),
+  setIsValidationPending: (pending) => set({ isValidationPending: pending }, false, 'GuessingStore/setIsValidationPending'),
+  setValidationResults: (results) => set({ validationResults: results }, false, 'GuessingStore/setValidationResults'),
+  setSelectedCardId: (id) => set({ selectedCardId: id }, false, 'GuessingStore/setSelectedCardId'),
   resetGuessingState: () => set({
     currentBoardOwnerId: null,
     currentBoardOwnerName: null,
@@ -81,5 +81,5 @@ export const createGuessingSlice: StateCreator<GuessingSlice> = (set) => ({
     lastLocalRotationTimestamp: 0,
     isValidationPending: false,
     validationResults: null,
-  }),
+  }, false, 'GuessingStore/resetGuessingState'),
 })
