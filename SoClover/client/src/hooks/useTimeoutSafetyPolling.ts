@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react'
 import { useGameStore } from '../core/store'
 import { gameApi } from '../api/game-api'
 import { useGameStateUpdate } from './useGameStateUpdate'
+import { debugLog } from '../core/debug'
 
 /**
  * Safety polling hook that detects when the phase timer expires and forces
@@ -46,7 +47,7 @@ export const useTimeoutSafetyPolling = () => {
 
       // If game not found (404), it was likely deleted due to timeout
       if (err?.status === 404 || err?.message === 'Game not found') {
-        console.log('[useTimeoutSafetyPolling] Game not found (deleted), resetting auth')
+        debugLog('useTimeoutSafetyPolling', 'Game not found (deleted), resetting auth')
         resetAuth()
       }
     }
@@ -80,7 +81,7 @@ export const useTimeoutSafetyPolling = () => {
         // Only trigger a refresh if we haven't done one in the last 3 seconds
         // This gives SignalR time to deliver the state update first
         if (timeSinceLastRefresh > 3000 && !pendingTimeoutRef.current) {
-          console.log(`[useTimeoutSafetyPolling] Timer expired for phase ${phase}, scheduling refresh...`)
+          debugLog('useTimeoutSafetyPolling', `Timer expired for phase ${phase}, scheduling refresh...`)
 
           // Schedule a refresh in 3 seconds to allow SignalR to update first
           pendingTimeoutRef.current = setTimeout(async () => {
@@ -90,11 +91,11 @@ export const useTimeoutSafetyPolling = () => {
             // Only refresh if we're still in the same phase with the same deadline
             // This avoids unnecessary refreshes if SignalR already updated the state
             if (currentPhase === phase && currentDeadline === phaseEndsAtUtc) {
-              console.log(`[useTimeoutSafetyPolling] Forcing refresh for phase ${phase}`)
+              debugLog('useTimeoutSafetyPolling', `Forcing refresh for phase ${phase}`)
               lastTimeoutRefreshRef.current = Date.now()
               await refreshGameState()
             } else {
-              console.log(`[useTimeoutSafetyPolling] Phase/deadline changed, skipping refresh`)
+              debugLog('useTimeoutSafetyPolling', `Phase/deadline changed, skipping refresh`)
             }
             pendingTimeoutRef.current = null
           }, 3000)

@@ -60,5 +60,8 @@ project.fragment.lock.json
 # Documentation & Specs
 Specs/
 
+# Node.js
+node_modules/
+
 # Git worktrees
 .worktrees/

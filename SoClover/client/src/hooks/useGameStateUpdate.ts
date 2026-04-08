@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useGameStore, useBoardStore, useGuessingStore } from '../core/store';
 import { GamePhase, GameStateResponse } from '../types/game';
 import { convertBackendBoardToClientBoard } from '../core/boardHelpers';
+import { debugLog } from '../core/debug';
 
 // La phase ne peut qu'avancer — jamais régresser (évite les oscillations dues aux events SignalR tardifs)
 const PHASE_ORDER: GamePhase[] = ['Initial', 'Lobby', 'WritingClues', 'Guessing', 'Scoring'];
@@ -23,7 +24,7 @@ export const useGameStateUpdate = () => {
   const updateStateFromResponse = useCallback((state: GameStateResponse) => {
     if (!state) return;
 
-    console.log(`%c[updateStateFromResponse] appelé — phase entrante: "${state.phase}"`, 'color: #6366f1');
+    debugLog('useGameStateUpdate', `appelé — phase entrante: "${state.phase}"`);
 
     // 1. Mise à jour de l'état global
     // La phase ne peut qu'avancer : un event SignalR tardif (ex: validation Guessing arrivant
@@ -33,7 +34,7 @@ export const useGameStateUpdate = () => {
     const currentPhaseIndex = PHASE_ORDER.indexOf(currentPhase);
     if (incomingPhaseIndex >= currentPhaseIndex) {
       if (state.phase !== currentPhase) {
-        console.log(`%c[updateStateFromResponse] setPhase: "${currentPhase}" → "${state.phase}"`, 'color: #9333ea; font-weight: bold');
+        debugLog('useGameStateUpdate', `setPhase: "${currentPhase}" → "${state.phase}"`);
       }
       setPhase(state.phase);
     } else {

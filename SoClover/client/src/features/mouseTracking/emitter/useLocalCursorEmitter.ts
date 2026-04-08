@@ -15,6 +15,7 @@ import { MouseSampler } from './MouseSampler';
 import { MouseBatcher } from './MouseBatcher';
 import { EMITTER_CONFIG } from '../constants';
 import type { NormalizedPosition } from '../types';
+import { debugLog } from '../../../core/debug';
 
 /**
  * Hook d'émission du mouse tracking local
@@ -47,7 +48,7 @@ export function useLocalCursorEmitter(
         );
       } catch (err) {
         // Silencieux - best effort
-        console.debug('[MouseTracking] Send failed:', err);
+        debugLog('MouseTracking', 'Send failed:', err);
       }
     },
     [gameId, playerId]
@@ -56,7 +57,7 @@ export function useLocalCursorEmitter(
   useEffect(() => {
     if (!enabled || !boardRef.current) return;
 
-    console.log('[MouseTracking] Activating emitter for board owner:', currentBoardOwnerId);
+    debugLog('MouseTracking', 'Activating emitter for board owner:', currentBoardOwnerId);
 
     // Initialisation du sampler et du batcher
     samplerRef.current = new MouseSampler(EMITTER_CONFIG);
@@ -86,7 +87,7 @@ export function useLocalCursorEmitter(
     document.addEventListener('mousemove', handleMouseMove, { passive: true });
 
     return () => {
-      console.log('[MouseTracking] Deactivating emitter');
+      debugLog('MouseTracking', 'Deactivating emitter');
       document.removeEventListener('mousemove', handleMouseMove);
       batcherRef.current?.destroy();
       samplerRef.current?.reset();

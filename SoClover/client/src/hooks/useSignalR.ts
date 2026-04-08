@@ -5,6 +5,7 @@ import { HubConnectionState } from '@microsoft/signalr';
 import { gameApi } from '../api/game-api';
 import { useNotifications } from './useNotifications';
 import { useGameStateUpdate } from './useGameStateUpdate';
+import { debugLog } from '../core/debug';
 
 export const useSignalR = () => {
   const gameId = useGameStore(s => s.gameId);
@@ -29,7 +30,7 @@ export const useSignalR = () => {
     if (!gameId) {
       return;
     }
-    console.log('%c[useSignalR] refreshGameState — GET /state', 'color: #0891b2');
+    debugLog('useSignalR', 'refreshGameState — GET /state');
     try {
       const state = await gameApi.getGameState(gameId);
 
@@ -47,7 +48,7 @@ export const useSignalR = () => {
   }, [gameId, playerId, updateStateFromResponse, setIsInitializing]);
 
   useEffect(() => {
-    console.log(`%c[useSignalR] useEffect setup (phase="${phase}", gameId="${gameId}")`, 'color: #0891b2; font-weight: bold');
+    debugLog('useSignalR', `useEffect setup (phase="${phase}", gameId="${gameId}")`);
 
     const connect = async () => {
       setConnectionStatus('Connecting');
@@ -57,11 +58,11 @@ export const useSignalR = () => {
         setConnectionStatus('Connected');
 
         if (gameId && playerId) {
-          console.log(`[useSignalR] JoinGame: gameId=${gameId}, playerId=${playerId}`);
+          debugLog('useSignalR', `JoinGame: gameId=${gameId}, playerId=${playerId}`);
           await signalRClient.invoke('JoinGame', gameId, playerId);
           refreshGameState();
         } else {
-          console.log('[useSignalR] Connected but missing gameId or playerId', { gameId, playerId });
+          debugLog('useSignalR', 'Connected but missing gameId or playerId', { gameId, playerId });
           setIsInitializing(false);
         }
       } catch (err) {
@@ -72,11 +73,11 @@ export const useSignalR = () => {
     };
 
     const handleStateUpdated = (data: any) => {
-      console.log(`%c[useSignalR] GameStateUpdated reçu — phase="${data?.phase}", eventType="${data?.eventData?.eventType ?? data?.eventType ?? '?'}", hasGameState=${!!data?.gameState}`, 'color: #0891b2');
+      debugLog('useSignalR', `GameStateUpdated reçu — phase="${data?.phase}", eventType="${data?.eventData?.eventType ?? data?.eventType ?? '?'}", hasGameState=${!!data?.gameState}`);
 
       // Si le message contient le state complet, on l'utilise directement pour éviter un fetch
       if (data && data.gameState) {
-        console.log(`%c[useSignalR] → utilise gameState embarqué (phase="${data.gameState.phase}")`, 'color: #0891b2');
+        debugLog('useSignalR', `→ utilise gameState embarqué (phase="${data.gameState.phase}")`);
         updateStateFromResponse(data.gameState);
         return;
       }
@@ -92,10 +93,10 @@ export const useSignalR = () => {
       ];
 
       if (data && (guessingEvents.includes(data.eventType) || guessingEvents.includes(data.eventData?.eventType))) {
-        console.log(`%c[useSignalR] → guessing event, refreshGameState()`, 'color: #0891b2');
+        debugLog('useSignalR', '→ guessing event, refreshGameState()');
         refreshGameState();
       } else {
-        console.log(`%c[useSignalR] → fallback refreshGameState()`, 'color: #0891b2');
+        debugLog('useSignalR', '→ fallback refreshGameState()');
         refreshGameState();
       }
     };
@@ -107,7 +108,7 @@ export const useSignalR = () => {
 
       // Filter out notifications sent by the current player (e.g., Board submitted)
       if (senderId && senderId === playerId) {
-        console.log('[useSignalR] Skipping notification for current player');
+        debugLog('useSignalR', 'Skipping notification for current player');
         return;
       }
 
@@ -131,7 +132,7 @@ export const useSignalR = () => {
     };
 
     const handleGameDeleted = () => {
-      console.log('[useSignalR] GameDeleted');
+      debugLog('useSignalR', 'GameDeleted');
       resetAuth();
     };
 
@@ -177,13 +178,13 @@ export const useSignalR = () => {
     if (signalRClient.state === HubConnectionState.Disconnected) {
       connect();
     } else if (signalRClient.state === HubConnectionState.Connected && gameId && playerId) {
-        console.log(`%c[useSignalR] Déjà connecté → JoinGame + refreshGameState`, 'color: #0891b2');
+        debugLog('useSignalR', 'Déjà connecté → JoinGame + refreshGameState');
         signalRClient.invoke('JoinGame', gameId, playerId);
         refreshGameState();
     }
 
     return () => {
-      console.log(`%c[useSignalR] useEffect cleanup (phase="${phase}")`, 'color: #f97316; font-weight: bold');
+      debugLog('useSignalR', `useEffect cleanup (phase="${phase}")`);
       signalRClient.off('GameStateUpdated', handleStateUpdated);
       signalRClient.off('ServerNotification', handleServerNotification);
       signalRClient.off('PlayerJoined', handlePlayerJoined);
