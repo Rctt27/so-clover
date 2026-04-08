@@ -49,10 +49,8 @@ function App() {
     if (phase !== prevPhaseRef.current) {
       debugLog('App', `Phase: ${prevPhaseRef.current} → ${phase}`);
       prevPhaseRef.current = phase;
-    } else {
-      debugLog('App', `Re-render (phase stable: ${phase})`);
     }
-  });
+  }, [phase]);
   // ────────────────────────────────────────────────────────────────────────────
 
   return (

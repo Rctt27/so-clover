@@ -1,6 +1,6 @@
 ﻿import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 import { CONSTANTS } from '../core/constants';
-import { isDebug } from '../core/debug';
+import { isDebug, debugLog } from '../core/debug';
 
 class SignalRClient {
   private connection: HubConnection | null = null;
@@ -26,7 +26,7 @@ class SignalRClient {
     if (conn.state === HubConnectionState.Disconnected) {
       try {
         await conn.start();
-        console.log('SignalR Connected');
+        debugLog('SignalR', 'Connected');
       } catch (err) {
         console.error('SignalR Connection Error: ', err);
         throw err;
