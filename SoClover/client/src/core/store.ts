@@ -52,17 +52,17 @@ const gameStateCreator: StateCreator<GameState> = (set) => ({
     cluesDurationSeconds: 300,
     guessDurationSeconds: 300
   },
-  setPhase: (phase) => set({ phase }),
-  setRole: (role) => set({ role }),
-  setIsGameAdmin: (isGameAdmin) => set({ isGameAdmin }),
-  setGameId: (gameId) => set({ gameId }),
-  setPlayerId: (playerId) => set({ playerId }),
-  setPlayerName: (playerName) => set({ playerName }),
-  setConnectionStatus: (status) => set({ connectionStatus: status }),
-  setPlayers: (players) => set({ players }),
-  setPhaseEndsAtUtc: (phaseEndsAtUtc) => set({ phaseEndsAtUtc }),
-  setSettings: (settings) => set({ settings }),
-  setIsInitializing: (isInitializing) => set({ isInitializing }),
+  setPhase: (phase) => set({ phase }, false, 'GameStore/setPhase'),
+  setRole: (role) => set({ role }, false, 'GameStore/setRole'),
+  setIsGameAdmin: (isGameAdmin) => set({ isGameAdmin }, false, 'GameStore/setIsGameAdmin'),
+  setGameId: (gameId) => set({ gameId }, false, 'GameStore/setGameId'),
+  setPlayerId: (playerId) => set({ playerId }, false, 'GameStore/setPlayerId'),
+  setPlayerName: (playerName) => set({ playerName }, false, 'GameStore/setPlayerName'),
+  setConnectionStatus: (status) => set({ connectionStatus: status }, false, 'GameStore/setConnectionStatus'),
+  setPlayers: (players) => set({ players }, false, 'GameStore/setPlayers'),
+  setPhaseEndsAtUtc: (phaseEndsAtUtc) => set({ phaseEndsAtUtc }, false, 'GameStore/setPhaseEndsAtUtc'),
+  setSettings: (settings) => set({ settings }, false, 'GameStore/setSettings'),
+  setIsInitializing: (isInitializing) => set({ isInitializing }, false, 'GameStore/setIsInitializing'),
   resetAuth: () => set({
     playerId: null,
     playerName: null,
@@ -77,7 +77,7 @@ const gameStateCreator: StateCreator<GameState> = (set) => ({
       cluesDurationSeconds: 300,
       guessDurationSeconds: 300
     }
-  }),
+  }, false, 'GameStore/resetAuth'),
 })
 
 const persistConfig = {
@@ -112,7 +112,7 @@ const presenceStoreDef: StateCreator<PresenceState> = (set) => ({
       ...state.micePositions,
       [playerId]: { x, y }
     }
-  })),
+  }), false, 'PresenceStore/updateMousePosition'),
 })
 
 export const usePresenceStore = create<PresenceState>()(
@@ -122,9 +122,11 @@ export const usePresenceStore = create<PresenceState>()(
 /**
  * @deprecated Use useNotifications hook instead of direct store access
  */
-// Deprecated store — no devtools wrapping needed
 export const useNotificationStore = create<NotificationSlice>()(
-  createNotificationSlice
+  (isDebug
+    ? devtools(createNotificationSlice, { name: 'NotificationStore', enabled: true, serialize: { options: true } })
+    : createNotificationSlice
+  ) as StateCreator<NotificationSlice>
 )
 
 export const useBoardStore = create<BoardSlice>()(
