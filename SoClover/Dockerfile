@@ -31,9 +31,8 @@ RUN dotnet restore SoClover/SoClover.csproj
 # Copy the full source
 COPY . .
 
-# Clean existing wwwroot except dictionaries (which are needed by the backend)
-# and move legacy-vanilla to a backup or just remove it if we want to be sure it's not served.
-RUN rm -rf SoClover/wwwroot/legacy-vanilla SoClover/wwwroot/MouseTracking SoClover/wwwroot/index.html
+# Remove any pre-existing index.html before copying the React build
+RUN rm -f SoClover/wwwroot/index.html
 
 # Copy the React build results to wwwroot
 COPY --from=build-client /src/client/dist ./SoClover/wwwroot/
