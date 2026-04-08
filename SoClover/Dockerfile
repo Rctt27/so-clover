@@ -1,13 +1,17 @@
-﻿# Multi-stage Dockerfile for SoClover ASP.NET app
+# Multi-stage Dockerfile for SoClover ASP.NET app
 
-  # ------------------------                                                                                                                                                                                                                                                                                                               
-  # Build Client stage (React)                                                                                                                                                                                                                                                                                                             
-  # ------------------------                                                                                                                                                                                                                                                                                                               
-  FROM node:20-alpine AS build-client                                                                                                                                                                                                                                                                                                      
-  WORKDIR /src/client                                                                                                                                                                                                                                                                                                                      
-  COPY SoClover/client/ ./                                                                                                                                                                                                                                                                                                                 
-  RUN npm install                                                                                                                                                                                                                                                                                                                          
-  RUN npm run build    
+# ------------------------
+# Build Client stage (React)
+# ------------------------
+FROM node:20-alpine AS build-client
+WORKDIR /src/client
+COPY SoClover/client/ ./
+# VITE_DEBUG_MODE is baked at build time by Vite
+# Usage: docker compose build --build-arg VITE_DEBUG_MODE=true web
+ARG VITE_DEBUG_MODE=false
+ENV VITE_DEBUG_MODE=$VITE_DEBUG_MODE
+RUN npm install
+RUN npm run build
 
 # ------------------------
 # Build stage (.NET)
@@ -46,7 +50,7 @@ WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080 \
     DOTNET_ENVIRONMENT=Production
 
-# curl pour HEALTHCHECK + utilisateur non-root pour la sécurité
+# curl pour healthcheck + utilisateur non-root pour la securite
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
     && addgroup --system --gid 1001 appgroup \

@@ -95,7 +95,7 @@ type GameStoreMutators = [['zustand/persist', unknown]]
 export const useGameStore = create<GameState>()(
   (
     isDebug
-      ? devtools(persist(gameStateCreator, persistConfig), { name: 'GameStore' })
+      ? devtools(persist(gameStateCreator, persistConfig), { name: 'GameStore', enabled: true, serialize: { options: true } })
       : persist(gameStateCreator, persistConfig)
   ) as StateCreator<GameState, [], GameStoreMutators>
 )
@@ -116,7 +116,7 @@ const presenceStoreDef: StateCreator<PresenceState> = (set) => ({
 })
 
 export const usePresenceStore = create<PresenceState>()(
-  (isDebug ? devtools(presenceStoreDef, { name: 'PresenceStore' }) : presenceStoreDef) as StateCreator<PresenceState>
+  (isDebug ? devtools(presenceStoreDef, { name: 'PresenceStore', enabled: true, serialize: { options: true } }) : presenceStoreDef) as StateCreator<PresenceState>
 )
 
 /**
@@ -128,9 +128,9 @@ export const useNotificationStore = create<NotificationSlice>()(
 )
 
 export const useBoardStore = create<BoardSlice>()(
-  (isDebug ? devtools(createBoardSlice, { name: 'BoardStore' }) : createBoardSlice) as StateCreator<BoardSlice>
+  (isDebug ? devtools(createBoardSlice, { name: 'BoardStore', enabled: true, serialize: { options: true } }) : createBoardSlice) as StateCreator<BoardSlice>
 )
 
 export const useGuessingStore = create<GuessingSlice>()(
-  (isDebug ? devtools(createGuessingSlice, { name: 'GuessingStore' }) : createGuessingSlice) as StateCreator<GuessingSlice>
+  (isDebug ? devtools(createGuessingSlice, { name: 'GuessingStore', enabled: true, serialize: { options: true } }) : createGuessingSlice) as StateCreator<GuessingSlice>
 )

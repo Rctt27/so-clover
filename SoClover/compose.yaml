@@ -26,6 +26,8 @@ services:
       # "COPY SoClover/SoClover.csproj SoClover/" resolve correctly.
       context: ..
       dockerfile: SoClover/Dockerfile
+      args:
+        VITE_DEBUG_MODE: ${VITE_DEBUG_MODE:-false}
     environment:
       ConnectionStrings__GameDb: Host=db;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       DOTNET_ENVIRONMENT: Production
