@@ -37,18 +37,18 @@ export const createNotificationSlice: StateCreator<NotificationSlice> = (set) =>
         createdAt: Date.now(),
       }
     ]
-    
+
     // Keep only the last 5 notifications
     if (newNotifications.length > 5) {
       newNotifications.shift()
     }
 
     return { notifications: newNotifications }
-  }),
+  }, false, 'NotificationStore/addNotification'),
 
   removeNotification: (id) => set((state) => ({
     notifications: state.notifications.filter(n => n.id !== id)
-  })),
+  }), false, 'NotificationStore/removeNotification'),
 
-  clearAll: () => set({ notifications: [] }),
+  clearAll: () => set({ notifications: [] }, false, 'NotificationStore/clearAll'),
 })
