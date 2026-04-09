@@ -1,0 +1,6 @@
+docs/           export-ignore
+CLAUDE.md       export-ignore
+.idea/          export-ignore
+SoClover.Tests/ export-ignore
+SoClover.sln    export-ignore
+.gitignore      export-ignore
