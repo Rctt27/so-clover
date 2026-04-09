@@ -70,7 +70,7 @@ npm run dev   # Proxy automatique vers localhost:5000
 - **Event Publishing**: Domain actions → `IEventPublisher` → `SignalREventPublisher` → Client updates.
 - **State Machine**: Lobby → WritingClues → Guessing → Scoring.
 - **Zustand Persist**: Le store global utilise `persist` middleware (localStorage). En cas d'état incohérent lors du debug, vider le localStorage peut être nécessaire.
-- **Mouse Tracking**: Suivi des curseurs joueurs via SignalR — `features/mouseTracking/` côté client, `wwwroot/MouseTracking/` côté serveur.
+- **Mouse Tracking**: Suivi des curseurs joueurs via SignalR — `features/mouseTracking/` côté client.
 
 ### Game Flow
 1. Create game → Players join lobby
@@ -91,8 +91,8 @@ Tests use `TestClock` for time control and `InMemoryGameRepository` for isolatio
 
 - DEBUG mode uses in-memory repository
 - RELEASE mode uses PostgreSQL (`DATABASE_URL` or `ConnectionStrings:GameDb`)
-- Word dictionaries in `wwwroot/dictionaries/` (en.txt, fr.txt, pt.txt)
-- Game settings in `wwwroot/game_settings.json`
+- Word dictionaries in `Infrastructure/Dictionaries/` (co-localisés avec `FileWordDictionary`)
+- Game settings in `appsettings.json` → section `GameDefaults` (via `IOptions<GameDefaultsOptions>`)
 - Env vars centralisées dans `SoClover/.env` (PostgreSQL + VITE_*) — template : `SoClover/.env.example`
 - Vite lit les vars depuis `SoClover/` (`envDir: '../'` dans `vite.config.ts`) — ne pas créer de `client/.env`
 - Debug local : créer `SoClover/.env.local` avec `VITE_DEBUG_MODE=true` (gitignored)
