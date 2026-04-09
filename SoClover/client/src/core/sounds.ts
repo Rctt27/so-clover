@@ -22,7 +22,9 @@ export const writingCluesMusic = new Howl({
   src: [lofiMusicUrl],
   loop: true,
   volume: 0,
-  html5: true,
+  // html5: false (default) — le Web Audio API est déjà déverrouillé par les autres sons,
+  // ce qui permet de lancer la musique depuis un callback SignalR (hors geste utilisateur).
+  // html5: true bloquerait silencieusement la lecture (politique autoplay navigateur).
 });
 
 export function playSound(name: keyof typeof sounds) {
