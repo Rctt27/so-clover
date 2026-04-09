@@ -5,6 +5,7 @@ import { Wifi, WifiOff, Loader2 } from 'lucide-react'
 import { useSignalR } from './hooks/useSignalR'
 import { useGameSounds } from './hooks/useGameSounds'
 import { useTimeoutSafetyPolling } from './hooks/useTimeoutSafetyPolling'
+import { useWritingCluesPhaseMusic } from './hooks/useWritingCluesPhaseMusic'
 import { useGameStore } from './core/store'
 import { HomeScreen } from './components/home/HomeScreen'
 import { LobbyPage } from './components/lobby/LobbyPage'
@@ -36,6 +37,7 @@ function App() {
   useSignalR();
   useGameSounds();
   useTimeoutSafetyPolling();
+  useWritingCluesPhaseMusic();
   const connectionStatus = useGameStore(s => s.connectionStatus);
   const phase = useGameStore(s => s.phase);
   const gameId = useGameStore(s => s.gameId);
