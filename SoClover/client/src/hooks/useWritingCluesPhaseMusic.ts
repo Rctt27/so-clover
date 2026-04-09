@@ -66,7 +66,10 @@ export const useWritingCluesPhaseMusic = () => {
   // ─── Recalcul du fade-out si phaseEndsAtUtc change en cours de phase ─────
   useEffect(() => {
     if (phase !== 'WritingClues' || isMuted() || !writingCluesMusic.playing() || !phaseEndsAtUtc) return;
-    scheduleFadeOut(phaseEndsAtUtc);
+    const msRemaining = new Date(phaseEndsAtUtc).getTime() - Date.now();
+    if (msRemaining > FADE_OUT_BEFORE_END_MS) {
+      scheduleFadeOut(phaseEndsAtUtc);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phaseEndsAtUtc]);
 
