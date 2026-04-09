@@ -63,5 +63,11 @@ Specs/
 # Node.js
 node_modules/
 
+# Frontend build output
+dist/
+
+# React build output (generated at build/publish time)
+SoClover/wwwroot/
+
 # Git worktrees
 .worktrees/
