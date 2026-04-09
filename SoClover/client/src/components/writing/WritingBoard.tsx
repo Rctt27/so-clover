@@ -68,18 +68,6 @@ export const WritingBoard = () => {
           <SubmissionProgress />
         </div>
       )}
-
-      <div className="text-center text-sm text-gray-500 max-w-2xl px-4 mt-8">
-        <p className="mb-2">
-          <strong>Les 8 mots communs</strong> sont formés par les bords adjacents des cartes :
-        </p>
-        <ul className="space-y-1">
-          <li><strong>Indice Haut :</strong> {myBoard.cards[0]?.words[0]} + {myBoard.cards[1]?.words[0]}</li>
-          <li><strong>Indice Droite :</strong> {myBoard.cards[1]?.words[1]} + {myBoard.cards[3]?.words[1]}</li>
-          <li><strong>Indice Bas :</strong> {myBoard.cards[2]?.words[2]} + {myBoard.cards[3]?.words[2]}</li>
-          <li><strong>Indice Gauche :</strong> {myBoard.cards[0]?.words[3]} + {myBoard.cards[2]?.words[3]}</li>
-        </ul>
-      </div>
     </div>
   )
 }
