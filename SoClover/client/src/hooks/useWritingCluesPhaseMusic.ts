@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useGameStore } from '../core/store';
 import { writingCluesMusic, isMuted } from '../core/sounds';
 
@@ -13,7 +13,7 @@ export const useWritingCluesPhaseMusic = () => {
   const fadeOutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stopAfterFadeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const clearTimeouts = () => {
+  const clearTimeouts = useCallback(() => {
     if (fadeOutTimeoutRef.current) {
       clearTimeout(fadeOutTimeoutRef.current);
       fadeOutTimeoutRef.current = null;
@@ -22,9 +22,9 @@ export const useWritingCluesPhaseMusic = () => {
       clearTimeout(stopAfterFadeRef.current);
       stopAfterFadeRef.current = null;
     }
-  };
+  }, []);
 
-  const scheduleFadeOut = (phaseEndsAt: string) => {
+  const scheduleFadeOut = useCallback((phaseEndsAt: string) => {
     clearTimeouts();
     const msUntilFadeOut = new Date(phaseEndsAt).getTime() - Date.now() - FADE_OUT_BEFORE_END_MS;
     const delay = Math.max(0, msUntilFadeOut);
@@ -34,7 +34,7 @@ export const useWritingCluesPhaseMusic = () => {
         writingCluesMusic.stop();
       }, FADE_OUT_DURATION_MS);
     }, delay);
-  };
+  }, [clearTimeouts]);
 
   // ─── Lifecycle de phase ───────────────────────────────────────────────────
   useEffect(() => {
@@ -48,7 +48,12 @@ export const useWritingCluesPhaseMusic = () => {
     writingCluesMusic.volume(0);
     writingCluesMusic.play();
     writingCluesMusic.fade(0, MUSIC_TARGET_VOLUME, FADE_IN_MS);
-    if (phaseEndsAtUtc) scheduleFadeOut(phaseEndsAtUtc);
+    if (phaseEndsAtUtc) {
+      const msRemaining = new Date(phaseEndsAtUtc).getTime() - Date.now();
+      if (msRemaining > FADE_OUT_BEFORE_END_MS) {
+        scheduleFadeOut(phaseEndsAtUtc);
+      }
+    }
 
     return () => {
       clearTimeouts();
@@ -82,7 +87,12 @@ export const useWritingCluesPhaseMusic = () => {
         writingCluesMusic.volume(0);
         writingCluesMusic.play();
         writingCluesMusic.fade(0, MUSIC_TARGET_VOLUME, FADE_IN_MS);
-        if (currentPhaseEndsAt) scheduleFadeOut(currentPhaseEndsAt);
+        if (currentPhaseEndsAt) {
+          const msRemaining = new Date(currentPhaseEndsAt).getTime() - Date.now();
+          if (msRemaining > FADE_OUT_BEFORE_END_MS) {
+            scheduleFadeOut(currentPhaseEndsAt);
+          }
+        }
       }
     };
 
