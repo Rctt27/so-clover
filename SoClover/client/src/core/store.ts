@@ -36,7 +36,7 @@ interface GameState {
   resetAuth: () => void
 }
 
-const gameStateCreator: StateCreator<GameState> = (set) => ({
+const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> = (set) => ({
   gameId: null,
   playerId: null,
   playerName: null,
@@ -105,7 +105,7 @@ interface PresenceState {
   updateMousePosition: (playerId: string, x: number, y: number) => void
 }
 
-const presenceStoreDef: StateCreator<PresenceState> = (set) => ({
+const presenceStoreDef: StateCreator<PresenceState, [["zustand/devtools", never]]> = (set) => ({
   micePositions: {},
   updateMousePosition: (playerId, x, y) => set((state) => ({
     micePositions: {

@@ -19,7 +19,7 @@ export interface BoardSlice {
   resetBoards: () => void
 }
 
-export const createBoardSlice: StateCreator<BoardSlice> = (set) => ({
+export const createBoardSlice: StateCreator<BoardSlice, [["zustand/devtools", never]]> = (set) => ({
   myBoard: null,
   otherBoards: {},
   currentBoardOwner: null,

@@ -25,7 +25,7 @@ export interface NotificationSlice {
   clearAll: () => void
 }
 
-export const createNotificationSlice: StateCreator<NotificationSlice> = (set) => ({
+export const createNotificationSlice: StateCreator<NotificationSlice, [["zustand/devtools", never]]> = (set) => ({
   notifications: [],
 
   addNotification: (notification) => set((state) => {

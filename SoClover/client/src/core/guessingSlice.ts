@@ -27,7 +27,7 @@ export interface GuessingSlice {
   resetGuessingState: () => void
 }
 
-export const createGuessingSlice: StateCreator<GuessingSlice> = (set) => ({
+export const createGuessingSlice: StateCreator<GuessingSlice, [["zustand/devtools", never]]> = (set) => ({
   currentBoardOwnerId: null,
   currentBoardOwnerName: null,
   outsideCards: [],
