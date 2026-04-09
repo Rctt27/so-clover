@@ -1,14 +1,21 @@
 import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
+import { Volume2, VolumeX } from 'lucide-react'
 import { useBoardStore } from '../../core/store'
 import { useGameActions } from '../../hooks/useGameActions'
 import { BoardRotationControls } from '../shared/BoardRotationControls'
-import { playSound } from '../../core/sounds'
+import { playSound, toggleMute, isMuted } from '../../core/sounds'
 
 export const WritingControls = () => {
   const { myBoard, updateMyBoardRotation } = useBoardStore()
   const { submitBoard } = useGameActions()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [muted, setMuted] = useState(isMuted)
+
+  const handleToggleMute = () => {
+    toggleMute()
+    setMuted(isMuted())
+  }
 
   const handleRotate = useCallback((direction: 'left' | 'right') => {
     if (!myBoard) return
@@ -83,6 +90,16 @@ export const WritingControls = () => {
           En attente des autres joueurs...
         </p>
       )}
+
+      {/* Bouton mute */}
+      <button
+        onClick={handleToggleMute}
+        className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/30 hover:bg-white/50 transition-colors text-gray-700 text-sm"
+        title={muted ? 'Activer le son' : 'Couper le son'}
+      >
+        {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+        <span>{muted ? 'Son coupé' : 'Son activé'}</span>
+      </button>
     </div>
   )
 }
