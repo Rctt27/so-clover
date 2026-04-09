@@ -49,6 +49,12 @@ services:
       options:
         max-size: "10m"
         max-file: "1"
+    networks:
+      - proxy
 
 volumes:
   dbdata:
+
+networks:
+  proxy:
+    external: true
