@@ -9,13 +9,13 @@ import timerWarningUrl from '../public/sounds/timer-warning.mp3';
 import lofiMusicUrl from '../public/sounds/writing-clues-lofi.mp3';
 
 // ─── Volumes ─────────────────────────────────────────────────────────────────
-const VOLUME_CARD_PLACE             = 0.5;
-const VOLUME_CARD_SWAP              = 0.5;
-const VOLUME_CARD_ROTATE            = 0.5;
-const VOLUME_BOARD_ROTATE           = 0.5;
-const VOLUME_BOARD_VALIDATION_OK    = 0.6;
-const VOLUME_BOARD_VALIDATION_FAIL  = 0.4;
-const VOLUME_TIMER_WARNING          = 0.3;
+const VOLUME_CARD_PLACE             = 0.4;
+const VOLUME_CARD_SWAP              = 0.4;
+const VOLUME_CARD_ROTATE            = 0.4;
+const VOLUME_BOARD_ROTATE           = 0.4;
+const VOLUME_BOARD_VALIDATION_OK    = 0.5;
+const VOLUME_BOARD_VALIDATION_FAIL  = 0.3;
+const VOLUME_TIMER_WARNING          = 0.2;
 export const VOLUME_WRITING_MUSIC   = 0.10; // exportée — utilisée dans useWritingCluesPhaseMusic
 // ─────────────────────────────────────────────────────────────────────────────
 
