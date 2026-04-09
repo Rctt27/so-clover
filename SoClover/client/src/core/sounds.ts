@@ -6,6 +6,7 @@ import boardRotateUrl from '../public/sounds/board-rotate.mp3';
 import correctUrl from '../public/sounds/correct.mp3';
 import incorrectUrl from '../public/sounds/incorrect.mp3';
 import timerWarningUrl from '../public/sounds/timer-warning.mp3';
+import lofiMusicUrl from '../public/sounds/desifreemusic-chill-study-desk-focus-amp-concentration-lofi-451181.mp3';
 
 const sounds = {
   cardPlace: new Howl({ src: [cardPlaceUrl], volume: 0.5 }),
@@ -17,6 +18,13 @@ const sounds = {
   timerWarning: new Howl({ src: [timerWarningUrl], volume: 0.3 }),
 };
 
+export const writingCluesMusic = new Howl({
+  src: [lofiMusicUrl],
+  loop: true,
+  volume: 0,
+  html5: false,
+});
+
 export function playSound(name: keyof typeof sounds) {
   if (localStorage.getItem('so-clover-muted') === 'true') return;
   sounds[name].play();
@@ -24,7 +32,9 @@ export function playSound(name: keyof typeof sounds) {
 
 export function toggleMute() {
   const current = localStorage.getItem('so-clover-muted') === 'true';
-  localStorage.setItem('so-clover-muted', String(!current));
+  const next = !current;
+  localStorage.setItem('so-clover-muted', String(next));
+  window.dispatchEvent(new CustomEvent('so-clover-mute-changed', { detail: { muted: next } }));
 }
 
 export function isMuted(): boolean {
