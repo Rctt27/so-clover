@@ -21,6 +21,7 @@ services:
         max-file: "1"
 
   web:
+    image: soclover-web:latest
     build:
       # Use the repository root as build context so Dockerfile COPY paths like
       # "COPY SoClover/SoClover.csproj SoClover/" resolve correctly.
@@ -50,6 +51,7 @@ services:
         max-size: "10m"
         max-file: "1"
     networks:
+      - default
       - proxy
 
 volumes:
