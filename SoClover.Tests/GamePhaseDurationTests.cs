@@ -11,7 +11,7 @@ namespace SoClover.Tests;
 
 public class GamePhaseDurationTests
 {
-    private static string WwwrootPath => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot"));
+    private static string DictionariesPath => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "Infrastructure", "Dictionaries"));
 
     private ServiceProvider BuildProvider(TestClock? clock = null)
     {
@@ -19,9 +19,8 @@ public class GamePhaseDurationTests
         services.AddSingleton<IGameRepository, InMemoryGameRepository>();
         services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
 
-        var dictionaryPath = Path.Combine(WwwrootPath, "dictionaries");
-        var settingsPath = Path.Combine(WwwrootPath, "game_settings.json");
-        services.AddSingleton<IWordDictionary>(sp => new FileWordDictionary(dictionaryPath));
+        var settingsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot", "game_settings.json"));
+        services.AddSingleton<IWordDictionary>(sp => new FileWordDictionary(DictionariesPath));
         var testClock = clock ?? new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         services.AddSingleton<IClock>(sp => testClock);
         services.AddSingleton<IGameSettingsProvider>(sp => new TestGameSettingsProvider(settingsPath));
@@ -38,7 +37,7 @@ public class GamePhaseDurationTests
     [Fact]
     public async Task Settings_file_contains_all_phase_durations_and_within_1800_seconds()
     {
-        var filePath = Path.Combine(WwwrootPath, "game_settings.json");
+        var filePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot", "game_settings.json"));
         var json = await File.ReadAllTextAsync(filePath);
         var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;

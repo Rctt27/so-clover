@@ -26,8 +26,8 @@ builder.Services.AddScoped<IGameRepository, SoClover.Infrastructure.Persistence.
 
 // Event publisher will be decorated by SignalR broadcaster (see below)
 builder.Services.AddSingleton<InMemoryEventPublisher>();
-builder.Services.AddSingleton<IWordDictionary>(sp => 
-    new FileWordDictionary(Path.Combine(builder.Environment.WebRootPath, "dictionaries")));
+builder.Services.AddSingleton<IWordDictionary>(sp =>
+    new FileWordDictionary(Path.Combine(builder.Environment.ContentRootPath, "Infrastructure", "Dictionaries")));
 
 // Time and settings providers
 builder.Services.AddSingleton<IClock, SystemClock>();
@@ -843,12 +843,12 @@ app.MapPost("/api/system/games/{gameId:guid}/move-to-next-board", async (
 })
 .WithName("System_MoveToNextBoard");
 
-// List available dictionaries from wwwroot/dictionaries (*.txt)
+// List available dictionaries from Infrastructure/Dictionaries (*.txt)
 app.MapGet("/api/dictionaries", (IWebHostEnvironment env) =>
 {
     try
     {
-        var dir = Path.Combine(env.WebRootPath, "dictionaries");
+        var dir = Path.Combine(env.ContentRootPath, "Infrastructure", "Dictionaries");
         if (!Directory.Exists(dir))
         {
             return Results.Ok(Array.Empty<object>());
