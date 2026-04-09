@@ -10,6 +10,10 @@ using SoClover.UseCases.GameLogics;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure game defaults from appsettings.json
+builder.Services.Configure<GameDefaultsOptions>(
+    builder.Configuration.GetSection("GameDefaults"));
+
 // Infrastructure
 // Configure PostgreSQL DbContext (prod-ready)
 var connectionString = builder.Configuration.GetConnectionString("GameDb") ?? Environment.GetEnvironmentVariable("DATABASE_URL") ?? "Host=localhost;Database=soclover;Username=postgres;Password=postgres";
@@ -31,7 +35,7 @@ builder.Services.AddSingleton<IWordDictionary>(sp =>
 
 // Time and settings providers
 builder.Services.AddSingleton<IClock, SystemClock>();
-builder.Services.AddSingleton<IGameSettingsProvider, FileGameSettingsProvider>();
+builder.Services.AddSingleton<IGameSettingsProvider, ConfigurationGameSettingsProvider>();
 
 // Background process manager
 builder.Services.AddHostedService<GameProcessManager>(); // manages deadlines for lobby, writing, guessing, scoring

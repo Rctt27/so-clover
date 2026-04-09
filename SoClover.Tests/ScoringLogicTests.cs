@@ -18,11 +18,10 @@ public class ScoringLogicTests
         services.AddSingleton<IGameRepository, InMemoryGameRepository>();
         services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
 
-        var settingsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot", "game_settings.json"));
         services.AddSingleton<IWordDictionary>(sp => new FileWordDictionary(DictionariesPath));
         var testClock = clock ?? new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         services.AddSingleton<IClock>(sp => testClock);
-        services.AddSingleton<IGameSettingsProvider>(sp => new TestGameSettingsProvider(settingsPath));
+        services.AddSingleton<IGameSettingsProvider>(sp => new TestGameSettingsProvider());
 
         services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
         services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();

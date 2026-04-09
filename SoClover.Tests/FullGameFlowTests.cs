@@ -18,11 +18,10 @@ public class FullGameFlowTests
         services.AddSingleton<IGameRepository, InMemoryGameRepository>();
         services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
         var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "Infrastructure", "Dictionaries");
-        var settingsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot", "game_settings.json"));
         services.AddSingleton<IWordDictionary>(sp =>
             new FileWordDictionary(Path.GetFullPath(dictionaryPath)));
         services.AddSingleton<IClock>(sp => new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
-        services.AddSingleton<IGameSettingsProvider>(sp => new TestGameSettingsProvider(Path.GetFullPath(settingsPath)));
+        services.AddSingleton<IGameSettingsProvider>(sp => new TestGameSettingsProvider());
         services.AddTransient<CardFactory>();
         services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
         services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();
