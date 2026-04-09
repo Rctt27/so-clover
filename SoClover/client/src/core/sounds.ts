@@ -6,7 +6,7 @@ import boardRotateUrl from '../public/sounds/board-rotate.mp3';
 import correctUrl from '../public/sounds/correct.mp3';
 import incorrectUrl from '../public/sounds/incorrect.mp3';
 import timerWarningUrl from '../public/sounds/timer-warning.mp3';
-import lofiMusicUrl from '../public/sounds/desifreemusic-chill-study-desk-focus-amp-concentration-lofi-451181.mp3';
+import lofiMusicUrl from '../public/sounds/writing-clues-lofi.mp3';
 
 const sounds = {
   cardPlace: new Howl({ src: [cardPlaceUrl], volume: 0.5 }),
@@ -22,7 +22,7 @@ export const writingCluesMusic = new Howl({
   src: [lofiMusicUrl],
   loop: true,
   volume: 0,
-  html5: false,
+  html5: true,
 });
 
 export function playSound(name: keyof typeof sounds) {
