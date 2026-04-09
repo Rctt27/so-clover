@@ -14,7 +14,7 @@ namespace SoClover.Tests;
 
 public class GameProcessManagerTimeoutTests
 {
-    private static string WwwrootPath => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot"));
+    private static string DictionariesPath => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "Infrastructure", "Dictionaries"));
 
     private ServiceProvider BuildProvider(TestClock? clock = null)
     {
@@ -22,13 +22,11 @@ public class GameProcessManagerTimeoutTests
         services.AddSingleton<IGameRepository, InMemoryGameRepository>();
         services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
 
-        var dictionaryPath = Path.Combine(WwwrootPath, "dictionaries");
-        var settingsPath = Path.Combine(WwwrootPath, "game_settings.json");
-        services.AddSingleton<IWordDictionary>(sp => new FileWordDictionary(Path.GetFullPath(dictionaryPath)));
+        services.AddSingleton<IWordDictionary>(sp => new FileWordDictionary(DictionariesPath));
 
         var testClock = clock ?? new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         services.AddSingleton<IClock>(sp => testClock);
-        services.AddSingleton<IGameSettingsProvider>(sp => new TestGameSettingsProvider(Path.GetFullPath(settingsPath)));
+        services.AddSingleton<IGameSettingsProvider>(sp => new TestGameSettingsProvider());
 
         // Use cases used by GameProcessManager
         services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();

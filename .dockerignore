@@ -7,7 +7,6 @@ SoClover.Tests/**/obj
 # Frontend build outputs
 SoClover/client/dist
 SoClover/client/node_modules
-SoClover/wwwroot/legacy-vanilla
 
 # General noise
 .git

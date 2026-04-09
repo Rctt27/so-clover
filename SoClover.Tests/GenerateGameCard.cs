@@ -15,15 +15,15 @@ public class GenerateGameCard
     }
 
     [Theory]
-    [InlineData("FranÁais_OFF", @"^[a-zA-Z¿¬ƒ…» ÀœŒ‘Ÿ€‹ü«‡‚‰ÈËÍÎÔÓÙ˘˚¸ˇÁ\-\s]+$")]
+    [InlineData("FranÔøΩais_OFF", @"^[a-zA-Z\u00E0\u00E1\u00E2\u00E3\u00E4\u00E6\u00E7\u00E8\u00E9\u00EA\u00EB\u00EC\u00ED\u00EE\u00EF\u00F1\u00F2\u00F3\u00F4\u00F5\u00F6\u0153\u00F9\u00FA\u00FB\u00FC\u00FD\u00C0\u00C1\u00C2\u00C3\u00C4\u00C6\u00C7\u00C8\u00C9\u00CA\u00CB\u00CC\u00CD\u00CE\u00CF\u00D1\u00D2\u00D3\u00D4\u00D5\u00D6\u0152\u00D9\u00DA\u00DB\u00DC\u00DD\-\s]+$")]
     [InlineData("English_(from_FR_OFF)", @"^[a-zA-Z\-\s]+$")]
-    [InlineData("Portuguese_(from_FR_OFF)", @"^[a-zA-Z¡¿¬√… Õ”‘’⁄‹«·‡‚„ÈÍÌÛÙı˙¸Á\-\s]+$")]
+    [InlineData("Portuguese_(from_FR_OFF)", @"^[a-zA-Z\u00E0\u00E1\u00E2\u00E3\u00E4\u00E6\u00E7\u00E8\u00E9\u00EA\u00EB\u00EC\u00ED\u00EE\u00EF\u00F1\u00F2\u00F3\u00F4\u00F5\u00F6\u0153\u00F9\u00FA\u00FB\u00FC\u00FD\u00C0\u00C1\u00C2\u00C3\u00C4\u00C6\u00C7\u00C8\u00C9\u00CA\u00CB\u00CC\u00CD\u00CE\u00CF\u00D1\u00D2\u00D3\u00D4\u00D5\u00D6\u0152\u00D9\u00DA\u00DB\u00DC\u00DD\-\s]+$")]
     public async Task ShouldCreateCardWithFourRandomWords(string language, string characterPattern)
     {
         // Arrange
         _testOutputHelper.WriteLine($"=== Test: ShouldCreateCardWithFourRandomWords ({language}) ===");
         _testOutputHelper.WriteLine("Arranging test dependencies...");
-        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot", "dictionaries");
+        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "Infrastructure", "Dictionaries");
         var dictionary = new FileWordDictionary(Path.GetFullPath(dictionaryPath));
         var wordsPool = await WordsPool.CreateAsync(GameId.New(), language, dictionary);
         var cardFactory = new CardFactory(wordsPool);
@@ -74,7 +74,7 @@ public class GenerateGameCard
     }
 
     [Theory]
-    [InlineData("FranÁais_OFF", 60)]
+    [InlineData("FranÔøΩais_OFF", 60)]
     [InlineData("English_(from_FR_OFF)", 60)]
     [InlineData("Portuguese_(from_FR_OFF)", 60)]
     public async Task ShouldCreateMultipleCardsWithDifferentWords(string language, int cardCount)
@@ -82,7 +82,7 @@ public class GenerateGameCard
         // Arrange
         _testOutputHelper.WriteLine($"=== Test: ShouldCreateMultipleCardsWithDifferentWords ({language}) ===");
         _testOutputHelper.WriteLine("Arranging test dependencies...");
-        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot", "dictionaries");
+        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "Infrastructure", "Dictionaries");
         var dictionary = new FileWordDictionary(Path.GetFullPath(dictionaryPath));
         var wordsPool = await WordsPool.CreateAsync(GameId.New(), language, dictionary);
         var cardFactory = new CardFactory(wordsPool);
@@ -145,7 +145,7 @@ public class GenerateGameCard
     }
 
     [Theory]
-    [InlineData("FranÁais_OFF")]
+    [InlineData("FranÔøΩais_OFF")]
     [InlineData("English_(from_FR_OFF)")]
     [InlineData("Portuguese_(from_FR_OFF)")]
     public async Task ShouldRespectCardWordValidationRules(string language)
@@ -153,7 +153,7 @@ public class GenerateGameCard
         // Arrange
         _testOutputHelper.WriteLine($"=== Test: ShouldRespectCardWordValidationRules ({language}) ===");
         _testOutputHelper.WriteLine("Step 1: Arranging test dependencies...");
-        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot", "dictionaries");
+        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "Infrastructure", "Dictionaries");
         var dictionary = new FileWordDictionary(Path.GetFullPath(dictionaryPath));
         var wordsPool = await WordsPool.CreateAsync(GameId.New(), language, dictionary);
         var cardFactory = new CardFactory(wordsPool);
@@ -205,7 +205,7 @@ public class GenerateGameCard
         _testOutputHelper.WriteLine("=== Test: AllDictionariesShouldHaveUniqueWords ===");
         _testOutputHelper.WriteLine("Step 1: Scanning dictionaries directory...");
 
-        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot", "dictionaries");
+        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "Infrastructure", "Dictionaries");
         var fullPath = Path.GetFullPath(dictionaryPath);
         _testOutputHelper.WriteLine($"Dictionary path: {fullPath}");
 

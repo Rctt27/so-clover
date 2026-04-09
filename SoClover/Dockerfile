@@ -31,9 +31,6 @@ RUN dotnet restore SoClover/SoClover.csproj
 # Copy the full source
 COPY . .
 
-# Remove any pre-existing index.html before copying the React build
-RUN rm -f SoClover/wwwroot/index.html
-
 # Copy the React build results to wwwroot
 COPY --from=build-client /src/client/dist ./SoClover/wwwroot/
 

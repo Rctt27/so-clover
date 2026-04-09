@@ -64,4 +64,11 @@
         </ItemGroup>
     </Target>
 
+    <ItemGroup>
+      <Content Include="Infrastructure\Dictionaries\**\*">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+    </ItemGroup>
+
 </Project>

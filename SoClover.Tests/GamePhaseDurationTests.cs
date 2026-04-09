@@ -1,4 +1,4 @@
-using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SoClover.Domain;
 using SoClover.Infrastructure;
@@ -11,7 +11,7 @@ namespace SoClover.Tests;
 
 public class GamePhaseDurationTests
 {
-    private static string WwwrootPath => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "wwwroot"));
+    private static string DictionariesPath => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "Infrastructure", "Dictionaries"));
 
     private ServiceProvider BuildProvider(TestClock? clock = null)
     {
@@ -19,12 +19,10 @@ public class GamePhaseDurationTests
         services.AddSingleton<IGameRepository, InMemoryGameRepository>();
         services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
 
-        var dictionaryPath = Path.Combine(WwwrootPath, "dictionaries");
-        var settingsPath = Path.Combine(WwwrootPath, "game_settings.json");
-        services.AddSingleton<IWordDictionary>(sp => new FileWordDictionary(dictionaryPath));
+        services.AddSingleton<IWordDictionary>(sp => new FileWordDictionary(DictionariesPath));
         var testClock = clock ?? new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         services.AddSingleton<IClock>(sp => testClock);
-        services.AddSingleton<IGameSettingsProvider>(sp => new TestGameSettingsProvider(settingsPath));
+        services.AddSingleton<IGameSettingsProvider>(sp => new TestGameSettingsProvider());
 
         services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
         services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();
@@ -36,24 +34,18 @@ public class GamePhaseDurationTests
     }
 
     [Fact]
-    public async Task Settings_file_contains_all_phase_durations_and_within_1800_seconds()
+    public void Settings_file_contains_all_phase_durations_and_within_1800_seconds()
     {
-        var filePath = Path.Combine(WwwrootPath, "game_settings.json");
-        var json = await File.ReadAllTextAsync(filePath);
-        var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
+        var appSettingsPath = Path.GetFullPath(
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "appsettings.json"));
+        var config = new ConfigurationBuilder()
+            .AddJsonFile(appSettingsPath, optional: false)
+            .Build();
 
-        Assert.True(root.TryGetProperty("lobbyDuration", out var lobby));
-        Assert.True(root.TryGetProperty("cluesDuration", out var clues));
-        Assert.True(root.TryGetProperty("guessDuration", out var guess));
-        Assert.True(root.TryGetProperty("scoringDuration", out var scoring));
+        var opts = config.GetSection("GameDefaults").Get<SoClover.Infrastructure.GameDefaultsOptions>()
+                   ?? throw new InvalidOperationException("Section GameDefaults absente de appsettings.json");
 
-        int lobbySec = lobby.GetInt32();
-        int cluesSec = clues.GetInt32();
-        int guessSec = guess.GetInt32();
-        int scoringSec = scoring.GetInt32();
-
-        foreach (var sec in new[] { lobbySec, cluesSec, guessSec, scoringSec })
+        foreach (var sec in new[] { opts.LobbyDuration, opts.CluesDuration, opts.GuessDuration, opts.ScoringDuration })
         {
             Assert.InRange(sec, 1, 1800);
         }
