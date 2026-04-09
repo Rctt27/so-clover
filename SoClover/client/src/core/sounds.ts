@@ -8,14 +8,25 @@ import incorrectUrl from '../public/sounds/incorrect.mp3';
 import timerWarningUrl from '../public/sounds/timer-warning.mp3';
 import lofiMusicUrl from '../public/sounds/writing-clues-lofi.mp3';
 
+// ─── Volumes ─────────────────────────────────────────────────────────────────
+const VOLUME_CARD_PLACE             = 0.5;
+const VOLUME_CARD_SWAP              = 0.5;
+const VOLUME_CARD_ROTATE            = 0.5;
+const VOLUME_BOARD_ROTATE           = 0.5;
+const VOLUME_BOARD_VALIDATION_OK    = 0.6;
+const VOLUME_BOARD_VALIDATION_FAIL  = 0.4;
+const VOLUME_TIMER_WARNING          = 0.3;
+export const VOLUME_WRITING_MUSIC   = 0.10; // exportée — utilisée dans useWritingCluesPhaseMusic
+// ─────────────────────────────────────────────────────────────────────────────
+
 const sounds = {
-  cardPlace: new Howl({ src: [cardPlaceUrl], volume: 0.5 }),
-  cardSwap: new Howl({ src: [cardSwapUrl], volume: 0.5 }),
-  cardRotate: new Howl({ src: [cardRotateUrl], volume: 0.5 }),
-  boardRotate: new Howl({ src: [boardRotateUrl], volume: 0.5 }),
-  boardValidationCorrect: new Howl({ src: [correctUrl], volume: 0.6 }),
-  boardValidationIncorrect: new Howl({ src: [incorrectUrl], volume: 0.4 }),
-  timerWarning: new Howl({ src: [timerWarningUrl], volume: 0.3 }),
+  cardPlace: new Howl({ src: [cardPlaceUrl], volume: VOLUME_CARD_PLACE }),
+  cardSwap: new Howl({ src: [cardSwapUrl], volume: VOLUME_CARD_SWAP }),
+  cardRotate: new Howl({ src: [cardRotateUrl], volume: VOLUME_CARD_ROTATE }),
+  boardRotate: new Howl({ src: [boardRotateUrl], volume: VOLUME_BOARD_ROTATE }),
+  boardValidationCorrect: new Howl({ src: [correctUrl], volume: VOLUME_BOARD_VALIDATION_OK }),
+  boardValidationIncorrect: new Howl({ src: [incorrectUrl], volume: VOLUME_BOARD_VALIDATION_FAIL }),
+  timerWarning: new Howl({ src: [timerWarningUrl], volume: VOLUME_TIMER_WARNING }),
 };
 
 export const writingCluesMusic = new Howl({

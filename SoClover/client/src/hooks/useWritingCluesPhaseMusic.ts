@@ -1,8 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useGameStore } from '../core/store';
-import { writingCluesMusic, isMuted } from '../core/sounds';
+import { writingCluesMusic, isMuted, VOLUME_WRITING_MUSIC } from '../core/sounds';
 
-const MUSIC_TARGET_VOLUME = 0.15;
+const MUSIC_TARGET_VOLUME = VOLUME_WRITING_MUSIC;
 const FADE_IN_MS = 5_000;
 const FADE_OUT_DURATION_MS = 5_000;
 const FADE_OUT_BEFORE_END_MS = 10_000;
