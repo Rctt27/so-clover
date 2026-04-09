@@ -33,8 +33,8 @@ dotnet ef database update --project SoClover
 
 ### Docker
 ```bash
-docker compose build --no-cache web    # Build (from SoClover/)
-docker compose up -d                   # Start services
+docker compose --env-file .env build --no-cache web                                                                                                                                                                                                                                                                                                                                                                  
+docker compose --env-file .env up -d 
 ```
 - Pas de reverse proxy dans compose (Caddy supprimé) — l'app écoute directement sur le port exposé.
 - Les secrets PostgreSQL viennent de `SoClover/.env` (ne pas committer `.env`).
