@@ -65,3 +65,16 @@ node_modules/
 
 # Git worktrees
 .worktrees/
+
+# Frontend build output
+dist/
+
+# AI tooling (local config, not project artifacts)
+.claude/
+.serena/
+
+# Superpowers plans & generated docs
+docs/superpowers/
+
+# Windows NUL device artifact
+nul
