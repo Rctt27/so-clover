@@ -16,9 +16,9 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
   const [status, setStatus] = useState<ClueStatus>('idle')
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const REFERENCE_SIZE = 1190
-  const INPUT_WIDTH_PX = 220
-  const OFFSET_PX = 200 // Distance du bord
+  // Dimensions centralisées dans CONSTANTS.ASSET_REFERENCES
+  const REFERENCE_SIZE = CONSTANTS.ASSET_REFERENCES.board.referenceSize;
+  const { width: INPUT_WIDTH_PX, offsetFromEdge: OFFSET_PX } = CONSTANTS.ASSET_REFERENCES.clueInput;
 
   const theme = CONSTANTS.THEME_CONFIG
 

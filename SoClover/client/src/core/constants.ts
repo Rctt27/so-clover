@@ -54,5 +54,15 @@
         }
       }
     }
+  },
+  ASSET_REFERENCES: {
+    board: {
+      referenceSize: 1190,
+      cardSize: 320,
+    },
+    clueInput: {
+      width: 220,
+      offsetFromEdge: 200,
+    }
   }
 };

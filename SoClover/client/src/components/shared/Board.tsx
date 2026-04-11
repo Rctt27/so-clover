@@ -58,9 +58,8 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
   dragSourceCardId,
   dragTargetSlot,
 }, ref) => {
-  // Dimensions de référence de Board.png
-  const REFERENCE_SIZE = 1190
-  const CARD_SIZE = 320 // Taille d'origine restaurée
+  // Dimensions de référence de Board.png (centralisées dans CONSTANTS.ASSET_REFERENCES)
+  const { referenceSize: REFERENCE_SIZE, cardSize: CARD_SIZE } = CONSTANTS.ASSET_REFERENCES.board;
 
   const { board: boardAnim } = CONSTANTS.THEME_CONFIG.animations;
 
