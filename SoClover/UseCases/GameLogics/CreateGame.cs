@@ -15,14 +15,16 @@ public static class CreateGame
         private readonly IGameRepository _repo;
         private readonly IEventPublisher _events;
         private readonly IWordDictionary _wordDictionary;
+        private readonly IWordsPoolCache _poolCache;
         private readonly IClock _clock;
         private readonly IGameSettingsProvider _settings;
 
-        public Handler(IGameRepository repo, IEventPublisher events, IWordDictionary wordDictionary, IClock clock, IGameSettingsProvider settings)
+        public Handler(IGameRepository repo, IEventPublisher events, IWordDictionary wordDictionary, IWordsPoolCache poolCache, IClock clock, IGameSettingsProvider settings)
         {
             _repo = repo;
             _events = events;
             _wordDictionary = wordDictionary;
+            _poolCache = poolCache;
             _clock = clock;
             _settings = settings;
         }
@@ -30,7 +32,8 @@ public static class CreateGame
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
         {
             var game = new Game(GameId.New(), request.Language);
-            await game.InitializeWordsPoolAsync(_wordDictionary, ct);
+            var pool = await game.InitializeWordsPoolAsync(_wordDictionary, ct);
+            _poolCache.Set(game.Id, pool);
 
             // Create the admin player (game creator)
             var creatorPlayer = new Player(PlayerId.New(), request.PlayerName, isAdmin: true);

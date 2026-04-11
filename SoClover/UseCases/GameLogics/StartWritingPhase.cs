@@ -18,22 +18,24 @@ public static class StartWritingPhase
         private readonly IClock _clock;
         private readonly IGameSettingsProvider _settings;
         private readonly IWordDictionary _wordDictionary;
+        private readonly IWordsPoolCache _poolCache;
 
-        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings, IWordDictionary wordDictionary)
+        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings, IWordDictionary wordDictionary, IWordsPoolCache poolCache)
         {
             _repo = repo;
             _events = events;
             _clock = clock;
             _settings = settings;
             _wordDictionary = wordDictionary;
+            _poolCache = poolCache;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
         {
             var game = await _repo.Get(request.GameId, ct) ?? throw new GameNotFoundException(request.GameId);
 
-            // Ensure the game's WordsPool is available after loading from persistence
-            await game.EnsureWordsPoolInitializedAsync(_wordDictionary, ct);
+            // Restore WordsPool from cache (survives EF deserialization)
+            await EnsureWordsPoolAsync(game, ct);
 
             // Populate each player's board with 4 cards using the game's WordsPool
             foreach (var player in game.Players)
@@ -60,6 +62,21 @@ public static class StartWritingPhase
             await _repo.Save(game, ct);
             await _events.Publish(new WritingPhaseStarted(game.Id), ct);
             return new Response(game.Phase);
+        }
+
+        private async Task EnsureWordsPoolAsync(Game game, CancellationToken ct)
+        {
+            if (game.IsWordsPoolInitialized) return;
+
+            var cached = _poolCache.Get(game.Id);
+            if (cached != null)
+            {
+                game.AttachWordsPool(cached);
+                return;
+            }
+
+            var pool = await game.InitializeWordsPoolAsync(_wordDictionary, ct);
+            _poolCache.Set(game.Id, pool);
         }
     }
 }

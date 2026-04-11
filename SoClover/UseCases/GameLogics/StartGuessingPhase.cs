@@ -18,15 +18,17 @@ public static class StartGuessingPhase
         private readonly IClock _clock;
         private readonly IGameSettingsProvider _settings;
         private readonly IWordDictionary _wordDictionary;
+        private readonly IWordsPoolCache _poolCache;
         private readonly Random _random = new();
 
-        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings, IWordDictionary wordDictionary)
+        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings, IWordDictionary wordDictionary, IWordsPoolCache poolCache)
         {
             _repo = repo;
             _events = events;
             _clock = clock;
             _settings = settings;
             _wordDictionary = wordDictionary;
+            _poolCache = poolCache;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
@@ -52,8 +54,8 @@ public static class StartGuessingPhase
 
             var firstPlayer = players[_random.Next(players.Count)];
 
-            // Ensure WordsPool is initialized after loading from persistence
-            await game.EnsureWordsPoolInitializedAsync(_wordDictionary, ct);
+            // Restore WordsPool from cache (survives EF deserialization)
+            await EnsureWordsPoolAsync(game, ct);
 
             // Générer la 5ème carte aléatoire depuis le WordsPool de la game
             var fifthCard = game.CreateRandomCard();
@@ -74,6 +76,21 @@ public static class StartGuessingPhase
             await _repo.Save(game, ct);
             await _events.Publish(new GuessingPhaseStarted(game.Id, firstPlayer.Id), ct);
             return new Response(game.Phase, firstPlayer.Id);
+        }
+
+        private async Task EnsureWordsPoolAsync(Game game, CancellationToken ct)
+        {
+            if (game.IsWordsPoolInitialized) return;
+
+            var cached = _poolCache.Get(game.Id);
+            if (cached != null)
+            {
+                game.AttachWordsPool(cached);
+                return;
+            }
+
+            var pool = await game.InitializeWordsPoolAsync(_wordDictionary, ct);
+            _poolCache.Set(game.Id, pool);
         }
     }
 }

@@ -60,7 +60,7 @@ npm run dev   # Proxy automatique vers localhost:5000
 - **components/guards/**: `RoleGuard` — protège les routes selon le rôle/phase du joueur.
 - **features/**: Feature modules (ex: `mouseTracking/` — suivi curseur temps réel via SignalR).
 - **core/**: Zustand slices (boardSlice, guessingSlice, notificationSlice), helpers, constants.
-- **hooks/**: useSignalR, useGameActions, useGameStateUpdate, usePermissions, useNotifications, useTimeoutSafetyPolling.
+- **hooks/**: useSignalR, useGameActions, useGameStateUpdate, usePermissions, useNotifications, useTimeoutSafetyPolling, useWritingCluesPhaseMusic.
 - **api/**: HTTP client (game-api.ts) and SignalR client (signalr-client.ts).
 - **types/**: TypeScript definitions (game.ts).
 
@@ -119,6 +119,16 @@ SignalR hub at `/hubs/game`.
 - Zustand for state management with separate slices.
 - Logs frontend verbeux : utiliser `debugLog(source, message)` de `core/debug.ts` — jamais `console.log` directement.
 - Zustand DevTools activés uniquement si `isDebug` (conditionnel sur `VITE_DEBUG_MODE`).
+
+### Frontend – Son & Mute
+
+- Tous les volumes sont des constantes nommées dans `core/sounds.ts` — ne jamais hardcoder un volume directement dans un `new Howl()`.
+- État mute stocké dans `localStorage` (`so-clover-muted`) et propagé via `CustomEvent('so-clover-mute-changed')`.
+- **Gotcha** : `writingCluesMusic` utilise Web Audio API (`html5: false` par défaut). Ne pas passer en `html5: true` — cela bloquerait silencieusement la lecture depuis un callback SignalR (hors geste utilisateur), car le Web Audio API est déjà déverrouillé par les autres sons de l'app.
+
+### Frontend – Constantes & Configuration
+
+- **Centralisation des constantes** – Toujours ajouter les constantes (timings, dimensions, offsets, seuils, etc.) dans `core/constants.ts` sous la section appropriée (`ASSET_REFERENCES`, `THEME_CONFIG`, etc.) plutôt que dans les fichiers/composants individuels. Cela évite la redondance et facilite la maintenance. Ne jamais dupliquer une valeur magic — si elle existe dans `CONSTANTS`, la déstructurer plutôt que la redéfinir.
 
 ### Frontend – Design & Assets
 

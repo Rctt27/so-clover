@@ -174,26 +174,23 @@ public sealed class Game
         }
     }
 
-    public async Task InitializeWordsPoolAsync(IWordDictionary wordDictionary, CancellationToken ct = default)
+    public async Task<WordsPool> InitializeWordsPoolAsync(IWordDictionary wordDictionary, CancellationToken ct = default)
     {
         if (_wordsPool != null)
             throw new InvalidOperationException("WordsPool already initialized.");
 
         _wordsPool = await WordsPool.CreateAsync(Id, Language, wordDictionary, ct);
+        return _wordsPool;
     }
 
-    // In persistence via EF, the words pool is not serialized. After reloading a Game from the database
-    // the field will be null. Any operation that needs to create cards must ensure the pool is available.
     public bool IsWordsPoolInitialized => _wordsPool != null;
 
-    public Task EnsureWordsPoolInitializedAsync(IWordDictionary wordDictionary, CancellationToken ct = default)
+    public void AttachWordsPool(WordsPool pool)
     {
-        if (_wordsPool != null)
-            return Task.CompletedTask;
-        return InitializeWordsPoolAsync(wordDictionary, ct);
+        _wordsPool = pool ?? throw new ArgumentNullException(nameof(pool));
     }
 
-    public async Task UpdateLanguageAsync(string newLanguage, IWordDictionary wordDictionary, CancellationToken ct = default)
+    public void UpdateLanguage(string newLanguage)
     {
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("Language can only be changed in the Lobby phase.");
@@ -205,9 +202,7 @@ public sealed class Game
         if (!string.Equals(Language, trimmed, StringComparison.Ordinal))
         {
             Language = trimmed;
-            // Reinitialize WordsPool with new language
             _wordsPool = null;
-            await InitializeWordsPoolAsync(wordDictionary, ct);
         }
     }
 

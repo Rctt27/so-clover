@@ -24,6 +24,7 @@ public class BreakingGameTests
         // Test-time providers
         services.AddSingleton<IClock>(sp => new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
         services.AddSingleton<IGameSettingsProvider>(sp => new TestGameSettingsProvider());
+        services.AddSingleton<IWordsPoolCache, InMemoryWordsPoolCache>();
         services.AddTransient<CardFactory>();
         services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
         services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();

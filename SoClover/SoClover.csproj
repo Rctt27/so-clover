@@ -15,6 +15,10 @@
     </ItemGroup>
 
     <ItemGroup>
+      <InternalsVisibleTo Include="SoClover.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
       <Compile Remove="obj\**" />
     </ItemGroup>
 

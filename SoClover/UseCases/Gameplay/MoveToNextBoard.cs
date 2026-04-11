@@ -40,15 +40,17 @@ public static class MoveToNextBoard
         private readonly IClock _clock;
         private readonly IGameSettingsProvider _settings;
         private readonly IWordDictionary _wordDictionary;
+        private readonly IWordsPoolCache _poolCache;
         private readonly Random _random = new();
 
-        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings, IWordDictionary wordDictionary)
+        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings, IWordDictionary wordDictionary, IWordsPoolCache poolCache)
         {
             _repo = repo;
             _events = events;
             _clock = clock;
             _settings = settings;
             _wordDictionary = wordDictionary;
+            _poolCache = poolCache;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
@@ -72,13 +74,13 @@ public static class MoveToNextBoard
 
             // Déterminer si ce passage est le dernier (après ce move, on doit entrer en Scoring)
             var playersCount = game.Players.Count;
-            // On utilise l'état actuel du compteur. Si on est sur le dernier board, 
+            // On utilise l'état actuel du compteur. Si on est sur le dernier board,
             // CompletedBoardsCount est à playersCount - 1.
             var isLastBoard = game.CompletedBoardsCount >= (playersCount - 1);
-            
+
             Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard Calculation: CompletedBoardsCount={game.CompletedBoardsCount}, PlayersCount={playersCount}, isLastBoard={isLastBoard}");
 
-            // On autorise le passage au board suivant (ou au scoring) si le temps est écoulé, 
+            // On autorise le passage au board suivant (ou au scoring) si le temps est écoulé,
             // si c'est une action système, si le board est complet ou s'il n'y a plus d'essais.
             // On s'assure ainsi que le dernier board force bien le passage en Scoring lors d'un timeout.
             var isTimeout = isTimeExpired || isSystemInvocation;
@@ -108,10 +110,6 @@ public static class MoveToNextBoard
 
             Card fifthCard;
             Rotation[] rotations;
-            
-
-            
-            
 
             if (isLastBoard)
             {
@@ -121,8 +119,8 @@ public static class MoveToNextBoard
             }
             else
             {
-                // Générer la 5ème carte aléatoire depuis le WordsPool de la game
-                await game.EnsureWordsPoolInitializedAsync(_wordDictionary, ct);
+                // Restore WordsPool from cache (survives EF deserialization)
+                await EnsureWordsPoolAsync(game, ct);
                 fifthCard = game.CreateRandomCard();
 
                 // Générer 5 rotations aléatoires
@@ -148,6 +146,21 @@ public static class MoveToNextBoard
             await _events.Publish(new MovedToNextBoard(game.Id, game.CurrentGuessingBoardOwner), ct);
 
             return new Response(game.Phase, game.CurrentGuessingBoardOwner);
+        }
+
+        private async Task EnsureWordsPoolAsync(Game game, CancellationToken ct)
+        {
+            if (game.IsWordsPoolInitialized) return;
+
+            var cached = _poolCache.Get(game.Id);
+            if (cached != null)
+            {
+                game.AttachWordsPool(cached);
+                return;
+            }
+
+            var pool = await game.InitializeWordsPoolAsync(_wordDictionary, ct);
+            _poolCache.Set(game.Id, pool);
         }
     }
 }

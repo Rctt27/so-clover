@@ -26,12 +26,14 @@ public static class UpdateGameSettings
     {
         private readonly IGameRepository _repo;
         private readonly IWordDictionary _wordDictionary;
+        private readonly IWordsPoolCache _poolCache;
         private readonly IEventPublisher _events;
 
-        public Handler(IGameRepository repo, IWordDictionary wordDictionary, IEventPublisher events)
+        public Handler(IGameRepository repo, IWordDictionary wordDictionary, IWordsPoolCache poolCache, IEventPublisher events)
         {
             _repo = repo;
             _wordDictionary = wordDictionary;
+            _poolCache = poolCache;
             _events = events;
         }
 
@@ -46,7 +48,17 @@ public static class UpdateGameSettings
                 throw new UnauthorizedAccessException("Only the admin can update game settings.");
             }
 
-            await game.UpdateLanguageAsync(request.Language, _wordDictionary, ct);
+            var previousLanguage = game.Language;
+            game.UpdateLanguage(request.Language);
+
+            // If language changed, recreate the WordsPool and update the cache
+            if (!string.Equals(previousLanguage, game.Language, StringComparison.Ordinal))
+            {
+                _poolCache.Remove(game.Id);
+                var pool = await game.InitializeWordsPoolAsync(_wordDictionary, ct);
+                _poolCache.Set(game.Id, pool);
+            }
+
             game.UpdateDurationOverrides(request.CluesDurationSeconds, request.GuessDurationSeconds);
 
             await _repo.Save(game, ct);

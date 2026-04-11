@@ -32,6 +32,7 @@ builder.Services.AddScoped<IGameRepository, SoClover.Infrastructure.Persistence.
 builder.Services.AddSingleton<InMemoryEventPublisher>();
 builder.Services.AddSingleton<IWordDictionary>(sp =>
     new FileWordDictionary(Path.Combine(builder.Environment.ContentRootPath, "Infrastructure", "Dictionaries")));
+builder.Services.AddSingleton<IWordsPoolCache, InMemoryWordsPoolCache>();
 
 // Time and settings providers
 builder.Services.AddSingleton<IClock, SystemClock>();

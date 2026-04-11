@@ -27,6 +27,7 @@ public class GameProcessManagerTimeoutTests
         var testClock = clock ?? new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         services.AddSingleton<IClock>(sp => testClock);
         services.AddSingleton<IGameSettingsProvider>(sp => new TestGameSettingsProvider());
+        services.AddSingleton<IWordsPoolCache, InMemoryWordsPoolCache>();
 
         // Use cases used by GameProcessManager
         services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
