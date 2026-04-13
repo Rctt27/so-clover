@@ -57,12 +57,12 @@
   },
   ASSET_REFERENCES: {
     board: {
-      referenceSize: 1190,
+      referenceSize: 1450,
       cardSize: 320,
     },
     clueInput: {
-      width: 220,
-      offsetFromEdge: 200,
+      width: 270,
+      offsetFromEdge: 245,
     }
   }
 };
