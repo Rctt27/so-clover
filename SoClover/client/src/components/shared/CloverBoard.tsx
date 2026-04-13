@@ -1,7 +1,9 @@
 ﻿import { useRef, useEffect } from 'react';
+import { CONSTANTS } from '../../core/constants';
 
 export function CloverBoard() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const { referenceSize: size, cardSize } = CONSTANTS.ASSET_REFERENCES.board;
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -10,7 +12,6 @@ export function CloverBoard() {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        const size = 1450; // Increased to prevent circle cropping
         const center = size / 2;
 
         // Clear canvas with white background
@@ -24,7 +25,6 @@ export function CloverBoard() {
         const cardPlaceHolderGreen = "#2dc653";
 
         // Card and core dimensions
-        const cardSize = 320; // Each card is 320px × 320px
         const holeSize = 100; // Hole in center of card is 100px × 100px
         const coreSize = cardSize * 2; // 640px - the central square (2×2 grid)
         const coreLeft = center - coreSize / 2;
@@ -155,13 +155,13 @@ export function CloverBoard() {
             }
         }
 
-    }, []);
+    }, [size, cardSize]);
 
     return (
         <canvas
             ref={canvasRef}
-            width={1450}
-            height={1450}
+            width={size}
+            height={size}
             className="absolute inset-0 w-full h-full pointer-events-none"
         />
     );

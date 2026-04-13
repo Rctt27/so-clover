@@ -6,7 +6,7 @@ import { CardData } from '../../types/game'
 import { DraggableCard } from '../guessing/DraggableCard'
 import { CONSTANTS } from '../../core/constants'
 import { LOGICAL_SLOTS } from '../../core/utils'
-import boardImage from '../../assets/images/Board.png'
+import { CloverBoard } from './CloverBoard'
 
 export interface BoardProps {
   cards: (CardData | null)[]; // 4 cards: [TopLeft, TopRight, BottomRight, BottomLeft]
@@ -58,7 +58,7 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
   dragSourceCardId,
   dragTargetSlot,
 }, ref) => {
-  // Dimensions de référence de Board.png (centralisées dans CONSTANTS.ASSET_REFERENCES)
+  // Dimensions de référence du canvas CloverBoard (centralisées dans CONSTANTS.ASSET_REFERENCES)
   const { referenceSize: REFERENCE_SIZE, cardSize: CARD_SIZE } = CONSTANTS.ASSET_REFERENCES.board;
 
   const { board: boardAnim } = CONSTANTS.THEME_CONFIG.animations;
@@ -81,12 +81,13 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
 
   const rotationTransition = shouldAnimateRotation ? { duration: 0.5, ease: 'easeInOut' as const } : { duration: 0 };
 
-  // Centres des emplacements logiques par défaut (0°) sur l'image de 1190px
+  // Centres des emplacements logiques par défaut (0°) sur le canvas de 1450px
+  // coreLeft = (1450 - 640) / 2 = 405 ; centres = 405+160=565 et 405+480=885
   const visualSlots = [
-    { x: 428, y: 428 }, // Visual Top-Left (Index 0)
-    { x: 762, y: 428 }, // Visual Top-Right (Index 1)
-    { x: 762, y: 762 }, // Visual Bottom-Right (Index 2)
-    { x: 428, y: 762 }, // Visual Bottom-Left (Index 3)
+    { x: 565, y: 565 }, // Visual Top-Left (Index 0)
+    { x: 885, y: 565 }, // Visual Top-Right (Index 1)
+    { x: 885, y: 885 }, // Visual Bottom-Right (Index 2)
+    { x: 565, y: 885 }, // Visual Bottom-Left (Index 3)
   ]
 
   // Fonction pour calculer le style d'un slot
@@ -209,13 +210,8 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
             default: animateEntry ? boardAnim.transition : { duration: 0.5 }
           }}
         >
-          {/* Board Image */}
-          <img
-            src={boardImage}
-            alt="Board"
-            className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-            draggable={false}
-          />
+          {/* Board Canvas */}
+          <CloverBoard />
 
           {/* Cards */}
           {LOGICAL_SLOTS.map((logicalPosName, lIndex) => {
