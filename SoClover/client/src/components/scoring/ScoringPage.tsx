@@ -237,6 +237,11 @@ export const ScoringPage: React.FC = () => {
                     result.playerId === playerId ? 'text-red-700' : 'text-slate-700'
                   }`}>
                     {result.playerName}
+                    {result.isDisconnected && (
+                      <span className="ml-2 text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
+                        Deconnecte
+                      </span>
+                    )}
                     {result.playerId === playerId && (
                       <span className="ml-2 text-xs bg-red-200 text-red-700 px-2 py-0.5 rounded-full">
                         Vous

@@ -20,7 +20,8 @@ public static class GetScoring
         string PlayerName,
         int Attempts,
         int DurationSeconds,
-        bool WasGuessed
+        bool WasGuessed,
+        bool IsDisconnected
     );
 
     public sealed class Handler : IGetScoringUseCase
@@ -59,7 +60,8 @@ public static class GetScoring
                         playerName,
                         kvp.Value.Attempts,
                         (int)kvp.Value.Duration.TotalSeconds,
-                        kvp.Value.WasGuessed
+                        kvp.Value.WasGuessed,
+                        kvp.Value.IsDisconnected
                     );
                     
                     Console.WriteLine($"[DEBUG_LOG] GetScoring: Player={dto.PlayerName}, WasGuessed={dto.WasGuessed}, Attempts={dto.Attempts}");

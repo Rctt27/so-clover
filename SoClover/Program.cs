@@ -843,7 +843,8 @@ app.MapGet("/api/games/{gameId:guid}/scoring", async (Guid gameId, IGetScoringUs
                 playerName = b.PlayerName,
                 attempts = b.Attempts,
                 durationSeconds = b.DurationSeconds,
-                wasGuessed = b.WasGuessed
+                wasGuessed = b.WasGuessed,
+                isDisconnected = b.IsDisconnected
             }).ToList(),
             failedBoards = response.FailedBoards.Select(b => new
             {
@@ -851,7 +852,8 @@ app.MapGet("/api/games/{gameId:guid}/scoring", async (Guid gameId, IGetScoringUs
                 playerName = b.PlayerName,
                 attempts = b.Attempts,
                 durationSeconds = b.DurationSeconds,
-                wasGuessed = b.WasGuessed
+                wasGuessed = b.WasGuessed,
+                isDisconnected = b.IsDisconnected
             }).ToList()
         });
     }

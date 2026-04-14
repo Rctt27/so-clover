@@ -71,6 +71,7 @@ export interface ScoringBoardResponse {
   playerName: string;
   attempts: number;
   durationSeconds: number;
+  isDisconnected: boolean;
 }
 
 export interface GameScoringResponse {
