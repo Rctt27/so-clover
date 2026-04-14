@@ -133,6 +133,32 @@ public sealed class SignalREventPublisher : IEventPublisher
                         }, ct);
                     break;
                 }
+                case SoClover.UseCases.GameLogics.PlayerKicked playerKicked:
+                {
+                    await _hub.Clients.Group($"game-{state.GameId}")
+                        .SendAsync("ServerNotification", new
+                        {
+                            type = "warning",
+                            message = $"<strong>{playerKicked.PlayerName}</strong> a été retiré de la partie par l'admin"
+                        }, ct);
+
+                    await _hub.Clients.Group($"game-{state.GameId}")
+                        .SendAsync("PlayerKicked", new
+                        {
+                            kickedPlayerId = playerKicked.PlayerId.Value.ToString()
+                        }, ct);
+                    break;
+                }
+                case SoClover.UseCases.GameLogics.PlayerDisconnected playerDisconnected:
+                {
+                    await _hub.Clients.Group($"game-{state.GameId}")
+                        .SendAsync("ServerNotification", new
+                        {
+                            type = "warning",
+                            message = $"<strong>{playerDisconnected.PlayerName}</strong> a été déconnecté"
+                        }, ct);
+                    break;
+                }
                 case SoClover.UseCases.GameLogics.GameDeleted:
                 {
                     await _hub.Clients.Group($"game-{gameId.Value}")
