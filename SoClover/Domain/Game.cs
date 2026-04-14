@@ -625,8 +625,8 @@ public sealed class Game
         // Incrémenter le compteur de boards complétés
         CompletedBoardsCount++;
 
-        var playersList = Players.ToList();
-        
+        var playersList = ActivePlayers.ToList();
+
         Console.WriteLine($"[DEBUG_LOG] Game.MoveToNextGuessingBoard: CompletedBoardsCount={CompletedBoardsCount}, TotalPlayers={playersList.Count}");
 
         // Vérifier si tous les boards ont été devinés

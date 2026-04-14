@@ -68,6 +68,7 @@ builder.Services.AddTransient<IGetScoringUseCase, GetScoring.Handler>();
 builder.Services.AddTransient<ICompleteGameUseCase, CompleteGame.Handler>();
 builder.Services.AddTransient<ILeaveGameUseCase, LeaveGame.Handler>();
 builder.Services.AddTransient<IKickPlayerUseCase, KickPlayer.Handler>();
+builder.Services.AddTransient<IDisconnectPlayerUseCase, DisconnectPlayer.Handler>();
 
 // Add SignalR (backplane ready, but optional)
 // Note: We keep Redis backplane optional to avoid hard dependency. When you're ready,

@@ -52,7 +52,7 @@ public static class SubmitBoard
             await _events.Publish(new BoardSubmitted(game.Id, request.PlayerId), ct);
 
             // If all players have submitted, automatically start the guessing phase
-            var allPlayersExplicitlySubmitted = game.Players.All(p => p.Board.IsSubmitted);
+            var allPlayersExplicitlySubmitted = game.ActivePlayers.All(p => p.Board.IsSubmitted);
             if (allPlayersExplicitlySubmitted)
             {
                 await _startGuessingPhase.Handle(new StartGuessingPhase.Request(game.Id), ct);

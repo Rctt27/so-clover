@@ -42,13 +42,13 @@ public static class StartGuessingPhase
             // Vérifier que tous les joueurs ont explicitement soumis leur board, sauf si force est activé
             if (!request.Force)
             {
-                var allSubmitted = game.Players.All(p => p.Board.IsSubmitted);
+                var allSubmitted = game.ActivePlayers.All(p => p.Board.IsSubmitted);
                 if (!allSubmitted)
                     throw new InvalidOperationInPhaseException("Cannot start Guessing: not all boards were explicitly submitted.");
             }
 
             // Choisir aléatoirement le premier joueur
-            var players = game.Players.ToList();
+            var players = game.ActivePlayers.ToList();
             if (players.Count == 0)
                 throw new NotEnoughPlayersException(1, 0);
 

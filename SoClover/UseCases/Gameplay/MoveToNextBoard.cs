@@ -73,7 +73,7 @@ public static class MoveToNextBoard
             Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard: Game={game.Id.Value}, Player={request.PlayerId.Value}, Origin={request.Origin}, Now={now:O}, EndsAt={game.PhaseEndsAtUtc?.ToString("O") ?? "null"}");
 
             // Déterminer si ce passage est le dernier (après ce move, on doit entrer en Scoring)
-            var playersCount = game.Players.Count;
+            var playersCount = game.ActivePlayers.Count;
             // On utilise l'état actuel du compteur. Si on est sur le dernier board,
             // CompletedBoardsCount est à playersCount - 1.
             var isLastBoard = game.CompletedBoardsCount >= (playersCount - 1);
