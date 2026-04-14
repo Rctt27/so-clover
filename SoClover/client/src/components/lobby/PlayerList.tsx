@@ -1,8 +1,27 @@
-﻿import React from 'react';
+import React, { useState } from 'react';
+import { X } from 'lucide-react';
 import { useGameStore } from '../../core/store';
+import { gameApi } from '../../api/game-api';
 
 export const PlayerList: React.FC = () => {
-  const { players, playerId } = useGameStore();
+  const { players, playerId, isGameAdmin, gameId } = useGameStore();
+  const [kickingPlayerId, setKickingPlayerId] = useState<string | null>(null);
+
+  const handleKick = async (targetPlayerId: string, targetName: string) => {
+    if (!gameId || !playerId) return;
+
+    const confirmed = window.confirm(`Retirer ${targetName} de la partie ?`);
+    if (!confirmed) return;
+
+    setKickingPlayerId(targetPlayerId);
+    try {
+      await gameApi.kickPlayer(gameId, targetPlayerId, playerId);
+    } catch (err) {
+      console.error('Failed to kick player', err);
+    } finally {
+      setKickingPlayerId(null);
+    }
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -15,7 +34,8 @@ export const PlayerList: React.FC = () => {
       <div className="divide-y divide-slate-100">
         {players.map((player, index) => {
           const isMe = player.playerId === playerId;
-          const isCreator = index === 0; // Le premier joueur dans la liste est le créateur par convention backend
+          const isCreator = index === 0;
+          const canKick = isGameAdmin && !isMe;
 
           return (
             <div key={player.playerId} className="px-4 py-3 flex items-center gap-3">
@@ -29,8 +49,18 @@ export const PlayerList: React.FC = () => {
               </div>
               {isCreator && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
-                  Créateur
+                  Createur
                 </span>
+              )}
+              {canKick && (
+                <button
+                  onClick={() => handleKick(player.playerId, player.name)}
+                  disabled={kickingPlayerId === player.playerId}
+                  className="p-1 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                  title={`Retirer ${player.name}`}
+                >
+                  <X size={16} />
+                </button>
               )}
             </div>
           );
