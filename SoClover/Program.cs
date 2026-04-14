@@ -66,6 +66,7 @@ builder.Services.AddTransient<IValidateGuessingBoardUseCase, ValidateGuessingBoa
 builder.Services.AddTransient<IMoveToNextBoardUseCase, MoveToNextBoard.Handler>();
 builder.Services.AddTransient<IGetScoringUseCase, GetScoring.Handler>();
 builder.Services.AddTransient<ICompleteGameUseCase, CompleteGame.Handler>();
+builder.Services.AddTransient<ILeaveGameUseCase, LeaveGame.Handler>();
 
 // Add SignalR (backplane ready, but optional)
 // Note: We keep Redis backplane optional to avoid hard dependency. When you're ready,
@@ -178,6 +179,34 @@ app.MapPost("/api/games/{gameId:guid}/join", async (Guid gameId, JoinGameRequest
     }
 })
 .WithName("JoinGame");
+
+app.MapPost("/api/games/{gameId:guid}/leave", async (Guid gameId, LeaveGameRequest? request, ILeaveGameUseCase useCase, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(request?.PlayerId))
+    {
+        return Results.BadRequest(new { message = "PlayerId is required" });
+    }
+
+    if (!Guid.TryParse(request.PlayerId, out var playerGuid) || playerGuid == Guid.Empty)
+    {
+        return Results.BadRequest(new { message = "PlayerId must be a valid GUID" });
+    }
+
+    try
+    {
+        var response = await useCase.Handle(new LeaveGame.Request(new GameId(gameId), new PlayerId(playerGuid)), ct);
+        return Results.Ok(new { success = response.Success });
+    }
+    catch (GameNotFoundException)
+    {
+        return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (InvalidOperationInPhaseException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+})
+.WithName("LeaveGame");
 
 app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSettingsRequest? request, IUpdateGameSettingsUseCase useCase, CancellationToken ct) =>
 {
@@ -897,3 +926,4 @@ record RotateCardRequest(string PlayerId, string? Position = null, int? OutsideC
 record ValidateGuessingBoardRequest(string PlayerId);
 record MoveToNextBoardRequest(string PlayerId);
 record CompleteGameRequest(string PlayerId);
+record LeaveGameRequest(string PlayerId);
