@@ -4,6 +4,7 @@ import { CONSTANTS } from '../../core/constants';
 export function CloverBoard() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { referenceSize: size, cardSize } = CONSTANTS.ASSET_REFERENCES.board;
+    const { cloverGreen, darkGreen, accentGreen } = CONSTANTS.CANVAS_COLORS;
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -14,15 +15,7 @@ export function CloverBoard() {
 
         const center = size / 2;
 
-        // Clear canvas with white background
-        ctx.fillStyle = 'transparent';
-        ctx.fillRect(0, 0, size, size);
-
-        // Color scheme - elegant shades of green
-        const cloverGreen = '#2dc653';
-        const darkGreen = '#2abb4e';
-        const accentGreen = '#25a244';
-        const cardPlaceHolderGreen = "#2dc653";
+        ctx.clearRect(0, 0, size, size);
 
         // Card and core dimensions
         const holeSize = 100; // Hole in center of card is 100px × 100px
@@ -36,14 +29,19 @@ export function CloverBoard() {
             ctx.translate(x, y);
             ctx.rotate(angle);
 
-            const edgeWidth = coreSize; // 640px - width along the core edge
-            const circleRadius = 195; // Radius for each circle scaled to match 320px cards
-            const circleSpacing = edgeWidth * 0.25; // Distance between circle centers
-            const penetrationDepth = 253; // How far circles extend outward from core
+            // Géométrie des pétales : chaque pétale = 2 cercles qui se chevauchent,
+            // centrés symétriquement sur l'axe perpendiculaire au bord du cœur.
+            // circleSpacing = 0.25 × 640 = 160px (écart entre les deux centres)
+            // penetrationDepth = 253px (distance d'extension au-delà du bord du cœur)
+            // leftCircleY/rightCircleY = -253 × 0.45 ≈ -114px (recul dans le cœur pour créer le recouvrement)
+            const edgeWidth = coreSize; // 640px - largeur le long du bord du cœur
+            const circleRadius = 195; // Rayon de chaque cercle (ajusté pour des cartes de 320px)
+            const circleSpacing = edgeWidth * 0.25; // 160px — écart entre les centres
+            const penetrationDepth = 253; // Extension au-delà du bord du cœur
 
             // Two circle centers positioned symmetrically
             const leftCircleX = -circleSpacing;
-            const leftCircleY = -penetrationDepth * 0.45; // Adjusted to push circles into core square
+            const leftCircleY = -penetrationDepth * 0.45; // Recul dans le cœur pour créer le recouvrement
 
             const rightCircleX = circleSpacing;
             const rightCircleY = -penetrationDepth * 0.45;
@@ -85,7 +83,7 @@ export function CloverBoard() {
                 const cardY = coreTop + row * cardSize;
 
                 // Draw the lighter green card placeholder area
-                ctx.fillStyle = cardPlaceHolderGreen;
+                ctx.fillStyle = cloverGreen;
                 ctx.fillRect(cardX, cardY, cardSize, cardSize);
 
                 // Draw the darker green hole in the center (100px × 100px)

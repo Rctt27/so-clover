@@ -8,6 +8,7 @@
     PLAYER_ID: 'so_clover_player_id',
     PLAYER_NAME: 'so_clover_player_name',
   },
+  
   THEME_CONFIG: {
     cardFontClass: 'mogra-regular',
     cardFontWeight: '400',
@@ -55,6 +56,13 @@
       }
     }
   },
+  
+  CANVAS_COLORS: {
+    cloverGreen: '#2dc653',   // Pétales et placeholders de cartes
+    darkGreen: '#2abb4e',     // Dégradé sombre (gradient stop)
+    accentGreen: '#25a244',   // Repères de coin sur les trous
+  },
+
   ASSET_REFERENCES: {
     board: {
       referenceSize: 1450,
@@ -62,7 +70,7 @@
     },
     clueInput: {
       width: 270,
-      offsetFromEdge: 245,
+      offsetFromEdge: 300,
     }
   }
 };

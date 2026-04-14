@@ -60,7 +60,6 @@ export const useWritingCluesPhaseMusic = () => {
       writingCluesMusic.stop();
     };
     // phaseEndsAtUtc géré par l'effet suivant — intentionnellement absent ici
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
   // ─── Recalcul du fade-out si phaseEndsAtUtc change en cours de phase ─────
@@ -70,7 +69,6 @@ export const useWritingCluesPhaseMusic = () => {
     if (msRemaining > FADE_OUT_BEFORE_END_MS) {
       scheduleFadeOut(phaseEndsAtUtc);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phaseEndsAtUtc]);
 
   // ─── Réactivité mute/un-mute ──────────────────────────────────────────────
@@ -101,6 +99,5 @@ export const useWritingCluesPhaseMusic = () => {
 
     window.addEventListener('so-clover-mute-changed', handleMuteChanged);
     return () => window.removeEventListener('so-clover-mute-changed', handleMuteChanged);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 };
