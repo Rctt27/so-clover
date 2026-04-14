@@ -1,7 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import { useGameStore } from '../../core/store';
 
-export const PlayerSetupCard: React.FC = () => {
+export const PlayerSetupPanel: React.FC = () => {
   const { playerName, setPlayerName } = useGameStore();
   const MAX_LENGTH = 16;
 

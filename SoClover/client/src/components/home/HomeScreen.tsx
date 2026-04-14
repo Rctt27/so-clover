@@ -1,7 +1,7 @@
 ﻿import React from 'react';
 import { motion } from 'framer-motion';
-import { PlayerSetupCard } from './PlayerSetupCard';
-import { GameManagementCard } from './GameManagementCard';
+import { PlayerSetupPanel } from './PlayerSetupPanel';
+import { GameManagementPanel } from './GameManagementPanel';
 
 export const HomeScreen: React.FC = () => {
   return (
@@ -21,8 +21,8 @@ export const HomeScreen: React.FC = () => {
       </header>
 
       <main className="w-full flex flex-col items-center">
-        <PlayerSetupCard />
-        <GameManagementCard />
+        <PlayerSetupPanel />
+        <GameManagementPanel />
       </main>
 
       <footer className="mt-12 text-gray-400 text-sm">
