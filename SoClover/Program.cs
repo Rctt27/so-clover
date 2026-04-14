@@ -170,12 +170,27 @@ app.MapPost("/api/games/{gameId:guid}/join", async (Guid gameId, JoinGameRequest
 
     try
     {
-        var response = await useCase.Handle(new JoinGame.Request(new GameId(gameId), request.PlayerName), ct);
+        var response = await useCase.Handle(
+            new JoinGame.Request(new GameId(gameId), request.PlayerName, request.ReplaceExisting), ct);
+
+        if (response.IsConflict)
+        {
+            return Results.Conflict(new
+            {
+                message = "A player with this name already exists",
+                existingPlayerId = response.ExistingPlayerId?.Value
+            });
+        }
+
         return Results.Ok(new { playerId = response.PlayerId.Value });
     }
     catch (GameNotFoundException)
     {
         return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (InvalidOperationInPhaseException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
     }
 })
 .WithName("JoinGame");
@@ -911,7 +926,7 @@ app.Run();
 
 // Request DTOs for API
 record CreateGameRequest(string PlayerName, string? Language = null);
-record JoinGameRequest(string PlayerName);
+record JoinGameRequest(string PlayerName, bool ReplaceExisting = false);
 record UpdateGameSettingsRequest(string PlayerId, string Language, int? CluesDuration, int? GuessDuration);
 record SetClueRequest(string PlayerId, string Direction, string ClueText);
 record SubmitBoardRequest(string PlayerId);
