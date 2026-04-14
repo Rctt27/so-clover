@@ -10,6 +10,14 @@ export interface JoinGameResponse {
   playerId: string;
 }
 
+export interface JoinGameConflictResponse {
+  isConflict: true;
+  existingPlayerId: string;
+  message: string;
+}
+
+export type JoinGameResult = JoinGameResponse | JoinGameConflictResponse;
+
 export const gameApi = {
   createGame: async (playerName: string, language: string = 'Français_OFF'): Promise<CreateGameResponse> => {
     const response = await fetch('/api/games', {
@@ -31,14 +39,23 @@ export const gameApi = {
     return response.json();
   },
 
-  joinGame: async (gameId: string, playerName: string): Promise<JoinGameResponse> => {
+  joinGame: async (gameId: string, playerName: string, replaceExisting: boolean = false): Promise<JoinGameResult> => {
     const response = await fetch(`/api/games/${gameId}/join`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ playerName }),
+      body: JSON.stringify({ playerName, replaceExisting }),
     });
+
+    if (response.status === 409) {
+      const data = await response.json();
+      return {
+        isConflict: true,
+        existingPlayerId: data.existingPlayerId,
+        message: data.message,
+      } as JoinGameConflictResponse;
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -87,13 +104,18 @@ export const gameApi = {
     return response.json();
   },
 
-  startGame: async (gameId: string): Promise<void> => {
+  startGame: async (gameId: string): Promise<{ disconnectedPlayers?: string[] }> => {
     const response = await fetch(`/api/games/${gameId}/start`, {
       method: 'POST',
     });
     if (!response.ok) {
-      throw new Error('Failed to start game');
+      const errorData = await response.json().catch(() => ({}));
+      if (errorData.disconnectedPlayers) {
+        return { disconnectedPlayers: errorData.disconnectedPlayers };
+      }
+      throw new Error(errorData.message || 'Failed to start game');
     }
+    return {};
   },
 
   cancelGame: async (gameId: string): Promise<void> => {
@@ -102,6 +124,21 @@ export const gameApi = {
     });
     if (!response.ok && response.status !== 404) {
       throw new Error('Failed to cancel game');
+    }
+  },
+
+  kickPlayer: async (gameId: string, targetPlayerId: string, adminPlayerId: string): Promise<void> => {
+    const response = await fetch(`/api/games/${gameId}/kick`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ playerId: targetPlayerId, adminPlayerId }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to kick player');
     }
   },
 
