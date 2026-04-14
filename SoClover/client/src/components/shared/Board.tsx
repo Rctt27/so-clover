@@ -81,13 +81,13 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
 
   const rotationTransition = shouldAnimateRotation ? { duration: 0.5, ease: 'easeInOut' as const } : { duration: 0 };
 
-  // Centres des emplacements logiques par défaut (0°) sur le canvas de 1450px
-  // coreLeft = (1450 - 640) / 2 = 405 ; centres = 405+160=565 et 405+480=885
+  // Centres des emplacements logiques par défaut (0°) sur le canvas de 1300px
+  // coreLeft = (1300 - 640) / 2 = 330 ; centres = 330+160=490 et 330+480=810
   const visualSlots = [
-    { x: 565, y: 565 }, // Visual Top-Left (Index 0)
-    { x: 885, y: 565 }, // Visual Top-Right (Index 1)
-    { x: 885, y: 885 }, // Visual Bottom-Right (Index 2)
-    { x: 565, y: 885 }, // Visual Bottom-Left (Index 3)
+    { x: 490, y: 490 }, // Visual Top-Left (Index 0)
+    { x: 810, y: 490 }, // Visual Top-Right (Index 1)
+    { x: 810, y: 810 }, // Visual Bottom-Right (Index 2)
+    { x: 490, y: 810 }, // Visual Bottom-Left (Index 3)
   ]
 
   // Fonction pour calculer le style d'un slot
@@ -167,7 +167,7 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
         className={`relative w-full aspect-square ${className}`}
         style={{
           width: '100%',
-          maxWidth: '800px',
+          maxWidth: '1000px',
           minWidth: 'min(800px, 100vw - 2rem)',
         }}
       >

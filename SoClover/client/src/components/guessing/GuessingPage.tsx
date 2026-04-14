@@ -220,7 +220,7 @@ export const GuessingPage = () => {
         </div>
 
         {/* Board Central */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-8 min-w-0">
+        <div className="flex-1 flex flex-col items-center justify-center gap-8 min-w-0 max-w-[1000px]">
           <GuessingBoardSection
             boardRef={boardRef}
             boardCards={boardCards}

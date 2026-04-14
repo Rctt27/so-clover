@@ -65,12 +65,12 @@
 
   ASSET_REFERENCES: {
     board: {
-      referenceSize: 1450,
+      referenceSize: 1300,  // Canvas 1300×1300px — contenu visuel ~1258px (marge ~21px)
       cardSize: 320,
     },
     clueInput: {
       width: 270,
-      offsetFromEdge: 300,
+      offsetFromEdge: 216,  // Centre des cercles de pétales : coreTop(330) - penetrationDepth(253)×0.45 ≈ 216
     }
   }
 };
