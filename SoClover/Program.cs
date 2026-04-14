@@ -67,6 +67,7 @@ builder.Services.AddTransient<IMoveToNextBoardUseCase, MoveToNextBoard.Handler>(
 builder.Services.AddTransient<IGetScoringUseCase, GetScoring.Handler>();
 builder.Services.AddTransient<ICompleteGameUseCase, CompleteGame.Handler>();
 builder.Services.AddTransient<ILeaveGameUseCase, LeaveGame.Handler>();
+builder.Services.AddTransient<IKickPlayerUseCase, KickPlayer.Handler>();
 
 // Add SignalR (backplane ready, but optional)
 // Note: We keep Redis backplane optional to avoid hard dependency. When you're ready,
@@ -222,6 +223,47 @@ app.MapPost("/api/games/{gameId:guid}/leave", async (Guid gameId, LeaveGameReque
     }
 })
 .WithName("LeaveGame");
+
+app.MapPost("/api/games/{gameId:guid}/kick", async (Guid gameId, KickPlayerRequest? request, IKickPlayerUseCase useCase, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(request?.PlayerId) || string.IsNullOrWhiteSpace(request?.AdminPlayerId))
+    {
+        return Results.BadRequest(new { message = "PlayerId and AdminPlayerId are required" });
+    }
+
+    if (!Guid.TryParse(request.PlayerId, out var targetGuid) || !Guid.TryParse(request.AdminPlayerId, out var adminGuid))
+    {
+        return Results.BadRequest(new { message = "IDs must be valid GUIDs" });
+    }
+
+    try
+    {
+        var response = await useCase.Handle(
+            new KickPlayer.Request(new GameId(gameId), new PlayerId(targetGuid), new PlayerId(adminGuid)), ct);
+        return Results.Ok(new { success = response.Success, kickedPlayerName = response.KickedPlayerName });
+    }
+    catch (GameNotFoundException)
+    {
+        return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (UnauthorizedAccessException)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+    catch (PlayerNotFoundException)
+    {
+        return Results.NotFound(new { message = "Player not found" });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (InvalidOperationInPhaseException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+})
+.WithName("KickPlayer");
 
 app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSettingsRequest? request, IUpdateGameSettingsUseCase useCase, CancellationToken ct) =>
 {
@@ -942,3 +984,4 @@ record ValidateGuessingBoardRequest(string PlayerId);
 record MoveToNextBoardRequest(string PlayerId);
 record CompleteGameRequest(string PlayerId);
 record LeaveGameRequest(string PlayerId);
+record KickPlayerRequest(string PlayerId, string AdminPlayerId);
