@@ -25,6 +25,12 @@ public sealed class Player
     [JsonPropertyName("cursorColorIndex")]
     public int CursorColorIndex { get; private set; } = 0;
 
+    [JsonInclude]
+    [JsonPropertyName("isDisconnected")]
+    public bool IsDisconnected { get; private set; }
+
+    public void MarkDisconnected() => IsDisconnected = true;
+
     public Player(PlayerId id, string name, bool isAdmin = false)
     {
         Id = id;

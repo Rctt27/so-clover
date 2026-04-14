@@ -87,4 +87,13 @@ public class PlayerNotFoundException : DomainException
     }
 }
 
+public class DisconnectedPlayersException : DomainException
+{
+    public IReadOnlyList<string> PlayerNames { get; }
 
+    public DisconnectedPlayersException(IReadOnlyList<string> playerNames)
+        : base($"The following players appear disconnected: {string.Join(", ", playerNames)}")
+    {
+        PlayerNames = playerNames;
+    }
+}

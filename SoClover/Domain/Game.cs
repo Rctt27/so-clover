@@ -87,6 +87,10 @@ public sealed class Game
     [JsonIgnore]
     public IReadOnlyCollection<Player> Players => _players.Values;
 
+    [JsonIgnore]
+    public IReadOnlyCollection<Player> ActivePlayers =>
+        _players.Values.Where(p => !p.IsDisconnected).ToList().AsReadOnly();
+
     // Persistence bridge: expose players for JSON (de)serialization when using EF snapshot storage.
     // We keep the domain API read-only (via Players) and use this property only for persistence.
     // Note: requires custom JSON converters for PlayerId as dictionary keys (already added in EfGameRepository).
@@ -172,6 +176,49 @@ public sealed class Game
                 _players[newAdminId].IsAdmin = true;
             }
         }
+    }
+
+    public Player? FindPlayerByName(string name)
+    {
+        var trimmed = name.Trim();
+        return _players.Values.FirstOrDefault(p =>
+            string.Equals(p.Name, trimmed, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public PlayerId ReplacePlayer(PlayerId existingId, Player newPlayer)
+    {
+        if (Phase != GamePhase.Lobby)
+            throw new InvalidOperationInPhaseException("Cannot replace player after game start.");
+        if (!_players.ContainsKey(existingId))
+            throw new PlayerNotFoundException(existingId);
+
+        var existing = _players[existingId];
+        var replacement = new Player(existingId, newPlayer.Name, existing.IsAdmin);
+        replacement.SetCursorColorIndex(existing.CursorColorIndex);
+        _players[existingId] = replacement;
+        return existingId;
+    }
+
+    public void DisconnectPlayerDuringWriting(PlayerId playerId)
+    {
+        if (Phase != GamePhase.WritingClues)
+            throw new InvalidOperationInPhaseException("Can only disconnect during WritingClues phase.");
+
+        var player = RequirePlayer(playerId);
+        if (player.IsDisconnected)
+            return; // already disconnected, idempotent
+
+        player.MarkDisconnected();
+
+        _boardResults[playerId] = new BoardResult(
+            playerId,
+            Attempts: 0,
+            StartTime: DateTime.UtcNow,
+            EndTime: DateTime.UtcNow,
+            Duration: TimeSpan.Zero,
+            WasGuessed: false,
+            IsDisconnected: true
+        );
     }
 
     public async Task<WordsPool> InitializeWordsPoolAsync(IWordDictionary wordDictionary, CancellationToken ct = default)
@@ -751,7 +798,8 @@ public readonly record struct BoardResult(
     DateTime StartTime,
     DateTime EndTime,
     TimeSpan Duration,
-    bool WasGuessed
+    bool WasGuessed,
+    bool IsDisconnected = false
 );
 
 
