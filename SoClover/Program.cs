@@ -69,6 +69,7 @@ builder.Services.AddTransient<ICompleteGameUseCase, CompleteGame.Handler>();
 builder.Services.AddTransient<ILeaveGameUseCase, LeaveGame.Handler>();
 builder.Services.AddTransient<IKickPlayerUseCase, KickPlayer.Handler>();
 builder.Services.AddTransient<IDisconnectPlayerUseCase, DisconnectPlayer.Handler>();
+builder.Services.AddSingleton<SoClover.RealTime.IConnectionTracker, SoClover.RealTime.SignalRConnectionTracker>();
 
 // Add SignalR (backplane ready, but optional)
 // Note: We keep Redis backplane optional to avoid hard dependency. When you're ready,
@@ -479,6 +480,10 @@ app.MapPost("/api/games/{gameId:guid}/start", async (Guid gameId, IStartWritingP
     catch (GameNotFoundException)
     {
         return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (DisconnectedPlayersException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message, disconnectedPlayers = ex.PlayerNames });
     }
 })
 .WithName("StartWritingPhase");

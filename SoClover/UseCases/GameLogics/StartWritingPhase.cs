@@ -1,4 +1,5 @@
 using SoClover.Domain;
+using SoClover.RealTime;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
 
@@ -19,8 +20,9 @@ public static class StartWritingPhase
         private readonly IGameSettingsProvider _settings;
         private readonly IWordDictionary _wordDictionary;
         private readonly IWordsPoolCache _poolCache;
+        private readonly IConnectionTracker? _connectionTracker;
 
-        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings, IWordDictionary wordDictionary, IWordsPoolCache poolCache)
+        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings, IWordDictionary wordDictionary, IWordsPoolCache poolCache, IConnectionTracker? connectionTracker = null)
         {
             _repo = repo;
             _events = events;
@@ -28,11 +30,25 @@ public static class StartWritingPhase
             _settings = settings;
             _wordDictionary = wordDictionary;
             _poolCache = poolCache;
+            _connectionTracker = connectionTracker;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
         {
             var game = await _repo.Get(request.GameId, ct) ?? throw new GameNotFoundException(request.GameId);
+
+            // Verify all players have an active SignalR connection (skipped in tests where tracker is null)
+            if (_connectionTracker != null)
+            {
+                var disconnectedNames = game.Players
+                    .Where(p => !_connectionTracker.IsPlayerConnected(p.Id))
+                    .Select(p => p.Name)
+                    .ToList();
+                if (disconnectedNames.Count > 0)
+                {
+                    throw new DisconnectedPlayersException(disconnectedNames);
+                }
+            }
 
             // Restore WordsPool from cache (survives EF deserialization)
             await EnsureWordsPoolAsync(game, ct);
