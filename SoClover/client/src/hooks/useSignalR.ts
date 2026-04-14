@@ -136,6 +136,13 @@ export const useSignalR = () => {
       resetAuth();
     };
 
+    const handlePlayerKicked = (data: any) => {
+      if (data?.kickedPlayerId === playerId) {
+        notifyWarning("Vous avez ete retire de la partie par l'admin.");
+        resetAuth();
+      }
+    };
+
     const handleBoardRotationUpdated = (data: any) => {
       if (data && typeof data.cumulativeRotation === 'number') {
         // Ignore own rotation events to prevent overwriting local state
@@ -162,6 +169,7 @@ export const useSignalR = () => {
     signalRClient.on('ServerNotification', handleServerNotification);
     signalRClient.on('PlayerJoined', handlePlayerJoined);
     signalRClient.on('GameDeleted', handleGameDeleted);
+    signalRClient.on('PlayerKicked', handlePlayerKicked);
     signalRClient.on('BoardRotationUpdated', handleBoardRotationUpdated);
     signalRClient.on('GuessingBoardValidated', handleGuessingBoardValidated);
 
@@ -189,6 +197,7 @@ export const useSignalR = () => {
       signalRClient.off('ServerNotification', handleServerNotification);
       signalRClient.off('PlayerJoined', handlePlayerJoined);
       signalRClient.off('GameDeleted', handleGameDeleted);
+      signalRClient.off('PlayerKicked', handlePlayerKicked);
       signalRClient.off('BoardRotationUpdated', handleBoardRotationUpdated);
       signalRClient.off('GuessingBoardValidated', handleGuessingBoardValidated);
     };

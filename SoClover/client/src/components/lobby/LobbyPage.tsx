@@ -8,6 +8,7 @@ export const LobbyPage: React.FC = () => {
   const { gameId, playerId, isGameAdmin, resetAuth, setSettings } = useGameStore();
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchInitialState = async () => {
@@ -32,8 +33,16 @@ export const LobbyPage: React.FC = () => {
   const handleStartGame = async () => {
     if (!gameId || !isGameAdmin) return;
     setLoading(true);
+    setStartError(null);
     try {
-      await gameApi.startGame(gameId);
+      const result = await gameApi.startGame(gameId);
+      if (result.disconnectedPlayers && result.disconnectedPlayers.length > 0) {
+        setStartError(
+          `Impossible de lancer : ${result.disconnectedPlayers.join(', ')} semblent deconnectes. Retirez-les avant de continuer.`
+        );
+        setLoading(false);
+        return;
+      }
       // La redirection sera gérée par le changement de phase via SignalR
     } catch (err) {
       console.error('Failed to start game', err);
@@ -100,6 +109,12 @@ export const LobbyPage: React.FC = () => {
         <div className="md:col-span-2 space-y-6">
           <GameSettings />
           
+          {startError && (
+            <div className="bg-amber-50 text-amber-700 p-3 rounded-lg text-sm border border-amber-200">
+              {startError}
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row gap-4 justify-end pt-4">
             {isGameAdmin ? (
               <>
