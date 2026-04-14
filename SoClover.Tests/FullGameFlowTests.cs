@@ -26,9 +26,12 @@ public class FullGameFlowTests
         services.AddTransient<CardFactory>();
         services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
         services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();
+        services.AddTransient<ILeaveGameUseCase, LeaveGame.Handler>();
         services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
         services.AddTransient<ISetClueUseCase, SetClue.Handler>();
+        services.AddTransient<ISubmitBoardUseCase, SubmitBoard.Handler>();
         services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
+        services.AddTransient<IDisconnectPlayerUseCase, DisconnectPlayer.Handler>();
         services.AddTransient<IGuessUseCase, Guess.Handler>();
         services.AddTransient<IPlaceCardToGuessUseCase, PlaceCardToGuess.Handler>();
         services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
@@ -113,5 +116,55 @@ public class FullGameFlowTests
         // we just verify it doesn't crash.
         game = await repo.Get(gameId) ?? throw new Exception("Game not found in test");
         Assert.NotEqual(GamePhase.Lobby, game.Phase);
+    }
+
+    [Fact]
+    public async Task Game_flow_with_player_disconnect_during_writing()
+    {
+        var sp = BuildProvider();
+
+        var create = sp.GetRequiredService<ICreateGameUseCase>();
+        var join = sp.GetRequiredService<IJoinGameUseCase>();
+        var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
+        var setClue = sp.GetRequiredService<ISetClueUseCase>();
+        var submitBoard = sp.GetRequiredService<ISubmitBoardUseCase>();
+        var disconnect = sp.GetRequiredService<IDisconnectPlayerUseCase>();
+        var repo = sp.GetRequiredService<IGameRepository>();
+
+        // Create game with 3 players
+        var gameResponse = await create.Handle(new CreateGame.Request("Admin"));
+        var gameId = gameResponse.GameId;
+        var adminId = gameResponse.CreatorPlayerId;
+        var aliceId = (await join.Handle(new JoinGame.Request(gameId, "Alice"))).PlayerId;
+        var bobId = (await join.Handle(new JoinGame.Request(gameId, "Bob"))).PlayerId;
+
+        // Start writing
+        await startWriting.Handle(new StartWritingPhase.Request(gameId));
+
+        // Alice disconnects
+        await disconnect.Handle(new DisconnectPlayer.Request(gameId, aliceId));
+
+        var game = await repo.Get(gameId);
+        Assert.Equal(2, game!.ActivePlayers.Count);
+        Assert.Equal(3, game.Players.Count); // Alice still in Players for scoring
+
+        // Admin and Bob submit clues
+        foreach (var pid in new[] { adminId, bobId })
+        {
+            await setClue.Handle(new SetClue.Request(gameId, pid, Direction.Top, "c1"));
+            await setClue.Handle(new SetClue.Request(gameId, pid, Direction.Right, "c2"));
+            await setClue.Handle(new SetClue.Request(gameId, pid, Direction.Bottom, "c3"));
+            await setClue.Handle(new SetClue.Request(gameId, pid, Direction.Left, "c4"));
+            await submitBoard.Handle(new SubmitBoard.Request(gameId, pid));
+        }
+
+        // Game should have auto-transitioned to Guessing (only 2 active players)
+        game = await repo.Get(gameId);
+        Assert.Equal(GamePhase.Guessing, game!.Phase);
+
+        // Alice should already have a BoardResult as disconnected
+        Assert.True(game.BoardResults.ContainsKey(aliceId));
+        Assert.True(game.BoardResults[aliceId].IsDisconnected);
+        Assert.False(game.BoardResults[aliceId].WasGuessed);
     }
 }
