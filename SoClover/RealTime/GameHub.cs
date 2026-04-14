@@ -9,7 +9,7 @@ namespace SoClover.RealTime;
 public sealed class GameHub : Hub
 {
     private readonly IGetGameStateUseCase _getState;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     private static readonly ConcurrentDictionary<string, string> _playerConnections = new(); // playerId -> connectionId
     private static readonly ConcurrentDictionary<string, string> _playerGameMap = new(); // playerId -> gameId
@@ -17,10 +17,10 @@ public sealed class GameHub : Hub
 
     private const int GRACE_PERIOD_SECONDS = 15;
 
-    public GameHub(IGetGameStateUseCase getState, IServiceProvider serviceProvider)
+    public GameHub(IGetGameStateUseCase getState, IServiceScopeFactory scopeFactory)
     {
         _getState = getState;
-        _serviceProvider = serviceProvider;
+        _scopeFactory = scopeFactory;
     }
 
     public static bool IsPlayerConnected(PlayerId playerId) =>
@@ -82,7 +82,7 @@ public sealed class GameHub : Hub
 
                         Console.WriteLine($"[GameHub] Grace period expired for player {playerId}. Removing from game {gameId}.");
 
-                        using var scope = _serviceProvider.CreateScope();
+                        using var scope = _scopeFactory.CreateScope();
                         var repo = scope.ServiceProvider.GetRequiredService<IGameRepository>();
                         var game = await repo.Get(new GameId(Guid.Parse(gameId)));
                         if (game == null) return;
