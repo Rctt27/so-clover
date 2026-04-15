@@ -26,9 +26,11 @@ export function CardStyle({ className = '' }: GameCardProps) {
   const centerX = (cardSize - centerCutSize) / 2;
   const centerY = (cardSize - centerCutSize) / 2;
 
+  const bgMaskId = `bgMask${uniqueId}`;
+
   return (
     <div
-      className={`relative bg-white ${className}`}
+      className={`relative ${className}`}
       style={{ borderRadius, boxShadow }}
     >
       <svg
@@ -38,11 +40,22 @@ export function CardStyle({ className = '' }: GameCardProps) {
         className="absolute inset-0"
       >
         <defs>
-          <mask id={maskId}>
-            {/* Base blanche (tout visible) */}
+          {/* Masque fond blanc : exclut uniquement le trou central */}
+          <mask id={bgMaskId}>
             <rect x={0} y={0} width={shapeSize} height={shapeSize} fill="white" />
+            <rect
+              x={centerX}
+              y={centerY}
+              width={centerCutSize}
+              height={centerCutSize}
+              rx={centerCutRadius}
+              fill="black"
+            />
+          </mask>
 
-            {/* Soustraire les ellipses au centre des arêtes (creux concaves) */}
+          {/* Masque forme verte : exclut ellipses + trou central */}
+          <mask id={maskId}>
+            <rect x={0} y={0} width={shapeSize} height={shapeSize} fill="white" />
             {ellipses.map((ellipse, i) => (
               <ellipse
                 key={i}
@@ -53,8 +66,6 @@ export function CardStyle({ className = '' }: GameCardProps) {
                 fill="black"
               />
             ))}
-
-            {/* Soustraire le carré central (trou transparent) */}
             <rect
               x={centerX}
               y={centerY}
@@ -66,6 +77,17 @@ export function CardStyle({ className = '' }: GameCardProps) {
           </mask>
         </defs>
 
+        {/* Fond blanc (visible partout sauf le trou central) */}
+        <rect
+          x={0}
+          y={0}
+          width={shapeSize}
+          height={shapeSize}
+          fill="white"
+          mask={`url(#${bgMaskId})`}
+        />
+
+        {/* Forme verte (pétales uniquement) */}
         <rect
           x={0}
           y={0}
