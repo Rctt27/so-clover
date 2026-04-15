@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Board } from '../shared/Board'
+import { Board } from '../shared/board/Board'
 import { useBoardStore, useGameStore } from '../../core/store'
 import { useGameActions } from '../../hooks/useGameActions'
 import { WritingControls } from './WritingControls'

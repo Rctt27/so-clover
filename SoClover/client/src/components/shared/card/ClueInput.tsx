@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CONSTANTS } from '../../core/constants'
+import { CONSTANTS } from '../../../core/constants'
 
 export type ClueStatus = 'idle' | 'saving' | 'success' | 'error'
 

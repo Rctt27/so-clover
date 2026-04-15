@@ -1,5 +1,5 @@
 ﻿import { useRef, useEffect } from 'react';
-import { CONSTANTS } from '../../core/constants';
+import { CONSTANTS } from '../../../core/constants';
 
 export function CloverBoard() {
     const canvasRef = useRef<HTMLCanvasElement>(null);

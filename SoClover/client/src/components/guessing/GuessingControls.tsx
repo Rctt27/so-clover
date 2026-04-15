@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import confetti from 'canvas-confetti'
 import { Volume2, VolumeX } from 'lucide-react'
-import { BoardRotationControls } from '../shared/BoardRotationControls'
+import { BoardRotationControls } from '../shared/board/BoardRotationControls'
 import { playSound, toggleMute, isMuted } from '../../core/sounds'
 
 export interface GuessingControlsProps {

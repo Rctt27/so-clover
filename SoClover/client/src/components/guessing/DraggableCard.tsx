@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Card } from '../shared/Card'
+import { CardAssembler } from '../shared/card/CardAssembler'
 import { CardInfoResponse, rotationToDegrees } from '../../types/game'
 import { useGameStore, useGuessingStore } from '../../core/store'
 import { gameApi } from '../../api/game-api'
@@ -247,7 +247,7 @@ export const DraggableCard = ({
           visibility: isDragSource ? 'hidden' : 'visible'
         }}
       >
-        <Card
+        <CardAssembler
           words={[card.topWord, card.rightWord, card.bottomWord, card.leftWord]}
           rotation={continuousRotation + rotationVisualOffset}
           disableAnimation={isDragSource || isDisplaced || isRotating}

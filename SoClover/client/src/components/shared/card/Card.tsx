@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
-import cardImage from '../../assets/images/Card_320px.png'
 import { CONSTANTS } from '../../core/constants'
+import { GameCard } from './GameCard'
 
 export interface CardProps {
   words: [string, string, string, string]; // [top, right, bottom, left]
@@ -50,13 +50,8 @@ export const Card = ({ words, rotation = 0, className = '', animateEntry = false
         default: animateEntry ? cardAnim.transition : { duration: 0.5 }
       }}
     >
-      {/* Card background image */}
-      <img
-        src={cardImage}
-        alt="Card"
-        className="w-full h-full object-contain pointer-events-none relative z-0"
-        draggable={false}
-      />
+      {/* Card background */}
+      <GameCard className="w-full h-full pointer-events-none relative z-0" />
 
       {/* Words positioned on card edges */}
       {/* Top word */}

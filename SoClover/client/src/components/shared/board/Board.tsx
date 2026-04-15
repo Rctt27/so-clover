@@ -1,11 +1,11 @@
 import React, { useRef, useLayoutEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Card } from './Card'
-import { ClueInput } from './ClueInput'
-import { CardData } from '../../types/game'
-import { DraggableCard } from '../guessing/DraggableCard'
-import { CONSTANTS } from '../../core/constants'
-import { LOGICAL_SLOTS } from '../../core/utils'
+import { CardAssembler } from '../card/CardAssembler'
+import { ClueInput } from '../card/ClueInput'
+import { CardData } from '../../../types/game'
+import { DraggableCard } from '../../guessing/DraggableCard'
+import { CONSTANTS } from '../../../core/constants'
+import { LOGICAL_SLOTS } from '../../../core/utils'
 import { CloverBoard } from './CloverBoard'
 
 export interface BoardProps {
@@ -17,7 +17,7 @@ export interface BoardProps {
     bottom: string;
     left: string;
   };
-  guessedCards?: (import('../../types/game').CardInfoResponse | null)[]; // For DraggableCards in Guessing
+  guessedCards?: (import('../../../types/game').CardInfoResponse | null)[]; // For DraggableCards in Guessing
   displacedSlot?: string | null;
   showClueInputs?: boolean;
   onClueSave?: (position: 'top' | 'right' | 'bottom' | 'left', text: string) => Promise<void>;
@@ -249,7 +249,7 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
                       }
                     />
                   ) : cardData ? (
-                    <Card
+                    <CardAssembler
                       words={cardData.words}
                       rotation={cardData.rotation}
                       animateEntry={animateEntry}

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { Volume2, VolumeX } from 'lucide-react'
 import { useBoardStore } from '../../core/store'
 import { useGameActions } from '../../hooks/useGameActions'
-import { BoardRotationControls } from '../shared/BoardRotationControls'
+import { BoardRotationControls } from '../shared/board/BoardRotationControls'
 import { playSound, toggleMute, isMuted } from '../../core/sounds'
 
 export const WritingControls = () => {

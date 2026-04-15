@@ -1,5 +1,5 @@
 import React from 'react'
-import { Board } from '../shared/Board'
+import { Board } from '../shared/board/Board'
 import {
   RemoteCursorsLayer,
   useLocalCursorEmitter,

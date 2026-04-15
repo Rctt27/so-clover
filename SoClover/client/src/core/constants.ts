@@ -61,6 +61,16 @@
     cloverGreen: '#2dc653',   // Pétales et placeholders de cartes
     darkGreen: '#2abb4e',     // Dégradé sombre (gradient stop)
     accentGreen: '#25a244',   // Repères de coin sur les trous
+    cardGreen: '#7AC943',     // Couleur de remplissage de la face de carte
+  },
+
+  GAME_CARD: {
+    ellipseDepth: 75,         // Profondeur des creux concaves (rayon mineur des ellipses)
+    ellipseRx: 140,           // Rayon majeur des ellipses (horizontal/vertical selon arête)
+    centerCutSize: 90,        // Taille du trou central (~28% de cardSize)
+    centerCutRadius: 6,       // Arrondi du trou central
+    borderRadius: 16,         // Arrondi du conteneur de carte
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
   },
 
   ASSET_REFERENCES: {
