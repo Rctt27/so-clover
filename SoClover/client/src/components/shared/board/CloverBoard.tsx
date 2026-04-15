@@ -3,7 +3,7 @@ import { CONSTANTS } from '../../../core/constants';
 
 export function CloverBoard() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const { referenceSize: size, cardSize } = CONSTANTS.ASSET_REFERENCES.board;
+    const { referenceSize: size, cardSize, cardGap } = CONSTANTS.ASSET_REFERENCES.board;
     const { cloverGreen, darkGreen, accentGreen } = CONSTANTS.CANVAS_COLORS;
 
     useEffect(() => {
@@ -76,11 +76,18 @@ export function CloverBoard() {
         // Left edge - extends leftward from left edge
         drawEdge(coreLeft, center, -Math.PI / 2);
 
+        // Fond du core en darkGreen : couvre toute la zone 2×2 y compris les gaps entre cartes
+        ctx.fillStyle = darkGreen;
+        ctx.fillRect(coreLeft, coreTop, coreSize, coreSize);
+
         // NOW DRAW the core square with 4 card placeholders in 2x2 grid
+        // Chaque placeholder est décalé de cardGap/2 vers l'extérieur pour créer un espacement visuel.
         for (let row = 0; row < 2; row++) {
             for (let col = 0; col < 2; col++) {
-                const cardX = coreLeft + col * cardSize;
-                const cardY = coreTop + row * cardSize;
+                const colShift = col === 0 ? -cardGap / 2 : cardGap / 2;
+                const rowShift = row === 0 ? -cardGap / 2 : cardGap / 2;
+                const cardX = coreLeft + col * cardSize + colShift;
+                const cardY = coreTop + row * cardSize + rowShift;
 
                 // Draw the lighter green card placeholder area
                 ctx.fillStyle = cloverGreen;
@@ -153,7 +160,7 @@ export function CloverBoard() {
             }
         }
 
-    }, [size, cardSize]);
+    }, [size, cardSize, cardGap]);
 
     return (
         <canvas

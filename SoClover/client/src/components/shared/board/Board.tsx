@@ -59,7 +59,7 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
   dragTargetSlot,
 }, ref) => {
   // Dimensions de référence du canvas CloverBoard (centralisées dans CONSTANTS.ASSET_REFERENCES)
-  const { referenceSize: REFERENCE_SIZE, cardSize: CARD_SIZE } = CONSTANTS.ASSET_REFERENCES.board;
+  const { referenceSize: REFERENCE_SIZE, cardSize: CARD_SIZE, cardGap: CARD_GAP } = CONSTANTS.ASSET_REFERENCES.board;
 
   const { board: boardAnim } = CONSTANTS.THEME_CONFIG.animations;
 
@@ -82,12 +82,15 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
   const rotationTransition = shouldAnimateRotation ? { duration: 0.5, ease: 'easeInOut' as const } : { duration: 0 };
 
   // Centres des emplacements logiques par défaut (0°) sur le canvas de 1300px
-  // coreLeft = (1300 - 640) / 2 = 330 ; centres = 330+160=490 et 330+480=810
+  // Les centres sont décalés de cardGap/2 vers l'extérieur pour créer un espacement entre cartes.
+  // Formule : boardCenter ± (cardSize/2 + cardGap/2)
+  const boardCenter = REFERENCE_SIZE / 2; // 650
+  const slotOffset = CARD_SIZE / 2 + CARD_GAP / 2; // 162
   const visualSlots = [
-    { x: 490, y: 490 }, // Visual Top-Left (Index 0)
-    { x: 810, y: 490 }, // Visual Top-Right (Index 1)
-    { x: 810, y: 810 }, // Visual Bottom-Right (Index 2)
-    { x: 490, y: 810 }, // Visual Bottom-Left (Index 3)
+    { x: boardCenter - slotOffset, y: boardCenter - slotOffset }, // Visual Top-Left
+    { x: boardCenter + slotOffset, y: boardCenter - slotOffset }, // Visual Top-Right
+    { x: boardCenter + slotOffset, y: boardCenter + slotOffset }, // Visual Bottom-Right
+    { x: boardCenter - slotOffset, y: boardCenter + slotOffset }, // Visual Bottom-Left
   ]
 
   // Fonction pour calculer le style d'un slot

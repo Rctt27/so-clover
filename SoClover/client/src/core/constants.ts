@@ -77,6 +77,7 @@
     board: {
       referenceSize: 1300,  // Canvas 1300×1300px — contenu visuel ~1258px (marge ~21px)
       cardSize: 320,
+      cardGap: 4,           // Espacement (px) entre les cartes adjacentes sur le board
     },
     clueInput: {
       width: 270,
