@@ -262,7 +262,7 @@ public class WordsPoolPersistenceTests
 
         // Change language to English — previous French pool is evicted and replaced.
         await updateSettings.Handle(new UpdateGameSettings.Request(
-            gameId, adminId, "English_(from_FR_OFF)", null, null));
+            gameId, adminId, "English_(from_FR_OFF)", null, null, null));
 
         var englishPool = cache.Get(gameId);
         Assert.NotNull(englishPool);
@@ -321,7 +321,7 @@ public class WordsPoolPersistenceTests
         Assert.Equal("Français_OFF", frenchPool!.Language);
 
         await updateSettings.Handle(new UpdateGameSettings.Request(
-            gameId, adminId, "English_(from_FR_OFF)", null, null));
+            gameId, adminId, "English_(from_FR_OFF)", null, null, null));
 
         var englishPool = cache.Get(gameId);
         Assert.NotNull(englishPool);
@@ -353,7 +353,7 @@ public class WordsPoolPersistenceTests
         Assert.NotNull(poolBefore);
 
         await updateSettings.Handle(new UpdateGameSettings.Request(
-            gameId, adminId, poolBefore!.Language, null, null));
+            gameId, adminId, poolBefore!.Language, null, null, null));
 
         var poolAfter = cache.Get(gameId);
         Assert.Same(poolBefore, poolAfter);
