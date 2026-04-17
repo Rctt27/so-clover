@@ -98,6 +98,23 @@ public sealed class CloverBoard
                 throw new ArgumentOutOfRangeException(nameof(direction));
         }
     }
+    
+    // Used when the server invalidates an existing clue by replacing it with an invalid one
+    public void ClearClue(Direction direction)
+    {
+        switch (direction)
+        {
+            case Direction.Top:
+                TopClue = null; break;
+            case Direction.Right:
+                RightClue = null; break;
+            case Direction.Bottom:
+                BottomClue = null; break;
+            case Direction.Left:
+                LeftClue = null; break;
+            default: throw new ArgumentOutOfRangeException(nameof(direction));
+        }
+    }
 
     // Mark the board as explicitly submitted by the player (idempotent, irreversible during the round)
     public void MarkSubmitted(DateTime nowUtc)
