@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using SoClover.Domain.Validation;
 
 namespace SoClover.Domain;
 
@@ -331,12 +332,27 @@ public sealed class Game
         return cardFactory.CreateRandomCard(CardId.New());
     }
 
-    public void SetClue(PlayerId playerId, Direction direction, string clueText)
+    public ClueValidationResult SetClue(
+        PlayerId playerId,
+        Direction direction,
+        string clueText,
+        IClueValidator validator)
     {
         if (Phase != GamePhase.WritingClues)
             throw new InvalidOperationInPhaseException("Cannot set clues outside WritingClues phase.");
+
         var player = RequirePlayer(playerId);
-        player.Board.SetClue(direction, ClueText.Create(clueText));
+        var parsed = ClueText.Create(clueText);
+        var result = validator.Validate(parsed.Value, direction, player.Board);
+
+        if (!result.IsValid)
+        {
+            player.Board.ClearClue(direction);
+            return result;
+        }
+
+        player.Board.SetClue(direction, parsed);
+        return result;
     }
 
     public void StartGuessingPhase(PlayerId firstBoardOwner, Card fifthCard, Rotation[] cardRotations, DateTime nowUtc, TimeSpan perBoardDuration)

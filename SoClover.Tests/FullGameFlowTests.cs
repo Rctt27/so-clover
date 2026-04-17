@@ -29,6 +29,7 @@ public class FullGameFlowTests
         services.AddTransient<ILeaveGameUseCase, LeaveGame.Handler>();
         services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
         services.AddTransient<ISetClueUseCase, SetClue.Handler>();
+        services.AddSingleton<SoClover.Domain.Validation.IClueValidatorFactory, SoClover.Infrastructure.Validation.ClueValidatorFactory>();
         services.AddTransient<ISubmitBoardUseCase, SubmitBoard.Handler>();
         services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
         services.AddTransient<IDisconnectPlayerUseCase, DisconnectPlayer.Handler>();

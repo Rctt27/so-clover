@@ -30,6 +30,7 @@ public class BreakingGameTests
         services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();
         services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
         services.AddTransient<ISetClueUseCase, SetClue.Handler>();
+        services.AddSingleton<SoClover.Domain.Validation.IClueValidatorFactory, SoClover.Infrastructure.Validation.ClueValidatorFactory>();
         services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
         services.AddTransient<IGuessUseCase, Guess.Handler>();
         services.AddTransient<IPlaceCardToGuessUseCase, PlaceCardToGuess.Handler>();

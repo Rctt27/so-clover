@@ -51,6 +51,7 @@ builder.Services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();
 builder.Services.AddTransient<IUpdateGameSettingsUseCase, UpdateGameSettings.Handler>();
 builder.Services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
 builder.Services.AddTransient<ISetClueUseCase, SetClue.Handler>();
+builder.Services.AddSingleton<SoClover.Domain.Validation.IClueValidatorFactory, SoClover.Infrastructure.Validation.ClueValidatorFactory>();
 builder.Services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
 builder.Services.AddTransient<IGuessUseCase, Guess.Handler>();
 builder.Services.AddTransient<IPlaceCardToGuessUseCase, PlaceCardToGuess.Handler>();
@@ -501,11 +502,28 @@ app.MapPost("/api/games/{gameId:guid}/clues", async (Guid gameId, SetClueRequest
         var parsed = Guid.Parse(request.PlayerId);
         if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
         var response = await useCase.Handle(new SetClue.Request(new GameId(gameId), new PlayerId(parsed), direction, request.ClueText), ct);
+        if (!response.Validation.IsValid)
+        {
+            return Results.BadRequest(new
+            {
+                message = "Clue rejected by semantic validation",
+                errors = response.Validation.Errors.Select(e => new
+                {
+                    rule = e.Rule.ToString(),
+                    cardWord = e.CardWord,
+                    conflictingDirection = e.ConflictingDirection?.ToString()
+                }).ToArray()
+            });
+        }
         return Results.Ok(new { message = "Clue saved successfully" });
     }
     catch (GameNotFoundException)
     {
         return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (InvalidClueException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
     }
 })
 .WithName("SetClue");
