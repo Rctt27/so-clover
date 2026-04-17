@@ -22,7 +22,7 @@ public sealed class FrenchOffClueValidator : IClueValidator
 
             // R1 — bidirectional substring on full word
             if (clueNorm.Contains(wordNorm, StringComparison.Ordinal)
-                || wordNorm.Contains(clueNorm, StringComparison.Ordinal))
+                || (clueNorm.Length >= MinWordLength && wordNorm.Contains(clueNorm, StringComparison.Ordinal)))
             {
                 errors.Add(new ClueValidationError(ClueValidationRule.ExactMatch, word, wordDirection));
                 continue; // R1 wins — skip R2 for this word

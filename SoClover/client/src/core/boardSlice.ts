@@ -7,7 +7,12 @@ export interface BoardSlice {
   myBoard: BoardData | null
   otherBoards: Record<string, BoardData> // Key: playerId
   currentBoardOwner: string | null // PlayerId of the board currently being guessed
-
+  clueValidity: Record<'top' | 'right' | 'bottom' | 'left', {
+    isValid: boolean
+    errors: import('./clueValidation').ClueValidationError[]
+    isChecking: boolean
+  }>
+  
   // Actions
   setMyBoard: (board: BoardData) => void
   updateMyBoardCards: (cards: (CardData | null)[]) => void
@@ -17,12 +22,36 @@ export interface BoardSlice {
   setOtherBoard: (playerId: string, board: BoardData) => void
   setCurrentBoardOwner: (playerId: string | null) => void
   resetBoards: () => void
+  setClueValidity: (
+      position: 'top' | 'right' | 'bottom' | 'left',
+      state: { isValid: boolean; errors: import('./clueValidation').ClueValidationError[]; isChecking: boolean }
+  ) => void
+  resetClueValidity: () => void
 }
 
 export const createBoardSlice: StateCreator<BoardSlice, [["zustand/devtools", never]]> = (set) => ({
   myBoard: null,
   otherBoards: {},
   currentBoardOwner: null,
+  clueValidity: {
+    top: { isValid: true, errors: [], isChecking: false },
+    right: { isValid: true, errors: [], isChecking: false },
+    bottom: { isValid: true, errors: [], isChecking: false },
+    left: { isValid: true, errors: [], isChecking: false },
+  },
+
+  setClueValidity: (position, validity) => set((state) => ({
+    clueValidity: { ...state.clueValidity, [position]: validity }
+  }), false, `BoardStore/setClueValidity/${position}`),
+
+  resetClueValidity: () => set({
+    clueValidity: {
+      top: { isValid: true, errors: [], isChecking: false },
+      right: { isValid: true, errors: [], isChecking: false },
+      bottom: { isValid: true, errors: [], isChecking: false },
+      left: { isValid: true, errors: [], isChecking: false },
+    }
+  }, false, 'BoardStore/resetClueValidity'),
 
   setMyBoard: (board) => {
     debugLog('boardSlice', 'setMyBoard called with:', board)
@@ -87,6 +116,12 @@ export const createBoardSlice: StateCreator<BoardSlice, [["zustand/devtools", ne
   resetBoards: () => set({
     myBoard: null,
     otherBoards: {},
-    currentBoardOwner: null
+    currentBoardOwner: null,
+    clueValidity: {
+      top: { isValid: true, errors: [], isChecking: false },
+      right: { isValid: true, errors: [], isChecking: false },
+      bottom: { isValid: true, errors: [], isChecking: false },
+      left: { isValid: true, errors: [], isChecking: false },
+    },
   }, false, 'BoardStore/resetBoards')
 })

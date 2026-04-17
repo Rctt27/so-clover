@@ -98,10 +98,8 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
   const errorMessageId = `clue-error-${position}`
 
   return (
-    <motion.div
-      style={getPositionStyle()}
-      animate={status === 'error' ? shakeAnimation : {}}
-    >
+    <div style={getPositionStyle()}>
+    <motion.div animate={status === 'error' ? shakeAnimation : {}} className="w-full">
       <input
         ref={inputRef}
         type="text"
@@ -149,5 +147,6 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
         )}
       </AnimatePresence>
     </motion.div>
+    </div>
   )
 }

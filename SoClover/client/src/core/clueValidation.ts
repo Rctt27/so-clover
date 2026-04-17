@@ -47,7 +47,7 @@ export const validateClueLocally = (
         const wordNorm = normalizeText(word)
         if (wordNorm.length < MIN_WORD_LENGTH) continue
 
-        if (clueNorm.includes(wordNorm) || wordNorm.includes(clueNorm)) {
+        if (clueNorm.includes(wordNorm) || (clueNorm.length >= MIN_WORD_LENGTH && wordNorm.includes(clueNorm))) {
             errors.push({ rule: 'ExactMatch', cardWord: word })
             continue
         }
