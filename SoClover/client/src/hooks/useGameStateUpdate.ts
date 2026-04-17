@@ -46,8 +46,9 @@ export const useGameStateUpdate = () => {
     setPhaseEndsAtUtc(state.phaseEndsAtUtc);
     setSettings({
       language: state.language,
-      cluesDurationSeconds: state.cluesDurationSecondsOverride || 300,
-      guessDurationSeconds: state.guessDurationSecondsOverride || 300,
+      cluesDurationSeconds: state.cluesDurationSecondsOverride ?? 300,
+      guessDurationSeconds: state.guessDurationSecondsOverride ?? 300,
+      semanticClueCheckEnabled: state.semanticClueCheckEnabled
     });
 
     // 2. Mise à jour des joueurs

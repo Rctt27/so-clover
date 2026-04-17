@@ -21,6 +21,7 @@ interface GameState {
     language: string
     cluesDurationSeconds: number
     guessDurationSeconds: number
+    semanticClueCheckEnabled: boolean
   }
   setPhase: (phase: GamePhase) => void
   setRole: (role: Role) => void
@@ -31,7 +32,7 @@ interface GameState {
   setConnectionStatus: (status: ConnectionStatus) => void
   setPlayers: (players: Array<{ playerId: string, name: string, cursorColorIndex: number }>) => void
   setPhaseEndsAtUtc: (deadline: string | null) => void
-  setSettings: (settings: { language: string, cluesDurationSeconds: number, guessDurationSeconds: number }) => void
+  setSettings: (settings: { language: string, cluesDurationSeconds: number, guessDurationSeconds: number, semanticClueCheckEnabled: boolean }) => void
   setIsInitializing: (isInitializing: boolean) => void
   resetAuth: () => void
 }
@@ -50,7 +51,8 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
   settings: {
     language: 'Français_OFF',
     cluesDurationSeconds: 300,
-    guessDurationSeconds: 300
+    guessDurationSeconds: 300,
+    semanticClueCheckEnabled: true,
   },
   setPhase: (phase) => set({ phase }, false, 'GameStore/setPhase'),
   setRole: (role) => set({ role }, false, 'GameStore/setRole'),
@@ -75,7 +77,8 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
     settings: {
       language: 'Français_OFF',
       cluesDurationSeconds: 300,
-      guessDurationSeconds: 300
+      guessDurationSeconds: 300,
+      semanticClueCheckEnabled: true
     }
   }, false, 'GameStore/resetAuth'),
 })
