@@ -7,7 +7,7 @@ import { BoardRotationControls } from '../shared/board/BoardRotationControls'
 import { playSound, toggleMute, isMuted } from '../../core/sounds'
 
 export const WritingControls = () => {
-  const { myBoard, updateMyBoardRotation } = useBoardStore()
+  const { myBoard, updateMyBoardRotation, clueValidity } = useBoardStore()
   const { submitBoard } = useGameActions()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [muted, setMuted] = useState(isMuted)
@@ -28,9 +28,11 @@ export const WritingControls = () => {
   if (!myBoard) return null
 
   const allCluesFilled = Object.values(myBoard.clues).every(clue => clue.text.trim() !== '')
+  const allCluesValid = (['top', 'right', 'bottom', 'left'] as const).every(p => clueValidity[p].isValid)
+  const canSubmit = allCluesFilled && allCluesValid
 
   const handleSubmit = async () => {
-    if (!allCluesFilled || isSubmitting || myBoard.isSubmitted) return
+    if (!canSubmit || isSubmitting || myBoard.isSubmitted) return
 
     setIsSubmitting(true)
     try {
@@ -51,16 +53,16 @@ export const WritingControls = () => {
       />
 
       <motion.button
-        whileHover={allCluesFilled && !isSubmitting && !isActuallySubmitted ? { scale: 1.02 } : {}}
-        whileTap={allCluesFilled && !isSubmitting && !isActuallySubmitted ? { scale: 0.98 } : {}}
+        whileHover={canSubmit && !isSubmitting && !isActuallySubmitted ? { scale: 1.02 } : {}}
+        whileTap={canSubmit && !isSubmitting && !isActuallySubmitted ? { scale: 0.98 } : {}}
         onClick={handleSubmit}
-        disabled={!allCluesFilled || isSubmitting || isActuallySubmitted}
+        disabled={!canSubmit || isSubmitting || isActuallySubmitted}
         className={`
           w-full py-4 px-8 rounded-xl font-bold text-white transition-all duration-300
-          ${isActuallySubmitted 
-            ? 'bg-green-500 cursor-default shadow-md' 
-            : allCluesFilled && !isSubmitting 
-              ? 'bg-clover hover:bg-clover-dark shadow-lg shadow-clover/20' 
+          ${isActuallySubmitted
+            ? 'bg-green-500 cursor-default shadow-md'
+            : canSubmit && !isSubmitting
+              ? 'bg-clover hover:bg-clover-dark shadow-lg shadow-clover/20'
               : 'bg-gray-300 cursor-not-allowed'}
         `}
       >
@@ -75,13 +77,19 @@ export const WritingControls = () => {
         ) : isActuallySubmitted ? (
           'Plateau Soumis ✓'
         ) : (
-          allCluesFilled ? 'Soumettre le plateau' : 'Saisissez les 4 indices'
+          canSubmit ? 'Soumettre le plateau' : allCluesFilled ? 'Corrigez les indices' : 'Saisissez les 4 indices'
         )}
       </motion.button>
 
       {!allCluesFilled && !isActuallySubmitted && (
         <p className="text-xs text-gray-400">
           Vous devez renseigner un indice pour chaque paire de mots avant de pouvoir soumettre.
+        </p>
+      )}
+
+      {allCluesFilled && !allCluesValid && !isActuallySubmitted && (
+        <p className="text-xs text-red-500">
+          Certains indices ne respectent pas les règles sémantiques — corrigez-les avant de soumettre.
         </p>
       )}
 
