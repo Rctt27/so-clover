@@ -361,6 +361,7 @@ app.MapGet("/api/games/{gameId:guid}/state", async (Guid gameId, string? playerI
             language = response.Language,
             cluesDurationSecondsOverride = response.CluesDurationSecondsOverride,
             guessDurationSecondsOverride = response.GuessDurationSecondsOverride,
+            semanticClueCheckEnabled = response.SemanticClueCheckEnabled,
             phase = response.Phase.ToString(),
             phaseEndsAtUtc = response.PhaseEndsAtUtc,
             adminPlayerId = response.AdminPlayerId?.ToString(),
