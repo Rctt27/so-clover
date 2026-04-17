@@ -15,6 +15,7 @@ export interface GameStateResponse {
   phaseEndsAtUtc: string | null;
   players: PlayerStateResponse[];
   guessingState: GuessingPhaseStateResponse | null;
+  semanticClueCheckEnabled: boolean;
 }
 
 export interface PlayerStateResponse {
@@ -113,5 +114,25 @@ export function rotationToDegrees(rotation: string): number {
     case 'Clockwise270': 
     case 'Right270': return 270;
     default: return 0;
+  }
+}
+
+export interface ClueValidationErrorResponse {
+  rule: 'ExactMatch' | 'SimilarStem'
+  cardWord: string
+  conflictingDirection?: 'Top' | 'Right' | 'Bottom' | 'Left' | null
+}
+
+export interface ClueValidationResponse {
+  isValid: boolean
+  errors: ClueValidationErrorResponse[]
+}
+
+export class ClueValidationRejection extends Error {
+  errors: ClueValidationErrorResponse[]
+  constructor(errors: ClueValidationErrorResponse[]) {
+    super('Clue rejected')
+    this.name = 'ClueValidationRejection'
+    this.errors = errors
   }
 }

@@ -1,5 +1,5 @@
 ﻿import { useGameStore } from '../core/store';
-import { GameStateResponse, GameScoringResponse } from '../types/game';
+import { GameStateResponse, GameScoringResponse, ClueValidationRejection, ClueValidationResponse } from '../types/game';
 
 export interface CreateGameResponse {
   gameId: string;
@@ -88,19 +88,20 @@ export const gameApi = {
     return response.json();
   },
 
-  updateSettings: async (gameId: string, playerId: string, settings: { language: string, cluesDuration: number, guessDuration: number }): Promise<any> => {
+  updateSettings: async (
+      gameId: string,
+      playerId: string,
+      settings: { language: string; cluesDuration: number; guessDuration: number; semanticClueCheckEnabled?: boolean }
+  ): Promise<{ language: string; cluesDuration: number; guessDuration: number; semanticClueCheckEnabled: boolean }> => {
     const response = await fetch(`/api/games/${gameId}/settings`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerId, ...settings }),
     });
-
     if (!response.ok) {
-      throw new Error('Failed to update settings');
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to update settings');
     }
-
     return response.json();
   },
 
@@ -159,11 +160,17 @@ export const gameApi = {
   submitClue: async (gameId: string, playerId: string, direction: string, clueText: string): Promise<void> => {
     const response = await fetch(`/api/games/${gameId}/clues`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerId, direction, clueText }),
     });
+
+    if (response.status === 400) {
+      const errorData = await response.json().catch(() => ({}));
+      if (Array.isArray(errorData.errors)) {
+        throw new ClueValidationRejection(errorData.errors);
+      }
+      throw new Error(errorData.message || 'Failed to submit clue');
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -348,5 +355,24 @@ export const gameApi = {
     if (!response.ok) {
       throw new Error('Impossible de terminer la partie');
     }
-  }
+  },
+
+  validateClue: async (
+      gameId: string,
+      playerId: string,
+      direction: string,
+      clueText: string,
+      signal?: AbortSignal
+  ): Promise<ClueValidationResponse> => {
+    const response = await fetch(`/api/games/${gameId}/clues/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerId, direction, clueText }),
+      signal,
+    });
+    if (!response.ok) {
+      throw new Error('Failed to validate clue');
+    }
+    return response.json();
+  },
 };
