@@ -92,6 +92,7 @@ export const GameSettings: React.FC = () => {
           language: settings.language,
           cluesDuration: name === 'cluesDurationSeconds' ? val : localCluesDuration,
           guessDuration: name === 'guessDurationSeconds' ? val : localGuessDuration,
+          semanticClueCheckEnabled: settings.semanticClueCheckEnabled,
         };
         updateSettings(newSettings);
       }, 500);
