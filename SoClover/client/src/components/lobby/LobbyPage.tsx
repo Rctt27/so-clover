@@ -5,7 +5,8 @@ import { GameSettings } from './GameSettings';
 import { gameApi } from '../../api/game-api';
 
 export const LobbyPage: React.FC = () => {
-  const { gameId, playerId, isGameAdmin, resetAuth, setSettings } = useGameStore();
+  const { gameId, playerId, isGameAdmin, players, resetAuth, setSettings } = useGameStore();
+  const canStart = players.length >= 2;
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
@@ -114,6 +115,11 @@ export const LobbyPage: React.FC = () => {
               {startError}
             </div>
           )}
+          {isGameAdmin && !canStart && (
+            <p className="text-xs text-slate-400 text-right">
+              Il faut au moins 2 joueurs pour lancer la partie.
+            </p>
+          )}
 
           <div className="flex flex-col sm:flex-row gap-4 justify-end pt-4">
             {isGameAdmin ? (
@@ -127,7 +133,7 @@ export const LobbyPage: React.FC = () => {
                 </button>
                 <button
                   onClick={handleStartGame}
-                  disabled={loading}
+                  disabled={loading || !canStart}
                   className="px-8 py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {loading && <span className="animate-spin">⏳</span>}
