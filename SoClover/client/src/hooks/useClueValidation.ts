@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useMemo } from 'react'
 import { useGameStore, useBoardStore } from '../core/store'
 import { gameApi } from '../api/game-api'
 import { CONSTANTS } from '../core/constants'
@@ -15,7 +15,12 @@ export const useClueValidation = (position: Position, clueText: string) => {
   const abortRef = useRef<AbortController | null>(null)
   const requestIdRef = useRef(0)
 
-  const boardWords = myBoard ? collectBoardWords(myBoard.cards) : []
+  const boardWordsKey = myBoard ? collectBoardWords(myBoard.cards).join('|') : ''
+  const boardWords = useMemo(() => boardWordsKey ? boardWordsKey.split('|') : [], [boardWordsKey])
+
+  useEffect(() => {
+    return () => { abortRef.current?.abort() }
+  }, [])
 
   useEffect(() => {
     const trimmed = clueText.trim()
@@ -64,8 +69,7 @@ export const useClueValidation = (position: Position, clueText: string) => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-    // boardWords is recomputed each render; stringify to avoid re-runs when identities differ but contents match
-  }, [clueText, settings.language, settings.semanticClueCheckEnabled, gameId, playerId, position, setClueValidity, boardWords.join('|')])
+  }, [clueText, settings.language, settings.semanticClueCheckEnabled, gameId, playerId, position, setClueValidity, boardWordsKey])
 
   const validateImmediately = useCallback(async (): Promise<boolean> => {
     const trimmed = clueText.trim()
@@ -85,7 +89,7 @@ export const useClueValidation = (position: Position, clueText: string) => {
     } catch {
       return local.isValid
     }
-  }, [clueText, gameId, playerId, position, settings.language, settings.semanticClueCheckEnabled, boardWords, setClueValidity])
+  }, [clueText, gameId, playerId, position, settings.language, settings.semanticClueCheckEnabled, boardWordsKey, setClueValidity])
 
   return { validateImmediately }
 }
