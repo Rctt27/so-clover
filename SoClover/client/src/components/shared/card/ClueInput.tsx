@@ -88,7 +88,7 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
     if (status === 'saving') return theme.clueBorderColorSaving
     if (status === 'error' || hasValidationError) return theme.clueBorderColorError
     const isDirty = localValue.trim() !== value.trim()
-    if (isDirty && status === 'idle') return '#2196F3'
+    if (isDirty && status === 'idle') return theme.clueBorderColorSaving
     return theme.clueBorderColor
   }
 
@@ -112,7 +112,7 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
         disabled={disabled || status === 'saving'}
         maxLength={20}
         placeholder={position.charAt(0).toUpperCase() + position.slice(1) + ' clue'}
-        aria-invalid={hasValidationError || undefined}
+        aria-invalid={hasValidationError ? "true" : undefined}
         aria-describedby={hasValidationError && firstError ? errorMessageId : undefined}
         className={`w-full px-3 py-2 rounded-lg text-center shadow-lg transition-colors duration-300 outline-none border-2 ${theme.clueFontClass}`}
         style={{
