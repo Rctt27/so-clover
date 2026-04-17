@@ -1,6 +1,10 @@
 ﻿import React, { useEffect, useState, useRef } from 'react';
 import { useGameStore } from '../../core/store';
 import { gameApi } from '../../api/game-api';
+import {
+  LOBBY_SEMANTIC_TOGGLE_LABEL,
+  LOBBY_SEMANTIC_TOGGLE_TOOLTIP_DISABLED,
+} from '../../core/clueValidationMessages';
 
 export const GameSettings: React.FC = () => {
   const { gameId, playerId, isGameAdmin, settings, setSettings } = useGameStore();
@@ -12,6 +16,10 @@ export const GameSettings: React.FC = () => {
   const [localGuessDuration, setLocalGuessDuration] = useState(settings.guessDurationSeconds);
   
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isFrenchLanguage = settings.language.toLowerCase().startsWith('français')
+    || settings.language.toLowerCase().startsWith('francais')
+  const semanticEnabled = settings.semanticClueCheckEnabled
 
   useEffect(() => {
     setLocalCluesDuration(settings.cluesDurationSeconds);
@@ -33,7 +41,7 @@ export const GameSettings: React.FC = () => {
     loadDictionaries();
   }, []);
 
-  const updateSettings = async (newSettings: { language: string, cluesDuration: number, guessDuration: number }) => {
+  const updateSettings = async (newSettings: { language: string, cluesDuration: number, guessDuration: number, semanticClueCheckEnabled?: boolean }) => {
     if (!isGameAdmin || !gameId || !playerId) return;
     setLoading(true);
     try {
@@ -42,6 +50,7 @@ export const GameSettings: React.FC = () => {
         language: updated.language,
         cluesDurationSeconds: updated.cluesDuration,
         guessDurationSeconds: updated.guessDuration,
+        semanticClueCheckEnabled: updated.semanticClueCheckEnabled,
       });
     } catch (err) {
       console.error('Failed to update settings', err);
@@ -56,13 +65,16 @@ export const GameSettings: React.FC = () => {
     const { name, value } = e.target;
     
     if (name === 'language') {
+      const newIsFrench = value.toLowerCase().startsWith('français') || value.toLowerCase().startsWith('francais')
       const newSettings = {
         language: value,
         cluesDuration: localCluesDuration,
         guessDuration: localGuessDuration,
-      };
-      updateSettings(newSettings);
-      setSettings({ ...settings, language: value });
+        semanticClueCheckEnabled: newIsFrench ? settings.semanticClueCheckEnabled : false,
+      }
+      updateSettings(newSettings)
+      setSettings({ ...settings, language: value, semanticClueCheckEnabled: newSettings.semanticClueCheckEnabled })
+      return
     } else {
       const val = parseInt(value);
       if (name === 'cluesDurationSeconds') {
@@ -85,6 +97,16 @@ export const GameSettings: React.FC = () => {
       }, 500);
     }
   };
+
+  const handleToggleSemantic = async (checked: boolean) => {
+    if (!isGameAdmin || !gameId || !playerId) return
+    await updateSettings({
+      language: settings.language,
+      cluesDuration: localCluesDuration,
+      guessDuration: localGuessDuration,
+      semanticClueCheckEnabled: checked,
+    })
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-6">
@@ -141,6 +163,29 @@ export const GameSettings: React.FC = () => {
             disabled={!isGameAdmin || loading}
             className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-500 disabled:opacity-50"
           />
+        </div>
+
+        <div>
+          <label
+            className="flex items-center gap-2 text-sm font-medium text-slate-600"
+            title={!isFrenchLanguage ? LOBBY_SEMANTIC_TOGGLE_TOOLTIP_DISABLED : undefined}
+          >
+            <input
+              type="checkbox"
+              checked={semanticEnabled && isFrenchLanguage}
+              disabled={!isGameAdmin || loading || !isFrenchLanguage}
+              onChange={(e) => handleToggleSemantic(e.target.checked)}
+              className="accent-emerald-500 disabled:opacity-50"
+            />
+            <span className={!isFrenchLanguage ? 'text-slate-400' : undefined}>
+              {LOBBY_SEMANTIC_TOGGLE_LABEL}
+            </span>
+          </label>
+          {!isFrenchLanguage && (
+            <p className="text-xs text-slate-400 italic mt-1">
+              {LOBBY_SEMANTIC_TOGGLE_TOOLTIP_DISABLED}
+            </p>
+          )}
         </div>
       </div>
 
