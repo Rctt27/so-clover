@@ -51,6 +51,7 @@ builder.Services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();
 builder.Services.AddTransient<IUpdateGameSettingsUseCase, UpdateGameSettings.Handler>();
 builder.Services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
 builder.Services.AddTransient<ISetClueUseCase, SetClue.Handler>();
+builder.Services.AddTransient<IValidateClueUseCase, ValidateClue.Handler>();
 builder.Services.AddSingleton<SoClover.Domain.Validation.IClueValidatorFactory, SoClover.Infrastructure.Validation.ClueValidatorFactory>();
 builder.Services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
 builder.Services.AddTransient<IGuessUseCase, Guess.Handler>();
@@ -303,9 +304,16 @@ app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSe
                 new PlayerId(playerGuid),
                 request.Language.Trim(),
                 request.CluesDuration,
-                request.GuessDuration),
+                request.GuessDuration,
+                request.SemanticClueCheckEnabled),
             ct);
-        return Results.Ok(new { language = response.Language, cluesDuration = response.CluesDurationSeconds, guessDuration = response.GuessDurationSeconds });
+        return Results.Ok(new
+        {
+            language = response.Language,
+            cluesDuration = response.CluesDurationSeconds,
+            guessDuration = response.GuessDurationSeconds,
+            semanticClueCheckEnabled = response.SemanticClueCheckEnabled
+        });
     }
     catch (GameNotFoundException)
     {
@@ -325,6 +333,10 @@ app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSe
         return Results.BadRequest(new { message = ex.Message });
     }
     catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (InvalidOperationException ex)
     {
         return Results.BadRequest(new { message = ex.Message });
     }
@@ -527,6 +539,35 @@ app.MapPost("/api/games/{gameId:guid}/clues", async (Guid gameId, SetClueRequest
     }
 })
 .WithName("SetClue");
+
+app.MapPost("/api/games/{gameId:guid}/clues/validate", async (Guid gameId, SetClueRequest? request, IValidateClueUseCase useCase, CancellationToken ct) =>
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.PlayerId) || string.IsNullOrWhiteSpace(request.Direction))
+            return Results.BadRequest(new { message = "PlayerId and Direction are required" });
+
+        try
+        {
+            var direction = Enum.Parse<Direction>(request.Direction);
+            var parsed = Guid.Parse(request.PlayerId);
+            if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
+            var response = await useCase.Handle(new ValidateClue.Request(new GameId(gameId), new PlayerId(parsed), direction, request.ClueText ?? string.Empty), ct);
+            return Results.Ok(new
+            {
+                isValid = response.Validation.IsValid,
+                errors = response.Validation.Errors.Select(e => new
+                {
+                    rule = e.Rule.ToString(),
+                    cardWord = e.CardWord,
+                    conflictingDirection = e.ConflictingDirection?.ToString()
+                }).ToArray()
+            });
+        }
+        catch (GameNotFoundException)
+        {
+            return Results.NotFound(new { message = "Game not found" });
+        }
+    })
+    .WithName("ValidateClue");
 
 app.MapPost("/api/games/{gameId:guid}/submit-board", async (Guid gameId, SubmitBoardRequest? request, ISubmitBoardUseCase useCase, CancellationToken ct) =>
 {
@@ -995,7 +1036,7 @@ app.Run();
 // Request DTOs for API
 record CreateGameRequest(string PlayerName, string? Language = null);
 record JoinGameRequest(string PlayerName, bool ReplaceExisting = false);
-record UpdateGameSettingsRequest(string PlayerId, string Language, int? CluesDuration, int? GuessDuration);
+record UpdateGameSettingsRequest(string PlayerId, string Language, int? CluesDuration, int? GuessDuration, bool? SemanticClueCheckEnabled);
 record SetClueRequest(string PlayerId, string Direction, string ClueText);
 record SubmitBoardRequest(string PlayerId);
 record PlaceGuessingCardRequest(string PlayerId, int OutsideCardIndex, string Position);
