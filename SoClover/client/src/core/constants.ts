@@ -9,6 +9,11 @@
     PLAYER_NAME: 'so_clover_player_name',
   },
   
+  
+  CLUE_VALIDATION: {
+    debounceMs: 200,
+  },
+  
   THEME_CONFIG: {
     cardFontClass: 'mogra-regular',
     cardFontWeight: '400',
