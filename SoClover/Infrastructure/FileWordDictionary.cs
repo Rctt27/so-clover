@@ -1,6 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using System.Globalization;
-using System.Text;
 using SoClover.Domain;
 
 namespace SoClover.Infrastructure;
@@ -131,20 +129,5 @@ public sealed class FileWordDictionary : IWordDictionary
         }
     }
 
-    private static string Normalize(string input)
-    {
-        // Lowercase and remove diacritics to achieve accent-insensitive comparison
-        var lower = input.Trim().ToLowerInvariant();
-        var normalized = lower.Normalize(NormalizationForm.FormD);
-        var sb = new StringBuilder(capacity: normalized.Length);
-        foreach (var c in normalized)
-        {
-            var uc = CharUnicodeInfo.GetUnicodeCategory(c);
-            if (uc != UnicodeCategory.NonSpacingMark)
-            {
-                sb.Append(c);
-            }
-        }
-        return sb.ToString().Normalize(NormalizationForm.FormC);
-    }
+    private static string Normalize(string input) => TextNormalizer.Normalize(input);
 }
