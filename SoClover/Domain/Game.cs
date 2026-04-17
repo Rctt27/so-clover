@@ -33,6 +33,10 @@ public sealed class Game
     [JsonInclude]
     [JsonPropertyName("guessDurationSecondsOverride")]
     public int? GuessDurationSecondsOverride { get; private set; }
+    
+    [JsonInclude]
+    [JsonPropertyName("semanticClueCheckEnabled")]
+    public bool SemanticClueCheckEnabled { get; private set; }
 
     private const int CURSOR_COLORS_COUNT = 10;
     private readonly Dictionary<PlayerId, Player> _players = new();
@@ -132,11 +136,19 @@ public sealed class Game
             }
         }
     }
+    
 
     public Game(GameId id, string? language = null)
     {
         Id = id;
         Language = string.IsNullOrWhiteSpace(language) ? "Français_OFF" : language.Trim();
+        SemanticClueCheckEnabled = IsFrenchLanguage(Language);
+    }
+
+    private static bool IsFrenchLanguage(string language)
+    {
+        var norm = TextNormalizer.Normalize(language);
+        return norm.StartsWith("francais", StringComparison.Ordinal);
     }
 
     // Backward/compat helper used by use cases: check if a given player is admin based on player flag.
@@ -250,7 +262,20 @@ public sealed class Game
         {
             Language = trimmed;
             _wordsPool = null;
+            if (!IsFrenchLanguage(Language))
+                SemanticClueCheckEnabled = false;
         }
+    }
+    
+    public void SetSemanticClueCheckEnabled(bool enabled)
+    {
+        if (Phase != GamePhase.Lobby)
+            throw new InvalidOperationInPhaseException("Semantic clue check can only be toggled in the Lobby phase.");
+
+        if (enabled && !IsFrenchLanguage(Language))
+            throw new InvalidOperationException("Semantic clue check is only available for the French dictionary.");
+
+        SemanticClueCheckEnabled = enabled;
     }
 
     public void UpdateDurationOverrides(int? cluesDurationSeconds, int? guessDurationSeconds)
