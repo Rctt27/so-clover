@@ -101,14 +101,15 @@ export const DraggableCard = ({
   const [rotationVisualOffset, setRotationVisualOffset] = useState(0)
   const cardRef = useRef<HTMLDivElement>(null!)
   const startAngleRef = useRef(0)
+  const rotationDirectionRef = useRef<'left' | 'right'>('right')
 
-  // TODO(Story-future): La rotation utilise des mouse events (onMouseDown / mousemove / mouseup)
-  // et ne fonctionne pas sur les appareils tactiles. Migrer vers pointer events si le support
-  // tactile est requis.
-  const handleRotationStart = useCallback((e: React.MouseEvent) => {
+  const handleRotationStart = useCallback((e: React.PointerEvent, direction: 'left' | 'right') => {
     if (!canInteract || !cardRef.current) return
     e.preventDefault()
     e.stopPropagation()
+
+    rotationDirectionRef.current = direction
+    e.currentTarget.setPointerCapture(e.pointerId)
 
     setIsRotating(true)
     const rect = cardRef.current.getBoundingClientRect()
@@ -122,7 +123,7 @@ export const DraggableCard = ({
   useEffect(() => {
     if (!isRotating) return
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: PointerEvent) => {
       if (!cardRef.current) return
 
       const rect = cardRef.current.getBoundingClientRect()
@@ -145,16 +146,17 @@ export const DraggableCard = ({
       }
     }
 
-    const handleMouseUp = async () => {
+    const handlePointerUp = async () => {
       const steps = Math.round(rotationVisualOffset / 90)
 
       setIsRotating(false)
       setRotationVisualOffset(0)
 
       if (gameId && playerId) {
-        // Si steps est 0, c'est un clic simple sur le coin -> on tourne de 90° (1 step)
-        // Sinon on utilise le nombre de steps calculé par le drag
-        const finalSteps = steps === 0 ? 1 : steps;
+        // Si steps est 0, c'est un tap simple sur le coin -> direction détermine le sens
+        const finalSteps = steps === 0
+          ? (rotationDirectionRef.current === 'right' ? 1 : -1)
+          : steps;
 
         // Son local déclencheur ; spectateurs via `useGameSounds`/`CardRotated` — voir Story 9
         playSound('cardRotate')
@@ -173,11 +175,11 @@ export const DraggableCard = ({
       }
     }
 
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
     }
   }, [isRotating, rotationVisualOffset, gameId, playerId, isOutside, index])
 
@@ -259,22 +261,22 @@ export const DraggableCard = ({
         <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 110 }}>
           <div
             className="absolute top-0 left-0 w-12 h-12 cursor-rotation pointer-events-auto"
-            onMouseDown={handleRotationStart}
+            onPointerDown={(e) => handleRotationStart(e, 'left')}
             title="Faire pivoter"
           />
           <div
             className="absolute top-0 right-0 w-12 h-12 cursor-rotation pointer-events-auto"
-            onMouseDown={handleRotationStart}
+            onPointerDown={(e) => handleRotationStart(e, 'right')}
             title="Faire pivoter"
           />
           <div
             className="absolute bottom-0 left-0 w-12 h-12 cursor-rotation pointer-events-auto"
-            onMouseDown={handleRotationStart}
+            onPointerDown={(e) => handleRotationStart(e, 'left')}
             title="Faire pivoter"
           />
           <div
             className="absolute bottom-0 right-0 w-12 h-12 cursor-rotation pointer-events-auto"
-            onMouseDown={handleRotationStart}
+            onPointerDown={(e) => handleRotationStart(e, 'right')}
             title="Faire pivoter"
           />
         </div>
