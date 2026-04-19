@@ -122,9 +122,6 @@ export const usePresenceStore = create<PresenceState>()(
   (isDebug ? devtools(presenceStoreDef, { name: 'PresenceStore', enabled: true, serialize: { options: true } }) : presenceStoreDef) as StateCreator<PresenceState>
 )
 
-/**
- * @deprecated Use useNotifications hook instead of direct store access
- */
 export const useNotificationStore = create<NotificationSlice>()(
   (isDebug
     ? devtools(createNotificationSlice, { name: 'NotificationStore', enabled: true, serialize: { options: true } })
