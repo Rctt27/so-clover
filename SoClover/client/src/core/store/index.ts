@@ -1,10 +1,10 @@
 ﻿import { create, StateCreator } from 'zustand'
 import { persist, createJSONStorage, devtools } from 'zustand/middleware'
-import { Role, GamePhase, ConnectionStatus } from '../types/game'
+import { Role, GamePhase, ConnectionStatus } from '../../types/game'
 import { createNotificationSlice, NotificationSlice } from './notificationSlice'
 import { createBoardSlice, BoardSlice } from './boardSlice'
 import { createGuessingSlice, GuessingSlice } from './guessingSlice'
-import { isDebug } from './debug'
+import { isDebug } from '../debug'
 
 interface GameState {
   gameId: string | null

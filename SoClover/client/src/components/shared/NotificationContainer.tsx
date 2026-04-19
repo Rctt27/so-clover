@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useEffect } from 'react'
 import { useNotifications } from '../../hooks/useNotifications'
-import type { Notification } from '../../core/notificationSlice'
+import type { Notification } from '../../core/store/notificationSlice'
 
 const NotificationItem = ({ notification }: { notification: Notification }) => {
   const { dismiss } = useNotifications()

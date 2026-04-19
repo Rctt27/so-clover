@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand'
-import { BoardData, CardData } from '../types/game'
-import { debugLog } from './debug'
+import { BoardData, CardData } from '../../types/game'
+import { debugLog } from '../debug'
 
 export interface BoardSlice {
   // Board state
@@ -9,7 +9,7 @@ export interface BoardSlice {
   currentBoardOwner: string | null // PlayerId of the board currently being guessed
   clueValidity: Record<'top' | 'right' | 'bottom' | 'left', {
     isValid: boolean
-    errors: import('./clueValidation').ClueValidationError[]
+    errors: import('../clueValidation').ClueValidationError[]
     isChecking: boolean
   }>
   
@@ -24,7 +24,7 @@ export interface BoardSlice {
   resetBoards: () => void
   setClueValidity: (
       position: 'top' | 'right' | 'bottom' | 'left',
-      state: { isValid: boolean; errors: import('./clueValidation').ClueValidationError[]; isChecking: boolean }
+      state: { isValid: boolean; errors: import('../clueValidation').ClueValidationError[]; isChecking: boolean }
   ) => void
   resetClueValidity: () => void
 }

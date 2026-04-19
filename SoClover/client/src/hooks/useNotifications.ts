@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { useNotificationStore } from '../core/store'
-import { NotificationType, NotificationPosition } from '../core/notificationSlice'
+import { NotificationType, NotificationPosition } from '../core/store/notificationSlice'
 
 export const useNotifications = () => {
   const addNotification = useNotificationStore((state) => state.addNotification)

@@ -1,5 +1,5 @@
 ﻿import { StateCreator } from 'zustand'
-import { CardInfoResponse, ClueInfoResponse } from '../types/game'
+import { CardInfoResponse, ClueInfoResponse } from '../../types/game'
 
 export interface GuessingSlice {
   // État provenant du serveur

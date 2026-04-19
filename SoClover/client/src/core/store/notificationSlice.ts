@@ -1,5 +1,5 @@
 import { StateCreator } from 'zustand'
-import { generateId } from './generateId'
+import { generateId } from '../generateId'
 
 export type NotificationType = 'success' | 'error' | 'info' | 'warning'
 
