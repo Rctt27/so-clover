@@ -1,5 +1,6 @@
 ﻿import { useRef, useEffect } from 'react';
 import { CONSTANTS } from '../../../core/constants';
+import { computeBoardGeometry } from '../../../core/boardGeometry';
 
 export function CloverBoard() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -13,15 +14,11 @@ export function CloverBoard() {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        const center = size / 2;
-
         ctx.clearRect(0, 0, size, size);
 
         // Card and core dimensions
         const holeSize = 100; // Hole in center of card is 100px × 100px
-        const coreSize = cardSize * 2; // 640px - the central square (2×2 grid)
-        const coreLeft = center - coreSize / 2;
-        const coreTop = center - coreSize / 2;
+        const { center, coreSize, coreLeft, coreTop } = computeBoardGeometry({ referenceSize: size, cardSize, cardGap });
 
         // Double-circle edge extending from one side of the core
         const drawEdge = (x: number, y: number, angle: number) => {

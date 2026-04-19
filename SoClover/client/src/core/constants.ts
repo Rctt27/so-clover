@@ -84,9 +84,5 @@
       cardSize: 320,
       cardGap: 4,           // Espacement (px) entre les cartes adjacentes sur le board
     },
-    clueInput: {
-      width: 270,
-      offsetFromEdge: 216,  // Centre des cercles de pétales : coreTop(330) - penetrationDepth(253)×0.45 ≈ 216
-    }
   }
 };

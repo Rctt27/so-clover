@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CONSTANTS } from '../../../core/constants'
+import { computeBoardGeometry } from '../../../core/boardGeometry'
 import { useClueValidation } from '../../../hooks/useClueValidation'
 import { useBoardStore } from '../../../core/store'
 import { getClueErrorMessage } from '../../../core/clueValidationMessages'
@@ -23,8 +24,7 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
   const { validateImmediately } = useClueValidation(position, localValue)
   const validity = useBoardStore((s) => s.clueValidity[position])
 
-  const REFERENCE_SIZE = CONSTANTS.ASSET_REFERENCES.board.referenceSize
-  const { width: INPUT_WIDTH_PX, offsetFromEdge: OFFSET_PX } = CONSTANTS.ASSET_REFERENCES.clueInput
+  const boardGeo = computeBoardGeometry(CONSTANTS.ASSET_REFERENCES.board)
   const theme = CONSTANTS.THEME_CONFIG
 
   useEffect(() => {
@@ -66,17 +66,12 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
   }
 
   const getPositionStyle = () => {
-    let top = '50%'; let left = '50%'; let rotation = 0
-    switch (position) {
-      case 'top': top = `${(OFFSET_PX / REFERENCE_SIZE) * 100}%`; left = '50%'; rotation = 0; break
-      case 'right': top = '50%'; left = `${((REFERENCE_SIZE - OFFSET_PX) / REFERENCE_SIZE) * 100}%`; rotation = 90; break
-      case 'bottom': top = `${((REFERENCE_SIZE - OFFSET_PX) / REFERENCE_SIZE) * 100}%`; left = '50%'; rotation = 180; break
-      case 'left': top = '50%'; left = `${(OFFSET_PX / REFERENCE_SIZE) * 100}%`; rotation = -90; break
-    }
+    const { topPct, leftPct, rotation } = boardGeo.cluePositions[position]
     return {
       position: 'absolute' as const,
-      top, left,
-      width: `${(INPUT_WIDTH_PX / REFERENCE_SIZE) * 100}%`,
+      top: `${topPct}%`,
+      left: `${leftPct}%`,
+      width: `${boardGeo.clueInputWidthPct}%`,
       transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
       zIndex: 100,
     }
