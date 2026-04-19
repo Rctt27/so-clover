@@ -1,12 +1,12 @@
 import { Howl } from 'howler';
-import cardPlaceUrl from '../public/sounds/card-place.mp3';
-import cardSwapUrl from '../public/sounds/card-swap.mp3';
-import cardRotateUrl from '../public/sounds/card-rotate.mp3';
-import boardRotateUrl from '../public/sounds/board-rotate.mp3';
-import correctUrl from '../public/sounds/correct.mp3';
-import incorrectUrl from '../public/sounds/incorrect.mp3';
-import timerWarningUrl from '../public/sounds/timer-warning.mp3';
-import lofiMusicUrl from '../public/sounds/writing-clues-lofi.mp3';
+import cardPlaceUrl from '../assets/sounds/card-place.mp3';
+import cardSwapUrl from '../assets/sounds/card-swap.mp3';
+import cardRotateUrl from '../assets/sounds/card-rotate.mp3';
+import boardRotateUrl from '../assets/sounds/board-rotate.mp3';
+import correctUrl from '../assets/sounds/correct.mp3';
+import incorrectUrl from '../assets/sounds/incorrect.mp3';
+import timerWarningUrl from '../assets/sounds/timer-warning.mp3';
+import lofiMusicUrl from '../assets/sounds/writing-clues-lofi.mp3';
 
 // ─── Volumes ─────────────────────────────────────────────────────────────────
 const VOLUME_CARD_PLACE             = 0.4;
