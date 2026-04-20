@@ -33,12 +33,7 @@ public static class SetClue
 
             await _repo.Save(game, ct);
 
-            if (result.IsValid)
-                await _events.Publish(new ClueSet(game.Id, request.PlayerId, request.Direction), ct);
-
             return new Response(result);
         }
     }
 }
-
-public readonly record struct ClueSet(GameId GameId, PlayerId PlayerId, Direction Direction);

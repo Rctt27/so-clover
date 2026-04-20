@@ -15,11 +15,6 @@ public class InvalidOperationInPhaseException : DomainException
     public InvalidOperationInPhaseException(string message) : base(message) { }
 }
 
-public class InvalidGuessException : DomainException
-{
-    public InvalidGuessException(string message) : base(message) { }
-}
-
 public class NoClueForDirectionException : DomainException
 {
     public Direction Direction { get; }

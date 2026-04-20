@@ -40,13 +40,6 @@ public sealed class SignalREventPublisher : IEventPublisher
             return; // nothing to broadcast without a game
         }
 
-        // Optimization: Do not broadcast individual clue updates to everyone during WritingClues phase.
-        // This is personal information and causes unnecessary re-renders for other players.
-        if (evt is ClueSet)
-        {
-            return; 
-        }
-
         // Optional: sanity check game still exists (ignore exceptions to avoid breaking the flow)
         try
         {
