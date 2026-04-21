@@ -25,7 +25,7 @@ export const normalizeText = (input: string | null | undefined): string => {
     return withLigatures.normalize('NFD').replace(/\p{Mn}/gu, '').normalize('NFC')
 }
 
-const isFrenchLanguage = (language: string): boolean =>
+export const isFrenchLanguage = (language: string): boolean =>
     normalizeText(language).startsWith('francais')
 
 export const validateClueLocally = (
@@ -58,7 +58,7 @@ export const validateClueLocally = (
         const stem = wordNorm.slice(0, -1)
         if (stem.length < MIN_WORD_LENGTH) continue
 
-        if (clueNorm.includes(stem) || stem.includes(clueNorm)) {
+        if (clueNorm.includes(stem) || (clueNorm.length >= MIN_WORD_LENGTH && stem.includes(clueNorm))) {
             errors.push({ rule: 'SimilarStem', cardWord: word })
         }
     }

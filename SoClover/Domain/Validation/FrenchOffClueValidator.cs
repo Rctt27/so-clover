@@ -37,7 +37,7 @@ public sealed class FrenchOffClueValidator : IClueValidator
                 continue;
 
             if (clueNorm.Contains(stem, StringComparison.Ordinal)
-                || stem.Contains(clueNorm, StringComparison.Ordinal))
+                || (clueNorm.Length >= MinWordLength && stem.Contains(clueNorm, StringComparison.Ordinal)))
             {
                 errors.Add(new ClueValidationError(ClueValidationRule.SimilarStem, word, wordDirection));
             }

@@ -15,13 +15,11 @@ public static class SetClue
     public sealed class Handler : ISetClueUseCase
     {
         private readonly IGameRepository _repo;
-        private readonly IEventPublisher _events;
         private readonly IClueValidatorFactory _validatorFactory;
 
-        public Handler(IGameRepository repo, IEventPublisher events, IClueValidatorFactory validatorFactory)
+        public Handler(IGameRepository repo, IClueValidatorFactory validatorFactory)
         {
             _repo = repo;
-            _events = events;
             _validatorFactory = validatorFactory;
         }
 

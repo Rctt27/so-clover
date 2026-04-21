@@ -567,6 +567,10 @@ app.MapPost("/api/games/{gameId:guid}/clues/validate", async (Guid gameId, SetCl
         {
             return Results.NotFound(new { message = "Game not found" });
         }
+        catch (PlayerNotFoundException)
+        {
+            return Results.NotFound(new { message = "Player not found" });
+        }
     })
     .WithName("ValidateClue");
 

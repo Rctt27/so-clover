@@ -5,6 +5,7 @@ import {
   LOBBY_SEMANTIC_TOGGLE_LABEL,
   LOBBY_SEMANTIC_TOGGLE_TOOLTIP_DISABLED,
 } from '../../core/clueValidationMessages';
+import { isFrenchLanguage } from '../../core/clueValidation';
 
 export const GameSettings: React.FC = () => {
   const { gameId, playerId, isGameAdmin, settings, setSettings } = useGameStore();
@@ -17,8 +18,7 @@ export const GameSettings: React.FC = () => {
   
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const isFrenchLanguage = settings.language.toLowerCase().startsWith('français')
-    || settings.language.toLowerCase().startsWith('francais')
+  const isCurrentLanguageFrench = isFrenchLanguage(settings.language)
   const semanticEnabled = settings.semanticClueCheckEnabled
 
   useEffect(() => {
@@ -65,12 +65,11 @@ export const GameSettings: React.FC = () => {
     const { name, value } = e.target;
     
     if (name === 'language') {
-      const newIsFrench = value.toLowerCase().startsWith('français') || value.toLowerCase().startsWith('francais')
       const newSettings = {
         language: value,
         cluesDuration: localCluesDuration,
         guessDuration: localGuessDuration,
-        semanticClueCheckEnabled: newIsFrench ? settings.semanticClueCheckEnabled : false,
+        semanticClueCheckEnabled: isFrenchLanguage(value) ? settings.semanticClueCheckEnabled : false,
       }
       updateSettings(newSettings)
       setSettings({ ...settings, language: value, semanticClueCheckEnabled: newSettings.semanticClueCheckEnabled })
@@ -169,20 +168,20 @@ export const GameSettings: React.FC = () => {
         <div>
           <label
             className="flex items-center gap-2 text-sm font-medium text-slate-600"
-            title={!isFrenchLanguage ? LOBBY_SEMANTIC_TOGGLE_TOOLTIP_DISABLED : undefined}
+            title={!isCurrentLanguageFrench ? LOBBY_SEMANTIC_TOGGLE_TOOLTIP_DISABLED : undefined}
           >
             <input
               type="checkbox"
-              checked={semanticEnabled && isFrenchLanguage}
-              disabled={!isGameAdmin || loading || !isFrenchLanguage}
+              checked={semanticEnabled && isCurrentLanguageFrench}
+              disabled={!isGameAdmin || loading || !isCurrentLanguageFrench}
               onChange={(e) => handleToggleSemantic(e.target.checked)}
               className="accent-emerald-500 disabled:opacity-50"
             />
-            <span className={!isFrenchLanguage ? 'text-slate-400' : undefined}>
+            <span className={!isCurrentLanguageFrench ? 'text-slate-400' : undefined}>
               {LOBBY_SEMANTIC_TOGGLE_LABEL}
             </span>
           </label>
-          {!isFrenchLanguage && (
+          {!isCurrentLanguageFrench && (
             <p className="text-xs text-slate-400 italic mt-1">
               {LOBBY_SEMANTIC_TOGGLE_TOOLTIP_DISABLED}
             </p>

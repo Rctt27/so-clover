@@ -6,6 +6,7 @@ import { useClueValidation } from '../../../hooks/useClueValidation'
 import { useBoardStore } from '../../../core/store'
 import { getClueErrorMessage } from '../../../core/clueValidationMessages'
 import { ClueValidationRejection } from '../../../types/game'
+import { debugLog } from '../../../core/debug'
 
 export type ClueStatus = 'idle' | 'saving' | 'success' | 'error'
 
@@ -56,7 +57,7 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
         setStatus('error')
         return
       }
-      console.error('[ClueInput] Save failed:', error)
+      debugLog('ClueInput', 'Save failed', error)
       setStatus('error')
     }
   }

@@ -26,7 +26,7 @@ public static class ValidateClue
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
         {
             var game = await _repo.Get(request.GameId, ct) ?? throw new GameNotFoundException(request.GameId);
-            var player = game.Players.FirstOrDefault(p => p.Id == request.PlayerId)
+            var player = game.ActivePlayers.FirstOrDefault(p => p.Id == request.PlayerId)
                          ?? throw new PlayerNotFoundException(request.PlayerId);
             var validator = _validatorFactory.GetFor(game.Language, game.SemanticClueCheckEnabled);
 

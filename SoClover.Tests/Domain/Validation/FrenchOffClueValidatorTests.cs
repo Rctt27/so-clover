@@ -176,4 +176,15 @@ public class FrenchOffClueValidatorTests
         var result = _sut.Validate("tour Eiffel", Direction.Top, board);
         Assert.False(result.IsValid); // R1 substring — normalized "tour eiffel" contains "tour"
     }
+
+    [Fact]
+    public void R1_short_clue_not_caught_by_word_contains_clue()
+    {
+        // Guard intentionnel : quand l'indice normalisé a < 3 chars, la branche
+        // wordNorm.Contains(clueNorm) est désactivée pour éviter les faux positifs
+        // sur des sous-chaînes triviales (ex. "bo" dans "bondir").
+        var board = BoardWithWords("bondir");
+        var result = _sut.Validate("bo", Direction.Top, board);
+        Assert.True(result.IsValid);
+    }
 }
