@@ -91,4 +91,47 @@ public class AiPlayerDomainTests
         Assert.False(rehydrated!.IsAI);
         Assert.Null(rehydrated.AIConfig);
     }
+
+    [Fact]
+    public void GuessingParticipants_excludes_AI_players()
+    {
+        var game = new Game(GameId.New());
+        var human = new Player(PlayerId.New(), "Alice");
+        var bot = new Player(PlayerId.New(), "Bot-1", isAdmin: false, isAI: true, aiConfig: new AIConfig("gpt-4o-mini", 0.7));
+
+        game.AddPlayer(human);
+        game.AddPlayer(bot);
+
+        Assert.Single(game.GuessingParticipants);
+        Assert.Contains(game.GuessingParticipants, p => p.Id == human.Id);
+        Assert.DoesNotContain(game.GuessingParticipants, p => p.Id == bot.Id);
+    }
+
+    [Fact]
+    public void GuessingParticipants_excludes_disconnected_humans()
+    {
+        var game = new Game(GameId.New());
+        var alice = new Player(PlayerId.New(), "Alice");
+        var bob = new Player(PlayerId.New(), "Bob");
+        game.AddPlayer(alice);
+        game.AddPlayer(bob);
+        bob.MarkDisconnected();
+
+        Assert.Single(game.GuessingParticipants);
+        Assert.Contains(game.GuessingParticipants, p => p.Id == alice.Id);
+    }
+
+    [Fact]
+    public void GuessingParticipants_is_empty_when_only_AIs_and_disconnected_remain()
+    {
+        var game = new Game(GameId.New());
+        var admin = new Player(PlayerId.New(), "Admin", isAdmin: true);
+        var bot = new Player(PlayerId.New(), "Bot-1", isAdmin: false, isAI: true, aiConfig: new AIConfig("gpt-4o-mini", 0.7));
+
+        game.AddPlayer(admin);
+        game.AddPlayer(bot);
+        admin.MarkDisconnected();
+
+        Assert.Empty(game.GuessingParticipants);
+    }
 }

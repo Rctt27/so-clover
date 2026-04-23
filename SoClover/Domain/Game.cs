@@ -96,6 +96,10 @@ public sealed class Game
     public IReadOnlyCollection<Player> ActivePlayers =>
         _players.Values.Where(p => !p.IsDisconnected).ToList().AsReadOnly();
 
+    [JsonIgnore]
+    public IReadOnlyCollection<Player> GuessingParticipants =>
+        _players.Values.Where(p => !p.IsDisconnected && !p.IsAI).ToList().AsReadOnly();
+
     // Persistence bridge: expose players for JSON (de)serialization when using EF snapshot storage.
     // We keep the domain API read-only (via Players) and use this property only for persistence.
     // Note: requires custom JSON converters for PlayerId as dictionary keys (already added in EfGameRepository).
