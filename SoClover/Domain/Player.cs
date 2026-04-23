@@ -29,13 +29,29 @@ public sealed class Player
     [JsonPropertyName("isDisconnected")]
     public bool IsDisconnected { get; private set; }
 
+    [JsonInclude]
+    [JsonPropertyName("isAI")]
+    public bool IsAI { get; private set; }
+
+    [JsonInclude]
+    [JsonPropertyName("aiConfig")]
+    public AIConfig? AIConfig { get; private set; }
+
     public void MarkDisconnected() => IsDisconnected = true;
 
     public Player(PlayerId id, string name, bool isAdmin = false)
+        : this(id, name, isAdmin, isAI: false, aiConfig: null)
+    {
+    }
+
+    [JsonConstructor]
+    public Player(PlayerId id, string name, bool isAdmin, bool isAI, AIConfig? aiConfig)
     {
         Id = id;
         Name = RequireName(name);
         IsAdmin = isAdmin;
+        IsAI = isAI;
+        AIConfig = aiConfig;
     }
 
     internal void SetCursorColorIndex(int colorIndex) => CursorColorIndex = colorIndex;

@@ -37,4 +37,58 @@ public class AiPlayerDomainTests
         Assert.Equal("gpt-4o-mini", deserialized!.Model);
         Assert.Equal(0.7, deserialized.Temperature);
     }
+
+    [Fact]
+    public void Player_default_constructor_creates_human_player()
+    {
+        var player = new Player(PlayerId.New(), "Alice");
+
+        Assert.False(player.IsAI);
+        Assert.Null(player.AIConfig);
+    }
+
+    [Fact]
+    public void Player_AI_constructor_sets_IsAI_and_AIConfig()
+    {
+        var config = new AIConfig("gpt-4o-mini", 0.7);
+        var player = new Player(PlayerId.New(), "Bot-1", isAdmin: false, isAI: true, aiConfig: config);
+
+        Assert.True(player.IsAI);
+        Assert.NotNull(player.AIConfig);
+        Assert.Equal("gpt-4o-mini", player.AIConfig!.Model);
+        Assert.Equal(0.7, player.AIConfig.Temperature);
+    }
+
+    [Fact]
+    public void Player_AI_round_trip_JSON_preserves_IsAI_and_AIConfig()
+    {
+        var config = new AIConfig("claude-haiku-4-5", 0.5);
+        var original = new Player(PlayerId.New(), "Bot-1", isAdmin: false, isAI: true, aiConfig: config);
+        var options = CreateJsonOptions();
+
+        var json = JsonSerializer.Serialize(original, options);
+        var rehydrated = JsonSerializer.Deserialize<Player>(json, options);
+
+        Assert.NotNull(rehydrated);
+        Assert.True(rehydrated!.IsAI);
+        Assert.NotNull(rehydrated.AIConfig);
+        Assert.Equal("claude-haiku-4-5", rehydrated.AIConfig!.Model);
+        Assert.Equal(0.5, rehydrated.AIConfig.Temperature);
+        Assert.Equal(original.Id, rehydrated.Id);
+        Assert.Equal(original.Name, rehydrated.Name);
+    }
+
+    [Fact]
+    public void Player_human_round_trip_JSON_keeps_IsAI_false_and_AIConfig_null()
+    {
+        var original = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        var options = CreateJsonOptions();
+
+        var json = JsonSerializer.Serialize(original, options);
+        var rehydrated = JsonSerializer.Deserialize<Player>(json, options);
+
+        Assert.NotNull(rehydrated);
+        Assert.False(rehydrated!.IsAI);
+        Assert.Null(rehydrated.AIConfig);
+    }
 }
