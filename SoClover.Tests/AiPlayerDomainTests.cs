@@ -225,4 +225,47 @@ public class AiPlayerDomainTests
         Assert.IsAssignableFrom<DomainException>(ex);
         Assert.Contains("Klingon", ex.Message);
     }
+
+    [Fact]
+    public void Player_deserialization_from_preEpic_JSON_snapshot_has_IsAI_false_and_AIConfig_null()
+    {
+        // Snapshot JSON représentatif d'un Player sérialisé AVANT l'ajout d'IsAI/AIConfig.
+        // Les champs id/name/isAdmin/board/cursorColorIndex/isDisconnected sont présents ;
+        // isAI et aiConfig sont volontairement absents.
+        var legacyJson = """
+            {
+              "id": "11111111-1111-1111-1111-111111111111",
+              "name": "LegacyPlayer",
+              "isAdmin": true,
+              "board": {
+                "topLeft": null,
+                "topRight": null,
+                "bottomRight": null,
+                "bottomLeft": null,
+                "topClue": null,
+                "rightClue": null,
+                "bottomClue": null,
+                "leftClue": null,
+                "isSubmitted": false,
+                "submittedAtUtc": null,
+                "guessedDirections": []
+              },
+              "cursorColorIndex": 3,
+              "isDisconnected": false
+            }
+            """;
+        var options = CreateJsonOptions();
+        options.Converters.Add(new SoClover.Infrastructure.Persistence.PlayerIdJsonConverter());
+
+        var player = JsonSerializer.Deserialize<Player>(legacyJson, options);
+
+        Assert.NotNull(player);
+        Assert.Equal("LegacyPlayer", player!.Name);
+        Assert.True(player.IsAdmin);
+        Assert.Equal(3, player.CursorColorIndex);
+        Assert.False(player.IsDisconnected);
+
+        Assert.False(player.IsAI);
+        Assert.Null(player.AIConfig);
+    }
 }
