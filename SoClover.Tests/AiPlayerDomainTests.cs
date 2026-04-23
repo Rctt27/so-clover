@@ -183,4 +183,46 @@ public class AiPlayerDomainTests
 
         Assert.Empty(game.BoardsToGuess);
     }
+
+    [Fact]
+    public void MaxAIPlayersReachedException_exposes_currentCount_and_max_and_descriptive_message()
+    {
+        var ex = new MaxAIPlayersReachedException(currentCount: 4, max: 4);
+
+        Assert.Equal(4, ex.CurrentCount);
+        Assert.Equal(4, ex.Max);
+        Assert.IsAssignableFrom<DomainException>(ex);
+        Assert.Contains("4", ex.Message);
+    }
+
+    [Fact]
+    public void NoHumanGuesserException_is_a_DomainException_with_message()
+    {
+        var ex = new NoHumanGuesserException();
+
+        Assert.IsAssignableFrom<DomainException>(ex);
+        Assert.False(string.IsNullOrWhiteSpace(ex.Message));
+    }
+
+    [Fact]
+    public void LlmBudgetExhaustedException_exposes_gameId_and_max()
+    {
+        var gameId = GameId.New();
+        var ex = new LlmBudgetExhaustedException(gameId, max: 100);
+
+        Assert.Equal(gameId, ex.GameId);
+        Assert.Equal(100, ex.Max);
+        Assert.IsAssignableFrom<DomainException>(ex);
+        Assert.Contains("100", ex.Message);
+    }
+
+    [Fact]
+    public void UnsupportedAiLanguageException_exposes_language()
+    {
+        var ex = new UnsupportedAiLanguageException("Klingon");
+
+        Assert.Equal("Klingon", ex.Language);
+        Assert.IsAssignableFrom<DomainException>(ex);
+        Assert.Contains("Klingon", ex.Message);
+    }
 }
