@@ -134,4 +134,53 @@ public class AiPlayerDomainTests
 
         Assert.Empty(game.GuessingParticipants);
     }
+
+    [Fact]
+    public void BoardsToGuess_includes_AI_boards_when_submitted()
+    {
+        var game = new Game(GameId.New());
+        var human = new Player(PlayerId.New(), "Alice");
+        var bot = new Player(PlayerId.New(), "Bot-1", isAdmin: false, isAI: true, aiConfig: new AIConfig("gpt-4o-mini", 0.7));
+
+        game.AddPlayer(human);
+        game.AddPlayer(bot);
+
+        Assert.Empty(game.BoardsToGuess);
+
+        var now = DateTime.UtcNow;
+        human.Board.MarkSubmitted(now);
+        bot.Board.MarkSubmitted(now);
+
+        Assert.Equal(2, game.BoardsToGuess.Count);
+        Assert.Contains(game.BoardsToGuess, p => p.Id == human.Id);
+        Assert.Contains(game.BoardsToGuess, p => p.Id == bot.Id);
+    }
+
+    [Fact]
+    public void BoardsToGuess_excludes_non_submitted_boards()
+    {
+        var game = new Game(GameId.New());
+        var alice = new Player(PlayerId.New(), "Alice");
+        var bob = new Player(PlayerId.New(), "Bob");
+
+        game.AddPlayer(alice);
+        game.AddPlayer(bob);
+
+        alice.Board.MarkSubmitted(DateTime.UtcNow);
+
+        Assert.Single(game.BoardsToGuess);
+        Assert.Contains(game.BoardsToGuess, p => p.Id == alice.Id);
+    }
+
+    [Fact]
+    public void BoardsToGuess_excludes_disconnected_players_even_if_submitted()
+    {
+        var game = new Game(GameId.New());
+        var alice = new Player(PlayerId.New(), "Alice");
+        game.AddPlayer(alice);
+        alice.Board.MarkSubmitted(DateTime.UtcNow);
+        alice.MarkDisconnected();
+
+        Assert.Empty(game.BoardsToGuess);
+    }
 }
