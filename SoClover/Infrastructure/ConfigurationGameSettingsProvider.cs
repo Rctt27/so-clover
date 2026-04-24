@@ -15,7 +15,8 @@ public sealed class ConfigurationGameSettingsProvider(IOptions<GameDefaultsOptio
             LobbyDurationSeconds   = Clamp(o.LobbyDuration  > 0 ? o.LobbyDuration  : 600),
             CluesDurationSeconds   = Clamp(o.CluesDuration  > 0 ? o.CluesDuration  : 300),
             GuessDurationSeconds   = Clamp(o.GuessDuration  > 0 ? o.GuessDuration  : 300),
-            ScoringDurationSeconds = Clamp(o.ScoringDuration > 0 ? o.ScoringDuration : 30)
+            ScoringDurationSeconds = Clamp(o.ScoringDuration > 0 ? o.ScoringDuration : 30),
+            MaxAIPlayersPerGame = o.MaxAIPlayersPerGame > 0 ? o.MaxAIPlayersPerGame : 4
         });
     }
 }
