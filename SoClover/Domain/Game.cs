@@ -182,6 +182,21 @@ public sealed class Game
         }
     }
 
+    public void AddAIPlayer(Player player, int max)
+    {
+        if (!player.IsAI)
+            throw new ArgumentException("Player must be flagged as AI.", nameof(player));
+
+        if (Phase != GamePhase.Lobby)
+            throw new InvalidOperationInPhaseException("Cannot add AI player after game start.");
+
+        var currentAiCount = _players.Values.Count(p => p.IsAI);
+        if (currentAiCount >= max)
+            throw new MaxAIPlayersReachedException(currentAiCount, max);
+
+        AddPlayer(player);
+    }
+
     public void RemovePlayer(PlayerId playerId)
     {
         if (Phase != GamePhase.Lobby)

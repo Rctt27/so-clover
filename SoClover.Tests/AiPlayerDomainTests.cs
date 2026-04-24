@@ -227,6 +227,78 @@ public class AiPlayerDomainTests
     }
 
     [Fact]
+    public void AddAIPlayer_marks_player_as_AI_and_assigns_cursor_color()
+    {
+        var game = new Game(GameId.New());
+        var admin = new Player(PlayerId.New(), "Admin", isAdmin: true);
+        game.AddPlayer(admin);
+
+        var bot = new Player(PlayerId.New(), "Bot-1", isAdmin: false, isAI: true,
+            aiConfig: new AIConfig("gpt-4o-mini", 0.7));
+        game.AddAIPlayer(bot, max: 4);
+
+        Assert.Contains(game.Players, p => p.Id == bot.Id && p.IsAI);
+    }
+
+    [Fact]
+    public void AddAIPlayer_throws_MaxAIPlayersReachedException_when_cap_reached()
+    {
+        var game = new Game(GameId.New());
+        game.AddPlayer(new Player(PlayerId.New(), "Admin", isAdmin: true));
+        for (int i = 0; i < 4; i++)
+        {
+            game.AddAIPlayer(
+                new Player(PlayerId.New(), $"Bot-{i}", isAdmin: false, isAI: true,
+                    aiConfig: new AIConfig("gpt-4o-mini", 0.7)),
+                max: 4);
+        }
+
+        var extra = new Player(PlayerId.New(), "Bot-extra", isAdmin: false, isAI: true,
+            aiConfig: new AIConfig("gpt-4o-mini", 0.7));
+
+        var ex = Assert.Throws<MaxAIPlayersReachedException>(
+            () => game.AddAIPlayer(extra, max: 4));
+        Assert.Equal(4, ex.CurrentCount);
+        Assert.Equal(4, ex.Max);
+    }
+
+    private class DummyWordDictionary : IWordDictionary
+    {
+        public Task<IReadOnlyList<string>> GetRandomWordsAsync(string language, int count, CancellationToken ct = default)
+            => Task.FromResult((IReadOnlyList<string>)Enumerable.Range(0, count).Select(i => $"Word{i}").ToList());
+        public Task<IReadOnlyList<string>> GetAllWordsAsync(string language, CancellationToken ct = default)
+            => Task.FromResult((IReadOnlyList<string>)new List<string> { "Word1", "Word2" });
+    }
+
+    [Fact]
+    public void AddAIPlayer_throws_when_phase_is_not_Lobby()
+    {
+        var game = new Game(GameId.New());
+        var admin = new Player(PlayerId.New(), "Admin", isAdmin: true);
+        var human = new Player(PlayerId.New(), "Alice");
+        game.AddPlayer(admin);
+        game.AddPlayer(human);
+        game.InitializeWordsPoolAsync(new DummyWordDictionary()).Wait();
+        game.StartWritingPhase(DateTime.UtcNow, TimeSpan.FromMinutes(5));
+
+        var bot = new Player(PlayerId.New(), "Bot-late", isAdmin: false, isAI: true,
+            aiConfig: new AIConfig("gpt-4o-mini", 0.7));
+
+        Assert.Throws<InvalidOperationInPhaseException>(
+            () => game.AddAIPlayer(bot, max: 4));
+    }
+
+    [Fact]
+    public void AddAIPlayer_throws_ArgumentException_when_player_is_not_AI()
+    {
+        var game = new Game(GameId.New());
+        game.AddPlayer(new Player(PlayerId.New(), "Admin", isAdmin: true));
+        var human = new Player(PlayerId.New(), "Alice"); // IsAI = false
+
+        Assert.Throws<ArgumentException>(() => game.AddAIPlayer(human, max: 4));
+    }
+
+    [Fact]
     public void Player_deserialization_from_preEpic_JSON_snapshot_has_IsAI_false_and_AIConfig_null()
     {
         // Snapshot JSON représentatif d'un Player sérialisé AVANT l'ajout d'IsAI/AIConfig.
