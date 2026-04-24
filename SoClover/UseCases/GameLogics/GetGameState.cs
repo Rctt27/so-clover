@@ -28,6 +28,7 @@ public static class GetGameState
         [property: JsonPropertyName("playerId")] Guid PlayerId,
         [property: JsonPropertyName("name")] string Name,
         [property: JsonPropertyName("cursorColorIndex")] int CursorColorIndex,
+        [property: JsonPropertyName("isAI")] bool IsAI,
         [property: JsonPropertyName("board")] BoardState Board
     );
 
@@ -96,6 +97,7 @@ public static class GetGameState
                     p.Id.Value,
                     p.Name,
                     p.CursorColorIndex,
+                    p.IsAI,
                     new BoardState(
                         BuildDirectionState(p, Direction.Top, includeSecretsForPlayer, game.Phase),
                         BuildDirectionState(p, Direction.Right, includeSecretsForPlayer, game.Phase),

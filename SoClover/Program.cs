@@ -402,6 +402,7 @@ app.MapGet("/api/games/{gameId:guid}/state", async (Guid gameId, string? playerI
             {
                 playerId = p.PlayerId,
                 name = p.Name,
+                isAI = p.IsAI,
                 board = new
                 {
                     top = new

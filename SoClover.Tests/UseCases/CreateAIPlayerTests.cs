@@ -126,4 +126,37 @@ public class CreateAIPlayerTests
             createAi.Handle(new CreateAIPlayer.Request(
                 game.GameId, game.CreatorPlayerId, "Bot-late", "gpt-4o-mini", 0.7)));
     }
+
+    [Fact]
+    public async Task GetGameState_exposes_isAI_true_for_AI_players_and_false_for_humans()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IGameRepository, InMemoryGameRepository>();
+        services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
+        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "Infrastructure", "Dictionaries");
+        services.AddSingleton<IWordDictionary>(_ => new FileWordDictionary(Path.GetFullPath(dictionaryPath)));
+        services.AddSingleton<IClock>(_ => new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
+        services.AddSingleton<IGameSettingsProvider>(_ => new TestGameSettingsProvider());
+        services.AddSingleton<IWordsPoolCache, InMemoryWordsPoolCache>();
+        services.Configure<GameDefaultsOptions>(_ => { });
+        services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
+        services.AddTransient<ICreateAIPlayerUseCase, CreateAIPlayer.Handler>();
+        services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
+        var sp2 = services.BuildServiceProvider();
+
+        var create = sp2.GetRequiredService<ICreateGameUseCase>();
+        var createAi = sp2.GetRequiredService<ICreateAIPlayerUseCase>();
+        var getState = sp2.GetRequiredService<IGetGameStateUseCase>();
+
+        var game = await create.Handle(new CreateGame.Request("Admin"));
+        var bot = await createAi.Handle(new CreateAIPlayer.Request(
+            game.GameId, game.CreatorPlayerId, "Bot-1", "gpt-4o-mini", 0.7));
+
+        var state = await getState.Handle(new GetGameState.Request(game.GameId));
+        var admin = state.Players.First(p => p.PlayerId == game.CreatorPlayerId.Value);
+        var ai = state.Players.First(p => p.PlayerId == bot.PlayerId.Value);
+
+        Assert.False(admin.IsAI);
+        Assert.True(ai.IsAI);
+    }
 }
