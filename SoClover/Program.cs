@@ -70,6 +70,7 @@ builder.Services.AddTransient<IGetScoringUseCase, GetScoring.Handler>();
 builder.Services.AddTransient<ICompleteGameUseCase, CompleteGame.Handler>();
 builder.Services.AddTransient<ILeaveGameUseCase, LeaveGame.Handler>();
 builder.Services.AddTransient<IKickPlayerUseCase, KickPlayer.Handler>();
+builder.Services.AddTransient<ICreateAIPlayerUseCase, CreateAIPlayer.Handler>();
 builder.Services.AddTransient<IDisconnectPlayerUseCase, DisconnectPlayer.Handler>();
 builder.Services.AddSingleton<SoClover.RealTime.IConnectionTracker, SoClover.RealTime.SignalRConnectionTracker>();
 
@@ -268,6 +269,67 @@ app.MapPost("/api/games/{gameId:guid}/kick", async (Guid gameId, KickPlayerReque
     }
 })
 .WithName("KickPlayer");
+
+app.MapPost("/api/games/{gameId:guid}/ai-players", async (
+    Guid gameId,
+    CreateAIPlayerRequest? request,
+    ICreateAIPlayerUseCase useCase,
+    CancellationToken ct) =>
+{
+    if (request is null
+        || string.IsNullOrWhiteSpace(request.AdminPlayerId)
+        || string.IsNullOrWhiteSpace(request.PlayerName))
+    {
+        return Results.BadRequest(new { message = "AdminPlayerId and PlayerName are required" });
+    }
+
+    if (!Guid.TryParse(request.AdminPlayerId, out var adminGuid) || adminGuid == Guid.Empty)
+    {
+        return Results.BadRequest(new { message = "AdminPlayerId must be a valid non-empty GUID" });
+    }
+
+    try
+    {
+        var response = await useCase.Handle(new CreateAIPlayer.Request(
+            new GameId(gameId),
+            new PlayerId(adminGuid),
+            request.PlayerName,
+            request.Model,
+            request.Temperature), ct);
+
+        return Results.Ok(new { playerId = response.PlayerId.Value });
+    }
+    catch (GameNotFoundException)
+    {
+        return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (UnauthorizedAccessException)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+    catch (MaxAIPlayersReachedException ex)
+    {
+        return Results.Conflict(new
+        {
+            message = ex.Message,
+            currentCount = ex.CurrentCount,
+            max = ex.Max
+        });
+    }
+    catch (InvalidOperationInPhaseException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (PlayerNameEmptyException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (PlayerNameTooLongException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+})
+.WithName("CreateAIPlayer");
 
 app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSettingsRequest? request, IUpdateGameSettingsUseCase useCase, CancellationToken ct) =>
 {
@@ -1058,3 +1120,4 @@ record MoveToNextBoardRequest(string PlayerId);
 record CompleteGameRequest(string PlayerId);
 record LeaveGameRequest(string PlayerId);
 record KickPlayerRequest(string PlayerId, string AdminPlayerId);
+record CreateAIPlayerRequest(string AdminPlayerId, string PlayerName, string? Model, double? Temperature);
