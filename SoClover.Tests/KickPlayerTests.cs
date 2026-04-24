@@ -3,6 +3,7 @@ using SoClover.Infrastructure;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.GameLogics;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace SoClover.Tests;
@@ -20,9 +21,11 @@ public class KickPlayerTests
         services.AddSingleton<IClock>(sp => new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
         services.AddSingleton<IGameSettingsProvider>(sp => new TestGameSettingsProvider());
         services.AddSingleton<IWordsPoolCache, InMemoryWordsPoolCache>();
+        services.Configure<GameDefaultsOptions>(_ => { });
         services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
         services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();
         services.AddTransient<IKickPlayerUseCase, KickPlayer.Handler>();
+        services.AddTransient<ICreateAIPlayerUseCase, CreateAIPlayer.Handler>();
         return services.BuildServiceProvider();
     }
 
@@ -78,5 +81,27 @@ public class KickPlayerTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             kick.Handle(new KickPlayer.Request(gameId, adminId, adminId)));
+    }
+
+    [Fact]
+    public async Task Admin_can_kick_AI_player_from_lobby()
+    {
+        var sp = BuildProvider();
+        var create = sp.GetRequiredService<ICreateGameUseCase>();
+        var createAi = sp.GetRequiredService<ICreateAIPlayerUseCase>();
+        var kick = sp.GetRequiredService<IKickPlayerUseCase>();
+        var repo = sp.GetRequiredService<IGameRepository>();
+
+        var gameResp = await create.Handle(new CreateGame.Request("Admin"));
+        var botResp = await createAi.Handle(new CreateAIPlayer.Request(
+            gameResp.GameId, gameResp.CreatorPlayerId, "Bot-1", "gpt-4o-mini", 0.7));
+
+        var result = await kick.Handle(new KickPlayer.Request(
+            gameResp.GameId, botResp.PlayerId, gameResp.CreatorPlayerId));
+        Assert.True(result.Success);
+        Assert.Equal("Bot-1", result.KickedPlayerName);
+
+        var game = await repo.Get(gameResp.GameId);
+        Assert.DoesNotContain(game!.Players, p => p.Id == botResp.PlayerId);
     }
 }
