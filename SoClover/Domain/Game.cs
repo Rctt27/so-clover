@@ -389,11 +389,6 @@ public sealed class Game
 
         CurrentGuessingBoardOwner = firstBoardOwner;
 
-        // Auto-soumettre tous les boards non encore soumis (cas Force=true ou timeout de phase écriture).
-        // Garantit que BoardsToGuess est complet dès le début de la phase Guessing.
-        foreach (var p in ActivePlayers.Where(p => !p.Board.IsSubmitted))
-            p.Board.MarkSubmitted(nowUtc);
-
         // Récupérer les 4 cartes originales du board avec rotations randomisées
         OutsideCards = new List<OrientedCard?>
         {
