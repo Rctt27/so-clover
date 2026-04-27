@@ -678,6 +678,18 @@ public sealed class Game
         );
     }
 
+    /// <summary>
+    /// True si, après le passage au board suivant, on doit transiter en Scoring
+    /// (i.e. on est en train de quitter le dernier board à deviner).
+    /// Centralise la sémantique pour que les UseCases ne recalculent pas localement.
+    /// </summary>
+    public bool IsLastGuessingBoard()
+    {
+        var boardsCount = BoardsToGuess.Count;
+        if (boardsCount == 0) return false;
+        return CompletedBoardsCount >= boardsCount - 1;
+    }
+
     public void MoveToNextGuessingBoard(Card? fifthCard, Rotation[]? cardRotations, DateTime nowUtc, TimeSpan perBoardDuration)
     {
         if (Phase != GamePhase.Guessing)

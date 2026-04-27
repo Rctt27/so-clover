@@ -299,6 +299,33 @@ public class AiPlayerDomainTests
     }
 
     [Fact]
+    public void IsLastGuessingBoard_returns_true_when_completedBoardsCount_equals_boardsToGuessCount_minus_one()
+    {
+        var game = new Game(GameId.New());
+        var alice = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        var bob = new Player(PlayerId.New(), "Bob");
+        game.AddPlayer(alice);
+        game.AddPlayer(bob);
+
+        var now = DateTime.UtcNow;
+        alice.Board.MarkSubmitted(now);
+        bob.Board.MarkSubmitted(now);
+
+        // 2 boards à deviner, 0 complétés → pas le dernier
+        Assert.False(game.IsLastGuessingBoard());
+    }
+
+    [Fact]
+    public void IsLastGuessingBoard_returns_false_when_no_boards_submitted()
+    {
+        var game = new Game(GameId.New());
+        var alice = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        game.AddPlayer(alice);
+
+        Assert.False(game.IsLastGuessingBoard());
+    }
+
+    [Fact]
     public void Player_deserialization_from_preEpic_JSON_snapshot_has_IsAI_false_and_AIConfig_null()
     {
         // Snapshot JSON représentatif d'un Player sérialisé AVANT l'ajout d'IsAI/AIConfig.
