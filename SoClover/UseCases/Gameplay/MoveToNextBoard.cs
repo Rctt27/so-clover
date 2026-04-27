@@ -72,13 +72,11 @@ public static class MoveToNextBoard
 
             Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard: Game={game.Id.Value}, Player={request.PlayerId.Value}, Origin={request.Origin}, Now={now:O}, EndsAt={game.PhaseEndsAtUtc?.ToString("O") ?? "null"}");
 
-            // Déterminer si ce passage est le dernier (après ce move, on doit entrer en Scoring)
-            var playersCount = game.ActivePlayers.Count;
-            // On utilise l'état actuel du compteur. Si on est sur le dernier board,
-            // CompletedBoardsCount est à playersCount - 1.
-            var isLastBoard = game.CompletedBoardsCount >= (playersCount - 1);
+            // Déterminer si ce passage est le dernier (après ce move, on doit entrer en Scoring).
+            // Délégué au domaine pour rester aligné avec le cycle interne (BoardsToGuess, AI inclus).
+            var isLastBoard = game.IsLastGuessingBoard();
 
-            Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard Calculation: CompletedBoardsCount={game.CompletedBoardsCount}, PlayersCount={playersCount}, isLastBoard={isLastBoard}");
+            Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard Calculation: CompletedBoardsCount={game.CompletedBoardsCount}, BoardsCount={game.BoardsToGuess.Count}, isLastBoard={isLastBoard}");
 
             // On autorise le passage au board suivant (ou au scoring) si le temps est écoulé,
             // si c'est une action système, si le board est complet ou s'il n'y a plus d'essais.
@@ -106,7 +104,7 @@ public static class MoveToNextBoard
                 Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard: Timeout forcing transition. isLastBoard={isLastBoard}");
             }
 
-            Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard: Before domain call. Current Phase={game.Phase}, CompletedBoardsCount={game.CompletedBoardsCount}, PlayersCount={playersCount}, isLastBoard={isLastBoard}");
+            Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard: Before domain call. Current Phase={game.Phase}, CompletedBoardsCount={game.CompletedBoardsCount}, BoardsCount={game.BoardsToGuess.Count}, isLastBoard={isLastBoard}");
 
             Card fifthCard;
             Rotation[] rotations;
