@@ -367,4 +367,46 @@ public class AiPlayerDomainTests
         Assert.False(player.IsAI);
         Assert.Null(player.AIConfig);
     }
+
+    [Fact]
+    public void MoveToNextGuessingBoard_cycles_on_BoardsToGuess_including_AI_boards()
+    {
+        var game = new Game(GameId.New());
+        var human = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        var bot = new Player(PlayerId.New(), "Bot-1", isAdmin: false, isAI: true,
+            aiConfig: new AIConfig("gpt-4o-mini", 0.7));
+
+        game.AddPlayer(human);
+        game.AddPlayer(bot);
+
+        var now = DateTime.UtcNow;
+        var card = new Card(CardId.New(), "a", "b", "c", "d");
+        human.Board.Place(BoardPosition.TopLeft,     new OrientedCard(card));
+        human.Board.Place(BoardPosition.TopRight,    new OrientedCard(card));
+        human.Board.Place(BoardPosition.BottomRight, new OrientedCard(card));
+        human.Board.Place(BoardPosition.BottomLeft,  new OrientedCard(card));
+        bot.Board.Place(BoardPosition.TopLeft,       new OrientedCard(card));
+        bot.Board.Place(BoardPosition.TopRight,      new OrientedCard(card));
+        bot.Board.Place(BoardPosition.BottomRight,   new OrientedCard(card));
+        bot.Board.Place(BoardPosition.BottomLeft,    new OrientedCard(card));
+        human.Board.MarkSubmitted(now);
+        bot.Board.MarkSubmitted(now);
+
+        game.InitializeWordsPoolAsync(new DummyWordDictionary()).Wait();
+        game.StartWritingPhase(now, TimeSpan.FromMinutes(5));
+
+        var rotations = new[] { Rotation.None, Rotation.None, Rotation.None, Rotation.None, Rotation.None };
+        game.StartGuessingPhase(human.Id, card, rotations, now, TimeSpan.FromMinutes(1));
+
+        Assert.False(game.IsLastGuessingBoard());
+
+        game.MoveToNextGuessingBoard(card, rotations, now, TimeSpan.FromMinutes(1));
+        Assert.Equal(GamePhase.Guessing, game.Phase);
+        Assert.True(game.IsLastGuessingBoard());
+
+        Assert.Contains(game.BoardsToGuess, p => p.Id == game.CurrentGuessingBoardOwner);
+
+        game.MoveToNextGuessingBoard(card, rotations, now, TimeSpan.FromMinutes(1));
+        Assert.Equal(GamePhase.Scoring, game.Phase);
+    }
 }

@@ -389,6 +389,11 @@ public sealed class Game
 
         CurrentGuessingBoardOwner = firstBoardOwner;
 
+        // Auto-soumettre tous les boards non encore soumis (cas Force=true ou timeout de phase écriture).
+        // Garantit que BoardsToGuess est complet dès le début de la phase Guessing.
+        foreach (var p in ActivePlayers.Where(p => !p.Board.IsSubmitted))
+            p.Board.MarkSubmitted(nowUtc);
+
         // Récupérer les 4 cartes originales du board avec rotations randomisées
         OutsideCards = new List<OrientedCard?>
         {
@@ -701,12 +706,12 @@ public sealed class Game
         // Incrémenter le compteur de boards complétés
         CompletedBoardsCount++;
 
-        var playersList = ActivePlayers.ToList();
+        var boardsList = BoardsToGuess.ToList();
 
-        Console.WriteLine($"[DEBUG_LOG] Game.MoveToNextGuessingBoard: CompletedBoardsCount={CompletedBoardsCount}, TotalPlayers={playersList.Count}");
+        Console.WriteLine($"[DEBUG_LOG] Game.MoveToNextGuessingBoard: CompletedBoardsCount={CompletedBoardsCount}, BoardsToGuess={boardsList.Count}");
 
-        // Vérifier si tous les boards ont été devinés
-        if (CompletedBoardsCount >= playersList.Count)
+        // Vérifier si tous les boards ont été devinés (boards submitted, AI inclus)
+        if (CompletedBoardsCount >= boardsList.Count)
         {
             Console.WriteLine($"[DEBUG_LOG] Game.MoveToNextGuessingBoard: Transitioning to Scoring phase.");
             // Tous les boards ont été complétés, fin de la phase de guessing
@@ -719,12 +724,14 @@ public sealed class Game
             if (fifthCard == null || cardRotations == null || cardRotations.Length < 5)
                 throw new InvalidOperationException("Fifth card and 5 rotations are required for next board.");
 
-            // Trouver le prochain joueur qui n'a pas encore été deviné
-            var currentIndex = playersList.FindIndex(p => p.Id == CurrentGuessingBoardOwner);
-            var nextIndex = (currentIndex + 1) % playersList.Count;
+            // Trouver le prochain board qui n'a pas encore été deviné
+            var currentIndex = boardsList.FindIndex(p => p.Id == CurrentGuessingBoardOwner);
+            // Si l'owner courant n'est plus dans BoardsToGuess (cas: déconnecté en cours de Guessing),
+            // on repart du premier board disponible.
+            var nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % boardsList.Count;
 
             // Passer au board suivant
-            var nextOwner = playersList[nextIndex];
+            var nextOwner = boardsList[nextIndex];
             CurrentGuessingBoardOwner = nextOwner.Id;
 
             // Réinitialiser l'état de guessing pour le nouveau board
