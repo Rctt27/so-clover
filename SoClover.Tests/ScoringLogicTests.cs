@@ -59,6 +59,10 @@ public class ScoringLogicTests
         var p2Id = (await join.Handle(new JoinGame.Request(gameId, "Bob"))).PlayerId;
 
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
+        // Submit all boards so BoardsToGuess.Count > 0 (Epic 03 guard).
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var preGuessing = await repo.Get(gameId) ?? throw new Exception();
+        foreach (var pl in preGuessing.ActivePlayers) pl.Board.MarkSubmitted(DateTime.UtcNow);
         await startGuessing.Handle(new StartGuessingPhase.Request(gameId, true));
 
         var state = await getState.Handle(new GetGameState.Request(gameId));

@@ -82,6 +82,10 @@ public class FullGameFlowTests
         await setClue.Handle(new SetClue.Request(gameId, p2, Direction.Bottom, "Clue B3"));
         await setClue.Handle(new SetClue.Request(gameId, p2, Direction.Left,   "Clue B4"));
 
+        // Submit all boards so BoardsToGuess.Count > 0 (Epic 03 guard).
+        var preGuessing = await repo.Get(gameId) ?? throw new Exception("Game not found in test");
+        foreach (var pl in preGuessing.ActivePlayers) pl.Board.MarkSubmitted(DateTime.UtcNow);
+
         // Guessing phase (force from test context)
         phase = (await startGuessing.Handle(new StartGuessingPhase.Request(gameId, true))).Phase;
         Assert.Equal(GamePhase.Guessing, phase);

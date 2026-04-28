@@ -142,6 +142,7 @@ public class WordsPoolPersistenceTests
     {
         var sp = BuildProvider();
         var cache = sp.GetRequiredService<IWordsPoolCache>();
+        var repo = sp.GetRequiredService<IGameRepository>();
         var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
         var startGuessing = sp.GetRequiredService<IStartGuessingPhaseUseCase>();
 
@@ -151,6 +152,11 @@ public class WordsPoolPersistenceTests
         var poolBefore = cache.Get(gameId);
         Assert.NotNull(poolBefore);
         var countBefore = poolBefore!.RemainingWordsCount;
+
+        // Submit all boards so BoardsToGuess.Count > 0 (Epic 03 guard).
+        var preGuessing = await repo.Get(gameId) ?? throw new Exception();
+        foreach (var pl in preGuessing.ActivePlayers) pl.Board.MarkSubmitted(DateTime.UtcNow);
+        await repo.Save(preGuessing);
 
         await startGuessing.Handle(new StartGuessingPhase.Request(gameId, Force: true));
 
@@ -169,12 +175,17 @@ public class WordsPoolPersistenceTests
     {
         var sp = BuildProvider();
         var cache = sp.GetRequiredService<IWordsPoolCache>();
+        var repo = sp.GetRequiredService<IGameRepository>();
         var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
         var startGuessing = sp.GetRequiredService<IStartGuessingPhaseUseCase>();
         var moveNext = sp.GetRequiredService<IMoveToNextBoardUseCase>();
 
         var (gameId, adminId) = await CreateFourPlayerGameAsync(sp);
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
+        // Submit all boards so BoardsToGuess.Count > 0 (Epic 03 guard).
+        var preGuessing = await repo.Get(gameId) ?? throw new Exception();
+        foreach (var pl in preGuessing.ActivePlayers) pl.Board.MarkSubmitted(DateTime.UtcNow);
+        await repo.Save(preGuessing);
         await startGuessing.Handle(new StartGuessingPhase.Request(gameId, Force: true));
 
         var pool = cache.Get(gameId);
@@ -202,6 +213,7 @@ public class WordsPoolPersistenceTests
     {
         var sp = BuildProvider();
         var cache = sp.GetRequiredService<IWordsPoolCache>();
+        var repo = sp.GetRequiredService<IGameRepository>();
         var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
         var startGuessing = sp.GetRequiredService<IStartGuessingPhaseUseCase>();
         var moveNext = sp.GetRequiredService<IMoveToNextBoardUseCase>();
@@ -218,6 +230,10 @@ public class WordsPoolPersistenceTests
         Assert.Equal(expectedAfterWriting, cache.Get(gameId)!.RemainingWordsCount);
         _output.WriteLine($"After StartWritingPhase: {expectedAfterWriting} remaining (−{WritingPhaseWordsConsumed})");
 
+        // Submit all boards so BoardsToGuess.Count > 0 (Epic 03 guard).
+        var preGuessing1 = await repo.Get(gameId) ?? throw new Exception();
+        foreach (var pl in preGuessing1.ActivePlayers) pl.Board.MarkSubmitted(DateTime.UtcNow);
+        await repo.Save(preGuessing1);
         await startGuessing.Handle(new StartGuessingPhase.Request(gameId, Force: true));
         var expectedAfterGuessingStart = expectedAfterWriting - FifthCardWords;
         Assert.Equal(expectedAfterGuessingStart, cache.Get(gameId)!.RemainingWordsCount);
@@ -253,6 +269,7 @@ public class WordsPoolPersistenceTests
         var sp = BuildProvider();
         var cache = sp.GetRequiredService<IWordsPoolCache>();
         var dict = sp.GetRequiredService<IWordDictionary>();
+        var repo = sp.GetRequiredService<IGameRepository>();
         var updateSettings = sp.GetRequiredService<IUpdateGameSettingsUseCase>();
         var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
         var startGuessing = sp.GetRequiredService<IStartGuessingPhaseUseCase>();
@@ -277,6 +294,10 @@ public class WordsPoolPersistenceTests
         Assert.Equal(expectedAfterWriting, cache.Get(gameId)!.RemainingWordsCount);
         _output.WriteLine($"After StartWritingPhase: {expectedAfterWriting} remaining");
 
+        // Submit all boards so BoardsToGuess.Count > 0 (Epic 03 guard).
+        var preGuessing2 = await repo.Get(gameId) ?? throw new Exception();
+        foreach (var pl in preGuessing2.ActivePlayers) pl.Board.MarkSubmitted(DateTime.UtcNow);
+        await repo.Save(preGuessing2);
         await startGuessing.Handle(new StartGuessingPhase.Request(gameId, Force: true));
         var expectedAfterGuessingStart = expectedAfterWriting - FifthCardWords;
         Assert.Equal(expectedAfterGuessingStart, cache.Get(gameId)!.RemainingWordsCount);

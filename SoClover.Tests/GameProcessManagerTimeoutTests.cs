@@ -74,6 +74,8 @@ public class GameProcessManagerTimeoutTests
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
         var game = await repo.Get(gameId) ?? throw new Exception();
         Assert.Equal(GamePhase.WritingClues, game.Phase);
+        // Submit all boards so BoardsToGuess.Count > 0 when timeout forces Guessing (Epic 03 guard).
+        foreach (var pl in game.ActivePlayers) pl.Board.MarkSubmitted(clock.UtcNow);
         var endsAt = game.PhaseEndsAtUtc!.Value;
 
         // Advance clock beyond deadline
@@ -113,6 +115,9 @@ public class GameProcessManagerTimeoutTests
 
         // Enter Writing then start Guessing (manual start is fine here; this test focuses on Guessing timeouts)
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
+        // Submit all boards so BoardsToGuess.Count > 0 (Epic 03 guard).
+        var preGuessing = await repo.Get(gameId) ?? throw new Exception();
+        foreach (var pl in preGuessing.ActivePlayers) pl.Board.MarkSubmitted(clock.UtcNow);
         await startGuessing.Handle(new StartGuessingPhase.Request(gameId, true));
 
         // Snapshot the first board deadline
