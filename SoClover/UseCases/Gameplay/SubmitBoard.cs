@@ -9,7 +9,26 @@ public interface ISubmitBoardUseCase : IUseCase<SubmitBoard.Request, SubmitBoard
 
 public static class SubmitBoard
 {
-    public readonly record struct Request(GameId GameId, PlayerId PlayerId);
+    public readonly record struct Request
+    {
+        public Request(GameId gameId, PlayerId playerId)
+        {
+            GameId = gameId;
+            PlayerId = playerId;
+            Origin = InvocationOrigin.Client;
+        }
+
+        public Request(GameId gameId, PlayerId playerId, InvocationOrigin origin)
+        {
+            GameId = gameId;
+            PlayerId = playerId;
+            Origin = origin;
+        }
+
+        public GameId GameId { get; }
+        public PlayerId PlayerId { get; }
+        public InvocationOrigin Origin { get; }
+    }
     public readonly record struct Response;
 
     public sealed class Handler : ISubmitBoardUseCase
