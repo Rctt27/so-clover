@@ -37,7 +37,7 @@ public static class StartWritingPhase
         {
             var game = await _repo.Get(request.GameId, ct) ?? throw new GameNotFoundException(request.GameId);
 
-            // Verify all players have an active SignalR connection (skipped in tests where tracker is null)
+            // Verify all human players have an active SignalR connection (AI players are exempt; tracker is null in tests)
             if (_connectionTracker != null)
             {
                 // Les joueurs AI n'ont jamais de connexion SignalR — on les exclut du check.
