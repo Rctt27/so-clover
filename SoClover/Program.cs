@@ -673,6 +673,10 @@ app.MapPost("/api/games/{gameId:guid}/start-guessing", async (Guid gameId, IStar
     {
         return Results.NotFound(new { message = "Game not found" });
     }
+    catch (NoHumanGuesserException ex)
+    {
+        return Results.Conflict(new { message = ex.Message });
+    }
     catch (InvalidOperationInPhaseException ex)
     {
         return Results.BadRequest(new { message = ex.Message });
