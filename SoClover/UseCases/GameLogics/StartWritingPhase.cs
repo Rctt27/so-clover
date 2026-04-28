@@ -40,8 +40,9 @@ public static class StartWritingPhase
             // Verify all players have an active SignalR connection (skipped in tests where tracker is null)
             if (_connectionTracker != null)
             {
+                // Les joueurs AI n'ont jamais de connexion SignalR — on les exclut du check.
                 var disconnectedNames = game.Players
-                    .Where(p => !_connectionTracker.IsPlayerConnected(p.Id))
+                    .Where(p => !p.IsAI && !_connectionTracker.IsPlayerConnected(p.Id))
                     .Select(p => p.Name)
                     .ToList();
                 if (disconnectedNames.Count > 0)
