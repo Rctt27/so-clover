@@ -33,6 +33,7 @@ services:
       ConnectionStrings__GameDb: Host=db;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       DOTNET_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
+      LLM__APIKEY: ${LLM__APIKEY:?LLM__APIKEY must be set in .env}
     depends_on:
       db:
         condition: service_healthy
