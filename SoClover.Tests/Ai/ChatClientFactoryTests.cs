@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using SoClover.Infrastructure.AI;
 using Xunit;
@@ -107,5 +108,31 @@ public class ChatClientFactoryTests
         }));
 
         Assert.Throws<InvalidOperationException>(() => factory.Create());
+    }
+
+    [Fact]
+    public void IChatClient_is_resolvable_via_DI_with_default_options()
+    {
+        var services = new ServiceCollection();
+        services.AddOptions<LlmOptions>()
+            .Configure(o =>
+            {
+                o.Provider = LlmProvider.OpenAI;
+                o.BaseUrl = "http://localhost:1234/v1";
+                o.ApiKey = "lm-studio";
+                o.DefaultModel = "test";
+                o.MaxConcurrency = 4;
+                o.TimeoutSeconds = 30;
+                o.MaxCallsPerGame = 200;
+            });
+        services.AddSingleton<ChatClientFactory>();
+        services.AddSingleton<IChatClient>(sp =>
+            sp.GetRequiredService<ChatClientFactory>().Create());
+
+        using var sp = services.BuildServiceProvider();
+        using var client = sp.GetRequiredService<IChatClient>();
+
+        Assert.NotNull(client);
+        Assert.IsType<TimeoutChatClient>(client);
     }
 }
