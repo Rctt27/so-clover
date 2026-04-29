@@ -7,12 +7,33 @@ using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
 using SoClover.UseCases.Gameplay;
 using SoClover.UseCases.GameLogics;
+using SoClover.Infrastructure.AI;
+using Microsoft.Extensions.AI;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure game defaults from appsettings.json
 builder.Services.Configure<GameDefaultsOptions>(
     builder.Configuration.GetSection("GameDefaults"));
+
+// LLM configuration (Epic 04). Section "Llm" in appsettings.json overridable via env vars LLM__*.
+builder.Services.AddOptions<LlmOptions>()
+    .Bind(builder.Configuration.GetSection(LlmOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<LlmOptions>, LlmOptionsValidator>();
+
+// Per-game LLM call budget. Singleton so counters survive across requests within a process lifetime.
+builder.Services.AddSingleton<GameLlmBudget>(sp =>
+{
+    var opts = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<LlmOptions>>().Value;
+    return new GameLlmBudget(opts.MaxCallsPerGame);
+});
+
+// IChatClient — singleton so the throttle semaphore is process-wide.
+// The factory composes Timeout(Throttle(Provider)) at construction time.
+builder.Services.AddSingleton<ChatClientFactory>();
+builder.Services.AddSingleton<IChatClient>(sp =>
+    sp.GetRequiredService<ChatClientFactory>().Create());
 
 // Infrastructure
 // Configure PostgreSQL DbContext (prod-ready)
