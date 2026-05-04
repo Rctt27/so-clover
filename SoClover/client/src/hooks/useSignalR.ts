@@ -5,7 +5,8 @@ import { HubConnectionState } from '@microsoft/signalr';
 import { gameApi } from '../api/game-api';
 import { useNotifications } from './useNotifications';
 import { useGameStateUpdate } from './useGameStateUpdate';
-import { debugLog } from '../core/debug';
+import { debugLog } from '../core/debug'
+import { detectRotationGap } from '../core/rotationGapDetector';
 
 export const useSignalR = () => {
   const gameId = useGameStore(s => s.gameId);
@@ -156,6 +157,9 @@ export const useSignalR = () => {
         if (timeSinceLocalRotation < 500) {
           return;
         }
+
+        const prev = useGuessingStore.getState().cumulativeBoardRotation;
+        detectRotationGap({ source: 'BoardRotationUpdated', from: prev, to: data.cumulativeRotation });
 
         setCumulativeBoardRotation(data.cumulativeRotation);
       }
