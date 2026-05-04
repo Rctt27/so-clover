@@ -92,6 +92,12 @@ const DraggableCardImpl = ({
     // Ne mettre à jour que si le delta est non nul
     if (delta !== 0) {
       setContinuousRotation(prev => prev + delta);
+      // The backend has now absorbed the local optimistic rotation for this card.
+      // Drop the pinned visual offset so the rendered rotation comes solely from continuousRotation.
+      if (offsetCardIdRef.current === card.cardId) {
+        setRotationVisualOffset(0)
+        offsetCardIdRef.current = null
+      }
     }
     prevBackendRotationRef.current = backendRotation;
   }, [backendRotation, card.cardId]);
@@ -103,6 +109,7 @@ const DraggableCardImpl = ({
   const cardRef = useRef<HTMLDivElement>(null!)
   const startAngleRef = useRef(0)
   const rotationDirectionRef = useRef<'left' | 'right'>('right')
+  const offsetCardIdRef = useRef<string | null>(null)
 
   const handleRotationStart = useCallback((e: React.PointerEvent, direction: 'left' | 'right') => {
     if (!canInteract || !cardRef.current) return
@@ -151,28 +158,34 @@ const DraggableCardImpl = ({
       const steps = Math.round(rotationVisualOffset / 90)
 
       setIsRotating(false)
-      setRotationVisualOffset(0)
 
-      if (gameId && playerId) {
-        // Si steps est 0, c'est un tap simple sur le coin -> direction détermine le sens
-        const finalSteps = steps === 0
-          ? (rotationDirectionRef.current === 'right' ? 1 : -1)
-          : steps;
+      if (!gameId || !playerId) {
+        setRotationVisualOffset(0)
+        offsetCardIdRef.current = null
+        return
+      }
 
-        // Son local déclencheur ; spectateurs via `useGameSounds`/`CardRotated` — voir Story 9
-        playSound('cardRotate')
+      const finalSteps = steps === 0
+        ? (rotationDirectionRef.current === 'right' ? 1 : -1)
+        : steps
 
-        try {
-          const SlotPositions = ['TopLeft', 'TopRight', 'BottomRight', 'BottomLeft']
-          const boardPosition = !isOutside ? SlotPositions[index] : undefined
-          const outsideIndex = isOutside ? index : undefined
+      // Pin the offset to this card so the next backend update for it triggers absorption.
+      offsetCardIdRef.current = card.cardId
 
-          await gameApi.rotateGuessingCard(gameId, playerId, finalSteps, boardPosition, outsideIndex !== undefined ? outsideIndex : undefined)
-          // Note: Pas de fetchGameState ici - SignalR gère la synchronisation pour les autres joueurs
-          // et le joueur local a déjà fait la mise à jour visuelle via rotationVisualOffset
-        } catch (error) {
-          console.error('Failed to rotate card:', error)
-        }
+      // Son local déclencheur ; spectateurs via `useGameSounds`/`CardRotated` — voir Story 9
+      playSound('cardRotate')
+
+      try {
+        const SlotPositions = ['TopLeft', 'TopRight', 'BottomRight', 'BottomLeft']
+        const boardPosition = !isOutside ? SlotPositions[index] : undefined
+        const outsideIndex = isOutside ? index : undefined
+
+        await gameApi.rotateGuessingCard(gameId, playerId, finalSteps, boardPosition, outsideIndex !== undefined ? outsideIndex : undefined)
+      } catch (error) {
+        console.error('Failed to rotate card:', error)
+        // On failure, drop the optimistic offset so the visual returns to truth.
+        setRotationVisualOffset(0)
+        offsetCardIdRef.current = null
       }
     }
 
