@@ -1,4 +1,4 @@
-import React, { useRef, useLayoutEffect, useState } from 'react'
+import React from 'react'
 import { motion } from 'framer-motion'
 import { CardAssembler } from '../card/CardAssembler'
 import { ClueInput } from '../card/ClueInput'
@@ -52,7 +52,6 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
   disabled = false,
   isLocked = false,
   correctPositions = [],
-  ownerId,
   highlightedSlot,
   dragHandlers,
   dragSourceCardId,
@@ -62,24 +61,6 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
   const { referenceSize: REFERENCE_SIZE, cardSize: CARD_SIZE, cardGap: CARD_GAP } = CONSTANTS.ASSET_REFERENCES.board;
 
   const { board: boardAnim } = CONSTANTS.THEME_CONFIG.animations;
-
-  // Gestion de la transition de rotation pour éviter le "spinning" lors du changement de board
-  const lastOwnerId = useRef(ownerId);
-  const [shouldAnimateRotation, setShouldAnimateRotation] = useState(true);
-
-  // useLayoutEffect garantit que shouldAnimateRotation est mis à false AVANT le paint
-  // Cela évite le "jumping" visuel lors du changement de Board
-  useLayoutEffect(() => {
-    if (ownerId !== lastOwnerId.current) {
-      setShouldAnimateRotation(false);
-      lastOwnerId.current = ownerId;
-      // Réactiver l'animation après le premier rendu du nouveau board
-      const timer = setTimeout(() => setShouldAnimateRotation(true), 50);
-      return () => clearTimeout(timer);
-    }
-  }, [ownerId]);
-
-  const rotationTransition = shouldAnimateRotation ? { duration: 0.5, ease: 'easeInOut' as const } : { duration: 0 };
 
   // Centres des emplacements logiques par défaut (0°) sur le canvas de 1300px
   // Les centres sont décalés de cardGap/2 vers l'extérieur pour créer un espacement entre cartes.
@@ -209,7 +190,7 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
             pointerEvents: 'none'
           }}
           transition={{
-            rotate: rotationTransition,
+            rotate: { duration: 0.5, ease: 'easeInOut' as const },
             default: animateEntry ? boardAnim.transition : { duration: 0.5 }
           }}
         >
