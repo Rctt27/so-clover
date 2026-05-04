@@ -8,6 +8,7 @@ import correctIcon from '../../assets/images/correctGuess.svg'
 import { playSound } from '../../core/sounds'
 import { CONSTANTS } from '../../core/constants'
 import { LOGICAL_SLOTS } from '../../core/utils'
+import { draggableCardArePropsEqual } from './draggableCardArePropsEqual'
 
 export interface DraggableCardProps {
   card: CardInfoResponse
@@ -29,7 +30,7 @@ export interface DraggableCardProps {
   onPointerDown?: (e: React.PointerEvent) => void
 }
 
-export const DraggableCard = ({
+const DraggableCardImpl = ({
   card,
   index,
   isOutside,
@@ -313,3 +314,6 @@ export const DraggableCard = ({
     </motion.div>
   )
 }
+
+export const DraggableCard = React.memo(DraggableCardImpl, draggableCardArePropsEqual)
+DraggableCard.displayName = 'DraggableCard'
