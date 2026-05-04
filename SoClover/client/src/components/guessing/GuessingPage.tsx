@@ -1,5 +1,6 @@
 import { useEffect, useRef, useMemo, useCallback } from 'react'
 import { useGameStore, useGuessingStore } from '../../core/store'
+import { shallow } from 'zustand/shallow'
 import { useGameActions } from '../../hooks/useGameActions'
 import { useNotifications } from '../../hooks/useNotifications'
 import { useCardDrag } from '../../hooks/useCardDrag'
@@ -21,12 +22,25 @@ export const GuessingPage = () => {
     guessedPositions,
     currentBoardClues,
     cumulativeBoardRotation,
-    setCumulativeBoardRotation,
     isValidationPending,
     remainingAttempts,
     correctlyPlacedPositions,
-    resetGuessingState,
-  } = useGuessingStore()
+  } = useGuessingStore(
+    (s) => ({
+      currentBoardOwnerName: s.currentBoardOwnerName,
+      currentBoardOwnerId: s.currentBoardOwnerId,
+      outsideCards: s.outsideCards,
+      guessedPositions: s.guessedPositions,
+      currentBoardClues: s.currentBoardClues,
+      cumulativeBoardRotation: s.cumulativeBoardRotation,
+      isValidationPending: s.isValidationPending,
+      remainingAttempts: s.remainingAttempts,
+      correctlyPlacedPositions: s.correctlyPlacedPositions,
+    }),
+    shallow,
+  )
+  const setCumulativeBoardRotation = useGuessingStore((s) => s.setCumulativeBoardRotation)
+  const resetGuessingState = useGuessingStore((s) => s.resetGuessingState)
   const {
     fetchGameState,
     loading,
