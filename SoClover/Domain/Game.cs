@@ -78,6 +78,12 @@ public sealed class Game
     [JsonPropertyName("cumulativeBoardRotation")]
     public int CumulativeBoardRotation { get; private set; } = 0;
 
+    [JsonInclude]
+    [JsonPropertyName("revision")]
+    public int Revision { get; private set; } = 0;
+
+    private void BumpRevision() => Revision++;
+
     // Scoring tracking
     [JsonInclude]
     [JsonPropertyName("currentBoardStartTime")]
@@ -161,6 +167,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("Cannot join after game start.");
+        BumpRevision();
 
         // Attribuer une couleur de curseur au joueur
         player.SetCursorColorIndex(GetNextAvailableColorIndex());
@@ -178,6 +185,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("Cannot leave after game start.");
+        BumpRevision();
             
         _players.Remove(playerId);
         
@@ -202,6 +210,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("Cannot replace player after game start.");
+        BumpRevision();
         if (!_players.ContainsKey(existingId))
             throw new PlayerNotFoundException(existingId);
 
@@ -216,6 +225,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.WritingClues)
             throw new InvalidOperationInPhaseException("Can only disconnect during WritingClues phase.");
+        BumpRevision();
 
         var player = RequirePlayer(playerId);
         if (player.IsDisconnected)
@@ -254,6 +264,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("Language can only be changed in the Lobby phase.");
+        BumpRevision();
 
         if (string.IsNullOrWhiteSpace(newLanguage))
             throw new ArgumentException("Language cannot be empty.", nameof(newLanguage));
@@ -272,6 +283,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("Semantic clue check can only be toggled in the Lobby phase.");
+        BumpRevision();
 
         if (enabled && !IsFrenchLanguage(Language))
             throw new InvalidOperationException("Semantic clue check is only available for the French dictionary.");
@@ -283,6 +295,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("Durations can only be changed in the Lobby phase.");
+        BumpRevision();
 
         // Validate and clamp within 1..1800 if provided
         if (cluesDurationSeconds.HasValue)
@@ -301,6 +314,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("Lobby deadline can only be set during Lobby phase.");
+        BumpRevision();
         PhaseEndsAtUtc = nowUtc + duration;
     }
 
@@ -308,6 +322,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Scoring)
             throw new InvalidOperationInPhaseException("Scoring deadline can only be set during Scoring phase.");
+        BumpRevision();
         PhaseEndsAtUtc = nowUtc + duration;
     }
 
@@ -315,6 +330,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("Writing phase can only start from Lobby.");
+        BumpRevision();
         if (_players.Count == 0)
             throw new NotEnoughPlayersException(1, _players.Count);
         if (_wordsPool == null)
@@ -340,6 +356,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.WritingClues)
             throw new InvalidOperationInPhaseException("Cannot set clues outside WritingClues phase.");
+        BumpRevision();
 
         var player = RequirePlayer(playerId);
         var parsed = ClueText.Create(clueText);
@@ -359,6 +376,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.WritingClues)
             throw new InvalidOperationInPhaseException("Guessing phase can only start after WritingClues.");
+        BumpRevision();
 
         var owner = RequirePlayer(firstBoardOwner);
         if (owner.Board.TopLeft == null || owner.Board.TopRight == null || owner.Board.BottomRight == null || owner.Board.BottomLeft == null)
@@ -406,6 +424,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only place cards during Guessing phase.");
+        BumpRevision();
 
         if (outsideCardIndex < 0 || outsideCardIndex >= OutsideCards.Count)
             throw new ArgumentOutOfRangeException(nameof(outsideCardIndex));
@@ -445,6 +464,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only swap cards during Guessing phase.");
+        BumpRevision();
 
         // Si l'une des positions est verrouillée, ne pas permettre l'échange
         if (CorrectlyPlacedPositions.Contains(position1) || CorrectlyPlacedPositions.Contains(position2))
@@ -459,6 +479,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only swap pool cards during Guessing phase.");
+        BumpRevision();
 
         if (index1 < 0 || index1 >= OutsideCards.Count || index2 < 0 || index2 >= OutsideCards.Count)
             throw new ArgumentOutOfRangeException("Indices must be within the range of OutsideCards.");
@@ -470,6 +491,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only return cards during Guessing phase.");
+        BumpRevision();
 
         if (CorrectlyPlacedPositions.Contains(position))
             throw new InvalidOperationException("Cannot return a locked card.");
@@ -501,6 +523,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only rotate cards during Guessing phase.");
+        BumpRevision();
 
         if (CorrectlyPlacedPositions.Contains(position))
             throw new InvalidOperationException("Cannot rotate a locked card.");
@@ -520,6 +543,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only rotate cards during Guessing phase.");
+        BumpRevision();
 
         if (outsideCardIndex < 0 || outsideCardIndex >= OutsideCards.Count)
         {
@@ -542,6 +566,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only validate during Guessing phase.");
+        BumpRevision();
 
         if (CurrentGuessingBoardOwner == null)
             throw new InvalidOperationException("No current guessing board owner.");
@@ -659,6 +684,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only move to next board during Guessing phase.");
+        BumpRevision();
 
         // Le résultat du board a déjà été enregistré dans ValidateGuessingBoard
         // On ne fait que passer au board suivant
@@ -754,6 +780,7 @@ public sealed class Game
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Cannot guess outside Guessing phase.");
+        BumpRevision();
         var player = RequirePlayer(ownerId);
         var expected = player.Board.GetClueText(direction);
         var correct = string.Equals(expected, guessedWord?.Trim(), StringComparison.OrdinalIgnoreCase);
@@ -776,7 +803,8 @@ public sealed class Game
     {
         if (Phase != GamePhase.Guessing)
             throw new InvalidOperationInPhaseException("Can only rotate board during Guessing phase.");
-        
+
+        BumpRevision();
         CumulativeBoardRotation = rotation;
     }
 
