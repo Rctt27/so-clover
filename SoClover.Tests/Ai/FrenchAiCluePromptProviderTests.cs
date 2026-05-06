@@ -133,4 +133,151 @@ Pour CHAQUE direction listée, propose un mot DIFFÉRENT.
         Assert.DoesNotContain("}}", bundle.UserPrompt);
         Assert.Contains("\"clues\"", bundle.JsonSchema);
     }
+
+    [Fact]
+    public void BuildBoardCluesPrompt_with_one_rejection_includes_feedback_for_that_direction()
+    {
+        var rejected = new Dictionary<Direction, IReadOnlyList<RejectedAttempt>>
+        {
+            [Direction.Top] = new[] { new RejectedAttempt("vague", "ExactMatch with 'plage'") },
+        };
+
+        var provider = new FrenchAiCluePromptProvider();
+        var bundle = provider.BuildBoardCluesPrompt(SampleContext(rejected: rejected));
+
+        Assert.Contains("Tes tentatives précédentes ont été rejetées", bundle.UserPrompt);
+        Assert.Contains("Direction Top", bundle.UserPrompt);
+        Assert.Contains("\"vague\"", bundle.UserPrompt);
+        Assert.Contains("ExactMatch with 'plage'", bundle.UserPrompt);
+        Assert.DoesNotContain("Direction Right", bundle.UserPrompt);
+        Assert.DoesNotContain("{{rejectedAttemptsByDirection}}", bundle.UserPrompt);
+    }
+
+    [Fact]
+    public void BuildBoardCluesPrompt_caps_feedback_at_three_per_direction_most_recent_first()
+    {
+        var rejected = new Dictionary<Direction, IReadOnlyList<RejectedAttempt>>
+        {
+            [Direction.Top] = new[]
+            {
+                new RejectedAttempt("a1", "r1"),
+                new RejectedAttempt("a2", "r2"),
+                new RejectedAttempt("a3", "r3"),
+                new RejectedAttempt("a4", "r4"),
+                new RejectedAttempt("a5", "r5"),
+            },
+        };
+
+        var provider = new FrenchAiCluePromptProvider();
+        var bundle = provider.BuildBoardCluesPrompt(SampleContext(rejected: rejected));
+        var prompt = bundle.UserPrompt;
+
+        Assert.Contains("\"a3\"", prompt);
+        Assert.Contains("\"a4\"", prompt);
+        Assert.Contains("\"a5\"", prompt);
+        Assert.DoesNotContain("\"a1\"", prompt);
+        Assert.DoesNotContain("\"a2\"", prompt);
+
+        var idx5 = prompt.IndexOf("\"a5\"", StringComparison.Ordinal);
+        var idx4 = prompt.IndexOf("\"a4\"", StringComparison.Ordinal);
+        var idx3 = prompt.IndexOf("\"a3\"", StringComparison.Ordinal);
+        Assert.True(idx5 < idx4, "a5 must come before a4 (most recent first)");
+        Assert.True(idx4 < idx3, "a4 must come before a3");
+    }
+
+    [Fact]
+    public void BuildBoardCluesPrompt_caps_per_direction_independently()
+    {
+        var rejected = new Dictionary<Direction, IReadOnlyList<RejectedAttempt>>
+        {
+            [Direction.Top] = new[]
+            {
+                new RejectedAttempt("top-1", "r"), new RejectedAttempt("top-2", "r"), new RejectedAttempt("top-3", "r"),
+            },
+            [Direction.Right] = new[]
+            {
+                new RejectedAttempt("right-1", "r"), new RejectedAttempt("right-2", "r"),
+                new RejectedAttempt("right-3", "r"), new RejectedAttempt("right-4", "r"),
+            },
+        };
+
+        var provider = new FrenchAiCluePromptProvider();
+        var bundle = provider.BuildBoardCluesPrompt(SampleContext(rejected: rejected));
+        var prompt = bundle.UserPrompt;
+
+        Assert.Contains("\"top-1\"", prompt);
+        Assert.Contains("\"top-2\"", prompt);
+        Assert.Contains("\"top-3\"", prompt);
+
+        Assert.DoesNotContain("\"right-1\"", prompt);
+        Assert.Contains("\"right-2\"", prompt);
+        Assert.Contains("\"right-3\"", prompt);
+        Assert.Contains("\"right-4\"", prompt);
+    }
+
+    [Fact]
+    public void BuildBoardCluesPrompt_partial_retry_omits_resolved_directions()
+    {
+        var bundle = new FrenchAiCluePromptProvider().BuildBoardCluesPrompt(
+            SampleContext(remaining: new[] { Direction.Right, Direction.Left }));
+
+        var prompt = bundle.UserPrompt;
+
+        Assert.Contains("Carte TopLeft", prompt);
+        Assert.Contains("Carte TopRight", prompt);
+
+        var resolveSection = ExtractResolveSection(prompt);
+        Assert.Contains("- Right", resolveSection);
+        Assert.Contains("- Left", resolveSection);
+        Assert.DoesNotContain("- Top", resolveSection);
+        Assert.DoesNotContain("- Bottom", resolveSection);
+    }
+
+    private static string ExtractResolveSection(string prompt)
+    {
+        var marker = "À résoudre dans cet appel :";
+        var start = prompt.IndexOf(marker, StringComparison.Ordinal);
+        if (start < 0) return string.Empty;
+        var end = prompt.IndexOf("Tous les mots", start, StringComparison.Ordinal);
+        return end < 0 ? prompt[start..] : prompt[start..end];
+    }
+
+    [Fact]
+    public void BuildBoardCluesPrompt_throws_when_cards_count_is_not_4()
+    {
+        var provider = new FrenchAiCluePromptProvider();
+        var ctx = SampleContext() with
+        {
+            Cards = new[]
+            {
+                new BoardCardSnapshot(BoardPosition.TopLeft, "a", "b", "c", "d"),
+            },
+        };
+
+        Assert.Throws<ArgumentException>(() => provider.BuildBoardCluesPrompt(ctx));
+    }
+
+    [Fact]
+    public void BuildBoardCluesPrompt_throws_when_remaining_directions_is_empty()
+    {
+        var provider = new FrenchAiCluePromptProvider();
+        var ctx = SampleContext(remaining: Array.Empty<Direction>());
+
+        Assert.Throws<ArgumentException>(() => provider.BuildBoardCluesPrompt(ctx));
+    }
+
+    [Fact]
+    public void BuildBoardCluesPrompt_throws_when_rejected_key_is_outside_remaining()
+    {
+        var provider = new FrenchAiCluePromptProvider();
+        var rejected = new Dictionary<Direction, IReadOnlyList<RejectedAttempt>>
+        {
+            [Direction.Top] = new[] { new RejectedAttempt("x", "r") },
+        };
+        var ctx = SampleContext(
+            remaining: new[] { Direction.Right, Direction.Left },
+            rejected: rejected);
+
+        Assert.Throws<ArgumentException>(() => provider.BuildBoardCluesPrompt(ctx));
+    }
 }
