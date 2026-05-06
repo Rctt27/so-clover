@@ -49,7 +49,8 @@ public static class RotateBoard
             await _events.Publish(new BoardRotated(
                 game.Id,
                 request.PlayerId,
-                request.CumulativeRotation), ct);
+                request.CumulativeRotation,
+                game.Revision), ct);
 
             return new Response();
         }
@@ -59,4 +60,5 @@ public static class RotateBoard
 public readonly record struct BoardRotated(
     [property: JsonPropertyName("gameId")] GameId GameId,
     [property: JsonPropertyName("playerId")] PlayerId PlayerId,
-    [property: JsonPropertyName("cumulativeRotation")] int CumulativeRotation);
+    [property: JsonPropertyName("cumulativeRotation")] int CumulativeRotation,
+    [property: JsonPropertyName("revision")] int Revision);

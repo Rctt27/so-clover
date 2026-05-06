@@ -58,6 +58,7 @@ public sealed class SignalREventPublisher : IEventPublisher
                     gameId = state.GameId,
                     phase = state.Phase.ToString(),
                     phaseEndsAtUtc = state.PhaseEndsAtUtc,
+                    revision = state.Revision,
                     eventData = evt, // Include the event data for targeted updates
                     gameState = gameStateToSend // Include full state only if safe
                 }, ct);
@@ -165,7 +166,8 @@ public sealed class SignalREventPublisher : IEventPublisher
                         .SendAsync("BoardRotationUpdated", new
                         {
                             cumulativeRotation = boardRotated.CumulativeRotation,
-                            playerId = boardRotated.PlayerId.Value.ToString()
+                            playerId = boardRotated.PlayerId.Value.ToString(),
+                            revision = boardRotated.Revision
                         }, ct);
                     break;
                 }

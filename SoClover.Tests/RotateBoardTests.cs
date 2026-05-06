@@ -65,7 +65,7 @@ public class RotateBoardTests
         // Assert
         Assert.Equal(90, game.CumulativeBoardRotation);
         repoMock.Verify(r => r.Save(game, It.IsAny<CancellationToken>()), Times.Once);
-        eventsMock.Verify(e => e.Publish(It.IsAny<BoardRotated>(), It.IsAny<CancellationToken>()), Times.Once);
+        eventsMock.Verify(e => e.Publish(It.Is<BoardRotated>(ev => ev.Revision == game.Revision && ev.Revision > 0), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

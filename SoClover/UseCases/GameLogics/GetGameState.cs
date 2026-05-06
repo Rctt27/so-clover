@@ -20,6 +20,7 @@ public static class GetGameState
         [property: JsonPropertyName("phase")] GamePhase Phase,
         [property: JsonPropertyName("adminPlayerId")] Guid? AdminPlayerId,
         [property: JsonPropertyName("phaseEndsAtUtc")] DateTime? PhaseEndsAtUtc,
+        [property: JsonPropertyName("revision")] int Revision,
         [property: JsonPropertyName("players")] IReadOnlyList<PlayerState> Players,
         [property: JsonPropertyName("guessingState")] GuessingPhaseState? GuessingState
     );
@@ -168,6 +169,7 @@ public static class GetGameState
                 game.Phase,
                 game.AdminPlayerId?.Value,
                 game.PhaseEndsAtUtc,
+                game.Revision,
                 players,
                 guessingState);
         }
