@@ -91,4 +91,80 @@ Previous attempt failed.
         Assert.Equal("Hello {{name}}.", sections.User.Trim());
         Assert.Equal("Previous attempt failed.", sections.RetryFeedback.Trim());
     }
+
+    [Fact]
+    public void Load_returns_updated_content_when_file_modified()
+    {
+        File.WriteAllText(_tempPath, """
+# SYSTEM
+Version 1.
+
+# USER
+.
+
+# RETRY_FEEDBACK
+.
+""");
+        var loader = new FilePromptLoader();
+
+        var first = loader.Load(_tempPath);
+        Assert.Equal("Version 1.", first.System.Trim());
+
+        // Bump LastWriteTimeUtc explicitly — File.WriteAllText alone may keep the same
+        // timestamp on systems with low-res clocks, which would mask the cache bug.
+        File.WriteAllText(_tempPath, """
+# SYSTEM
+Version 2.
+
+# USER
+.
+
+# RETRY_FEEDBACK
+.
+""");
+        File.SetLastWriteTimeUtc(_tempPath, DateTime.UtcNow.AddSeconds(1));
+
+        var second = loader.Load(_tempPath);
+        Assert.Equal("Version 2.", second.System.Trim());
+    }
+
+    [Fact]
+    public void Load_returns_cached_content_when_file_unchanged()
+    {
+        File.WriteAllText(_tempPath, """
+# SYSTEM
+Cached.
+
+# USER
+.
+
+# RETRY_FEEDBACK
+.
+""");
+        var fixedTime = DateTime.UtcNow.AddDays(-1);
+        File.SetLastWriteTimeUtc(_tempPath, fixedTime);
+
+        var loader = new FilePromptLoader();
+
+        var first = loader.Load(_tempPath);
+
+        // Overwrite the file content but RESTORE the original LastWriteTimeUtc — the loader
+        // must trust the timestamp and serve from cache (this is the hot-reload contract).
+        File.WriteAllText(_tempPath, """
+# SYSTEM
+Different but timestamp unchanged.
+
+# USER
+.
+
+# RETRY_FEEDBACK
+.
+""");
+        File.SetLastWriteTimeUtc(_tempPath, fixedTime);
+
+        var second = loader.Load(_tempPath);
+
+        Assert.Equal("Cached.", second.System.Trim());
+        Assert.Same(first.System, second.System);  // identical reference: cache hit
+    }
 }
