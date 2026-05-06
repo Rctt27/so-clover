@@ -117,4 +117,20 @@ Pour CHAQUE direction listée, propose un mot DIFFÉRENT.
             Assert.Equal("Français_OFF", provider.Language);
         });
     }
+
+    [Fact]
+    public void BuildBoardCluesPrompt_uses_packaged_prompt_file_from_bin()
+    {
+        var provider = new FrenchAiCluePromptProvider();
+
+        var bundle = provider.BuildBoardCluesPrompt(SampleContext());
+
+        Assert.Contains("So Clover", bundle.SystemPrompt);
+        Assert.Contains("Carte TopLeft", bundle.UserPrompt);
+        Assert.Contains("Carte TopRight", bundle.UserPrompt);
+        Assert.Contains("plage", bundle.UserPrompt);
+        Assert.DoesNotContain("{{", bundle.UserPrompt);
+        Assert.DoesNotContain("}}", bundle.UserPrompt);
+        Assert.Contains("\"clues\"", bundle.JsonSchema);
+    }
 }
