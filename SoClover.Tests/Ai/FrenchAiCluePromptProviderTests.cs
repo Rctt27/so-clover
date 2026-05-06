@@ -267,6 +267,41 @@ Pour CHAQUE direction listée, propose un mot DIFFÉRENT.
     }
 
     [Fact]
+    public void HotReload_modifying_packaged_md_changes_next_BuildBoardCluesPrompt_output()
+    {
+        var packagedPath = Path.Combine(
+            AppContext.BaseDirectory,
+            "Infrastructure", "AI", "Prompts", "fr", "board-clues.md");
+        Assert.True(File.Exists(packagedPath), $"prompt file not packaged at {packagedPath}");
+
+        var original = File.ReadAllText(packagedPath);
+        var originalTime = File.GetLastWriteTimeUtc(packagedPath);
+
+        try
+        {
+            var provider = new FrenchAiCluePromptProvider();
+
+            var firstBundle = provider.BuildBoardCluesPrompt(SampleContext());
+            Assert.Contains("Tu es un joueur expert", firstBundle.SystemPrompt);
+
+            var marker = $"HOTRELOAD-{Guid.NewGuid()}";
+            var modified = original.Replace(
+                "Tu es un joueur expert",
+                $"Tu es un joueur expert. {marker}");
+            File.WriteAllText(packagedPath, modified);
+            File.SetLastWriteTimeUtc(packagedPath, originalTime.AddSeconds(1));
+
+            var secondBundle = provider.BuildBoardCluesPrompt(SampleContext());
+            Assert.Contains(marker, secondBundle.SystemPrompt);
+        }
+        finally
+        {
+            File.WriteAllText(packagedPath, original);
+            File.SetLastWriteTimeUtc(packagedPath, originalTime);
+        }
+    }
+
+    [Fact]
     public void BuildBoardCluesPrompt_throws_when_rejected_key_is_outside_remaining()
     {
         var provider = new FrenchAiCluePromptProvider();
