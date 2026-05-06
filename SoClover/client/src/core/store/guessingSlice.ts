@@ -14,14 +14,13 @@ export interface GuessingSlice {
   // État local (UI)
   selectedCardId: string | null // Pour le mode tablette / clic-clic
   cumulativeBoardRotation: number
-  lastLocalRotationTimestamp: number // Timestamp of last local rotation to prevent race conditions
   lastAppliedRotationRevision: number
   isValidationPending: boolean
   validationResults: { correctPositions: string[], incorrectPositions: string[] } | null
 
   // Actions
   setGuessingState: (state: Partial<GuessingSlice>) => void
-  setCumulativeBoardRotation: (rotation: number, isLocalChange?: boolean) => void
+  setCumulativeBoardRotation: (rotation: number) => void
   /**
    * Apply a server rotation only if its revision is strictly greater than what we already applied.
    * Returns true if the update was applied.
@@ -49,7 +48,6 @@ export const createGuessingSlice: StateCreator<GuessingSlice, [["zustand/devtool
 
   selectedCardId: null,
   cumulativeBoardRotation: 0,
-  lastLocalRotationTimestamp: 0,
   lastAppliedRotationRevision: 0,
   isValidationPending: false,
   validationResults: null,
@@ -63,9 +61,8 @@ export const createGuessingSlice: StateCreator<GuessingSlice, [["zustand/devtool
     }
     return nextState;
   }, false, 'GuessingStore/setGuessingState'),
-  setCumulativeBoardRotation: (rotation, isLocalChange = false) => set({
+  setCumulativeBoardRotation: (rotation) => set({
     cumulativeBoardRotation: rotation,
-    ...(isLocalChange ? { lastLocalRotationTimestamp: Date.now() } : {})
   }, false, 'GuessingStore/setCumulativeBoardRotation'),
   applyServerRotation: (rotation, revision) => {
     let applied = false
@@ -97,7 +94,6 @@ export const createGuessingSlice: StateCreator<GuessingSlice, [["zustand/devtool
     currentBoardClues: [],
     selectedCardId: null,
     cumulativeBoardRotation: 0,
-    lastLocalRotationTimestamp: 0,
     lastAppliedRotationRevision: 0,
     isValidationPending: false,
     validationResults: null,

@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { create } from 'zustand'
+import { create, type UseBoundStore, type StoreApi } from 'zustand'
 import { createGuessingSlice, GuessingSlice } from './guessingSlice'
 
 describe('applyServerRotation', () => {
-  let store: ReturnType<typeof create<GuessingSlice>>
+  let store: UseBoundStore<StoreApi<GuessingSlice>>
 
   beforeEach(() => {
     store = create<GuessingSlice>()(createGuessingSlice as any)

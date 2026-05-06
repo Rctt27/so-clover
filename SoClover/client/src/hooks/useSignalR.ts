@@ -23,7 +23,6 @@ export const useSignalR = () => {
   const phaseRef = useRef(phase);
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 
-  const setCumulativeBoardRotation = useGuessingStore(s => s.setCumulativeBoardRotation);
   const { notifyInfo, notifyWarning } = useNotifications();
   const { updateStateFromResponse } = useGameStateUpdate();
 
@@ -145,24 +144,16 @@ export const useSignalR = () => {
     };
 
     const handleBoardRotationUpdated = (data: any) => {
-      if (data && typeof data.cumulativeRotation === 'number') {
-        // Ignore own rotation events to prevent overwriting local state
-        if (data.playerId === playerId) {
-          return;
-        }
-
-        // Check if we recently made a local rotation (within 500ms)
-        const lastLocalRotation = useGuessingStore.getState().lastLocalRotationTimestamp;
-        const timeSinceLocalRotation = Date.now() - lastLocalRotation;
-        if (timeSinceLocalRotation < 500) {
-          return;
-        }
-
-        const prev = useGuessingStore.getState().cumulativeBoardRotation;
-        detectRotationGap({ source: 'BoardRotationUpdated', from: prev, to: data.cumulativeRotation });
-
-        setCumulativeBoardRotation(data.cumulativeRotation);
+      if (!data || typeof data.cumulativeRotation !== 'number' || typeof data.revision !== 'number') {
+        return;
       }
+      // Self-echoes: applyServerRotation rejects duplicates by revision anyway, but skip early for clarity.
+      if (data.playerId === playerId) return;
+
+      const prev = useGuessingStore.getState().cumulativeBoardRotation;
+      detectRotationGap({ source: 'BoardRotationUpdated', from: prev, to: data.cumulativeRotation });
+
+      useGuessingStore.getState().applyServerRotation(data.cumulativeRotation, data.revision);
     };
 
     const handleGuessingBoardValidated = (_data: any) => {

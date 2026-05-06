@@ -103,36 +103,37 @@ export const useGameStateUpdate = () => {
 
     // 6. Mise à jour de l'état de guessing
     if (state.guessingState) {
-      const guessingState = useGuessingStore.getState();
-      const currentOwnerId = guessingState.currentBoardOwnerId;
+      const prevState = useGuessingStore.getState();
+      const currentOwnerId = prevState.currentBoardOwnerId;
       const isNewBoard = currentOwnerId !== state.guessingState.currentBoardOwnerId;
-      const isFirstLoad = currentOwnerId === null;
-
-      // Mettre à jour la rotation UNIQUEMENT dans ces cas :
-      // 1. Premier chargement (page refresh) - restaurer depuis le serveur
-      // 2. Changement de board - le serveur réinitialise à 0
-      // Dans tous les autres cas, la rotation locale fait foi (évite les race conditions)
-      const shouldUpdateRotation = isFirstLoad || isNewBoard;
-
-      // TOUJOURS inclure cumulativeBoardRotation pour éviter les valeurs stale pendant les re-renders
-      // Choisir la source en fonction du contexte :
-      // - Premier chargement ou nouveau board → utiliser valeur serveur (réinitialisation à 0)
-      // - Autres cas → préserver rotation locale (éviter race conditions avec rotations utilisateur)
-      const rotationToUse = shouldUpdateRotation
-        ? (state.guessingState.cumulativeBoardRotation ?? 0)  // Serveur
-        : guessingState.cumulativeBoardRotation;               // Local (préservation)
 
       setCurrentBoardOwner(state.guessingState.currentBoardOwnerId);
-      setGuessingState({
-        currentBoardOwnerId: state.guessingState.currentBoardOwnerId,
-        currentBoardOwnerName: state.guessingState.currentBoardOwnerName,
-        outsideCards: state.guessingState.outsideCards,
-        guessedPositions: state.guessingState.guessedPositions,
-        correctlyPlacedPositions: state.guessingState.correctlyPlacedPositions,
-        remainingAttempts: state.guessingState.remainingAttempts,
-        currentBoardClues: state.guessingState.currentBoardClues,
-        cumulativeBoardRotation: rotationToUse  // TOUJOURS inclus
-      });
+
+      if (isNewBoard) {
+        // New board (or first load): trust server completely, reset revision baseline.
+        setGuessingState({
+          currentBoardOwnerId: state.guessingState.currentBoardOwnerId,
+          currentBoardOwnerName: state.guessingState.currentBoardOwnerName,
+          outsideCards: state.guessingState.outsideCards,
+          guessedPositions: state.guessingState.guessedPositions,
+          correctlyPlacedPositions: state.guessingState.correctlyPlacedPositions,
+          remainingAttempts: state.guessingState.remainingAttempts,
+          currentBoardClues: state.guessingState.currentBoardClues,
+          cumulativeBoardRotation: state.guessingState.cumulativeBoardRotation ?? 0,
+          lastAppliedRotationRevision: state.revision,
+        });
+      } else {
+        // Same board: write everything except rotation, which is gated by revision.
+        setGuessingState({
+          currentBoardOwnerName: state.guessingState.currentBoardOwnerName,
+          outsideCards: state.guessingState.outsideCards,
+          guessedPositions: state.guessingState.guessedPositions,
+          correctlyPlacedPositions: state.guessingState.correctlyPlacedPositions,
+          remainingAttempts: state.guessingState.remainingAttempts,
+          currentBoardClues: state.guessingState.currentBoardClues,
+        });
+        prevState.applyServerRotation(state.guessingState.cumulativeBoardRotation ?? 0, state.revision);
+      }
     } else {
       setCurrentBoardOwner(null);
     }

@@ -172,7 +172,7 @@ export const GuessingPage = () => {
     const rotationDelta = direction === 'right' ? 90 : -90
     const newRotation = safeCumulativeRotation + rotationDelta
     playSound('boardRotate')
-    setCumulativeBoardRotation(newRotation, true)
+    setCumulativeBoardRotation(newRotation)
     broadcastBoardRotation(newRotation)
   }, [isMyBoard, isValidationPending, safeCumulativeRotation, setCumulativeBoardRotation, broadcastBoardRotation])
 
