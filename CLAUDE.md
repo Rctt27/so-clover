@@ -33,10 +33,11 @@ dotnet ef database update --project SoClover
 
 ### Docker
 ```bash
-docker compose --env-file .env build --no-cache web                                                                                                                                                                                                                                                                                                                                                                  
-docker compose --env-file .env up -d 
+# Depuis SoClover/
+docker compose --env-file .env build --no-cache web
+docker compose --env-file .env up -d
 ```
-- Pas de reverse proxy dans compose (Caddy supprimé) — l'app écoute directement sur le port exposé.
+- Le `compose.yaml` se trouve dans `SoClover/` — toujours lancer les commandes docker depuis ce répertoire.
 - Les secrets PostgreSQL viennent de `SoClover/.env` (ne pas committer `.env`).
 
 ### Développement local (full-stack)
@@ -135,6 +136,7 @@ SignalR hub at `/hubs/game`.
 - **Scoring endpoint double-mapping** : `GetScoring.cs` retourne un `BoardResultDto`, mais `/api/games/{id}/scoring` dans `Program.cs` le re-mappe manuellement en objet anonyme. Ajouter un champ au DTO exige de mettre à jour les **deux** fichiers.
 - **Dépendance UseCase → RealTime interdite** : Ne jamais référencer `GameHub` directement depuis un UseCase. Utiliser une interface injectable (ex. `IConnectionTracker` dans `SoClover/RealTime/`) avec injection optionnelle (`= null`) — les tests passent sans l'enregistrer, le runtime injecte l'implémentation réelle.
 - **`ActivePlayers` vs `Players`** : `game.ActivePlayers` exclut les joueurs déconnectés (`IsDisconnected = true`). Toute logique de flux (SubmitBoard, StartGuessingPhase, MoveToNextBoard, MoveToNextGuessingBoard) doit utiliser `ActivePlayers`. `game.Players` reste pour le scoring et l'affichage complet.
+- **Revision protocol (sync)** : `Game.Revision` est monotone (bumpée lors des mutations). Les events `BoardRotated` et `GameStateUpdated` la portent. Le client drop les events de révision ≤ celle déjà appliquée — remplace l'ancien anti-echo timing-based de 500ms. Toute nouvelle mutation domaine touchant un board doit bumper Revision et les events doivent la propager.
 
 ### Frontend – Design & Assets
 
@@ -142,3 +144,9 @@ SignalR hub at `/hubs/game`.
 - Les couleurs, espacements, animations et autres tokens visuels doivent être centralisés dans `assets/styles/` — jamais hardcodés inline dans les composants.
 - Si une valeur visuelle (ex: palette de confettis, timing d'animation) n'existe pas encore dans les styles centralisés, la créer dans le fichier approprié de `assets/styles/` avant de l'utiliser dans le composant.
 - Réutiliser les assets existants (`public/sounds/`, `public/images/`) plutôt que d'en embarquer de nouveaux sans vérification préalable.
+
+### Frontend – Sync & Performance
+
+- **Revision tracking** : `guessingSlice.lastAppliedRotationRevision` utilise un setter monotone (jamais réécrit en arrière). Vérifier la révision avant d'appliquer un event de rotation — ne pas réintroduire d'anti-echo timing-based.
+- **`rotationGapDetector`** : warn si la séquence de révisions saute un event (observabilité du flux SignalR). À utiliser pour tout nouveau flux event-driven séquencé.
+- **Memo comparators extraits** : pour `React.memo()` non-trivial, extraire le comparator dans un fichier dédié (ex. `draggableCardArePropsEqual.ts`) avec son test co-localisé — ne pas inline dans `React.memo()`.

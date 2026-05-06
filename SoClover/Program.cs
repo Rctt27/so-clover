@@ -133,6 +133,14 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+#if !DEBUG
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<SoClover.Infrastructure.Persistence.GameDbContext>();
+    await db.Database.EnsureCreatedAsync();
+}
+#endif
+
 app.UseCors();
 app.UseStaticFiles();
 
