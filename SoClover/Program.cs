@@ -74,6 +74,9 @@ builder.Services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handl
 builder.Services.AddTransient<ISetClueUseCase, SetClue.Handler>();
 builder.Services.AddTransient<IValidateClueUseCase, ValidateClue.Handler>();
 builder.Services.AddSingleton<SoClover.Domain.Validation.IClueValidatorFactory, SoClover.Infrastructure.Validation.ClueValidatorFactory>();
+// AI prompt authoring (Epic 05) — singleton because the FilePromptLoader cache
+// must be shared process-wide for hot-reload to be effective.
+builder.Services.AddSingleton<SoClover.Infrastructure.AI.Prompts.IAiCluePromptProviderFactory, SoClover.Infrastructure.AI.Prompts.AiCluePromptProviderFactory>();
 builder.Services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
 builder.Services.AddTransient<IGuessUseCase, Guess.Handler>();
 builder.Services.AddTransient<IPlaceCardToGuessUseCase, PlaceCardToGuess.Handler>();
@@ -154,6 +157,14 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+#if !DEBUG
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<SoClover.Infrastructure.Persistence.GameDbContext>();
+    await db.Database.EnsureCreatedAsync();
+}
+#endif
 
 app.UseCors();
 app.UseStaticFiles();
