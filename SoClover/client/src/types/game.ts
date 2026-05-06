@@ -13,6 +13,7 @@ export interface GameStateResponse {
   phase: GamePhase;
   adminPlayerId: string | null;
   phaseEndsAtUtc: string | null;
+  revision: number;
   players: PlayerStateResponse[];
   guessingState: GuessingPhaseStateResponse | null;
   semanticClueCheckEnabled: boolean;

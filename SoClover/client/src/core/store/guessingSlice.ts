@@ -1,4 +1,4 @@
-﻿import { StateCreator } from 'zustand'
+import { StateCreator } from 'zustand'
 import { CardInfoResponse, ClueInfoResponse } from '../../types/game'
 
 export interface GuessingSlice {
@@ -15,12 +15,18 @@ export interface GuessingSlice {
   selectedCardId: string | null // Pour le mode tablette / clic-clic
   cumulativeBoardRotation: number
   lastLocalRotationTimestamp: number // Timestamp of last local rotation to prevent race conditions
+  lastAppliedRotationRevision: number
   isValidationPending: boolean
   validationResults: { correctPositions: string[], incorrectPositions: string[] } | null
 
   // Actions
   setGuessingState: (state: Partial<GuessingSlice>) => void
   setCumulativeBoardRotation: (rotation: number, isLocalChange?: boolean) => void
+  /**
+   * Apply a server rotation only if its revision is strictly greater than what we already applied.
+   * Returns true if the update was applied.
+   */
+  applyServerRotation: (rotation: number, revision: number) => boolean
   setIsValidationPending: (pending: boolean) => void
   setValidationResults: (results: { correctPositions: string[], incorrectPositions: string[] } | null) => void
   setSelectedCardId: (id: string | null) => void
@@ -44,6 +50,7 @@ export const createGuessingSlice: StateCreator<GuessingSlice, [["zustand/devtool
   selectedCardId: null,
   cumulativeBoardRotation: 0,
   lastLocalRotationTimestamp: 0,
+  lastAppliedRotationRevision: 0,
   isValidationPending: false,
   validationResults: null,
 
@@ -60,6 +67,18 @@ export const createGuessingSlice: StateCreator<GuessingSlice, [["zustand/devtool
     cumulativeBoardRotation: rotation,
     ...(isLocalChange ? { lastLocalRotationTimestamp: Date.now() } : {})
   }, false, 'GuessingStore/setCumulativeBoardRotation'),
+  applyServerRotation: (rotation, revision) => {
+    let applied = false
+    set((state) => {
+      if (revision <= state.lastAppliedRotationRevision) return state
+      applied = true
+      return {
+        cumulativeBoardRotation: rotation,
+        lastAppliedRotationRevision: revision,
+      }
+    }, false, 'GuessingStore/applyServerRotation')
+    return applied
+  },
   setIsValidationPending: (pending) => set({ isValidationPending: pending }, false, 'GuessingStore/setIsValidationPending'),
   setValidationResults: (results) => set({ validationResults: results }, false, 'GuessingStore/setValidationResults'),
   setSelectedCardId: (id) => set({ selectedCardId: id }, false, 'GuessingStore/setSelectedCardId'),
@@ -79,6 +98,7 @@ export const createGuessingSlice: StateCreator<GuessingSlice, [["zustand/devtool
     selectedCardId: null,
     cumulativeBoardRotation: 0,
     lastLocalRotationTimestamp: 0,
+    lastAppliedRotationRevision: 0,
     isValidationPending: false,
     validationResults: null,
   }, false, 'GuessingStore/resetGuessingState'),
