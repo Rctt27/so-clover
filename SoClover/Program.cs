@@ -77,6 +77,11 @@ builder.Services.AddSingleton<SoClover.Domain.Validation.IClueValidatorFactory, 
 // AI prompt authoring (Epic 05) — singleton because the FilePromptLoader cache
 // must be shared process-wide for hot-reload to be effective.
 builder.Services.AddSingleton<SoClover.Infrastructure.AI.Prompts.IAiCluePromptProviderFactory, SoClover.Infrastructure.AI.Prompts.AiCluePromptProviderFactory>();
+// Epic 06 — clue generation pipeline
+builder.Services.AddSingleton<SoClover.Infrastructure.AI.IAiClueExplanationStore,
+                              SoClover.Infrastructure.AI.InMemoryAiClueExplanationStore>();
+builder.Services.AddTransient<SoClover.UseCases.AI.IGenerateAICluesUseCase,
+                              SoClover.UseCases.AI.GenerateAIClues.Handler>();
 builder.Services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
 builder.Services.AddTransient<IGuessUseCase, Guess.Handler>();
 builder.Services.AddTransient<IPlaceCardToGuessUseCase, PlaceCardToGuess.Handler>();
