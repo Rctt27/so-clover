@@ -20,12 +20,16 @@ public class GenerateAICluesTests
         var (gameId, aiPids) = await AiTestProvider.SetupGameWithAis(sp);
         var aiPid = aiPids[0];
 
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var board = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPid).Board;
+        var safe = PickSafeClues(board, 4);
+
         AiTestProvider.EnqueueValidJson(fake, new[]
         {
-            (Direction.Top,    "soleil", "Mer + plage"),
-            (Direction.Right,  "orage",  "Pluie + foudre"),
-            (Direction.Bottom, "noir",   "Nuit + ombre"),
-            (Direction.Left,   "feu",    "Chaud + flamme"),
+            (Direction.Top,    safe[0], "Mer + plage"),
+            (Direction.Right,  safe[1], "Pluie + foudre"),
+            (Direction.Bottom, safe[2], "Nuit + ombre"),
+            (Direction.Left,   safe[3], "Chaud + flamme"),
         });
 
         var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
@@ -39,12 +43,11 @@ public class GenerateAICluesTests
 
         var generated = events.PublishedEvents.OfType<AiClueGenerated>().ToList();
         Assert.Equal(4, generated.Count);
-        Assert.Contains(generated, e => e.Direction == Direction.Top    && e.ClueText == "soleil");
-        Assert.Contains(generated, e => e.Direction == Direction.Right  && e.ClueText == "orage");
-        Assert.Contains(generated, e => e.Direction == Direction.Bottom && e.ClueText == "noir");
-        Assert.Contains(generated, e => e.Direction == Direction.Left   && e.ClueText == "feu");
+        Assert.Contains(generated, e => e.Direction == Direction.Top    && e.ClueText == safe[0]);
+        Assert.Contains(generated, e => e.Direction == Direction.Right  && e.ClueText == safe[1]);
+        Assert.Contains(generated, e => e.Direction == Direction.Bottom && e.ClueText == safe[2]);
+        Assert.Contains(generated, e => e.Direction == Direction.Left   && e.ClueText == safe[3]);
 
-        var repo = sp.GetRequiredService<IGameRepository>();
         var game = await repo.Get(gameId);
         Assert.True(game!.Players.First(p => p.Id == aiPid).Board.IsSubmitted);
     }
@@ -61,18 +64,19 @@ public class GenerateAICluesTests
         var game = await repo.Get(gameId);
         var board = game!.Players.First(p => p.Id == aiPid).Board;
         var conflict = PickConflictWord(board);
+        var safe = PickSafeClues(board, 4);
 
         AiTestProvider.EnqueueValidJson(fake, new[]
         {
-            (Direction.Top,    "soleil",   "ok"),
+            (Direction.Top,    safe[0],    "ok"),
             (Direction.Right,  conflict,   "conflit"),
-            (Direction.Bottom, "noir",     "ok"),
+            (Direction.Bottom, safe[1],    "ok"),
             (Direction.Left,   conflict,   "conflit"),
         });
         AiTestProvider.EnqueueValidJson(fake, new[]
         {
-            (Direction.Right, "orage", "Pluie + foudre"),
-            (Direction.Left,  "feu",   "Chaud + flamme"),
+            (Direction.Right, safe[2], "Pluie + foudre"),
+            (Direction.Left,  safe[3], "Chaud + flamme"),
         });
 
         var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
@@ -108,15 +112,16 @@ public class GenerateAICluesTests
         var game = await repo.Get(gameId);
         var board = game!.Players.First(p => p.Id == aiPid).Board;
         var conflict = PickConflictWord(board);
+        var safe = PickSafeClues(board, 4);
 
         AiTestProvider.EnqueueValidJson(fake, new[]
         {
-            (Direction.Top,    "soleil",  "ok"),
+            (Direction.Top,    safe[0],   "ok"),
             (Direction.Right,  conflict,  "conflit"),
-            (Direction.Bottom, "noir",    "ok"),
-            (Direction.Left,   "feu",     "ok"),
+            (Direction.Bottom, safe[1],   "ok"),
+            (Direction.Left,   safe[2],   "ok"),
         });
-        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Right, "orage", "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Right, safe[3], "ok") });
 
         var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
         await useCase.Handle(new GenerateAIClues.Request(gameId, aiPid));
@@ -140,10 +145,12 @@ public class GenerateAICluesTests
         var validatorFactory = sp.GetRequiredService<IClueValidatorFactory>();
         var game = await repo.Get(gameId);
         var validator = validatorFactory.GetFor(game!.Language, game.SemanticClueCheckEnabled);
-        game.SetClue(aiPid, Direction.Top,    "soleil", validator);
-        game.SetClue(aiPid, Direction.Right,  "orage",  validator);
-        game.SetClue(aiPid, Direction.Bottom, "noir",   validator);
-        game.SetClue(aiPid, Direction.Left,   "feu",    validator);
+        var board = game.Players.First(p => p.Id == aiPid).Board;
+        var safe = PickSafeClues(board, 4);
+        game.SetClue(aiPid, Direction.Top,    safe[0], validator);
+        game.SetClue(aiPid, Direction.Right,  safe[1], validator);
+        game.SetClue(aiPid, Direction.Bottom, safe[2], validator);
+        game.SetClue(aiPid, Direction.Left,   safe[3], validator);
         await repo.Save(game);
 
         var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
@@ -176,14 +183,16 @@ public class GenerateAICluesTests
         var validatorFactory = sp.GetRequiredService<IClueValidatorFactory>();
         var game = await repo.Get(gameId);
         var validator = validatorFactory.GetFor(game!.Language, game.SemanticClueCheckEnabled);
-        game.SetClue(aiPid, Direction.Top,   "soleil", validator);
-        game.SetClue(aiPid, Direction.Right, "orage",  validator);
+        var board = game.Players.First(p => p.Id == aiPid).Board;
+        var safe = PickSafeClues(board, 4);
+        game.SetClue(aiPid, Direction.Top,   safe[0], validator);
+        game.SetClue(aiPid, Direction.Right, safe[1], validator);
         await repo.Save(game);
 
         AiTestProvider.EnqueueValidJson(fake, new[]
         {
-            (Direction.Bottom, "noir", "ok"),
-            (Direction.Left,   "feu",  "ok"),
+            (Direction.Bottom, safe[2], "ok"),
+            (Direction.Left,   safe[3], "ok"),
         });
 
         var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
@@ -255,11 +264,12 @@ public class GenerateAICluesTests
         var board = game!.Players.First(p => p.Id == aiPid).Board;
         var conflict = PickConflictWord(board);
 
+        var safe = PickSafeClues(board, 2);
         AiTestProvider.EnqueueValidJson(fake, new[]
         {
-            (Direction.Top,    "soleil",   "ok"),
+            (Direction.Top,    safe[0],    "ok"),
             (Direction.Right,  conflict,   "boom"),
-            (Direction.Bottom, "noir",     "ok"),
+            (Direction.Bottom, safe[1],    "ok"),
             (Direction.Left,   conflict,   "boom"),
         });
         for (var i = 0; i < 2; i++)
@@ -319,12 +329,13 @@ public class GenerateAICluesTests
         var board = game!.Players.First(p => p.Id == aiPid).Board;
         var conflict = PickConflictWord(board);
 
+        var safe = PickSafeClues(board, 3);
         AiTestProvider.EnqueueValidJson(fake, new[]
         {
-            (Direction.Top,    "soleil", "ok"),
+            (Direction.Top,    safe[0],  "ok"),
             (Direction.Right,  conflict, "boom"),
-            (Direction.Bottom, "noir",   "ok"),
-            (Direction.Left,   "feu",    "ok"),
+            (Direction.Bottom, safe[1],  "ok"),
+            (Direction.Left,   safe[2],  "ok"),
         });
 
         var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
@@ -361,5 +372,25 @@ public class GenerateAICluesTests
             }
         }
         throw new InvalidOperationException("No board word in [3..32] range — dictionary anomaly?");
+    }
+
+    /// <summary>
+    /// Generate <paramref name="count"/> distinct clue strings guaranteed valid against
+    /// the given board (no R1/R2 conflict). Random card words from the dictionary may
+    /// otherwise collide with hard-coded "soleil/orage/..." choices, making tests flaky.
+    /// </summary>
+    private static string[] PickSafeClues(CloverBoard board, int count)
+    {
+        var validator = new FrenchOffClueValidator();
+        var results = new List<string>();
+        for (var i = 0; results.Count < count && i < 5000; i++)
+        {
+            var candidate = $"zzqxkj{i:D4}";
+            var r = validator.Validate(candidate, Direction.Top, board);
+            if (r.IsValid) results.Add(candidate);
+        }
+        if (results.Count < count)
+            throw new InvalidOperationException($"Could not generate {count} safe clues for this board.");
+        return results.ToArray();
     }
 }
