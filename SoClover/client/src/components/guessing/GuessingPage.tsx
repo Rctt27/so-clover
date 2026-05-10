@@ -303,6 +303,7 @@ export const GuessingPage = () => {
               disabled={true}
               isSelected={true}
               dragRotationOverride={isFromOutside ? 0 : -safeCumulativeRotation}
+              isDragOverlay={true}
             />
           </div>
         )

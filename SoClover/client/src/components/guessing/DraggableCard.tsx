@@ -28,6 +28,13 @@ export interface DraggableCardProps {
   isDragTarget?: boolean
   /** Pointer down handler from createDragHandlers */
   onPointerDown?: (e: React.PointerEvent) => void
+  /**
+   * Render this card as the floating drag overlay following the cursor.
+   * Disables framer-motion `layout`/`layoutId` (which would otherwise animate
+   * each position update and cause the card to lag behind the cursor) and the
+   * mount fade-in (so the overlay appears instantly).
+   */
+  isDragOverlay?: boolean
 }
 
 const DraggableCardImpl = ({
@@ -44,6 +51,7 @@ const DraggableCardImpl = ({
   isDragSource = false,
   isDragTarget = false,
   onPointerDown,
+  isDragOverlay = false,
 }: DraggableCardProps) => {
   const { gameId, playerId, role } = useGameStore()
   const { cumulativeBoardRotation, isValidationPending } = useGuessingStore()
@@ -208,7 +216,7 @@ const DraggableCardImpl = ({
   // Désactiver l'animation de layout pour les actions locales (isDisplaced = transition en cours)
   // Cela évite l'animation de "vol" de la carte pour le joueur qui fait l'action
   // Les autres joueurs verront toujours l'animation via SignalR car leur isDisplaced sera false
-  const shouldAnimateLayout = !isDisplaced && !isDragSource;
+  const shouldAnimateLayout = !isDisplaced && !isDragSource && !isDragOverlay;
 
   return (
     <motion.div
@@ -226,7 +234,7 @@ const DraggableCardImpl = ({
         zIndex: isDisplaced ? 150 : (isDragTarget ? 50 : (isDragSource ? 1000 : 'auto')),
         pointerEvents: isDragSource ? 'none' : 'auto',
       }}
-      initial={{ opacity: 0, scale: 0.8 }}
+      initial={isDragOverlay ? false : { opacity: 0, scale: 0.8 }}
       animate={{
         opacity: 1,
         scale: 1,

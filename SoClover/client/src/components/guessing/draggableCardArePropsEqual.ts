@@ -16,5 +16,6 @@ export function draggableCardArePropsEqual(
   if (prev.isDragSource !== next.isDragSource) return false
   if (prev.isDragTarget !== next.isDragTarget) return false
   if (prev.dragRotationOverride !== next.dragRotationOverride) return false
+  if (prev.isDragOverlay !== next.isDragOverlay) return false
   return true
 }

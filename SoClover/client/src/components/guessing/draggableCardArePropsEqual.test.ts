@@ -50,6 +50,12 @@ describe('draggableCardArePropsEqual', () => {
     expect(draggableCardArePropsEqual(a, b)).toBe(false)
   })
 
+  it('returns false when isDragOverlay toggles', () => {
+    const a = baseProps()
+    const b = { ...baseProps(), isDragOverlay: true }
+    expect(draggableCardArePropsEqual(a, b)).toBe(false)
+  })
+
   it('ignores referential change of onPointerDown when value-equivalent props are unchanged', () => {
     const handlerA = () => {}
     const handlerB = () => {}
