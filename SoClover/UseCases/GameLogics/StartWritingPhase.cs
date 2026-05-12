@@ -1,5 +1,7 @@
 using SoClover.Domain;
+using SoClover.Infrastructure.AI;
 using SoClover.RealTime;
+using SoClover.UseCases.AI;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
 
@@ -21,8 +23,9 @@ public static class StartWritingPhase
         private readonly IWordDictionary _wordDictionary;
         private readonly IWordsPoolCache _poolCache;
         private readonly IConnectionTracker? _connectionTracker;
+        private readonly AiClueWorkChannel? _aiClueChannel;
 
-        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings, IWordDictionary wordDictionary, IWordsPoolCache poolCache, IConnectionTracker? connectionTracker = null)
+        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings, IWordDictionary wordDictionary, IWordsPoolCache poolCache, IConnectionTracker? connectionTracker = null, AiClueWorkChannel? aiClueChannel = null)
         {
             _repo = repo;
             _events = events;
@@ -31,6 +34,7 @@ public static class StartWritingPhase
             _wordDictionary = wordDictionary;
             _poolCache = poolCache;
             _connectionTracker = connectionTracker;
+            _aiClueChannel = aiClueChannel;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
@@ -78,6 +82,16 @@ public static class StartWritingPhase
             game.StartWritingPhase(now, duration);
             await _repo.Save(game, ct);
             await _events.Publish(new WritingPhaseStarted(game.Id), ct);
+
+            if (_aiClueChannel != null)
+            {
+                foreach (var aiPlayer in game.Players.Where(p => p.IsAI))
+                {
+                    await _aiClueChannel.Writer.WriteAsync(
+                        new AiClueGenerationRequested(game.Id, aiPlayer.Id), ct);
+                }
+            }
+
             return new Response(game.Phase);
         }
 
