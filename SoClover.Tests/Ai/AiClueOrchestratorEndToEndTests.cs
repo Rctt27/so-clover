@@ -149,4 +149,56 @@ public class AiClueOrchestratorEndToEndTests
         Assert.Equal(4, events.PublishedEvents.OfType<AiClueGenerated>().Count());
         Assert.Single(events.PublishedEvents.OfType<BoardSubmitted>().Where(e => e.PlayerId == bot.Id));
     }
+
+    [Fact]
+    public async Task Cas2_1H_plus_4AI_with_MaxConcurrency_1_serializes_all_LLM_calls()
+    {
+        var fake = new FakeChatClient();
+        var sp = BuildEndToEndProvider(fake, maxConcurrency: 1);
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
+        var channel = sp.GetRequiredService<AiClueWorkChannel>();
+        var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+
+        var alice = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        var bots = Enumerable.Range(0, 4)
+            .Select(i => new Player(PlayerId.New(), $"Bot{i}", isAdmin: false, isAI: true,
+                aiConfig: new AIConfig("gpt-4o-mini", 0.7)))
+            .ToArray();
+        var game = new Game(GameId.New(), "Français_OFF");
+        game.AddPlayer(alice);
+        foreach (var bot in bots) game.AddAIPlayer(bot, max: 4);
+        await repo.Save(game);
+
+        await startWriting.Handle(new StartWritingPhase.Request(game.Id));
+
+        var refreshed = (await repo.Get(game.Id))!;
+        foreach (var bot in bots)
+        {
+            var board = refreshed.Players.First(p => p.Id == bot.Id).Board;
+            EnqueueCluesForBoard(fake, board, TimeSpan.FromMilliseconds(100));
+        }
+
+        var service = new AiClueOrchestratorHostedService(scopeFactory, channel);
+        using var cts = new CancellationTokenSource();
+        await service.StartAsync(cts.Token);
+
+        await WaitForAsync(async () =>
+        {
+            var g = await repo.Get(game.Id);
+            return g != null && bots.All(b => g.Players.First(p => p.Id == b.Id).Board.IsSubmitted);
+        }, TimeSpan.FromSeconds(10));
+
+        cts.Cancel();
+        await service.StopAsync(CancellationToken.None);
+
+        var log = fake.CallLog;
+        Assert.Equal(4, log.Count);
+        for (var i = 1; i < log.Count; i++)
+        {
+            Assert.True(log[i].Start >= log[i - 1].End,
+                $"Call {i} started ({log[i].Start:O}) before call {i - 1} ended ({log[i - 1].End:O}) " +
+                "— MaxConcurrency=1 expected strict serialization.");
+        }
+    }
 }
