@@ -82,6 +82,11 @@ builder.Services.AddSingleton<SoClover.Infrastructure.AI.IAiClueExplanationStore
                               SoClover.Infrastructure.AI.InMemoryAiClueExplanationStore>();
 builder.Services.AddTransient<SoClover.UseCases.AI.IGenerateAICluesUseCase,
                               SoClover.UseCases.AI.GenerateAIClues.Handler>();
+// Epic 07 — Background orchestration for AI clue generation.
+// AiClueWorkChannel is a singleton (one process-wide bounded queue).
+// The hosted service drains it and dispatches to IGenerateAICluesUseCase.
+builder.Services.AddSingleton<SoClover.Infrastructure.AI.AiClueWorkChannel>();
+builder.Services.AddHostedService<SoClover.Infrastructure.AI.AiClueOrchestratorHostedService>();
 builder.Services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
 builder.Services.AddTransient<IGuessUseCase, Guess.Handler>();
 builder.Services.AddTransient<IPlaceCardToGuessUseCase, PlaceCardToGuess.Handler>();
