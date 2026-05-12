@@ -201,4 +201,61 @@ public class AiClueOrchestratorEndToEndTests
                 "— MaxConcurrency=1 expected strict serialization.");
         }
     }
+
+    [Fact]
+    public async Task Cas3_MaxConcurrency_4_allows_concurrent_LLM_calls_across_AIs()
+    {
+        var fake = new FakeChatClient();
+        var sp = BuildEndToEndProvider(fake, maxConcurrency: 4);
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
+
+        var alice = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        var bots = Enumerable.Range(0, 4)
+            .Select(i => new Player(PlayerId.New(), $"Bot{i}", isAdmin: false, isAI: true,
+                aiConfig: new AIConfig("gpt-4o-mini", 0.7)))
+            .ToArray();
+        var game = new Game(GameId.New(), "Français_OFF");
+        game.AddPlayer(alice);
+        foreach (var bot in bots) game.AddAIPlayer(bot, max: 4);
+        await repo.Save(game);
+
+        await startWriting.Handle(new StartWritingPhase.Request(game.Id));
+
+        var refreshed = (await repo.Get(game.Id))!;
+        foreach (var bot in bots)
+        {
+            var board = refreshed.Players.First(p => p.Id == bot.Id).Board;
+            EnqueueCluesForBoard(fake, board, TimeSpan.FromMilliseconds(200));
+        }
+
+        // Run 4 GenerateAIClues.Handle in parallel — exercises ThrottlingChatClient at MaxConcurrency=4.
+        var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
+        var tasks = bots
+            .Select(bot => useCase.Handle(new GenerateAIClues.Request(game.Id, bot.Id)))
+            .ToArray();
+        await Task.WhenAll(tasks);
+
+        var log = fake.CallLog;
+        Assert.Equal(4, log.Count);
+
+        var overlaps = 0;
+        for (var i = 0; i < log.Count; i++)
+        {
+            for (var j = i + 1; j < log.Count; j++)
+            {
+                if (log[i].Start < log[j].End && log[j].Start < log[i].End)
+                    overlaps++;
+            }
+        }
+        Assert.True(overlaps >= 1,
+            $"Expected at least 1 overlapping LLM call pair with MaxConcurrency=4 — got {overlaps}. " +
+            $"Calls: {string.Join("; ", log.Select(c => $"[{c.Start:HH:mm:ss.fff}..{c.End:HH:mm:ss.fff}]"))}");
+
+        foreach (var bot in bots)
+        {
+            var g = (await repo.Get(game.Id))!;
+            Assert.True(g.Players.First(p => p.Id == bot.Id).Board.IsSubmitted);
+        }
+    }
 }
