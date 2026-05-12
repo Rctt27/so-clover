@@ -169,6 +169,42 @@ public sealed class SignalREventPublisher : IEventPublisher
                         }, ct);
                     break;
                 }
+                case SoClover.UseCases.AI.AiClueGenerationRequested aiReq:
+                {
+                    await _hub.Clients.Group($"game-{state.GameId}")
+                        .SendAsync("AiClueGenerationRequested", new
+                        {
+                            gameId = state.GameId,
+                            playerId = aiReq.PlayerId.Value.ToString()
+                        }, ct);
+                    break;
+                }
+                case SoClover.UseCases.AI.AiClueGenerated aiGen:
+                {
+                    await _hub.Clients.Group($"game-{state.GameId}")
+                        .SendAsync("AiClueGenerated", new
+                        {
+                            gameId = state.GameId,
+                            playerId = aiGen.PlayerId.Value.ToString(),
+                            direction = aiGen.Direction.ToString(),
+                            clueText = aiGen.ClueText,
+                            explanation = aiGen.Explanation
+                        }, ct);
+                    break;
+                }
+                case SoClover.UseCases.AI.AiClueGenerationFailed aiFail:
+                {
+                    await _hub.Clients.Group($"game-{state.GameId}")
+                        .SendAsync("AiClueGenerationFailed", new
+                        {
+                            gameId = state.GameId,
+                            playerId = aiFail.PlayerId.Value.ToString(),
+                            direction = aiFail.Direction.ToString(),
+                            reason = aiFail.Reason,
+                            attemptedClues = aiFail.AttemptedClues
+                        }, ct);
+                    break;
+                }
             }
         }
         catch (GameNotFoundException)
