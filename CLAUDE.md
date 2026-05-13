@@ -78,7 +78,7 @@ npm run dev   # Proxy automatique vers localhost:5000
 3. Start guessing phase → Players guess card placements on others' boards
 4. Scoring → Display results
 
-### AI Players (Epics 01-08)
+### AI Players
 
 - **Provider switch** : dev local → `appsettings.Development.json` (`Provider=OpenAI`, `BaseUrl=http://localhost:1234/v1`, `MaxConcurrency=1`). Prod → `appsettings.Production.json` (`Provider=Anthropic`, `DefaultModel=claude-haiku-4-5`, `MaxConcurrency=4`). La seule différence runtime est le binding de `IChatClient` via `ChatClientFactory` (`SoClover/Infrastructure/AI/ChatClientFactory.cs`).
 - **Secret Anthropic** : en prod via env var `LLM__APIKEY` (cf. `SoClover/.env`). En dev pour tester Anthropic : `dotnet user-secrets set "Llm:ApiKey" "sk-ant-..." --project SoClover`. Ne **jamais** committer la clé.
