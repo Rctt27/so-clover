@@ -77,8 +77,12 @@ public class SetClueWithValidationTests
         var player = game!.Players.First(p => p.Id == playerId);
         Assert.NotNull(player.Board.TopClue);
 
-        // Now submit an invalid clue for the same direction
-        var boardWord = player.Board.TopLeft!.Card.TopWord;
+        // Now submit an invalid clue for the same direction.
+        // Pick a board word >= 3 chars so the FrenchOffClueValidator (MinWordLength=3) catches it.
+        var boardWord = new[] { player.Board.TopLeft, player.Board.TopRight, player.Board.BottomRight, player.Board.BottomLeft }
+            .Where(o => o != null)
+            .SelectMany(o => new[] { o!.Card.TopWord, o.Card.RightWord, o.Card.BottomWord, o.Card.LeftWord })
+            .First(w => w.Length >= 3);
         await setClue.Handle(new SetClue.Request(gameId, playerId, Direction.Top, boardWord));
 
         game = await repo.Get(gameId);
