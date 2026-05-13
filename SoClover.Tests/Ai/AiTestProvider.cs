@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SoClover.Domain;
 using SoClover.Domain.Validation;
@@ -46,6 +47,49 @@ internal static class AiTestProvider
         services.AddSingleton<IAiCluePromptProviderFactory>(_ =>
             new TestInlinePromptProviderFactory("Français_OFF", promptBuild));
         services.AddSingleton<IAiClueExplanationStore, InMemoryAiClueExplanationStore>();
+
+        services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
+        services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
+        services.AddTransient<ISubmitBoardUseCase, SubmitBoard.Handler>();
+        services.AddTransient<IGenerateAICluesUseCase, GenerateAIClues.Handler>();
+
+        return services.BuildServiceProvider();
+    }
+
+    public static ServiceProvider BuildWithLogger(
+        IChatClient chatClient,
+        ILogger<GenerateAIClues.Handler> logger,
+        int budgetMaxCallsPerGame = 50,
+        Func<BoardCluesPromptContext, AiCluePromptBundle>? promptBuild = null)
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IGameRepository, InMemoryGameRepository>();
+        services.AddSingleton<InMemoryEventPublisher>();
+        services.AddSingleton<IEventPublisher>(sp => sp.GetRequiredService<InMemoryEventPublisher>());
+        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
+            "SoClover", "Infrastructure", "Dictionaries");
+        services.AddSingleton<IWordDictionary>(_ =>
+            new FileWordDictionary(Path.GetFullPath(dictionaryPath)));
+        services.AddSingleton<IClock>(_ => new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
+        services.AddSingleton<IGameSettingsProvider>(_ => new TestGameSettingsProvider());
+        services.AddSingleton<IWordsPoolCache, InMemoryWordsPoolCache>();
+        services.AddSingleton<IClueValidatorFactory, ClueValidatorFactory>();
+
+        services.AddSingleton(chatClient);
+        services.AddSingleton(Options.Create(new LlmOptions
+        {
+            Provider = LlmProvider.OpenAI,
+            DefaultModel = "test-model",
+            MaxRetries = 2,
+            MaxCallsPerGame = Math.Max(1, budgetMaxCallsPerGame),
+        }));
+        services.AddSingleton(sp => new GameLlmBudget(
+            sp.GetRequiredService<IOptions<LlmOptions>>().Value.MaxCallsPerGame));
+        services.AddSingleton<IAiCluePromptProviderFactory>(_ =>
+            new TestInlinePromptProviderFactory("Français_OFF", promptBuild));
+        services.AddSingleton<IAiClueExplanationStore, InMemoryAiClueExplanationStore>();
+
+        services.AddSingleton(logger);
 
         services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
         services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();

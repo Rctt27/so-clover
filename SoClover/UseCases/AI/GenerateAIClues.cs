@@ -1,5 +1,8 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using SoClover.Domain;
 using SoClover.Domain.Validation;
@@ -35,6 +38,7 @@ public static class GenerateAIClues
         private readonly IOptions<LlmOptions> _llmOptions;
         private readonly GameLlmBudget _budget;
         private readonly ISubmitBoardUseCase _submitBoard;
+        private readonly ILogger<Handler> _logger;
 
         public Handler(
             IGameRepository repo,
@@ -45,7 +49,8 @@ public static class GenerateAIClues
             IEventPublisher events,
             IOptions<LlmOptions> llmOptions,
             GameLlmBudget budget,
-            ISubmitBoardUseCase submitBoard)
+            ISubmitBoardUseCase submitBoard,
+            ILogger<Handler>? logger = null)
         {
             _repo = repo;
             _validatorFactory = validatorFactory;
@@ -56,6 +61,7 @@ public static class GenerateAIClues
             _llmOptions = llmOptions;
             _budget = budget;
             _submitBoard = submitBoard;
+            _logger = logger ?? NullLogger<Handler>.Instance;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
@@ -89,7 +95,8 @@ public static class GenerateAIClues
                 _budget.TryConsume(game.Id);
                 llmCalls++;
 
-                var draft = await CallLlmAsync(game, player, remaining, rejectedHistory, promptProvider, ct);
+                var (draft, promptVersion) = await CallLlmAsync(
+                    game, player, remaining, rejectedHistory, promptProvider, attempt, ct);
 
                 foreach (var item in draft.Clues)
                 {
@@ -107,10 +114,21 @@ public static class GenerateAIClues
                             new AiClueGenerated(game.Id, player.Id, dir, item.ClueWord, item.Explanation),
                             ct);
                         remaining.Remove(dir);
+
+                        _logger.LogInformation(
+                            "AI clue validated: game={GameId} player={PlayerId} direction={Direction} clueText={ClueText} isValid={IsValid} promptVersion={PromptVersion} provider={LlmProvider} model={LlmModel}",
+                            game.Id.Value, player.Id.Value, dir, item.ClueWord, true,
+                            promptVersion, _llmOptions.Value.Provider, _llmOptions.Value.DefaultModel);
                     }
                     else
                     {
                         AppendRejection(rejectedHistory, dir, item.ClueWord, result);
+
+                        var rules = string.Join(",", result.Errors.Select(e => e.Rule.ToString()));
+                        _logger.LogInformation(
+                            "AI clue rejected: game={GameId} player={PlayerId} direction={Direction} clueText={ClueText} isValid={IsValid} rejectionRules={RejectionRules} promptVersion={PromptVersion} provider={LlmProvider} model={LlmModel}",
+                            game.Id.Value, player.Id.Value, dir, item.ClueWord, false,
+                            rules, promptVersion, _llmOptions.Value.Provider, _llmOptions.Value.DefaultModel);
                     }
                 }
             }
@@ -148,12 +166,13 @@ public static class GenerateAIClues
                 LlmCallsConsumed: llmCalls);
         }
 
-        private async Task<AiBoardCluesDraft> CallLlmAsync(
+        private async Task<(AiBoardCluesDraft Draft, int? PromptVersion)> CallLlmAsync(
             Game game,
             Player player,
             HashSet<Direction> remaining,
             Dictionary<Direction, List<RejectedAttempt>> rejectedHistory,
             IAiCluePromptProvider promptProvider,
+            int attempt,
             CancellationToken ct)
         {
             var cards = BuildBoardCardSnapshots(player.Board);
@@ -169,14 +188,23 @@ public static class GenerateAIClues
                 new ChatMessage(ChatRole.System, bundle.SystemPrompt),
                 new ChatMessage(ChatRole.User, bundle.UserPrompt),
             };
+
+            var sw = Stopwatch.StartNew();
             var response = await _chatClient.GetResponseAsync(messages, options: null, ct)
                 .ConfigureAwait(false);
+            sw.Stop();
+
+            _logger.LogInformation(
+                "AI clue LLM call completed: game={GameId} player={PlayerId} attempt={Attempt} latencyMs={LatencyMs} provider={LlmProvider} model={LlmModel} promptVersion={PromptVersion} remainingDirections={RemainingDirections}",
+                game.Id.Value, player.Id.Value, attempt, sw.ElapsedMilliseconds,
+                _llmOptions.Value.Provider, _llmOptions.Value.DefaultModel, bundle.PromptVersion,
+                string.Join(",", remaining));
 
             var text = response.Text
                 ?? throw new InvalidOperationException("LLM returned an empty response.");
             var draft = JsonSerializer.Deserialize<AiBoardCluesDraft>(text, JsonOptions)
                 ?? throw new InvalidOperationException("LLM returned invalid JSON.");
-            return draft;
+            return (draft, bundle.PromptVersion);
         }
 
         private static HashSet<Direction> ComputeRemainingDirections(CloverBoard board)

@@ -379,7 +379,7 @@ public class GenerateAICluesTests
     /// the given board (no R1/R2 conflict). Random card words from the dictionary may
     /// otherwise collide with hard-coded "soleil/orage/..." choices, making tests flaky.
     /// </summary>
-    private static string[] PickSafeClues(CloverBoard board, int count)
+    internal static string[] PickSafeClues(CloverBoard board, int count)
     {
         var validator = new FrenchOffClueValidator();
         var results = new List<string>();
