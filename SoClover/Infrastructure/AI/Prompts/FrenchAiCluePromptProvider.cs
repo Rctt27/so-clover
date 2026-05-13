@@ -58,7 +58,7 @@ public sealed class FrenchAiCluePromptProvider : IAiCluePromptProvider
         var system = sections.System.Trim();
         var user = SubstituteUser(sections.User, sections.RetryFeedback, context, cardsByPosition);
 
-        return new AiCluePromptBundle(system, user, JsonSchemaText);
+        return new AiCluePromptBundle(system, user, JsonSchemaText, sections.Version);
     }
 
     private static void ValidateContext(BoardCluesPromptContext ctx)
@@ -135,7 +135,7 @@ public sealed class FrenchAiCluePromptProvider : IAiCluePromptProvider
             var wordA = GetOrientedWord(byPos[cardA], faceA);
             var wordB = GetOrientedWord(byPos[cardB], faceB);
             sb.AppendLine(
-                $"- {dir} → mots \"{wordA}\" (carte {cardA}, face {faceA}) + \"{wordB}\" (carte {cardB}, face {faceB})");
+                $"- {dir} : trouve un mot-indice qui évoque à la fois \"{wordA}\" et \"{wordB}\"");
         }
         return sb.ToString().TrimEnd();
     }

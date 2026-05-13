@@ -47,4 +47,5 @@ public readonly record struct BoardCluesPromptContext(
 public readonly record struct AiCluePromptBundle(
     string SystemPrompt,
     string UserPrompt,
-    string JsonSchema);
+    string JsonSchema,
+    int? PromptVersion = null);

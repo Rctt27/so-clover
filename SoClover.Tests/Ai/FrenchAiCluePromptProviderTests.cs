@@ -315,4 +315,45 @@ Pour CHAQUE direction listée, propose un mot DIFFÉRENT.
 
         Assert.Throws<ArgumentException>(() => provider.BuildBoardCluesPrompt(ctx));
     }
+
+    [Fact]
+    public void BuildDirectionsToResolve_emits_clean_per_direction_listing_without_card_face_annotation()
+    {
+        var bundle = new FrenchAiCluePromptProvider().BuildBoardCluesPrompt(SampleContext());
+        var prompt = bundle.UserPrompt;
+
+        Assert.Contains("- Top : trouve un mot-indice qui évoque à la fois \"plage\" et \"sable\"", prompt);
+        Assert.Contains("- Right : trouve un mot-indice qui évoque à la fois \"île\" et \"vent\"", prompt);
+        Assert.Contains("- Bottom : trouve un mot-indice qui évoque à la fois \"oiseau\" et \"rivière\"", prompt);
+        Assert.Contains("- Left : trouve un mot-indice qui évoque à la fois \"pont\" et \"route\"", prompt);
+
+        var resolveSection = ExtractResolveSection(prompt);
+        Assert.DoesNotContain("(carte", resolveSection);
+        Assert.DoesNotContain("face Top)", resolveSection);
+        Assert.DoesNotContain("face Right)", resolveSection);
+        Assert.DoesNotContain("face Bottom)", resolveSection);
+        Assert.DoesNotContain("face Left)", resolveSection);
+    }
+
+    [Fact]
+    public void Bundle_exposes_PromptVersion_from_packaged_FR_template()
+    {
+        var provider = new FrenchAiCluePromptProvider();
+        var bundle = provider.BuildBoardCluesPrompt(SampleContext());
+
+        Assert.NotNull(bundle.PromptVersion);
+        Assert.True(bundle.PromptVersion!.Value >= 1,
+            $"Expected PromptVersion >= 1, got {bundle.PromptVersion}.");
+    }
+
+    [Fact]
+    public void BuildBoardCluesPrompt_user_prompt_describes_explanation_field_as_reasoning()
+    {
+        var bundle = new FrenchAiCluePromptProvider().BuildBoardCluesPrompt(SampleContext());
+        var prompt = bundle.UserPrompt;
+
+        Assert.Contains("raisonnement", prompt);
+        Assert.Contains("premier", prompt);
+        Assert.Contains("second", prompt);
+    }
 }
