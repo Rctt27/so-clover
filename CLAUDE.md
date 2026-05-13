@@ -78,6 +78,19 @@ npm run dev   # Proxy automatique vers localhost:5000
 3. Start guessing phase → Players guess card placements on others' boards
 4. Scoring → Display results
 
+### AI Players (Epics 01-08)
+
+- **Provider switch** : dev local → `appsettings.Development.json` (`Provider=OpenAI`, `BaseUrl=http://localhost:1234/v1`, `MaxConcurrency=1`). Prod → `appsettings.Production.json` (`Provider=Anthropic`, `DefaultModel=claude-haiku-4-5`, `MaxConcurrency=4`). La seule différence runtime est le binding de `IChatClient` via `ChatClientFactory` (`SoClover/Infrastructure/AI/ChatClientFactory.cs`).
+- **Secret Anthropic** : en prod via env var `LLM__APIKEY` (cf. `SoClover/.env`). En dev pour tester Anthropic : `dotnet user-secrets set "Llm:ApiKey" "sk-ant-..." --project SoClover`. Ne **jamais** committer la clé.
+- **LM Studio** : application desktop, expose un serveur OpenAI-compatible sur `http://localhost:1234/v1` (port configurable dans l'UI). L'`ApiKey` n'est pas vérifiée — `"lm-studio"` factice suffit mais doit être non-vide (`LlmOptionsValidator`).
+- **Structured logs** : chaque appel LLM produit 1 log "AI clue LLM call completed" (`LatencyMs`, `Provider`, `Model`, `PromptVersion`, `Attempt`, `RemainingDirections`). Chaque clue validée/rejetée produit 1 log avec `IsValid` + `RejectionRules`. Utiliser ces props pour comparer 2 versions de prompt (`PromptVersion` = champ `version:` du frontmatter de `Infrastructure/AI/Prompts/<lang>/*.md`).
+- **Procédure opérateur complète** : `docs/ai-players/Operations_AI_Players.md`. Résultats de validation : `docs/ai-players/Epic_08_Validation_Results.md`.
+- **Troubleshooting** :
+  - `Connection refused: localhost:1234` → LM Studio pas démarré ou port différent (Settings → Server).
+  - `LlmBudgetExhaustedException` → `Llm.maxCallsPerGame` atteint (défaut 200 dans `appsettings.json`).
+  - `LLM returned invalid JSON` → modèle local trop faible. Tester un autre modèle ou baisser `defaultTemperature` à 0.3.
+  - Anthropic 429 → rate-limit du tier ; baisser `maxConcurrency` à 2 ou monter de tier.
+
 ## Testing
 
 Key test files:
