@@ -167,4 +167,74 @@ Different but timestamp unchanged.
         Assert.Equal("Cached.", second.System.Trim());
         Assert.Same(first.System, second.System);  // identical reference: cache hit
     }
+
+    [Fact]
+    public void Load_parses_version_from_frontmatter()
+    {
+        File.WriteAllText(_tempPath, """
+---
+version: 2
+language: fr
+---
+
+# SYSTEM
+sys.
+
+# USER
+usr.
+
+# RETRY_FEEDBACK
+.
+""");
+        var loader = new FilePromptLoader();
+
+        var sections = loader.Load(_tempPath);
+
+        Assert.Equal(2, sections.Version);
+    }
+
+    [Fact]
+    public void Load_returns_null_version_when_no_frontmatter()
+    {
+        File.WriteAllText(_tempPath, """
+# SYSTEM
+sys.
+
+# USER
+usr.
+
+# RETRY_FEEDBACK
+.
+""");
+        var loader = new FilePromptLoader();
+
+        var sections = loader.Load(_tempPath);
+
+        Assert.Null(sections.Version);
+    }
+
+    [Fact]
+    public void Load_returns_null_version_when_frontmatter_lacks_version_key()
+    {
+        File.WriteAllText(_tempPath, """
+---
+language: fr
+description: no version key
+---
+
+# SYSTEM
+sys.
+
+# USER
+usr.
+
+# RETRY_FEEDBACK
+.
+""");
+        var loader = new FilePromptLoader();
+
+        var sections = loader.Load(_tempPath);
+
+        Assert.Null(sections.Version);
+    }
 }

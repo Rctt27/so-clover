@@ -24,17 +24,29 @@ public sealed class FilePromptLoader
 
     private static ParsedPromptSections Parse(string content)
     {
-        // Skip frontmatter (between leading "---" and the next "---") if present.
         var startIndex = 0;
+        int? version = null;
         var lines = content.Split('\n');
         if (lines.Length > 0 && lines[0].TrimEnd('\r') == "---")
         {
             for (var i = 1; i < lines.Length; i++)
             {
-                if (lines[i].TrimEnd('\r') == "---")
+                var raw = lines[i].TrimEnd('\r');
+                if (raw == "---")
                 {
                     startIndex = i + 1;
                     break;
+                }
+                var colon = raw.IndexOf(':');
+                if (colon > 0)
+                {
+                    var key = raw[..colon].Trim();
+                    if (key.Equals("version", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var value = raw[(colon + 1)..].Trim();
+                        if (int.TryParse(value, out var parsed))
+                            version = parsed;
+                    }
                 }
             }
         }
@@ -64,10 +76,15 @@ public sealed class FilePromptLoader
         return new ParsedPromptSections(
             system.ToString(),
             user.ToString(),
-            retry.ToString());
+            retry.ToString(),
+            version);
     }
 
     private sealed record CacheEntry(DateTime LastWriteTimeUtc, ParsedPromptSections Sections);
 }
 
-public readonly record struct ParsedPromptSections(string System, string User, string RetryFeedback);
+public readonly record struct ParsedPromptSections(
+    string System,
+    string User,
+    string RetryFeedback,
+    int? Version);
