@@ -155,7 +155,9 @@ public static class GenerateAIClues
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"AI auto-submit failed for game {game.Id} player {player.Id}: {ex.Message}");
+                    _logger.LogError(ex,
+                        "AI auto-submit failed: game={GameId} player={PlayerId}",
+                        game.Id.Value, player.Id.Value);
                 }
             }
 
