@@ -6,8 +6,9 @@ namespace SoClover.Infrastructure.AI;
 /// <summary>
 /// Singleton wrapper around a bounded channel of AI clue generation requests.
 /// Produced by StartWritingPhase (one message per AI player), consumed by
-/// AiClueOrchestratorHostedService. Bounded (100) with FullMode=Wait to apply
-/// backpressure rather than dropping messages if the consumer falls behind.
+/// AiClueOrchestratorHostedService. Bounded (100) with FullMode=DropWrite so
+/// StartWritingPhase.Handle() never blocks when the consumer falls behind.
+/// Drops are logged as warnings by the producer.
 /// </summary>
 public sealed class AiClueWorkChannel
 {
@@ -18,7 +19,7 @@ public sealed class AiClueWorkChannel
         _channel = Channel.CreateBounded<AiClueGenerationRequested>(
             new BoundedChannelOptions(capacity: 100)
             {
-                FullMode = BoundedChannelFullMode.Wait,
+                FullMode = BoundedChannelFullMode.DropWrite,
                 SingleReader = true,
                 SingleWriter = false,
             });

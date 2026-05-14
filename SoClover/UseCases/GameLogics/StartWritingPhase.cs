@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using SoClover.Domain;
 using SoClover.Infrastructure.AI;
 using SoClover.RealTime;
@@ -24,8 +26,9 @@ public static class StartWritingPhase
         private readonly IWordsPoolCache _poolCache;
         private readonly IConnectionTracker? _connectionTracker;
         private readonly AiClueWorkChannel? _aiClueChannel;
+        private readonly ILogger<Handler> _logger;
 
-        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings, IWordDictionary wordDictionary, IWordsPoolCache poolCache, IConnectionTracker? connectionTracker = null, AiClueWorkChannel? aiClueChannel = null)
+        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings, IWordDictionary wordDictionary, IWordsPoolCache poolCache, IConnectionTracker? connectionTracker = null, AiClueWorkChannel? aiClueChannel = null, ILogger<Handler>? logger = null)
         {
             _repo = repo;
             _events = events;
@@ -35,6 +38,7 @@ public static class StartWritingPhase
             _poolCache = poolCache;
             _connectionTracker = connectionTracker;
             _aiClueChannel = aiClueChannel;
+            _logger = logger ?? NullLogger<Handler>.Instance;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
@@ -87,8 +91,10 @@ public static class StartWritingPhase
             {
                 foreach (var aiPlayer in game.Players.Where(p => p.IsAI))
                 {
-                    await _aiClueChannel.Writer.WriteAsync(
-                        new AiClueGenerationRequested(game.Id, aiPlayer.Id), ct);
+                    if (!_aiClueChannel.Writer.TryWrite(new AiClueGenerationRequested(game.Id, aiPlayer.Id)))
+                        _logger.LogWarning(
+                            "AI clue channel full — generation request dropped: game={GameId} player={PlayerId}",
+                            game.Id.Value, aiPlayer.Id.Value);
                 }
             }
 
