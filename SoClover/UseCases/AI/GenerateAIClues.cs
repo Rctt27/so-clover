@@ -227,15 +227,27 @@ public static class GenerateAIClues
                 new ChatMessage(ChatRole.User, bundle.UserPrompt),
             };
 
+            ChatOptions? chatOptions = null;
+            if (player.AIConfig is { } cfg)
+            {
+                chatOptions = new ChatOptions
+                {
+                    ModelId = cfg.Model,
+                    Temperature = (float)cfg.Temperature,
+                };
+            }
+
+            var effectiveModel = player.AIConfig?.Model ?? _llmOptions.Value.DefaultModel;
+
             var sw = Stopwatch.StartNew();
-            var response = await _chatClient.GetResponseAsync(messages, options: null, ct)
+            var response = await _chatClient.GetResponseAsync(messages, options: chatOptions, ct)
                 .ConfigureAwait(false);
             sw.Stop();
 
             _logger.LogInformation(
                 "AI clue LLM call completed: game={GameId} player={PlayerId} attempt={Attempt} latencyMs={LatencyMs} provider={LlmProvider} model={LlmModel} promptVersion={PromptVersion} remainingDirections={RemainingDirections}",
                 game.Id.Value, player.Id.Value, attempt, sw.ElapsedMilliseconds,
-                _llmOptions.Value.Provider, _llmOptions.Value.DefaultModel, bundle.PromptVersion,
+                _llmOptions.Value.Provider, effectiveModel, bundle.PromptVersion,
                 string.Join(",", remaining));
 
             var text = response.Text
