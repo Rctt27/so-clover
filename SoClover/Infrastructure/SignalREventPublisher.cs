@@ -205,6 +205,18 @@ public sealed class SignalREventPublisher : IEventPublisher
                         }, ct);
                     break;
                 }
+                case SoClover.UseCases.AI.AiPlayerBoardFailed boardFail:
+                {
+                    var failedPlayer = state.Players.FirstOrDefault(p => p.PlayerId == boardFail.PlayerId.Value);
+                    var playerName = failedPlayer?.Name ?? "Un joueur IA";
+                    await _hub.Clients.Group($"game-{state.GameId}")
+                        .SendAsync("ServerNotification", new
+                        {
+                            type = "warning",
+                            message = $"<strong>{playerName}</strong> n'a pas pu générer ses indices et ne soumettra pas son plateau"
+                        }, ct);
+                    break;
+                }
             }
         }
         catch (GameNotFoundException)
