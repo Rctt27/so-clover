@@ -14,6 +14,9 @@ export interface OutsideCardPoolProps {
   dragHandlers?: (slotId: string, cardId: string) => { onPointerDown: (e: React.PointerEvent) => void }
   /** Card id currently being dragged (to hide it in source slot) */
   dragSourceCardId?: string | null
+  /** Source slot id of the current/last drag (paired with dragSourceCardId).
+   *  Évite de masquer la carte au slot d'arrivée après que SignalR l'y a déplacée. */
+  dragSourceSlot?: string | null
 }
 
 interface PoolSlotProps {
@@ -49,6 +52,7 @@ export const OutsideCardPool = ({
   highlightedSlot,
   dragHandlers,
   dragSourceCardId,
+  dragSourceSlot,
 }: OutsideCardPoolProps) => {
   const { selectedCardId, setSelectedCardId, isValidationPending } = useGuessingStore()
 
@@ -71,7 +75,7 @@ export const OutsideCardPool = ({
                 isLocked={disabled || isValidationPending}
                 isSelected={selectedCardId === `outside-${card.cardId}`}
                 isDisplaced={isDisplaced}
-                isDragSource={dragSourceCardId === card.cardId}
+                isDragSource={dragSourceCardId === card.cardId && dragSourceSlot === slotId}
                 onClick={() => !disabled && !isValidationPending && setSelectedCardId(selectedCardId === `outside-${card.cardId}` ? null : `outside-${card.cardId}`)}
                 onPointerDown={
                   dragHandlers && !disabled && !isValidationPending

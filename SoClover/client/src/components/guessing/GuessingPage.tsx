@@ -230,6 +230,7 @@ export const GuessingPage = () => {
             highlightedSlot={poolHighlightedSlot}
             dragHandlers={isMyBoard || isValidationPending || canMoveToNext ? undefined : createDragHandlers}
             dragSourceCardId={dragState.draggedCardId}
+            dragSourceSlot={dragState.sourceSlot}
           />
         </div>
 
@@ -275,6 +276,7 @@ export const GuessingPage = () => {
             highlightedSlot={poolHighlightedSlot}
             dragHandlers={isMyBoard || isValidationPending || canMoveToNext ? undefined : createDragHandlers}
             dragSourceCardId={dragState.draggedCardId}
+            dragSourceSlot={dragState.sourceSlot}
           />
         </div>
       </div>

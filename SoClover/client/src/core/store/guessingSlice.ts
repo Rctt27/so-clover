@@ -17,9 +17,18 @@ export interface GuessingSlice {
   lastAppliedRotationRevision: number
   isValidationPending: boolean
   validationResults: { correctPositions: string[], incorrectPositions: string[] } | null
+  /**
+   * True pendant un drag local (déplacement OU rotation) et durant la fenêtre
+   * post-drop (≈500 ms) le temps que le SignalR roundtrip se propage. Sert à
+   * supprimer les animations de transition de cartes sur le UI de l'initiateur,
+   * puisqu'il a déjà vu le mouvement via le drag. Les autres clients ne
+   * touchent jamais à ce flag, donc ils continuent à animer normalement.
+   */
+  isLocalDragInProgress: boolean
 
   // Actions
   setGuessingState: (state: Partial<GuessingSlice>) => void
+  setLocalDragActive: (active: boolean) => void
   setCumulativeBoardRotation: (rotation: number) => void
   /**
    * Apply a server rotation only if its revision is strictly greater than what we already applied.
@@ -51,6 +60,7 @@ export const createGuessingSlice: StateCreator<GuessingSlice, [["zustand/devtool
   lastAppliedRotationRevision: 0,
   isValidationPending: false,
   validationResults: null,
+  isLocalDragInProgress: false,
 
   setGuessingState: (state) => set((prev) => {
     // Protection supplémentaire : toujours préserver cumulativeBoardRotation
@@ -76,6 +86,7 @@ export const createGuessingSlice: StateCreator<GuessingSlice, [["zustand/devtool
     }, false, 'GuessingStore/applyServerRotation')
     return applied
   },
+  setLocalDragActive: (active) => set({ isLocalDragInProgress: active }, false, 'GuessingStore/setLocalDragActive'),
   setIsValidationPending: (pending) => set({ isValidationPending: pending }, false, 'GuessingStore/setIsValidationPending'),
   setValidationResults: (results) => set({ validationResults: results }, false, 'GuessingStore/setValidationResults'),
   setSelectedCardId: (id) => set({ selectedCardId: id }, false, 'GuessingStore/setSelectedCardId'),
@@ -97,5 +108,6 @@ export const createGuessingSlice: StateCreator<GuessingSlice, [["zustand/devtool
     lastAppliedRotationRevision: 0,
     isValidationPending: false,
     validationResults: null,
+    isLocalDragInProgress: false,
   }, false, 'GuessingStore/resetGuessingState'),
 })

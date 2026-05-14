@@ -1,5 +1,10 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { LOGICAL_SLOTS } from '../core/utils'
+import { useGuessingStore } from '../core/store'
+
+/** Fenêtre post-drop pendant laquelle on continue à supprimer les animations
+ *  locales — couvre le SignalR roundtrip + le re-render qui suit. */
+const LOCAL_DRAG_SUPPRESSION_TTL_MS = 500
 
 // ─── Public types ────────────────────────────────────────────────────────────
 
@@ -165,6 +170,7 @@ export function useCardDrag(options: UseCardDragOptions): {
   const boardRotationRef = useRef(boardRotationDeg)
   const onDragEndRef = useRef(onDragEnd)
   const listenersRef = useRef<{ move: (e: PointerEvent) => void; up: (e: PointerEvent) => void } | null>(null)
+  const suppressionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Keep refs in sync with latest props without needing them in useCallback deps
   useEffect(() => {
@@ -188,6 +194,11 @@ export function useCardDrag(options: UseCardDragOptions): {
         document.documentElement.style.overflow = ''
         document.body.style.overflow = ''
       }
+      if (suppressionTimerRef.current !== null) {
+        clearTimeout(suppressionTimerRef.current)
+        suppressionTimerRef.current = null
+      }
+      useGuessingStore.getState().setLocalDragActive(false)
     }
   }, [])
 
@@ -208,6 +219,14 @@ export function useCardDrag(options: UseCardDragOptions): {
       // Threshold crossed — begin drag
       activatedRef.current = true
       draggingRef.current = true
+
+      // Annule un éventuel reset de fin-de-drag précédent et signale au store
+      // que l'utilisateur initie une action drag locale.
+      if (suppressionTimerRef.current !== null) {
+        clearTimeout(suppressionTimerRef.current)
+        suppressionTimerRef.current = null
+      }
+      useGuessingStore.getState().setLocalDragActive(true)
 
       document.documentElement.style.overflow = 'hidden'
       document.body.style.overflow = 'hidden'
@@ -254,6 +273,7 @@ export function useCardDrag(options: UseCardDragOptions): {
 
     const wasActivated = activatedRef.current
     const source = sourceSlotRef.current
+    const cardIdSnapshot = cardIdRef.current
 
     // Reset all refs
     draggingRef.current = false
@@ -263,6 +283,11 @@ export function useCardDrag(options: UseCardDragOptions): {
     cardIdRef.current = null
 
     if (wasActivated && source) {
+      // Snapshot of the cardId BEFORE refs were nulled out above.
+      // Conservé pour que le couple (sourceSlot, draggedCardId) reste matchable
+      // dans le slot d'origine pendant la fenêtre de suppression.
+      const draggedCardId = cardIdSnapshot
+
       // Determine target at release point
       const target = findTargetAtPoint(
         e.clientX,
@@ -271,14 +296,41 @@ export function useCardDrag(options: UseCardDragOptions): {
         boardRotationRef.current
       )
 
-      setDragState(INITIAL_DRAG_STATE)
+      // On NE reset PAS complètement le dragState : on conserve draggedCardId et
+      // sourceSlot pour que `isDragSource` (qui exige slot+cardId match côté
+      // Board/Pool) garde la carte cachée dans son slot d'origine jusqu'à ce que
+      // SignalR ait propagé l'update (le slot d'origine perdra alors la carte et
+      // le match s'évalue à false naturellement).
+      // isDragging passe à false → l'overlay flottant se démonte normalement.
+      setDragState({
+        isDragging: false,
+        draggedCardId,
+        sourceSlot: source,
+        targetSlot: null,
+        dragPosition: { x: 0, y: 0 },
+      })
 
       if (target && target !== source) {
         onDragEndRef.current(source, target)
       }
+
+      // Maintient la suppression des animations + masquage du slot d'origine le
+      // temps que le state serveur se propage. Au-delà, on libère et on reset
+      // complètement le dragState.
+      if (suppressionTimerRef.current !== null) {
+        clearTimeout(suppressionTimerRef.current)
+      }
+      suppressionTimerRef.current = setTimeout(() => {
+        useGuessingStore.getState().setLocalDragActive(false)
+        setDragState(INITIAL_DRAG_STATE)
+        suppressionTimerRef.current = null
+      }, LOCAL_DRAG_SUPPRESSION_TTL_MS)
     } else {
       // Threshold never reached — treat as click, just reset
       setDragState(INITIAL_DRAG_STATE)
+      // Aucun drag réel n'a eu lieu : libère immédiatement le flag s'il
+      // avait été (improbablement) set.
+      useGuessingStore.getState().setLocalDragActive(false)
     }
   }, [boardRef])
 
@@ -292,6 +344,13 @@ export function useCardDrag(options: UseCardDragOptions): {
         if (draggingRef.current) return  // already dragging
 
         e.preventDefault()
+
+        // Annule le reset différé d'un drag précédent : sinon il pourrait nuker
+        // le state du nouveau drag pendant son déroulé.
+        if (suppressionTimerRef.current !== null) {
+          clearTimeout(suppressionTimerRef.current)
+          suppressionTimerRef.current = null
+        }
 
         pointerIdRef.current = e.pointerId
         sourceSlotRef.current = slotId

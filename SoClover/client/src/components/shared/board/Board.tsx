@@ -34,6 +34,10 @@ export interface BoardProps {
   dragHandlers?: (slotId: string, cardId: string) => { onPointerDown: (e: React.PointerEvent) => void };
   /** Card id currently being dragged (to hide it in source slot) */
   dragSourceCardId?: string | null;
+  /** Source slot id of the current/last drag (paired with dragSourceCardId).
+   *  Une carte n'est considérée "source" que si SON slot ET SON cardId matchent —
+   *  cela évite de cacher la carte au slot d'arrivée après que SignalR l'y a déplacée. */
+  dragSourceSlot?: string | null;
   /** Slot currently hovered during drag (to show target visual on card) */
   dragTargetSlot?: string | null;
 }
@@ -55,6 +59,7 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
   highlightedSlot,
   dragHandlers,
   dragSourceCardId,
+  dragSourceSlot,
   dragTargetSlot,
 }, ref) => {
   // Dimensions de référence du canvas CloverBoard (centralisées dans CONSTANTS.ASSET_REFERENCES)
@@ -224,7 +229,7 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
                       isLocked={isSlotLocked}
                       isCorrect={correctPositions.includes(logicalPosName)}
                       isDisplaced={isDisplaced}
-                      isDragSource={dragSourceCardId === guessedCard.cardId}
+                      isDragSource={dragSourceCardId === guessedCard.cardId && dragSourceSlot === logicalPosName}
                       isDragTarget={dragTargetSlot === logicalPosName}
                       onPointerDown={
                         dragHandlers

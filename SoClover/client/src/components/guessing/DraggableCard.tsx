@@ -56,6 +56,8 @@ const DraggableCardImpl = ({
   const { gameId, playerId, role } = useGameStore()
   const { cumulativeBoardRotation, isValidationPending } = useGuessingStore()
   const validationResults = useGuessingStore((s) => s.validationResults)
+  const isLocalDragInProgress = useGuessingStore((s) => s.isLocalDragInProgress)
+  const setLocalDragActive = useGuessingStore((s) => s.setLocalDragActive)
 
   // Position logique de la carte sur le board (undefined pour les cartes du pool)
   const boardPosition: string | undefined = !isOutside ? LOGICAL_SLOTS[index] : undefined
@@ -118,6 +120,17 @@ const DraggableCardImpl = ({
   const startAngleRef = useRef(0)
   const rotationDirectionRef = useRef<'left' | 'right'>('right')
   const offsetCardIdRef = useRef<string | null>(null)
+  const rotationSuppressionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Nettoyage du timer de suppression si la carte est démontée mid-drag
+  useEffect(() => {
+    return () => {
+      if (rotationSuppressionTimerRef.current !== null) {
+        clearTimeout(rotationSuppressionTimerRef.current)
+        rotationSuppressionTimerRef.current = null
+      }
+    }
+  }, [])
 
   const handleRotationStart = useCallback((e: React.PointerEvent, direction: 'left' | 'right') => {
     if (!canInteract || !cardRef.current) return
@@ -127,6 +140,14 @@ const DraggableCardImpl = ({
     rotationDirectionRef.current = direction
     e.currentTarget.setPointerCapture(e.pointerId)
 
+    // Le joueur initie un drag de rotation : supprime les animations locales
+    // (cohérent avec un drag de déplacement). Annule un éventuel reset en attente.
+    if (rotationSuppressionTimerRef.current !== null) {
+      clearTimeout(rotationSuppressionTimerRef.current)
+      rotationSuppressionTimerRef.current = null
+    }
+    setLocalDragActive(true)
+
     setIsRotating(true)
     const rect = cardRef.current.getBoundingClientRect()
     const centerX = rect.left + rect.width / 2
@@ -134,7 +155,7 @@ const DraggableCardImpl = ({
 
     const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI)
     startAngleRef.current = angle
-  }, [canInteract])
+  }, [canInteract, setLocalDragActive])
 
   useEffect(() => {
     if (!isRotating) return
@@ -166,6 +187,16 @@ const DraggableCardImpl = ({
       const steps = Math.round(rotationVisualOffset / 90)
 
       setIsRotating(false)
+
+      // Maintient le flag de suppression durant le roundtrip serveur, puis libère
+      // pour rétablir les animations sur les events SignalR ultérieurs.
+      if (rotationSuppressionTimerRef.current !== null) {
+        clearTimeout(rotationSuppressionTimerRef.current)
+      }
+      rotationSuppressionTimerRef.current = setTimeout(() => {
+        setLocalDragActive(false)
+        rotationSuppressionTimerRef.current = null
+      }, 500)
 
       if (!gameId || !playerId) {
         setRotationVisualOffset(0)
@@ -203,7 +234,7 @@ const DraggableCardImpl = ({
       window.removeEventListener('pointermove', handlePointerMove)
       window.removeEventListener('pointerup', handlePointerUp)
     }
-  }, [isRotating, rotationVisualOffset, gameId, playerId, isOutside, index])
+  }, [isRotating, rotationVisualOffset, gameId, playerId, isOutside, index, setLocalDragActive])
 
   // La compensation de rotation pour que la carte reste droite face au joueur pendant le drag
   // Si dragRotationOverride est fourni (ex: overlay), on l'utilise directement.
@@ -213,10 +244,13 @@ const DraggableCardImpl = ({
     ? dragRotationOverride
     : (isDragSource ? (isOutside ? 0 : -cumulativeBoardRotation) : 0);
 
-  // Désactiver l'animation de layout pour les actions locales (isDisplaced = transition en cours)
-  // Cela évite l'animation de "vol" de la carte pour le joueur qui fait l'action
-  // Les autres joueurs verront toujours l'animation via SignalR car leur isDisplaced sera false
-  const shouldAnimateLayout = !isDisplaced && !isDragSource && !isDragOverlay;
+  // Désactiver l'animation de layout pour les actions locales :
+  // - `isDisplaced` / `isDragSource` / `isDragOverlay` : suppressions ciblées (existant)
+  // - `isLocalDragInProgress` : couvre toute la fenêtre d'un drag local (déplacement
+  //   ou rotation) + ~500 ms post-drop. L'initiateur a déjà vu le mouvement via le
+  //   drag, donc on supprime l'animation déclenchée par le re-render SignalR.
+  //   Les autres joueurs n'ont jamais ce flag set → animation conservée pour eux.
+  const shouldAnimateLayout = !isDisplaced && !isDragSource && !isDragOverlay && !isLocalDragInProgress;
 
   return (
     <motion.div

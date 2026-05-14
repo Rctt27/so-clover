@@ -71,6 +71,7 @@ export const GuessingBoardSection = React.memo(({
         highlightedSlot={boardHighlightedSlot}
         dragHandlers={isDraggingDisabled ? undefined : createDragHandlers}
         dragSourceCardId={dragState.draggedCardId}
+        dragSourceSlot={dragState.sourceSlot}
         dragTargetSlot={dragState.targetSlot}
       />
 
