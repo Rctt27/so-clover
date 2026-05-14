@@ -17,3 +17,8 @@ public readonly record struct AiClueGenerationFailed(
     Direction Direction,
     string Reason,
     IReadOnlyList<string> AttemptedClues);
+
+public readonly record struct AiPlayerBoardFailed(
+    GameId GameId,
+    PlayerId PlayerId,
+    string Reason);

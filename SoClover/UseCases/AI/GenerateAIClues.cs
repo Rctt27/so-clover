@@ -90,47 +90,74 @@ public static class GenerateAIClues
             var maxAttempts = _llmOptions.Value.MaxRetries + 1;
             var llmCalls = 0;
 
-            for (var attempt = 0; attempt < maxAttempts && remaining.Count > 0; attempt++)
+            try
             {
-                _budget.TryConsume(game.Id);
-                llmCalls++;
-
-                var (draft, promptVersion) = await CallLlmAsync(
-                    game, player, remaining, rejectedHistory, promptProvider, attempt, ct);
-
-                foreach (var item in draft.Clues)
+                for (var attempt = 0; attempt < maxAttempts && remaining.Count > 0; attempt++)
                 {
-                    if (!Enum.TryParse<Direction>(item.Direction, ignoreCase: true, out var dir))
-                        continue;
-                    if (!remaining.Contains(dir))
-                        continue;
+                    _budget.TryConsume(game.Id);
+                    llmCalls++;
 
-                    var result = game.SetClue(player.Id, dir, item.ClueWord, validator);
-                    if (result.IsValid)
+                    var (draft, promptVersion) = await CallLlmAsync(
+                        game, player, remaining, rejectedHistory, promptProvider, attempt, ct);
+
+                    foreach (var item in draft.Clues)
                     {
-                        _explanationStore.Save(game.Id, player.Id, dir, item.Explanation);
-                        await _repo.Save(game, ct);
-                        await _events.Publish(
-                            new AiClueGenerated(game.Id, player.Id, dir, item.ClueWord, item.Explanation),
-                            ct);
-                        remaining.Remove(dir);
+                        if (!Enum.TryParse<Direction>(item.Direction, ignoreCase: true, out var dir))
+                            continue;
+                        if (!remaining.Contains(dir))
+                            continue;
 
-                        _logger.LogInformation(
-                            "AI clue validated: game={GameId} player={PlayerId} direction={Direction} clueText={ClueText} isValid={IsValid} promptVersion={PromptVersion} provider={LlmProvider} model={LlmModel}",
-                            game.Id.Value, player.Id.Value, dir, item.ClueWord, true,
-                            promptVersion, _llmOptions.Value.Provider, _llmOptions.Value.DefaultModel);
-                    }
-                    else
-                    {
-                        AppendRejection(rejectedHistory, dir, item.ClueWord, result);
+                        var result = game.SetClue(player.Id, dir, item.ClueWord, validator);
+                        if (result.IsValid)
+                        {
+                            _explanationStore.Save(game.Id, player.Id, dir, item.Explanation);
+                            await _repo.Save(game, ct);
+                            await _events.Publish(
+                                new AiClueGenerated(game.Id, player.Id, dir, item.ClueWord, item.Explanation),
+                                ct);
+                            remaining.Remove(dir);
 
-                        var rules = string.Join(",", result.Errors.Select(e => e.Rule.ToString()));
-                        _logger.LogInformation(
-                            "AI clue rejected: game={GameId} player={PlayerId} direction={Direction} clueText={ClueText} isValid={IsValid} rejectionRules={RejectionRules} promptVersion={PromptVersion} provider={LlmProvider} model={LlmModel}",
-                            game.Id.Value, player.Id.Value, dir, item.ClueWord, false,
-                            rules, promptVersion, _llmOptions.Value.Provider, _llmOptions.Value.DefaultModel);
+                            _logger.LogInformation(
+                                "AI clue validated: game={GameId} player={PlayerId} direction={Direction} clueText={ClueText} isValid={IsValid} promptVersion={PromptVersion} provider={LlmProvider} model={LlmModel}",
+                                game.Id.Value, player.Id.Value, dir, item.ClueWord, true,
+                                promptVersion, _llmOptions.Value.Provider, _llmOptions.Value.DefaultModel);
+                        }
+                        else
+                        {
+                            AppendRejection(rejectedHistory, dir, item.ClueWord, result);
+
+                            var rules = string.Join(",", result.Errors.Select(e => e.Rule.ToString()));
+                            _logger.LogInformation(
+                                "AI clue rejected: game={GameId} player={PlayerId} direction={Direction} clueText={ClueText} isValid={IsValid} rejectionRules={RejectionRules} promptVersion={PromptVersion} provider={LlmProvider} model={LlmModel}",
+                                game.Id.Value, player.Id.Value, dir, item.ClueWord, false,
+                                rules, promptVersion, _llmOptions.Value.Provider, _llmOptions.Value.DefaultModel);
+                        }
                     }
                 }
+            }
+            catch (LlmBudgetExhaustedException)
+            {
+                _logger.LogWarning(
+                    "AI clue generation stopped: LLM budget exhausted for game={GameId} player={PlayerId}",
+                    game.Id.Value, player.Id.Value);
+
+                foreach (var dir in remaining)
+                {
+                    await _events.Publish(
+                        new AiClueGenerationFailed(
+                            game.Id, player.Id, dir,
+                            Reason: "LLM budget exhausted.",
+                            AttemptedClues: Array.Empty<string>()),
+                        ct);
+                }
+                await _events.Publish(
+                    new AiPlayerBoardFailed(game.Id, player.Id, "LLM budget exhausted."), ct);
+
+                var budgetFailed = remaining.Count;
+                return new Response(
+                    SucceededCount: 4 - budgetFailed,
+                    FailedCount: budgetFailed,
+                    LlmCallsConsumed: llmCalls);
             }
 
             foreach (var dir in remaining)
@@ -143,6 +170,15 @@ public static class GenerateAIClues
                         game.Id, player.Id, dir,
                         Reason: "Max retries exhausted with no valid clue.",
                         AttemptedClues: attempted),
+                    ct);
+            }
+
+            if (remaining.Count > 0)
+            {
+                await _events.Publish(
+                    new AiPlayerBoardFailed(
+                        game.Id, player.Id,
+                        $"{remaining.Count} direction(s) could not be generated after {maxAttempts} attempt(s)."),
                     ct);
             }
 
