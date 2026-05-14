@@ -119,6 +119,19 @@ export const gameApi = {
     return {};
   },
 
+  addAIPlayer: async (gameId: string, adminPlayerId: string, playerName: string): Promise<{ playerId: string }> => {
+    const response = await fetch(`/api/games/${gameId}/ai-players`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminPlayerId, playerName }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to add AI player');
+    }
+    return response.json();
+  },
+
   cancelGame: async (gameId: string): Promise<void> => {
     const response = await fetch(`/api/games/${gameId}`, {
       method: 'DELETE',

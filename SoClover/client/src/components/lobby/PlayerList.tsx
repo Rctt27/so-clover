@@ -4,8 +4,25 @@ import { useGameStore } from '../../core/store';
 import { gameApi } from '../../api/game-api';
 
 export const PlayerList: React.FC = () => {
-  const { players, playerId, isGameAdmin, gameId } = useGameStore();
+  const { players, playerId, isGameAdmin, adminPlayerId, gameId } = useGameStore();
   const [kickingPlayerId, setKickingPlayerId] = useState<string | null>(null);
+  const [addingAI, setAddingAI] = useState(false);
+  const [addAIError, setAddAIError] = useState<string | null>(null);
+
+  const aiPlayers = players.filter(p => p.isAI);
+  const aiPlayerCount = aiPlayers.length;
+
+  const nextAIPlayerName = (): string => {
+    const usedNumbers = new Set(
+      aiPlayers.map(p => {
+        const match = p.name.match(/^AI Player (\d+)$/);
+        return match ? parseInt(match[1], 10) : null;
+      }).filter((n): n is number => n !== null)
+    );
+    let n = 1;
+    while (usedNumbers.has(n)) n++;
+    return `AI Player ${n}`;
+  };
 
   const handleKick = async (targetPlayerId: string, targetName: string) => {
     if (!gameId || !playerId) return;
@@ -23,6 +40,19 @@ export const PlayerList: React.FC = () => {
     }
   };
 
+  const handleAddAIPlayer = async () => {
+    if (!gameId || !playerId) return;
+    setAddingAI(true);
+    setAddAIError(null);
+    try {
+      await gameApi.addAIPlayer(gameId, playerId, nextAIPlayerName());
+    } catch (err) {
+      setAddAIError(err instanceof Error ? err.message : 'Erreur lors de l\'ajout');
+    } finally {
+      setAddingAI(false);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
@@ -32,9 +62,9 @@ export const PlayerList: React.FC = () => {
         </span>
       </div>
       <div className="divide-y divide-slate-100">
-        {players.map((player, index) => {
+        {players.map((player) => {
           const isMe = player.playerId === playerId;
-          const isCreator = index === 0;
+          const isAdmin = player.playerId === adminPlayerId;
           const canKick = isGameAdmin && !isMe;
 
           return (
@@ -47,7 +77,12 @@ export const PlayerList: React.FC = () => {
                   {player.name} {isMe && <span className="text-slate-400 font-normal text-xs ml-1">(Vous)</span>}
                 </p>
               </div>
-              {isCreator && (
+              {player.isAI && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-800">
+                  IA
+                </span>
+              )}
+              {isAdmin && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
                   Createur
                 </span>
@@ -66,6 +101,20 @@ export const PlayerList: React.FC = () => {
           );
         })}
       </div>
+      {isGameAdmin && aiPlayerCount < 4 && (
+        <div className="px-4 py-2 border-t border-slate-100">
+          {addAIError && (
+            <p className="text-xs text-red-500 mb-1">{addAIError}</p>
+          )}
+          <button
+            onClick={handleAddAIPlayer}
+            disabled={addingAI}
+            className="w-full text-sm font-medium text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded-lg py-1.5 transition-colors disabled:opacity-50"
+          >
+            {addingAI ? 'Ajout en cours...' : '+ Ajouter un joueur IA'}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

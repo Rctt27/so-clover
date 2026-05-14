@@ -21,6 +21,7 @@ export interface GameStateResponse {
 export interface PlayerStateResponse {
   playerId: string;
   name: string;
+  isAI: boolean;
   cursorColorIndex: number;
   board: BoardStateResponse;
 }

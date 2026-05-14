@@ -13,8 +13,9 @@ interface GameState {
   phase: GamePhase
   role: Role
   isGameAdmin: boolean
+  adminPlayerId: string | null
   connectionStatus: ConnectionStatus
-  players: Array<{ playerId: string, name: string, cursorColorIndex: number }>
+  players: Array<{ playerId: string, name: string, cursorColorIndex: number, isAI: boolean }>
   isInitializing: boolean
   phaseEndsAtUtc: string | null
   settings: {
@@ -26,11 +27,12 @@ interface GameState {
   setPhase: (phase: GamePhase) => void
   setRole: (role: Role) => void
   setIsGameAdmin: (isAdmin: boolean) => void
+  setAdminPlayerId: (adminPlayerId: string | null) => void
   setGameId: (gameId: string | null) => void
   setPlayerId: (playerId: string | null) => void
   setPlayerName: (playerName: string | null) => void
   setConnectionStatus: (status: ConnectionStatus) => void
-  setPlayers: (players: Array<{ playerId: string, name: string, cursorColorIndex: number }>) => void
+  setPlayers: (players: Array<{ playerId: string, name: string, cursorColorIndex: number, isAI: boolean }>) => void
   setPhaseEndsAtUtc: (deadline: string | null) => void
   setSettings: (settings: { language: string, cluesDurationSeconds: number, guessDurationSeconds: number, semanticClueCheckEnabled: boolean }) => void
   setIsInitializing: (isInitializing: boolean) => void
@@ -44,6 +46,7 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
   phase: 'Initial',
   role: 'PlayerWritingClue',
   isGameAdmin: false,
+  adminPlayerId: null,
   isInitializing: false,
   connectionStatus: 'Disconnected',
   players: [],
@@ -57,6 +60,7 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
   setPhase: (phase) => set({ phase }, false, 'GameStore/setPhase'),
   setRole: (role) => set({ role }, false, 'GameStore/setRole'),
   setIsGameAdmin: (isGameAdmin) => set({ isGameAdmin }, false, 'GameStore/setIsGameAdmin'),
+  setAdminPlayerId: (adminPlayerId) => set({ adminPlayerId }, false, 'GameStore/setAdminPlayerId'),
   setGameId: (gameId) => set({ gameId }, false, 'GameStore/setGameId'),
   setPlayerId: (playerId) => set({ playerId }, false, 'GameStore/setPlayerId'),
   setPlayerName: (playerName) => set({ playerName }, false, 'GameStore/setPlayerName'),
@@ -71,6 +75,7 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
     gameId: null,
     role: 'PlayerWritingClue',
     isGameAdmin: false,
+    adminPlayerId: null,
     players: [],
     phase: 'Initial',
     phaseEndsAtUtc: null,
