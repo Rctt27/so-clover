@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using SoClover.Domain;
 using SoClover.Infrastructure;
+using SoClover.Infrastructure.AI.Prompts;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
 
@@ -24,12 +25,18 @@ public static class CreateAIPlayer
         private readonly IGameRepository _repo;
         private readonly IEventPublisher _events;
         private readonly IOptions<GameDefaultsOptions> _options;
+        private readonly IAiCluePromptProviderFactory? _promptProviderFactory;
 
-        public Handler(IGameRepository repo, IEventPublisher events, IOptions<GameDefaultsOptions> options)
+        public Handler(
+            IGameRepository repo,
+            IEventPublisher events,
+            IOptions<GameDefaultsOptions> options,
+            IAiCluePromptProviderFactory? promptProviderFactory = null)
         {
             _repo = repo;
             _events = events;
             _options = options;
+            _promptProviderFactory = promptProviderFactory;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
@@ -39,6 +46,9 @@ public static class CreateAIPlayer
 
             if (game.AdminPlayerId != request.AdminPlayerId)
                 throw new UnauthorizedAccessException("Only the admin can create AI players.");
+
+            if (_promptProviderFactory is not null && !_promptProviderFactory.IsLanguageSupported(game.Language))
+                throw new UnsupportedAiLanguageException(game.Language);
 
             AIConfig? aiConfig = null;
             if (request.Model is not null && request.Temperature.HasValue)

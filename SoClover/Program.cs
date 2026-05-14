@@ -362,6 +362,10 @@ app.MapPost("/api/games/{gameId:guid}/ai-players", async (
     {
         return Results.BadRequest(new { message = ex.Message });
     }
+    catch (UnsupportedAiLanguageException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
     catch (PlayerNameEmptyException ex)
     {
         return Results.BadRequest(new { message = ex.Message });
