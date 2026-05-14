@@ -18,6 +18,7 @@ interface GameState {
   players: Array<{ playerId: string, name: string, cursorColorIndex: number, isAI: boolean }>
   isInitializing: boolean
   phaseEndsAtUtc: string | null
+  aiGeneratingPlayerIds: string[]
   settings: {
     language: string
     cluesDurationSeconds: number
@@ -25,6 +26,8 @@ interface GameState {
     semanticClueCheckEnabled: boolean
   }
   setPhase: (phase: GamePhase) => void
+  markAiGenerating: (playerId: string) => void
+  clearAiGenerating: (playerId: string) => void
   setRole: (role: Role) => void
   setIsGameAdmin: (isAdmin: boolean) => void
   setAdminPlayerId: (adminPlayerId: string | null) => void
@@ -51,13 +54,29 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
   connectionStatus: 'Disconnected',
   players: [],
   phaseEndsAtUtc: null,
+  aiGeneratingPlayerIds: [],
   settings: {
     language: 'Français_OFF',
     cluesDurationSeconds: 300,
     guessDurationSeconds: 300,
     semanticClueCheckEnabled: true,
   },
-  setPhase: (phase) => set({ phase }, false, 'GameStore/setPhase'),
+  setPhase: (phase) => set(
+    (state) => ({ phase, aiGeneratingPlayerIds: phase === 'WritingClues' ? state.aiGeneratingPlayerIds : [] }),
+    false, 'GameStore/setPhase'
+  ),
+  markAiGenerating: (playerId) => set(
+    (state) => ({
+      aiGeneratingPlayerIds: state.aiGeneratingPlayerIds.includes(playerId)
+        ? state.aiGeneratingPlayerIds
+        : [...state.aiGeneratingPlayerIds, playerId]
+    }),
+    false, 'GameStore/markAiGenerating'
+  ),
+  clearAiGenerating: (playerId) => set(
+    (state) => ({ aiGeneratingPlayerIds: state.aiGeneratingPlayerIds.filter(id => id !== playerId) }),
+    false, 'GameStore/clearAiGenerating'
+  ),
   setRole: (role) => set({ role }, false, 'GameStore/setRole'),
   setIsGameAdmin: (isGameAdmin) => set({ isGameAdmin }, false, 'GameStore/setIsGameAdmin'),
   setAdminPlayerId: (adminPlayerId) => set({ adminPlayerId }, false, 'GameStore/setAdminPlayerId'),

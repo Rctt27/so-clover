@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { signalRClient } from '../api/signalr-client';
-import { useGameStore, useGuessingStore } from '../core/store';
+import { useGameStore, useGuessingStore, useBoardStore } from '../core/store';
 import { HubConnectionState } from '@microsoft/signalr';
 import { gameApi } from '../api/game-api';
 import { useNotifications } from './useNotifications';
@@ -22,6 +22,7 @@ export const useSignalR = () => {
   const phaseRef = useRef(phase);
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 
+  const markAiGenerating = useGameStore(s => s.markAiGenerating);
   const setCumulativeBoardRotation = useGuessingStore(s => s.setCumulativeBoardRotation);
   const { notifyInfo, notifyWarning } = useNotifications();
   const { updateStateFromResponse } = useGameStateUpdate();
@@ -40,12 +41,22 @@ export const useSignalR = () => {
       }
 
       updateStateFromResponse(state);
+      clearSubmittedAiGenerating();
     } catch (err) {
       console.error('[useSignalR] Failed to refresh game state', err);
     } finally {
       setIsInitializing(false);
     }
   }, [gameId, playerId, updateStateFromResponse, setIsInitializing]);
+
+  const clearSubmittedAiGenerating = useCallback(() => {
+    const { aiGeneratingPlayerIds, clearAiGenerating } = useGameStore.getState();
+    if (aiGeneratingPlayerIds.length === 0) return;
+    const boards = useBoardStore.getState().otherBoards;
+    aiGeneratingPlayerIds.forEach(pid => {
+      if (boards[pid]?.isSubmitted) clearAiGenerating(pid);
+    });
+  }, []);
 
   useEffect(() => {
     debugLog('useSignalR', `useEffect setup (phase="${phase}", gameId="${gameId}")`);
@@ -79,6 +90,7 @@ export const useSignalR = () => {
       if (data && data.gameState) {
         debugLog('useSignalR', `→ utilise gameState embarqué (phase="${data.gameState.phase}")`);
         updateStateFromResponse(data.gameState);
+        clearSubmittedAiGenerating();
         return;
       }
 
@@ -165,6 +177,10 @@ export const useSignalR = () => {
       // Handled by GameStateUpdated
     };
 
+    const handleAiClueGenerationRequested = (data: any) => {
+      if (data?.playerId) markAiGenerating(data.playerId);
+    };
+
     signalRClient.on('GameStateUpdated', handleStateUpdated);
     signalRClient.on('ServerNotification', handleServerNotification);
     signalRClient.on('PlayerJoined', handlePlayerJoined);
@@ -172,6 +188,7 @@ export const useSignalR = () => {
     signalRClient.on('PlayerKicked', handlePlayerKicked);
     signalRClient.on('BoardRotationUpdated', handleBoardRotationUpdated);
     signalRClient.on('GuessingBoardValidated', handleGuessingBoardValidated);
+    signalRClient.on('AiClueGenerationRequested', handleAiClueGenerationRequested);
 
     const connection = signalRClient.getConnection();
 
@@ -200,9 +217,10 @@ export const useSignalR = () => {
       signalRClient.off('PlayerKicked', handlePlayerKicked);
       signalRClient.off('BoardRotationUpdated', handleBoardRotationUpdated);
       signalRClient.off('GuessingBoardValidated', handleGuessingBoardValidated);
+      signalRClient.off('AiClueGenerationRequested', handleAiClueGenerationRequested);
     };
   // Note: 'phase' intentionnellement absent des deps — géré via phaseRef.
   // Ajouter phase ici recyclerait l'effect à chaque transition → refreshGameState()
   // pendant l'exit animation → re-renders AnimatePresence → safeToRemove périmé → page blanche.
-  }, [gameId, playerId, setConnectionStatus, setIsInitializing, notifyInfo, notifyWarning, refreshGameState, resetAuth]);
+  }, [gameId, playerId, setConnectionStatus, setIsInitializing, notifyInfo, notifyWarning, refreshGameState, resetAuth, markAiGenerating, clearSubmittedAiGenerating]);
 };

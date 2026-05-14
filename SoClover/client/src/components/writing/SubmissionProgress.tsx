@@ -5,6 +5,7 @@ export const SubmissionProgress = () => {
   const otherBoards = useBoardStore(s => s.otherBoards)
   const players = useGameStore(s => s.players)
   const myPlayerId = useGameStore(s => s.playerId)
+  const aiGeneratingPlayerIds = useGameStore(s => s.aiGeneratingPlayerIds)
 
   const totalCount = players.length
   const otherSubmittedCount = Object.values(otherBoards).filter(b => b.isSubmitted).length
@@ -23,11 +24,17 @@ export const SubmissionProgress = () => {
           const isSubmitted = player.playerId === myPlayerId
             ? myBoard?.isSubmitted ?? false
             : otherBoards[player.playerId]?.isSubmitted ?? false
+          const isGenerating = player.isAI && aiGeneratingPlayerIds.includes(player.playerId)
           return (
             <div
               key={player.playerId}
+              title={isGenerating ? 'En cours de génération...' : undefined}
               className={`w-3 h-3 rounded-full transition-colors duration-500 ${
-                isSubmitted ? 'bg-green-500' : 'bg-gray-300'
+                isSubmitted
+                  ? 'bg-green-500'
+                  : isGenerating
+                    ? 'bg-violet-400 animate-pulse'
+                    : 'bg-gray-300'
               }`}
             />
           )
