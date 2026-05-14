@@ -57,4 +57,14 @@ public sealed class GameLlmBudget
     }
 
     public int Used(GameId gameId) => _used.TryGetValue(gameId, out var v) ? v : 0;
+
+    /// <summary>
+    /// Immediately exhausts the budget for a game, causing the next TryConsume call
+    /// to throw LlmBudgetExhaustedException. Used to cancel in-flight generation
+    /// when the WritingClues phase timer expires.
+    /// </summary>
+    public void Cancel(GameId gameId)
+    {
+        _used.AddOrUpdate(gameId, _ => _maxCallsPerGame + 1, (_, _) => _maxCallsPerGame + 1);
+    }
 }

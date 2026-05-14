@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SoClover.Domain;
+using SoClover.Infrastructure.AI;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Gameplay;
 using SoClover.UseCases.GameLogics;
@@ -18,6 +19,7 @@ public sealed class GameProcessManager : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IClock _clock;
     private readonly IEventPublisher _events;
+    private readonly GameLlmBudget _llmBudget;
 
     // Track which countdown warnings have been sent (per game/board/deadline)
     private readonly ConcurrentDictionary<string, byte> _warningSent = new();
@@ -25,11 +27,13 @@ public sealed class GameProcessManager : BackgroundService
     public GameProcessManager(
         IServiceScopeFactory scopeFactory,
         IClock clock,
-        IEventPublisher events)
+        IEventPublisher events,
+        GameLlmBudget llmBudget)
     {
         _scopeFactory = scopeFactory;
         _clock = clock;
         _events = events;
+        _llmBudget = llmBudget;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -110,6 +114,8 @@ public sealed class GameProcessManager : BackgroundService
                                 await deleteGame.Handle(new DeleteGame.Request(game.Id), stoppingToken);
                                 break;
                             case GamePhase.WritingClues:
+                                // Cancel any in-flight LLM generation before force-starting Guessing
+                                _llmBudget.Cancel(game.Id);
                                 // Force transition when writing timer hits zero, even if some boards are incomplete/not submitted
                                 await startGuessing.Handle(new StartGuessingPhase.Request(game.Id, true), stoppingToken);
                                 break;
