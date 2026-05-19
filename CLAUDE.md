@@ -73,7 +73,7 @@ npm run dev   # Proxy automatique vers localhost:5000
 - **Mouse Tracking**: Suivi des curseurs joueurs via SignalR — `features/mouseTracking/` côté client.
 
 ### Game Flow
-1. Create game → Players join lobby
+1. Create game → Players join lobby. Only Admin player can update game settings and add AI players.
 2. Start writing phase → Each player writes clues for their board
 3. Start guessing phase → Players guess card placements on others' boards
 4. Scoring → Display results
