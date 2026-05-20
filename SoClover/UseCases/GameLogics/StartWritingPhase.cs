@@ -62,8 +62,14 @@ public static class StartWritingPhase
             // Restore WordsPool from cache (survives EF deserialization)
             await EnsureWordsPoolAsync(game, ct);
 
-            // Populate each player's board with 4 cards using the game's WordsPool
-            foreach (var player in game.Players)
+            // Ceinture-bretelle : si le flag est actif sans aucun IA présent, on ne tente
+            // même pas StartWritingPhase. L'auto-désactivation dans RemovePlayer rend ce
+            // cas théoriquement impossible, mais le coût de la vérification est nul.
+            if (game.GuessAiBoardOnly && !game.Players.Any(p => p.IsAI && !p.IsDisconnected))
+                throw new NoAiPlayerForGuessAiBoardOnlyException();
+
+            // Populate each writing participant's board with 4 cards using the game's WordsPool
+            foreach (var player in game.WritingParticipants)
             {
                 var cards = new List<Card>(4);
                 for (int i = 0; i < 4; i++)
