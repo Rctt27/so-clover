@@ -413,7 +413,8 @@ app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSe
                 request.Language.Trim(),
                 request.CluesDuration,
                 request.GuessDuration,
-                request.SemanticClueCheckEnabled),
+                request.SemanticClueCheckEnabled,
+                GuessAiBoardOnly: null),
             ct);
         return Results.Ok(new
         {
