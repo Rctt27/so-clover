@@ -137,3 +137,11 @@ public class UnsupportedAiLanguageException : DomainException
         Language = language;
     }
 }
+
+public class NoAiPlayerForGuessAiBoardOnlyException : DomainException
+{
+    public NoAiPlayerForGuessAiBoardOnlyException()
+        : base("Cannot enable GuessAiBoardOnly: at least one AI player must be present in the lobby.")
+    {
+    }
+}

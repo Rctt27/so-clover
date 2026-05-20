@@ -317,6 +317,9 @@ public sealed class Game
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("GuessAiBoardOnly can only be toggled in the Lobby phase.");
 
+        if (enabled && !_players.Values.Any(p => p.IsAI && !p.IsDisconnected))
+            throw new NoAiPlayerForGuessAiBoardOnlyException();
+
         GuessAiBoardOnly = enabled;
     }
 
