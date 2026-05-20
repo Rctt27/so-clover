@@ -15,6 +15,7 @@ import { Timer } from './components/shared/Timer'
 import { ConnectionOverlay } from './components/shared/ConnectionOverlay'
 
 const WritingBoard = lazy(() => import('./components/writing/WritingBoard').then(m => ({ default: m.WritingBoard })))
+const WaitingForAiBoards = lazy(() => import('./components/writing/WaitingForAiBoards').then(m => ({ default: m.WaitingForAiBoards })))
 const GuessingPage = lazy(() => import('./components/guessing/GuessingPage').then(m => ({ default: m.GuessingPage })))
 
 const PHASE_TRANSITION_MS = 300
@@ -44,6 +45,7 @@ function App() {
   const isInitializing = useGameStore(s => s.isInitializing);
   const hasDeadline = useGameStore(state => !!state.phaseEndsAtUtc);
   const role = useGameStore(state => state.role);
+  const guessAiBoardOnly = useGameStore(s => s.settings.guessAiBoardOnly);
 
   // ─── [DEBUG] Tracker les changements de phase ───────────────────────────────
   const prevPhaseRef = useRef(phase);
@@ -129,7 +131,7 @@ function App() {
               className="w-full"
             >
               <Suspense fallback={<PhaseLoader />}>
-                <WritingBoard />
+                {guessAiBoardOnly ? <WaitingForAiBoards /> : <WritingBoard />}
               </Suspense>
             </motion.div>
           )}
