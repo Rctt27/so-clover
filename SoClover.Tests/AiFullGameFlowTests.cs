@@ -211,4 +211,47 @@ public class AiFullGameFlowTests
 
         Assert.Equal(GamePhase.WritingClues, response.Phase);
     }
+
+    [Fact]
+    public async Task Scenario_1_human_plus_1_AI_with_GuessAiBoardOnly_reaches_Guessing_without_human_submit()
+    {
+        var sp = BuildProvider();
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
+        var submit = sp.GetRequiredService<ISubmitBoardUseCase>();
+
+        var game = new Game(GameId.New(), "Français_OFF");
+        var alice = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        var bot = new Player(PlayerId.New(), "Bot-1", isAdmin: false, isAI: true,
+            aiConfig: new AIConfig("gpt-4o-mini", 0.7));
+        game.AddPlayer(alice);
+        game.AddAIPlayer(bot, max: 4);
+        game.SetGuessAiBoardOnly(true);
+        await repo.Save(game);
+
+        await startWriting.Handle(new StartWritingPhase.Request(game.Id));
+
+        // Alice n'a PAS de cards en mode GuessAiBoardOnly.
+        var afterStart = (await repo.Get(game.Id))!;
+        var aliceState = afterStart.Players.First(p => p.Id == alice.Id);
+        Assert.Null(aliceState.Board.TopLeft);
+
+        // Tentative de submit pour Alice → doit échouer.
+        await Assert.ThrowsAsync<HumanCannotSubmitInGuessAiBoardOnlyException>(
+            () => submit.Handle(new SubmitBoard.Request(game.Id, alice.Id)));
+
+        // Simuler la generation IA + submit (Epic 07 le fait en background).
+        var withAi = (await repo.Get(game.Id))!;
+        AiTestHelpers.SimulateAiBoardSubmit(withAi, bot.Id, DateTime.UtcNow);
+        await repo.Save(withAi);
+
+        // Le submit IA passe par le UseCase pour déclencher StartGuessingPhase.
+        await submit.Handle(new SubmitBoard.Request(game.Id, bot.Id, InvocationOrigin.System));
+
+        var finalState = (await repo.Get(game.Id))!;
+        Assert.Equal(GamePhase.Guessing, finalState.Phase);
+        Assert.Equal(1, finalState.BoardsToGuess.Count);
+        Assert.Equal(1, finalState.GuessingParticipants.Count);
+        Assert.Equal(bot.Id, finalState.CurrentGuessingBoardOwner);
+    }
 }
