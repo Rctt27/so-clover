@@ -51,7 +51,7 @@ public static class StartGuessingPhase
             // Vérifier que tous les joueurs ont explicitement soumis leur board, sauf si force est activé
             if (!request.Force)
             {
-                var allSubmitted = game.ActivePlayers.All(p => p.Board.IsSubmitted);
+                var allSubmitted = game.WritingParticipants.All(p => p.Board.IsSubmitted);
                 if (!allSubmitted)
                     throw new InvalidOperationInPhaseException("Cannot start Guessing: not all boards were explicitly submitted.");
             }
