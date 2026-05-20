@@ -21,7 +21,8 @@ export const LobbyPage: React.FC = () => {
             language: state.language || 'Français_OFF',
             cluesDurationSeconds: state.cluesDurationSecondsOverride ?? 300,
             guessDurationSeconds: state.guessDurationSecondsOverride ?? 300,
-            semanticClueCheckEnabled: state.semanticClueCheckEnabled ?? true
+            semanticClueCheckEnabled: state.semanticClueCheckEnabled ?? true,
+            guessAiBoardOnly: state.guessAiBoardOnly ?? false,
           });
         }
       } catch (err) {

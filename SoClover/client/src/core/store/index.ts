@@ -24,6 +24,7 @@ interface GameState {
     cluesDurationSeconds: number
     guessDurationSeconds: number
     semanticClueCheckEnabled: boolean
+    guessAiBoardOnly: boolean
   }
   setPhase: (phase: GamePhase) => void
   markAiGenerating: (playerId: string) => void
@@ -37,7 +38,7 @@ interface GameState {
   setConnectionStatus: (status: ConnectionStatus) => void
   setPlayers: (players: Array<{ playerId: string, name: string, cursorColorIndex: number, isAI: boolean }>) => void
   setPhaseEndsAtUtc: (deadline: string | null) => void
-  setSettings: (settings: { language: string, cluesDurationSeconds: number, guessDurationSeconds: number, semanticClueCheckEnabled: boolean }) => void
+  setSettings: (settings: { language: string, cluesDurationSeconds: number, guessDurationSeconds: number, semanticClueCheckEnabled: boolean, guessAiBoardOnly: boolean }) => void
   setIsInitializing: (isInitializing: boolean) => void
   resetAuth: () => void
 }
@@ -60,6 +61,7 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
     cluesDurationSeconds: 300,
     guessDurationSeconds: 300,
     semanticClueCheckEnabled: true,
+    guessAiBoardOnly: false,
   },
   setPhase: (phase) => set(
     (state) => ({ phase, aiGeneratingPlayerIds: phase === 'WritingClues' ? state.aiGeneratingPlayerIds : [] }),
@@ -102,7 +104,8 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
       language: 'Français_OFF',
       cluesDurationSeconds: 300,
       guessDurationSeconds: 300,
-      semanticClueCheckEnabled: true
+      semanticClueCheckEnabled: true,
+      guessAiBoardOnly: false,
     }
   }, false, 'GameStore/resetAuth'),
 })

@@ -51,6 +51,7 @@ export const GameSettings: React.FC = () => {
         cluesDurationSeconds: updated.cluesDuration,
         guessDurationSeconds: updated.guessDuration,
         semanticClueCheckEnabled: updated.semanticClueCheckEnabled,
+        guessAiBoardOnly: updated.guessAiBoardOnly,
       });
     } catch (err) {
       console.error('Failed to update settings', err);
