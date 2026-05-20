@@ -75,4 +75,36 @@ public class DisconnectPlayerTests
         Assert.False(game.BoardResults[aliceId].WasGuessed);
         Assert.True(game.BoardResults[aliceId].IsDisconnected);
     }
+
+    [Fact]
+    public async Task DisconnectPlayer_in_GuessAiBoardOnly_does_not_use_ActivePlayers_for_all_submitted_check()
+    {
+        var sp = BuildProvider();
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
+        var disconnect = sp.GetRequiredService<IDisconnectPlayerUseCase>();
+
+        var game = new Game(GameId.New());
+        var alice = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        var bob = new Player(PlayerId.New(), "Bob");
+        var bot = new Player(PlayerId.New(), "Bot-1", isAdmin: false, isAI: true,
+            aiConfig: new AIConfig("gpt-4o-mini", 0.7));
+        game.AddPlayer(alice);
+        game.AddPlayer(bob);
+        game.AddAIPlayer(bot, max: 4);
+        game.SetGuessAiBoardOnly(true);
+        await repo.Save(game);
+
+        await startWriting.Handle(new StartWritingPhase.Request(game.Id));
+
+        var withAi = (await repo.Get(game.Id))!;
+        SoClover.Tests.Helpers.AiTestHelpers.SimulateAiBoardSubmit(withAi, bot.Id, DateTime.UtcNow);
+        await repo.Save(withAi);
+
+        // Bob se déconnecte → WritingParticipants = [bot], tous submitted → Guessing.
+        await disconnect.Handle(new DisconnectPlayer.Request(game.Id, bob.Id));
+
+        var finalState = (await repo.Get(game.Id))!;
+        Assert.Equal(GamePhase.Guessing, finalState.Phase);
+    }
 }
