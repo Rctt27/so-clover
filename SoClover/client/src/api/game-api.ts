@@ -91,8 +91,20 @@ export const gameApi = {
   updateSettings: async (
       gameId: string,
       playerId: string,
-      settings: { language: string; cluesDuration: number; guessDuration: number; semanticClueCheckEnabled?: boolean }
-  ): Promise<{ language: string; cluesDuration: number; guessDuration: number; semanticClueCheckEnabled: boolean }> => {
+      settings: {
+        language: string;
+        cluesDuration: number;
+        guessDuration: number;
+        semanticClueCheckEnabled?: boolean;
+        guessAiBoardOnly?: boolean;
+      }
+  ): Promise<{
+    language: string;
+    cluesDuration: number;
+    guessDuration: number;
+    semanticClueCheckEnabled: boolean;
+    guessAiBoardOnly: boolean;
+  }> => {
     const response = await fetch(`/api/games/${gameId}/settings`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
