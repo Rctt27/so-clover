@@ -53,8 +53,12 @@ public static class SubmitBoard
                 throw new InvalidOperationInPhaseException("Cannot submit board outside WritingClues phase.");
 
             // Mark this player's board as submitted
-            var player = game.Players.FirstOrDefault(p => p.Id == request.PlayerId) 
+            var player = game.Players.FirstOrDefault(p => p.Id == request.PlayerId)
                 ?? throw new PlayerNotFoundException(request.PlayerId);
+
+            // Garde Epic 09 : en mode GuessAiBoardOnly, un humain n'a pas de board à soumettre.
+            if (game.GuessAiBoardOnly && !player.IsAI)
+                throw new HumanCannotSubmitInGuessAiBoardOnlyException();
 
             // Optional: prevent submitting an incomplete board
             var boardHasAllClues = player.Board.TopClue != null
@@ -70,9 +74,9 @@ public static class SubmitBoard
             await _repo.Save(game, ct);
             await _events.Publish(new BoardSubmitted(game.Id, request.PlayerId), ct);
 
-            // If all players have submitted, automatically start the guessing phase
-            var allPlayersExplicitlySubmitted = game.ActivePlayers.All(p => p.Board.IsSubmitted);
-            if (allPlayersExplicitlySubmitted)
+            // Auto-trigger Guessing dès que tous les WritingParticipants ont submit.
+            var allWritersSubmitted = game.WritingParticipants.All(p => p.Board.IsSubmitted);
+            if (allWritersSubmitted)
             {
                 await _startGuessingPhase.Handle(new StartGuessingPhase.Request(game.Id), ct);
             }

@@ -145,3 +145,11 @@ public class NoAiPlayerForGuessAiBoardOnlyException : DomainException
     {
     }
 }
+
+public class HumanCannotSubmitInGuessAiBoardOnlyException : DomainException
+{
+    public HumanCannotSubmitInGuessAiBoardOnlyException()
+        : base("Humans cannot submit a board while GuessAiBoardOnly mode is active.")
+    {
+    }
+}
