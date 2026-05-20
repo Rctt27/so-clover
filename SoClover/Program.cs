@@ -414,14 +414,15 @@ app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSe
                 request.CluesDuration,
                 request.GuessDuration,
                 request.SemanticClueCheckEnabled,
-                GuessAiBoardOnly: null),
+                request.GuessAiBoardOnly),
             ct);
         return Results.Ok(new
         {
             language = response.Language,
             cluesDuration = response.CluesDurationSeconds,
             guessDuration = response.GuessDurationSeconds,
-            semanticClueCheckEnabled = response.SemanticClueCheckEnabled
+            semanticClueCheckEnabled = response.SemanticClueCheckEnabled,
+            guessAiBoardOnly = response.GuessAiBoardOnly
         });
     }
     catch (GameNotFoundException)
@@ -432,6 +433,10 @@ app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSe
     {
         // Avoid Results.Forbid() since no authentication is configured; return 403 directly
         return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+    catch (NoAiPlayerForGuessAiBoardOnlyException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
     }
     catch (InvalidOperationInPhaseException ex)
     {
@@ -471,6 +476,7 @@ app.MapGet("/api/games/{gameId:guid}/state", async (Guid gameId, string? playerI
             cluesDurationSecondsOverride = response.CluesDurationSecondsOverride,
             guessDurationSecondsOverride = response.GuessDurationSecondsOverride,
             semanticClueCheckEnabled = response.SemanticClueCheckEnabled,
+            guessAiBoardOnly = response.GuessAiBoardOnly,
             phase = response.Phase.ToString(),
             phaseEndsAtUtc = response.PhaseEndsAtUtc,
             adminPlayerId = response.AdminPlayerId?.ToString(),
@@ -701,6 +707,10 @@ app.MapPost("/api/games/{gameId:guid}/submit-board", async (Guid gameId, SubmitB
     catch (GameNotFoundException)
     {
         return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (HumanCannotSubmitInGuessAiBoardOnlyException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
     }
     catch (InvalidOperationInPhaseException ex)
     {
@@ -1155,7 +1165,7 @@ app.Run();
 // Request DTOs for API
 record CreateGameRequest(string PlayerName, string? Language = null);
 record JoinGameRequest(string PlayerName, bool ReplaceExisting = false);
-record UpdateGameSettingsRequest(string PlayerId, string Language, int? CluesDuration, int? GuessDuration, bool? SemanticClueCheckEnabled);
+record UpdateGameSettingsRequest(string PlayerId, string Language, int? CluesDuration, int? GuessDuration, bool? SemanticClueCheckEnabled, bool? GuessAiBoardOnly);
 record SetClueRequest(string PlayerId, string Direction, string ClueText);
 record SubmitBoardRequest(string PlayerId);
 record PlaceGuessingCardRequest(string PlayerId, int OutsideCardIndex, string Position);
