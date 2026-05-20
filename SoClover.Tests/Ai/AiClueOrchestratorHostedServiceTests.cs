@@ -32,7 +32,7 @@ public class AiClueOrchestratorHostedServiceTests
             (Direction.Left,   safe[3], "x"),
         });
 
-        var service = new AiClueOrchestratorHostedService(scopeFactory, channel);
+        var service = new AiClueOrchestratorHostedService(scopeFactory, channel, Microsoft.Extensions.Logging.Abstractions.NullLogger<AiClueOrchestratorHostedService>.Instance);
         using var cts = new CancellationTokenSource();
         await service.StartAsync(cts.Token);
 
@@ -77,7 +77,7 @@ public class AiClueOrchestratorHostedServiceTests
             (Direction.Left,   safe[3], "x"),
         });
 
-        var service = new AiClueOrchestratorHostedService(scopeFactory, channel);
+        var service = new AiClueOrchestratorHostedService(scopeFactory, channel, Microsoft.Extensions.Logging.Abstractions.NullLogger<AiClueOrchestratorHostedService>.Instance);
         using var cts = new CancellationTokenSource();
         await service.StartAsync(cts.Token);
 

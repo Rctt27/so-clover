@@ -322,10 +322,15 @@ Pour CHAQUE direction listée, propose un mot DIFFÉRENT.
         var bundle = new FrenchAiCluePromptProvider().BuildBoardCluesPrompt(SampleContext());
         var prompt = bundle.UserPrompt;
 
-        Assert.Contains("- Top : trouve un mot-indice qui évoque à la fois \"plage\" et \"sable\"", prompt);
-        Assert.Contains("- Right : trouve un mot-indice qui évoque à la fois \"île\" et \"vent\"", prompt);
-        Assert.Contains("- Bottom : trouve un mot-indice qui évoque à la fois \"oiseau\" et \"rivière\"", prompt);
-        Assert.Contains("- Left : trouve un mot-indice qui évoque à la fois \"pont\" et \"route\"", prompt);
+        // Convention "faces extérieures" :
+        // Top    → TopLeft.Top + TopRight.Top         = lune + vague
+        // Right  → TopRight.Right + BottomRight.Right = rocher + forêt
+        // Bottom → BottomRight.Bottom + BottomLeft.Bottom = montagne + ville
+        // Left   → BottomLeft.Left + TopLeft.Left     = village + ciel
+        Assert.Contains("- Top : trouve un mot-indice qui évoque à la fois \"lune\" et \"vague\"", prompt);
+        Assert.Contains("- Right : trouve un mot-indice qui évoque à la fois \"rocher\" et \"forêt\"", prompt);
+        Assert.Contains("- Bottom : trouve un mot-indice qui évoque à la fois \"montagne\" et \"ville\"", prompt);
+        Assert.Contains("- Left : trouve un mot-indice qui évoque à la fois \"village\" et \"ciel\"", prompt);
 
         var resolveSection = ExtractResolveSection(prompt);
         Assert.DoesNotContain("(carte", resolveSection);

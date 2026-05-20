@@ -140,13 +140,16 @@ public sealed class FrenchAiCluePromptProvider : IAiCluePromptProvider
         return sb.ToString().TrimEnd();
     }
 
+    // Convention "faces extérieures" : chaque clue évoque les deux mots des cartes
+    // sur son côté du board, sur les faces visuellement adjacentes au clue
+    // (celles qui pointent vers le bord extérieur, donc proches du clue placé sur la bordure).
     private static (BoardPosition CardA, Direction FaceA, BoardPosition CardB, Direction FaceB) GetEdgeMapping(Direction edge)
         => edge switch
         {
-            Direction.Top    => (BoardPosition.TopLeft,     Direction.Bottom, BoardPosition.TopRight,    Direction.Bottom),
-            Direction.Right  => (BoardPosition.TopRight,    Direction.Left,   BoardPosition.BottomRight, Direction.Left),
-            Direction.Bottom => (BoardPosition.BottomRight, Direction.Top,    BoardPosition.BottomLeft,  Direction.Top),
-            Direction.Left   => (BoardPosition.BottomLeft,  Direction.Right,  BoardPosition.TopLeft,     Direction.Right),
+            Direction.Top    => (BoardPosition.TopLeft,     Direction.Top,    BoardPosition.TopRight,    Direction.Top),
+            Direction.Right  => (BoardPosition.TopRight,    Direction.Right,  BoardPosition.BottomRight, Direction.Right),
+            Direction.Bottom => (BoardPosition.BottomRight, Direction.Bottom, BoardPosition.BottomLeft,  Direction.Bottom),
+            Direction.Left   => (BoardPosition.BottomLeft,  Direction.Left,   BoardPosition.TopLeft,     Direction.Left),
             _ => throw new ArgumentOutOfRangeException(nameof(edge)),
         };
 

@@ -252,9 +252,23 @@ public static class GenerateAIClues
 
             var text = response.Text
                 ?? throw new InvalidOperationException("LLM returned an empty response.");
+            text = StripJsonFences(text);
             var draft = JsonSerializer.Deserialize<AiBoardCluesDraft>(text, JsonOptions)
                 ?? throw new InvalidOperationException("LLM returned invalid JSON.");
             return (draft, bundle.PromptVersion);
+        }
+
+        // Certains modèles locaux (Gemma 3, Llama 3.1, etc.) mimicent l'exemple ```json
+        // du prompt et enrobent la réponse. Strip défensif avant désérialisation.
+        private static string StripJsonFences(string text)
+        {
+            var t = text.Trim();
+            if (!t.StartsWith("```")) return t;
+
+            var firstNewline = t.IndexOf('\n');
+            if (firstNewline >= 0) t = t[(firstNewline + 1)..];
+            if (t.EndsWith("```")) t = t[..^3];
+            return t.Trim();
         }
 
         private static HashSet<Direction> ComputeRemainingDirections(CloverBoard board)

@@ -117,7 +117,7 @@ public class AiClueOrchestratorEndToEndTests
         game.AddAIPlayer(bot, max: 4);
         await repo.Save(game);
 
-        var service = new AiClueOrchestratorHostedService(scopeFactory, channel);
+        var service = new AiClueOrchestratorHostedService(scopeFactory, channel, Microsoft.Extensions.Logging.Abstractions.NullLogger<AiClueOrchestratorHostedService>.Instance);
         using var cts = new CancellationTokenSource();
 
         await startWriting.Handle(new StartWritingPhase.Request(game.Id));
@@ -179,7 +179,7 @@ public class AiClueOrchestratorEndToEndTests
             EnqueueCluesForBoard(fake, board, TimeSpan.FromMilliseconds(100));
         }
 
-        var service = new AiClueOrchestratorHostedService(scopeFactory, channel);
+        var service = new AiClueOrchestratorHostedService(scopeFactory, channel, Microsoft.Extensions.Logging.Abstractions.NullLogger<AiClueOrchestratorHostedService>.Instance);
         using var cts = new CancellationTokenSource();
         await service.StartAsync(cts.Token);
 
