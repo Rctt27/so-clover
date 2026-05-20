@@ -115,6 +115,60 @@ public class GuessAiBoardOnlyDomainTests
         Assert.Throws<InvalidOperationInPhaseException>(() => game.SetGuessAiBoardOnly(true));
     }
 
+    [Fact]
+    public void RemovePlayer_auto_disables_GuessAiBoardOnly_when_last_AI_is_removed()
+    {
+        var game = new Game(GameId.New());
+        var human = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        var bot = new Player(PlayerId.New(), "Bot-1", isAdmin: false, isAI: true,
+            aiConfig: new AIConfig("gpt-4o-mini", 0.7));
+        game.AddPlayer(human);
+        game.AddPlayer(bot);
+        game.SetGuessAiBoardOnly(true);
+        Assert.True(game.GuessAiBoardOnly);
+
+        game.RemovePlayer(bot.Id);
+
+        Assert.False(game.GuessAiBoardOnly);
+    }
+
+    [Fact]
+    public void RemovePlayer_keeps_GuessAiBoardOnly_when_other_AI_remains()
+    {
+        var game = new Game(GameId.New());
+        var human = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        var bot1 = new Player(PlayerId.New(), "Bot-1", isAdmin: false, isAI: true,
+            aiConfig: new AIConfig("gpt-4o-mini", 0.7));
+        var bot2 = new Player(PlayerId.New(), "Bot-2", isAdmin: false, isAI: true,
+            aiConfig: new AIConfig("gpt-4o-mini", 0.7));
+        game.AddPlayer(human);
+        game.AddPlayer(bot1);
+        game.AddPlayer(bot2);
+        game.SetGuessAiBoardOnly(true);
+
+        game.RemovePlayer(bot1.Id);
+
+        Assert.True(game.GuessAiBoardOnly);
+    }
+
+    [Fact]
+    public void RemovePlayer_does_not_re_enable_flag_when_human_is_removed()
+    {
+        var game = new Game(GameId.New());
+        var admin = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        var bob = new Player(PlayerId.New(), "Bob");
+        var bot = new Player(PlayerId.New(), "Bot-1", isAdmin: false, isAI: true,
+            aiConfig: new AIConfig("gpt-4o-mini", 0.7));
+        game.AddPlayer(admin);
+        game.AddPlayer(bob);
+        game.AddPlayer(bot);
+        game.SetGuessAiBoardOnly(true);
+
+        game.RemovePlayer(bob.Id);
+
+        Assert.True(game.GuessAiBoardOnly);
+    }
+
     private sealed class InMemoryDictionary : IWordDictionary
     {
         public Task<IReadOnlyList<string>> GetRandomWordsAsync(string language, int count, CancellationToken ct = default)

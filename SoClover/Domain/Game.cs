@@ -211,9 +211,9 @@ public sealed class Game
     {
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("Cannot leave after game start.");
-            
+
         _players.Remove(playerId);
-        
+
         if (AdminPlayerId == playerId)
         {
             AdminPlayerId = _players.Keys.FirstOrDefault();
@@ -221,6 +221,11 @@ public sealed class Game
             {
                 _players[newAdminId].IsAdmin = true;
             }
+        }
+
+        if (GuessAiBoardOnly && !_players.Values.Any(p => p.IsAI && !p.IsDisconnected))
+        {
+            GuessAiBoardOnly = false;
         }
     }
 
