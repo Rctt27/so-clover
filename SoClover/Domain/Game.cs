@@ -39,6 +39,10 @@ public sealed class Game
     [JsonPropertyName("semanticClueCheckEnabled")]
     public bool SemanticClueCheckEnabled { get; private set; }
 
+    [JsonInclude]
+    [JsonPropertyName("guessAiBoardOnly")]
+    public bool GuessAiBoardOnly { get; private set; }
+
     private const int CURSOR_COLORS_COUNT = 10;
     private readonly Dictionary<PlayerId, Player> _players = new();
     private WordsPool? _wordsPool;
@@ -99,6 +103,12 @@ public sealed class Game
     [JsonIgnore]
     public IReadOnlyCollection<Player> GuessingParticipants =>
         _players.Values.Where(p => !p.IsDisconnected && !p.IsAI).ToList().AsReadOnly();
+
+    [JsonIgnore]
+    public IReadOnlyCollection<Player> WritingParticipants =>
+        GuessAiBoardOnly
+            ? _players.Values.Where(p => !p.IsDisconnected && p.IsAI).ToList().AsReadOnly()
+            : ActivePlayers;
 
     [JsonIgnore]
     public IReadOnlyCollection<Player> BoardsToGuess =>
@@ -300,6 +310,14 @@ public sealed class Game
             throw new InvalidOperationException("Semantic clue check is only available for the French dictionary.");
 
         SemanticClueCheckEnabled = enabled;
+    }
+
+    public void SetGuessAiBoardOnly(bool enabled)
+    {
+        if (Phase != GamePhase.Lobby)
+            throw new InvalidOperationInPhaseException("GuessAiBoardOnly can only be toggled in the Lobby phase.");
+
+        GuessAiBoardOnly = enabled;
     }
 
     public void UpdateDurationOverrides(int? cluesDurationSeconds, int? guessDurationSeconds)
