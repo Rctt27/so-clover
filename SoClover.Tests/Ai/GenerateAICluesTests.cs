@@ -298,7 +298,7 @@ public class GenerateAICluesTests
     }
 
     [Fact]
-    public async Task Budget_exhausted_on_first_attempt_throws_without_calling_LLM()
+    public async Task Budget_exhausted_on_first_attempt_returns_failed_response_without_calling_LLM()
     {
         var fake = new FakeChatClient();
         var sp = AiTestProvider.Build(fake, budgetMaxCallsPerGame: 1);
@@ -309,11 +309,20 @@ public class GenerateAICluesTests
         budget.TryConsume(gameId);
 
         var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
+        var events = sp.GetRequiredService<InMemoryEventPublisher>();
 
-        await Assert.ThrowsAsync<LlmBudgetExhaustedException>(() =>
-            useCase.Handle(new GenerateAIClues.Request(gameId, aiPid)));
+        var response = await useCase.Handle(new GenerateAIClues.Request(gameId, aiPid));
 
+        Assert.Equal(0, response.SucceededCount);
+        Assert.Equal(4, response.FailedCount);
+        Assert.Equal(0, response.LlmCallsConsumed);
         Assert.Equal(0, fake.CallCount);
+
+        Assert.Equal(4, events.PublishedEvents.OfType<AiClueGenerationFailed>().Count());
+        Assert.All(
+            events.PublishedEvents.OfType<AiClueGenerationFailed>(),
+            e => Assert.Equal("LLM budget exhausted.", e.Reason));
+        Assert.Single(events.PublishedEvents.OfType<AiPlayerBoardFailed>());
     }
 
     [Fact]
@@ -341,10 +350,23 @@ public class GenerateAICluesTests
         var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
         var events = sp.GetRequiredService<InMemoryEventPublisher>();
 
-        await Assert.ThrowsAsync<LlmBudgetExhaustedException>(() =>
-            useCase.Handle(new GenerateAIClues.Request(gameId, aiPid)));
+        var response = await useCase.Handle(new GenerateAIClues.Request(gameId, aiPid));
+
+        Assert.Equal(3, response.SucceededCount);
+        Assert.Equal(1, response.FailedCount);
+        Assert.Equal(1, response.LlmCallsConsumed);
 
         Assert.Equal(3, events.PublishedEvents.OfType<AiClueGenerated>().Count());
+        var budgetFailures = events.PublishedEvents
+            .OfType<AiClueGenerationFailed>()
+            .Where(e => e.Reason == "LLM budget exhausted.")
+            .ToList();
+        Assert.Single(budgetFailures);
+        Assert.Equal(Direction.Right, budgetFailures[0].Direction);
+
+        var boardFailed = Assert.Single(events.PublishedEvents.OfType<AiPlayerBoardFailed>());
+        Assert.Equal("LLM budget exhausted.", boardFailed.Reason);
+
         var refreshed = await repo.Get(gameId);
         var b = refreshed!.Players.First(p => p.Id == aiPid).Board;
         Assert.NotNull(b.TopClue);
