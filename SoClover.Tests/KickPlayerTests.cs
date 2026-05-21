@@ -25,6 +25,7 @@ public class KickPlayerTests
         services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
         services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();
         services.AddTransient<IKickPlayerUseCase, KickPlayer.Handler>();
+        services.Configure<AIPlayersOptions>(o => o.Enabled = true);
         services.AddTransient<ICreateAIPlayerUseCase, CreateAIPlayer.Handler>();
         return services.BuildServiceProvider();
     }

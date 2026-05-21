@@ -6,7 +6,7 @@ import { useSignalR } from './hooks/useSignalR'
 import { useGameSounds } from './hooks/useGameSounds'
 import { useTimeoutSafetyPolling } from './hooks/useTimeoutSafetyPolling'
 import { useWritingCluesPhaseMusic } from './hooks/useWritingCluesPhaseMusic'
-import { useGameStore } from './core/store'
+import { useGameStore, useAppConfigStore } from './core/store'
 import { HomeScreen } from './components/home/HomeScreen'
 import { LobbyPage } from './components/lobby/LobbyPage'
 import { ScoringPage } from './components/scoring/ScoringPage'
@@ -46,6 +46,11 @@ function App() {
   const hasDeadline = useGameStore(state => !!state.phaseEndsAtUtc);
   const role = useGameStore(state => state.role);
   const guessAiBoardOnly = useGameStore(s => s.settings.guessAiBoardOnly);
+
+  const loadConfig = useAppConfigStore(s => s.loadConfig);
+  useEffect(() => {
+    loadConfig().catch(err => debugLog('App', `Failed to load public config: ${err}`));
+  }, [loadConfig]);
 
   // ─── [DEBUG] Tracker les changements de phase ───────────────────────────────
   const prevPhaseRef = useRef(phase);

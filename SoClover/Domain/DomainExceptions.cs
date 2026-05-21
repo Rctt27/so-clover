@@ -93,6 +93,14 @@ public class DisconnectedPlayersException : DomainException
     }
 }
 
+public class AIPlayersDisabledException : DomainException
+{
+    public AIPlayersDisabledException()
+        : base("AI players are disabled on this server.")
+    {
+    }
+}
+
 public class MaxAIPlayersReachedException : DomainException
 {
     public int CurrentCount { get; }

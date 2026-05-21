@@ -24,6 +24,7 @@ public class CreateAIPlayerTests
         services.Configure<GameDefaultsOptions>(opts => { });
         services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
         services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();
+        services.Configure<AIPlayersOptions>(o => o.Enabled = true);
         services.AddTransient<ICreateAIPlayerUseCase, CreateAIPlayer.Handler>();
         services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
         return services.BuildServiceProvider();
@@ -140,6 +141,7 @@ public class CreateAIPlayerTests
         services.AddSingleton<IWordsPoolCache, InMemoryWordsPoolCache>();
         services.Configure<GameDefaultsOptions>(_ => { });
         services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
+        services.Configure<AIPlayersOptions>(o => o.Enabled = true);
         services.AddTransient<ICreateAIPlayerUseCase, CreateAIPlayer.Handler>();
         services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
         var sp2 = services.BuildServiceProvider();

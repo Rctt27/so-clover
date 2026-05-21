@@ -25,22 +25,28 @@ public static class CreateAIPlayer
         private readonly IGameRepository _repo;
         private readonly IEventPublisher _events;
         private readonly IOptions<GameDefaultsOptions> _options;
+        private readonly IOptions<AIPlayersOptions>? _aiPlayersOptions;
         private readonly IAiCluePromptProviderFactory? _promptProviderFactory;
 
         public Handler(
             IGameRepository repo,
             IEventPublisher events,
             IOptions<GameDefaultsOptions> options,
+            IOptions<AIPlayersOptions>? aiPlayersOptions = null,
             IAiCluePromptProviderFactory? promptProviderFactory = null)
         {
             _repo = repo;
             _events = events;
             _options = options;
+            _aiPlayersOptions = aiPlayersOptions;
             _promptProviderFactory = promptProviderFactory;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
         {
+            if (_aiPlayersOptions is not null && !_aiPlayersOptions.Value.Enabled)
+                throw new AIPlayersDisabledException();
+
             var game = await _repo.Get(request.GameId, ct)
                 ?? throw new GameNotFoundException(request.GameId);
 

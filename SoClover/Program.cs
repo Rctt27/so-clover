@@ -22,6 +22,10 @@ builder.Services.AddOptions<LlmOptions>()
     .ValidateOnStart();
 builder.Services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<LlmOptions>, LlmOptionsValidator>();
 
+// AI players feature flag (section "AIPlayers"). Disabled by default in prod.
+builder.Services.Configure<AIPlayersOptions>(
+    builder.Configuration.GetSection(AIPlayersOptions.SectionName));
+
 // Per-game LLM call budget. Singleton so counters survive across requests within a process lifetime.
 builder.Services.AddSingleton<GameLlmBudget>(sp =>
 {
@@ -348,6 +352,10 @@ app.MapPost("/api/games/{gameId:guid}/ai-players", async (
     catch (UnauthorizedAccessException)
     {
         return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+    catch (AIPlayersDisabledException ex)
+    {
+        return Results.Json(new { message = ex.Message }, statusCode: StatusCodes.Status403Forbidden);
     }
     catch (MaxAIPlayersReachedException ex)
     {
@@ -1155,6 +1163,10 @@ app.MapGet("/api/dictionaries", (IWebHostEnvironment env) =>
         return Results.Ok(Array.Empty<object>());
     }
 });
+
+app.MapGet("/api/config", (Microsoft.Extensions.Options.IOptions<AIPlayersOptions> aiOpts) =>
+    Results.Ok(new { aiPlayersEnabled = aiOpts.Value.Enabled }))
+    .WithName("GetPublicConfig");
 
 app.MapGet("/health", () => Results.Ok());
 

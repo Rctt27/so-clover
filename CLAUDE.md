@@ -80,8 +80,9 @@ npm run dev   # Proxy automatique vers localhost:5000
 
 ### AI Players
 
+- **Feature flag** : section `AIPlayers.Enabled` dans `appsettings*.json` (`true` en dev, `false` en prod par défaut). Quand désactivé, le bouton "+ Ajouter un joueur IA" du lobby est grisé avec tooltip, et l'endpoint `POST /api/games/{id}/ai-players` renvoie 403 (`AIPlayersDisabledException`). Le client lit le flag via `GET /api/config` au boot (slice `appConfigSlice`).
 - **Provider switch** : dev local → `appsettings.Development.json` (`Provider=OpenAI`, `BaseUrl=http://localhost:1234/v1`, `MaxConcurrency=1`). Prod → `appsettings.Production.json` (`Provider=Anthropic`, `DefaultModel=claude-haiku-4-5`, `MaxConcurrency=4`). La seule différence runtime est le binding de `IChatClient` via `ChatClientFactory` (`SoClover/Infrastructure/AI/ChatClientFactory.cs`).
-- **Secret Anthropic** : en prod via env var `LLM__APIKEY` (cf. `SoClover/.env`). En dev pour tester Anthropic : `dotnet user-secrets set "Llm:ApiKey" "sk-ant-..." --project SoClover`. Ne **jamais** committer la clé.
+- **Secret LLM** : `LLM__APIKEY` est le **seul** paramètre LLM qui vit dans `SoClover/.env` (cf. règle de configuration ci-dessous). En dev pour tester Anthropic : `dotnet user-secrets set "Llm:ApiKey" "sk-ant-..." --project SoClover`. Ne **jamais** committer la clé.
 - **LM Studio** : application desktop, expose un serveur OpenAI-compatible sur `http://localhost:1234/v1` (port configurable dans l'UI). L'`ApiKey` n'est pas vérifiée — `"lm-studio"` factice suffit mais doit être non-vide (`LlmOptionsValidator`).
 - **Structured logs** : chaque appel LLM produit 1 log "AI clue LLM call completed" (`LatencyMs`, `Provider`, `Model`, `PromptVersion`, `Attempt`, `RemainingDirections`). Chaque clue validée/rejetée produit 1 log avec `IsValid` + `RejectionRules`. Utiliser ces props pour comparer 2 versions de prompt (`PromptVersion` = champ `version:` du frontmatter de `Infrastructure/AI/Prompts/<lang>/*.md`).
 - **Procédure opérateur complète** : `docs/ai-players/Operations_AI_Players.md`. Résultats de validation : `docs/ai-players/Epic_08_Validation_Results.md`.
@@ -102,11 +103,17 @@ Tests use `TestClock` for time control and `InMemoryGameRepository` for isolatio
 
 ## Configuration
 
+**Règle directrice — qui met quoi** (pattern .NET idiomatique multi-couches) :
+- `appsettings.json` : défauts partagés, non-secrets, communs à tous les environnements (`GameDefaults`, tuning `Llm` : `defaultTemperature`, `maxRetries`, `timeoutSeconds`, `maxCallsPerGame`).
+- `appsettings.{Environment}.json` : overrides non-secrets spécifiques à un environnement (`Llm.Provider/BaseUrl/DefaultModel/MaxConcurrency`, `AIPlayers.Enabled`). Versionné, auditable.
+- `SoClover/.env` : **uniquement les secrets** (`LLM__APIKEY`, `POSTGRES_*`) et les vars frontend (`VITE_*`). Jamais commité. Template : `SoClover/.env.example`.
+- **Échappatoire** : les vars `LLM__*` peuvent overrider ponctuellement n'importe quelle clé `Llm:*` (cascading config providers — env vars > appsettings). À utiliser pour expérimentations locales, pas comme mode opératoire normal. Préférer `dotnet user-secrets` pour tester Anthropic en dev.
+
+Autres notes :
 - DEBUG mode uses in-memory repository
 - RELEASE mode uses PostgreSQL (`DATABASE_URL` or `ConnectionStrings:GameDb`)
 - Word dictionaries in `Infrastructure/Dictionaries/` (co-localisés avec `FileWordDictionary`)
-- Game settings in `appsettings.json` → section `GameDefaults` (via `IOptions<GameDefaultsOptions>`)
-- Env vars centralisées dans `SoClover/.env` (PostgreSQL + VITE_*) — template : `SoClover/.env.example`
+- `GameDefaults` exposé via `IOptions<GameDefaultsOptions>` ; `AIPlayers` via `IOptions<AIPlayersOptions>` ; `Llm` via `IOptions<LlmOptions>`.
 - Vite lit les vars depuis `SoClover/` (`envDir: '../'` dans `vite.config.ts`) — ne pas créer de `client/.env`
 - Debug local : créer `SoClover/.env.local` avec `VITE_DEBUG_MODE=true` (gitignored)
 

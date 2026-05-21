@@ -4,6 +4,7 @@ import { Role, GamePhase, ConnectionStatus } from '../../types/game'
 import { createNotificationSlice, NotificationSlice } from './notificationSlice'
 import { createBoardSlice, BoardSlice } from './boardSlice'
 import { createGuessingSlice, GuessingSlice } from './guessingSlice'
+import { createAppConfigSlice, AppConfigSlice } from './appConfigSlice'
 import { isDebug } from '../debug'
 
 interface GameState {
@@ -162,4 +163,8 @@ export const useBoardStore = create<BoardSlice>()(
 
 export const useGuessingStore = create<GuessingSlice>()(
   (isDebug ? devtools(createGuessingSlice, { name: 'GuessingStore', enabled: true, serialize: { options: true } }) : createGuessingSlice) as StateCreator<GuessingSlice>
+)
+
+export const useAppConfigStore = create<AppConfigSlice>()(
+  (isDebug ? devtools(createAppConfigSlice, { name: 'AppConfigStore', enabled: true, serialize: { options: true } }) : createAppConfigSlice) as StateCreator<AppConfigSlice>
 )

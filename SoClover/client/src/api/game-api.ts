@@ -18,7 +18,19 @@ export interface JoinGameConflictResponse {
 
 export type JoinGameResult = JoinGameResponse | JoinGameConflictResponse;
 
+export interface PublicConfigResponse {
+  aiPlayersEnabled: boolean;
+}
+
 export const gameApi = {
+  getPublicConfig: async (): Promise<PublicConfigResponse> => {
+    const response = await fetch('/api/config');
+    if (!response.ok) {
+      throw new Error('Failed to load public config');
+    }
+    return response.json();
+  },
+
   createGame: async (playerName: string, language: string = 'Français_OFF'): Promise<CreateGameResponse> => {
     const response = await fetch('/api/games', {
       method: 'POST',

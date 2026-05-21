@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
-import { useGameStore } from '../../core/store';
+import { useGameStore, useAppConfigStore } from '../../core/store';
 import { gameApi } from '../../api/game-api';
 
 export const PlayerList: React.FC = () => {
@@ -8,6 +8,7 @@ export const PlayerList: React.FC = () => {
   const [kickingPlayerId, setKickingPlayerId] = useState<string | null>(null);
   const [addingAI, setAddingAI] = useState(false);
   const [addAIError, setAddAIError] = useState<string | null>(null);
+  const aiPlayersEnabled = useAppConfigStore(s => s.aiPlayersEnabled);
 
   const aiPlayers = players.filter(p => p.isAI);
   const aiPlayerCount = aiPlayers.length;
@@ -108,8 +109,9 @@ export const PlayerList: React.FC = () => {
           )}
           <button
             onClick={handleAddAIPlayer}
-            disabled={addingAI}
-            className="w-full text-sm font-medium text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded-lg py-1.5 transition-colors disabled:opacity-50"
+            disabled={addingAI || aiPlayersEnabled !== true}
+            title={aiPlayersEnabled === false ? 'Fonctionnalité actuellement désactivée en production' : undefined}
+            className="w-full text-sm font-medium text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded-lg py-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {addingAI ? 'Ajout en cours...' : '+ Ajouter un joueur IA'}
           </button>
