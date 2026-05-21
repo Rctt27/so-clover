@@ -144,6 +144,7 @@ public class CreateAIPlayerTests
         services.Configure<AIPlayersOptions>(o => o.Enabled = true);
         services.AddTransient<ICreateAIPlayerUseCase, CreateAIPlayer.Handler>();
         services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
+        services.AddSingleton<SoClover.Infrastructure.AI.IAiClueExplanationStore, SoClover.Infrastructure.AI.InMemoryAiClueExplanationStore>();
         var sp2 = services.BuildServiceProvider();
 
         var create = sp2.GetRequiredService<ICreateGameUseCase>();

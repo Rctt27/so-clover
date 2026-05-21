@@ -7,6 +7,7 @@ import { useBoardStore } from '../../../core/store'
 import { getClueErrorMessage } from '../../../core/clueValidationMessages'
 import { ClueValidationRejection } from '../../../types/game'
 import { debugLog } from '../../../core/debug'
+import { ClueExplanationTooltip } from './ClueExplanationTooltip'
 
 export type ClueStatus = 'idle' | 'saving' | 'success' | 'error'
 
@@ -15,12 +16,18 @@ interface ClueInputProps {
   value: string
   onSave: (value: string) => Promise<void>
   disabled?: boolean
+  /** LLM-generated rationale for AI clues. Server-gated: only set when the current
+   *  Guessing board has been resolved (success or attempts exhausted). When present
+   *  and the input is disabled (read-only display), a hover tooltip becomes available. */
+  explanation?: string | null
 }
 
-export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, disabled }) => {
+export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, disabled, explanation }) => {
+  const [isHovered, setIsHovered] = useState(false)
   const [localValue, setLocalValue] = useState(value)
   const [status, setStatus] = useState<ClueStatus>('idle')
   const inputRef = useRef<HTMLInputElement>(null)
+  const clueAnchorRef = useRef<HTMLDivElement>(null)
 
   const { validateImmediately } = useClueValidation(position, localValue)
   const validity = useBoardStore((s) => s.clueValidity[position])
@@ -93,9 +100,17 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
   const firstError = validity.errors[0]
   const errorMessageId = `clue-error-${position}`
 
+  const explanationIsAvailable = !!disabled && !!explanation
+
   return (
     <div style={getPositionStyle()}>
-    <motion.div animate={status === 'error' ? shakeAnimation : {}} className="w-full">
+    <motion.div
+      ref={clueAnchorRef}
+      animate={status === 'error' ? shakeAnimation : {}}
+      className="w-full relative"
+      onMouseEnter={explanationIsAvailable ? () => setIsHovered(true) : undefined}
+      onMouseLeave={explanationIsAvailable ? () => setIsHovered(false) : undefined}
+    >
       <input
         ref={inputRef}
         type="text"
@@ -115,8 +130,17 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
           borderColor: getBorderColor(),
           fontWeight: theme.clueFontWeight,
           fontSize: theme.clueFontSize,
+          cursor: explanationIsAvailable ? 'help' : undefined,
         }}
       />
+
+      {explanationIsAvailable && (
+        <ClueExplanationTooltip
+          explanation={explanation as string}
+          visible={isHovered}
+          anchorRef={clueAnchorRef}
+        />
+      )}
 
       <AnimatePresence>
         {status === 'saving' && (

@@ -35,6 +35,7 @@ public class BreakingGameTests
         services.AddTransient<IGuessUseCase, Guess.Handler>();
         services.AddTransient<IPlaceCardToGuessUseCase, PlaceCardToGuess.Handler>();
         services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
+        services.AddSingleton<SoClover.Infrastructure.AI.IAiClueExplanationStore, SoClover.Infrastructure.AI.InMemoryAiClueExplanationStore>();
         return services.BuildServiceProvider();
     }
 

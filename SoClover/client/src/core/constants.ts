@@ -84,5 +84,13 @@
       cardSize: 320,
       cardGap: 4,           // Espacement (px) entre les cartes adjacentes sur le board
     },
+  },
+
+  CLUE_EXPLANATION_TOOLTIP: {
+    maxWidthPx: 420,            // Largeur max du tooltip — vise 2-3 lignes pour une explication LLM typique
+    fadeDurationSec: 0.15,      // Durée d'apparition/disparition Framer Motion
+    offsetPx: 14,               // Espacement (px) entre le clue (bounding-rect) et le tooltip
+    viewportMarginPx: 8,        // Marge minimale entre le tooltip et le bord du viewport
+    zIndex: 9999,               // Rendu via Portal sur body : on veut être au-dessus de tout
   }
 };

@@ -38,6 +38,7 @@ public class GameProcessManagerTimeoutTests
         services.AddTransient<IDeleteGameUseCase, DeleteGame.Handler>();
         services.AddTransient<ICompleteGameUseCase, CompleteGame.Handler>();
         services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
+        services.AddSingleton<SoClover.Infrastructure.AI.IAiClueExplanationStore, SoClover.Infrastructure.AI.InMemoryAiClueExplanationStore>();
 
         // Background process manager that drives timeouts
         services.AddHostedService<GameProcessManager>();

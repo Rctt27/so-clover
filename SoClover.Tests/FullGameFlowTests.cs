@@ -36,6 +36,7 @@ public class FullGameFlowTests
         services.AddTransient<IGuessUseCase, Guess.Handler>();
         services.AddTransient<IPlaceCardToGuessUseCase, PlaceCardToGuess.Handler>();
         services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
+        services.AddSingleton<SoClover.Infrastructure.AI.IAiClueExplanationStore, SoClover.Infrastructure.AI.InMemoryAiClueExplanationStore>();
         services.AddTransient<ICompleteGameUseCase, CompleteGame.Handler>();
         services.AddTransient<IDeleteGameUseCase, DeleteGame.Handler>();
         return services.BuildServiceProvider();

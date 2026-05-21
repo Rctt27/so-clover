@@ -518,7 +518,8 @@ app.MapGet("/api/games/{gameId:guid}/state", async (Guid gameId, string? playerI
                 currentBoardClues = response.GuessingState.CurrentBoardClues.Select(c => new
                 {
                     direction = c.Direction.ToString(),
-                    text = c.Text
+                    text = c.Text,
+                    explanation = c.Explanation
                 }).ToList()
             },
             players = response.Players.Select(p => new

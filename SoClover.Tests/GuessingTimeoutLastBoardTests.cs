@@ -31,6 +31,7 @@ public class GuessingTimeoutLastBoardTests
         services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
         services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
         services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
+        services.AddSingleton<SoClover.Infrastructure.AI.IAiClueExplanationStore, SoClover.Infrastructure.AI.InMemoryAiClueExplanationStore>();
         services.AddTransient<IMoveToNextBoardUseCase, MoveToNextBoard.Handler>();
         services.AddTransient<IPlaceGuessingCardUseCase, PlaceGuessingCard.Handler>();
 

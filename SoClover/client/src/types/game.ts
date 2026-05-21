@@ -67,6 +67,10 @@ export interface GuessingPhaseStateResponse {
 export interface ClueInfoResponse {
   direction: string;
   text: string;
+  // LLM reasoning for AI-authored clues. Server only populates this once the current
+  // Guessing board is resolved (success or attempts exhausted). Null for human clues
+  // or while attempts remain — see backend GetGameState.cs.
+  explanation: string | null;
 }
 
 export interface ScoringBoardResponse {

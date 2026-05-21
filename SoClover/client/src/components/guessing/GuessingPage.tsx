@@ -127,6 +127,18 @@ export const GuessingPage = () => {
     [currentBoardClues]
   )
 
+  // Server gates these to null until the current board is resolved (success or attempts exhausted).
+  // We pass them through verbatim — ClueInput shows the tooltip iff a value is non-null.
+  const clueExplanations = useMemo(
+    () => ({
+      top: currentBoardClues.find((c) => c.direction === 'Top')?.explanation ?? null,
+      right: currentBoardClues.find((c) => c.direction === 'Right')?.explanation ?? null,
+      bottom: currentBoardClues.find((c) => c.direction === 'Bottom')?.explanation ?? null,
+      left: currentBoardClues.find((c) => c.direction === 'Left')?.explanation ?? null,
+    }),
+    [currentBoardClues]
+  )
+
   // ─── Effects ────────────────────────────────────────────────────────────────
 
   // [DEBUG] Mount / Unmount
@@ -226,6 +238,7 @@ export const GuessingPage = () => {
             boardCards={boardCards}
             boardGuessedCards={boardGuessedCards}
             clues={clues}
+            clueExplanations={clueExplanations}
             rotation={safeCumulativeRotation}
             currentBoardOwnerId={currentBoardOwnerId}
             isMyBoard={isMyBoard}
