@@ -7,4 +7,5 @@ public sealed class GameDefaultsOptions
     public int CluesDuration { get; init; } = 300;
     public int GuessDuration { get; init; } = 300;
     public int ScoringDuration { get; init; } = 30;
+    public int MaxAIPlayersPerGame { get; init; } = 4;
 }

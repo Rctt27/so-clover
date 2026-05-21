@@ -29,6 +29,7 @@ public class ScoringLogicTests
         services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
         services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
         services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
+        services.AddSingleton<SoClover.Infrastructure.AI.IAiClueExplanationStore, SoClover.Infrastructure.AI.InMemoryAiClueExplanationStore>();
         services.AddTransient<IMoveToNextBoardUseCase, MoveToNextBoard.Handler>();
         services.AddTransient<IPlaceGuessingCardUseCase, PlaceGuessingCard.Handler>();
         services.AddTransient<IValidateGuessingBoardUseCase, ValidateGuessingBoard.Handler>();
@@ -59,6 +60,10 @@ public class ScoringLogicTests
         var p2Id = (await join.Handle(new JoinGame.Request(gameId, "Bob"))).PlayerId;
 
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
+        // Submit all boards so BoardsToGuess.Count > 0 (Epic 03 guard).
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var preGuessing = await repo.Get(gameId) ?? throw new Exception();
+        foreach (var pl in preGuessing.ActivePlayers) pl.Board.MarkSubmitted(DateTime.UtcNow);
         await startGuessing.Handle(new StartGuessingPhase.Request(gameId, true));
 
         var state = await getState.Handle(new GetGameState.Request(gameId));

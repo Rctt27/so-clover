@@ -15,7 +15,8 @@ export const useGameStateUpdate = () => {
     setSettings,
     setRole,
     playerId: myPlayerId,
-    setIsGameAdmin
+    setIsGameAdmin,
+    setAdminPlayerId,
   } = useGameStore();
 
   const { setMyBoard, setOtherBoard, setCurrentBoardOwner } = useBoardStore();
@@ -48,18 +49,21 @@ export const useGameStateUpdate = () => {
       language: state.language,
       cluesDurationSeconds: state.cluesDurationSecondsOverride ?? 300,
       guessDurationSeconds: state.guessDurationSecondsOverride ?? 300,
-      semanticClueCheckEnabled: state.semanticClueCheckEnabled
+      semanticClueCheckEnabled: state.semanticClueCheckEnabled,
+      guessAiBoardOnly: state.guessAiBoardOnly,
     });
 
     // 2. Mise à jour des joueurs
     const playersList = state.players.map(p => ({
       playerId: p.playerId,
       name: p.name,
-      cursorColorIndex: p.cursorColorIndex
+      cursorColorIndex: p.cursorColorIndex,
+      isAI: p.isAI ?? false,
     }));
     setPlayers(playersList);
 
     // 3. Suis-je admin ?
+    setAdminPlayerId(state.adminPlayerId);
     if (myPlayerId && state.adminPlayerId) {
       setIsGameAdmin(myPlayerId === state.adminPlayerId);
     }
@@ -145,6 +149,7 @@ export const useGameStateUpdate = () => {
     setRole,
     myPlayerId,
     setIsGameAdmin,
+    setAdminPlayerId,
     setMyBoard,
     setOtherBoard,
     setCurrentBoardOwner,

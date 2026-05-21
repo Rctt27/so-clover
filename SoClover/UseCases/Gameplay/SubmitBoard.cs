@@ -9,7 +9,26 @@ public interface ISubmitBoardUseCase : IUseCase<SubmitBoard.Request, SubmitBoard
 
 public static class SubmitBoard
 {
-    public readonly record struct Request(GameId GameId, PlayerId PlayerId);
+    public readonly record struct Request
+    {
+        public Request(GameId gameId, PlayerId playerId)
+        {
+            GameId = gameId;
+            PlayerId = playerId;
+            Origin = InvocationOrigin.Client;
+        }
+
+        public Request(GameId gameId, PlayerId playerId, InvocationOrigin origin)
+        {
+            GameId = gameId;
+            PlayerId = playerId;
+            Origin = origin;
+        }
+
+        public GameId GameId { get; }
+        public PlayerId PlayerId { get; }
+        public InvocationOrigin Origin { get; }
+    }
     public readonly record struct Response;
 
     public sealed class Handler : ISubmitBoardUseCase
@@ -34,8 +53,12 @@ public static class SubmitBoard
                 throw new InvalidOperationInPhaseException("Cannot submit board outside WritingClues phase.");
 
             // Mark this player's board as submitted
-            var player = game.Players.FirstOrDefault(p => p.Id == request.PlayerId) 
+            var player = game.Players.FirstOrDefault(p => p.Id == request.PlayerId)
                 ?? throw new PlayerNotFoundException(request.PlayerId);
+
+            // Garde Epic 09 : en mode GuessAiBoardOnly, un humain n'a pas de board à soumettre.
+            if (game.GuessAiBoardOnly && !player.IsAI)
+                throw new HumanCannotSubmitInGuessAiBoardOnlyException();
 
             // Optional: prevent submitting an incomplete board
             var boardHasAllClues = player.Board.TopClue != null
@@ -51,9 +74,9 @@ public static class SubmitBoard
             await _repo.Save(game, ct);
             await _events.Publish(new BoardSubmitted(game.Id, request.PlayerId), ct);
 
-            // If all players have submitted, automatically start the guessing phase
-            var allPlayersExplicitlySubmitted = game.ActivePlayers.All(p => p.Board.IsSubmitted);
-            if (allPlayersExplicitlySubmitted)
+            // Auto-trigger Guessing dès que tous les WritingParticipants ont submit.
+            var allWritersSubmitted = game.WritingParticipants.All(p => p.Board.IsSubmitted);
+            if (allWritersSubmitted)
             {
                 await _startGuessingPhase.Handle(new StartGuessingPhase.Request(game.Id), ct);
             }

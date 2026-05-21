@@ -171,6 +171,54 @@ public sealed class SignalREventPublisher : IEventPublisher
                         }, ct);
                     break;
                 }
+                case SoClover.UseCases.AI.AiClueGenerationRequested aiReq:
+                {
+                    await _hub.Clients.Group($"game-{state.GameId}")
+                        .SendAsync("AiClueGenerationRequested", new
+                        {
+                            gameId = state.GameId,
+                            playerId = aiReq.PlayerId.Value.ToString()
+                        }, ct);
+                    break;
+                }
+                case SoClover.UseCases.AI.AiClueGenerated aiGen:
+                {
+                    await _hub.Clients.Group($"game-{state.GameId}")
+                        .SendAsync("AiClueGenerated", new
+                        {
+                            gameId = state.GameId,
+                            playerId = aiGen.PlayerId.Value.ToString(),
+                            direction = aiGen.Direction.ToString(),
+                            clueText = aiGen.ClueText,
+                            explanation = aiGen.Explanation
+                        }, ct);
+                    break;
+                }
+                case SoClover.UseCases.AI.AiClueGenerationFailed aiFail:
+                {
+                    await _hub.Clients.Group($"game-{state.GameId}")
+                        .SendAsync("AiClueGenerationFailed", new
+                        {
+                            gameId = state.GameId,
+                            playerId = aiFail.PlayerId.Value.ToString(),
+                            direction = aiFail.Direction.ToString(),
+                            reason = aiFail.Reason,
+                            attemptedClues = aiFail.AttemptedClues
+                        }, ct);
+                    break;
+                }
+                case SoClover.UseCases.AI.AiPlayerBoardFailed boardFail:
+                {
+                    var failedPlayer = state.Players.FirstOrDefault(p => p.PlayerId == boardFail.PlayerId.Value);
+                    var playerName = failedPlayer?.Name ?? "Un joueur IA";
+                    await _hub.Clients.Group($"game-{state.GameId}")
+                        .SendAsync("ServerNotification", new
+                        {
+                            type = "warning",
+                            message = $"<strong>{playerName}</strong> n'a pas pu générer ses indices et ne soumettra pas son plateau"
+                        }, ct);
+                    break;
+                }
             }
         }
         catch (GameNotFoundException)

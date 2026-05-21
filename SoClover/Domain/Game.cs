@@ -39,6 +39,10 @@ public sealed class Game
     [JsonPropertyName("semanticClueCheckEnabled")]
     public bool SemanticClueCheckEnabled { get; private set; }
 
+    [JsonInclude]
+    [JsonPropertyName("guessAiBoardOnly")]
+    public bool GuessAiBoardOnly { get; private set; }
+
     private const int CURSOR_COLORS_COUNT = 10;
     private readonly Dictionary<PlayerId, Player> _players = new();
     private WordsPool? _wordsPool;
@@ -101,6 +105,20 @@ public sealed class Game
     [JsonIgnore]
     public IReadOnlyCollection<Player> ActivePlayers =>
         _players.Values.Where(p => !p.IsDisconnected).ToList().AsReadOnly();
+
+    [JsonIgnore]
+    public IReadOnlyCollection<Player> GuessingParticipants =>
+        _players.Values.Where(p => !p.IsDisconnected && !p.IsAI).ToList().AsReadOnly();
+
+    [JsonIgnore]
+    public IReadOnlyCollection<Player> WritingParticipants =>
+        GuessAiBoardOnly
+            ? _players.Values.Where(p => !p.IsDisconnected && p.IsAI).ToList().AsReadOnly()
+            : ActivePlayers;
+
+    [JsonIgnore]
+    public IReadOnlyCollection<Player> BoardsToGuess =>
+        _players.Values.Where(p => !p.IsDisconnected && p.Board.IsSubmitted).ToList().AsReadOnly();
 
     // Persistence bridge: expose players for JSON (de)serialization when using EF snapshot storage.
     // We keep the domain API read-only (via Players) and use this property only for persistence.
@@ -181,14 +199,29 @@ public sealed class Game
         }
     }
 
+    public void AddAIPlayer(Player player, int max)
+    {
+        if (!player.IsAI)
+            throw new ArgumentException("Player must be flagged as AI.", nameof(player));
+
+        if (Phase != GamePhase.Lobby)
+            throw new InvalidOperationInPhaseException("Cannot add AI player after game start.");
+
+        var currentAiCount = _players.Values.Count(p => p.IsAI);
+        if (currentAiCount >= max)
+            throw new MaxAIPlayersReachedException(currentAiCount, max);
+
+        AddPlayer(player);
+    }
+
     public void RemovePlayer(PlayerId playerId)
     {
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("Cannot leave after game start.");
         BumpRevision();
-            
+
         _players.Remove(playerId);
-        
+
         if (AdminPlayerId == playerId)
         {
             AdminPlayerId = _players.Keys.FirstOrDefault();
@@ -196,6 +229,11 @@ public sealed class Game
             {
                 _players[newAdminId].IsAdmin = true;
             }
+        }
+
+        if (GuessAiBoardOnly && !_players.Values.Any(p => p.IsAI && !p.IsDisconnected))
+        {
+            GuessAiBoardOnly = false;
         }
     }
 
@@ -289,6 +327,17 @@ public sealed class Game
             throw new InvalidOperationException("Semantic clue check is only available for the French dictionary.");
 
         SemanticClueCheckEnabled = enabled;
+    }
+
+    public void SetGuessAiBoardOnly(bool enabled)
+    {
+        if (Phase != GamePhase.Lobby)
+            throw new InvalidOperationInPhaseException("GuessAiBoardOnly can only be toggled in the Lobby phase.");
+
+        if (enabled && !_players.Values.Any(p => p.IsAI && !p.IsDisconnected))
+            throw new NoAiPlayerForGuessAiBoardOnlyException();
+
+        GuessAiBoardOnly = enabled;
     }
 
     public void UpdateDurationOverrides(int? cluesDurationSeconds, int? guessDurationSeconds)
@@ -680,6 +729,18 @@ public sealed class Game
         );
     }
 
+    /// <summary>
+    /// True si, après le passage au board suivant, on doit transiter en Scoring
+    /// (i.e. on est en train de quitter le dernier board à deviner).
+    /// Centralise la sémantique pour que les UseCases ne recalculent pas localement.
+    /// </summary>
+    public bool IsLastGuessingBoard()
+    {
+        var boardsCount = BoardsToGuess.Count;
+        if (boardsCount == 0) return false;
+        return CompletedBoardsCount >= boardsCount - 1;
+    }
+
     public void MoveToNextGuessingBoard(Card? fifthCard, Rotation[]? cardRotations, DateTime nowUtc, TimeSpan perBoardDuration)
     {
         if (Phase != GamePhase.Guessing)
@@ -692,12 +753,12 @@ public sealed class Game
         // Incrémenter le compteur de boards complétés
         CompletedBoardsCount++;
 
-        var playersList = ActivePlayers.ToList();
+        var boardsList = BoardsToGuess.ToList();
 
-        Console.WriteLine($"[DEBUG_LOG] Game.MoveToNextGuessingBoard: CompletedBoardsCount={CompletedBoardsCount}, TotalPlayers={playersList.Count}");
+        Console.WriteLine($"[DEBUG_LOG] Game.MoveToNextGuessingBoard: CompletedBoardsCount={CompletedBoardsCount}, BoardsToGuess={boardsList.Count}");
 
-        // Vérifier si tous les boards ont été devinés
-        if (CompletedBoardsCount >= playersList.Count)
+        // Vérifier si tous les boards ont été devinés (boards submitted, AI inclus)
+        if (CompletedBoardsCount >= boardsList.Count)
         {
             Console.WriteLine($"[DEBUG_LOG] Game.MoveToNextGuessingBoard: Transitioning to Scoring phase.");
             // Tous les boards ont été complétés, fin de la phase de guessing
@@ -710,12 +771,14 @@ public sealed class Game
             if (fifthCard == null || cardRotations == null || cardRotations.Length < 5)
                 throw new InvalidOperationException("Fifth card and 5 rotations are required for next board.");
 
-            // Trouver le prochain joueur qui n'a pas encore été deviné
-            var currentIndex = playersList.FindIndex(p => p.Id == CurrentGuessingBoardOwner);
-            var nextIndex = (currentIndex + 1) % playersList.Count;
+            // Trouver le prochain board qui n'a pas encore été deviné
+            var currentIndex = boardsList.FindIndex(p => p.Id == CurrentGuessingBoardOwner);
+            // Si l'owner courant n'est plus dans BoardsToGuess (cas: déconnecté en cours de Guessing),
+            // on repart du premier board disponible.
+            var nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % boardsList.Count;
 
             // Passer au board suivant
-            var nextOwner = playersList[nextIndex];
+            var nextOwner = boardsList[nextIndex];
             CurrentGuessingBoardOwner = nextOwner.Id;
 
             // Réinitialiser l'état de guessing pour le nouveau board

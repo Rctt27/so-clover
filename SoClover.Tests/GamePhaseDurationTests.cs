@@ -30,6 +30,7 @@ public class GamePhaseDurationTests
         services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
         services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
         services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
+        services.AddSingleton<SoClover.Infrastructure.AI.IAiClueExplanationStore, SoClover.Infrastructure.AI.InMemoryAiClueExplanationStore>();
 
         return services.BuildServiceProvider();
     }
@@ -79,6 +80,10 @@ public class GamePhaseDurationTests
 
         // 2) Guessing: starting should set a per-board deadline within 1800s
         clock.Advance(TimeSpan.FromSeconds(1));
+        // Submit all boards so BoardsToGuess.Count > 0 (Epic 03 guard).
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var preGuessing = await repo.Get(gameId) ?? throw new Exception();
+        foreach (var pl in preGuessing.ActivePlayers) pl.Board.MarkSubmitted(clock.UtcNow);
         await startGuessing.Handle(new StartGuessingPhase.Request(gameId, true));
         var state2 = await getState.Handle(new GetGameState.Request(gameId));
         Assert.Equal(GamePhase.Guessing, state2.Phase);

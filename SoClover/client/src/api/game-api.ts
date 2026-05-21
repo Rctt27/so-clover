@@ -18,7 +18,19 @@ export interface JoinGameConflictResponse {
 
 export type JoinGameResult = JoinGameResponse | JoinGameConflictResponse;
 
+export interface PublicConfigResponse {
+  aiPlayersEnabled: boolean;
+}
+
 export const gameApi = {
+  getPublicConfig: async (): Promise<PublicConfigResponse> => {
+    const response = await fetch('/api/config');
+    if (!response.ok) {
+      throw new Error('Failed to load public config');
+    }
+    return response.json();
+  },
+
   createGame: async (playerName: string, language: string = 'Français_OFF'): Promise<CreateGameResponse> => {
     const response = await fetch('/api/games', {
       method: 'POST',
@@ -91,8 +103,20 @@ export const gameApi = {
   updateSettings: async (
       gameId: string,
       playerId: string,
-      settings: { language: string; cluesDuration: number; guessDuration: number; semanticClueCheckEnabled?: boolean }
-  ): Promise<{ language: string; cluesDuration: number; guessDuration: number; semanticClueCheckEnabled: boolean }> => {
+      settings: {
+        language: string;
+        cluesDuration: number;
+        guessDuration: number;
+        semanticClueCheckEnabled?: boolean;
+        guessAiBoardOnly?: boolean;
+      }
+  ): Promise<{
+    language: string;
+    cluesDuration: number;
+    guessDuration: number;
+    semanticClueCheckEnabled: boolean;
+    guessAiBoardOnly: boolean;
+  }> => {
     const response = await fetch(`/api/games/${gameId}/settings`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -117,6 +141,19 @@ export const gameApi = {
       throw new Error(errorData.message || 'Failed to start game');
     }
     return {};
+  },
+
+  addAIPlayer: async (gameId: string, adminPlayerId: string, playerName: string): Promise<{ playerId: string }> => {
+    const response = await fetch(`/api/games/${gameId}/ai-players`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminPlayerId, playerName }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to add AI player');
+    }
+    return response.json();
   },
 
   cancelGame: async (gameId: string): Promise<void> => {

@@ -35,6 +35,7 @@ public class BreakingGameTests
         services.AddTransient<IGuessUseCase, Guess.Handler>();
         services.AddTransient<IPlaceCardToGuessUseCase, PlaceCardToGuess.Handler>();
         services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
+        services.AddSingleton<SoClover.Infrastructure.AI.IAiClueExplanationStore, SoClover.Infrastructure.AI.InMemoryAiClueExplanationStore>();
         return services.BuildServiceProvider();
     }
 
@@ -178,6 +179,10 @@ public class BreakingGameTests
         var guess = sp.GetRequiredService<IGuessUseCase>();
         var gameId = (await create.Handle(new CreateGame.Request("Admin"))).GameId;
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
+        // Submit all boards so BoardsToGuess.Count > 0 (Epic 03 guard).
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var preGuessing = await repo.Get(gameId) ?? throw new Exception();
+        foreach (var pl in preGuessing.ActivePlayers) pl.Board.MarkSubmitted(DateTime.UtcNow);
         await startGuessing.Handle(new StartGuessingPhase.Request(gameId, true));
 
         await Assert.ThrowsAsync<PlayerNotFoundException>(async () =>

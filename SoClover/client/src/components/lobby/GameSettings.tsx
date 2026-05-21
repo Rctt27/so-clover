@@ -4,11 +4,13 @@ import { gameApi } from '../../api/game-api';
 import {
   LOBBY_SEMANTIC_TOGGLE_LABEL,
   LOBBY_SEMANTIC_TOGGLE_TOOLTIP_DISABLED,
+  LOBBY_GUESS_AI_BOARD_ONLY_LABEL,
+  LOBBY_GUESS_AI_BOARD_ONLY_TOOLTIP_DISABLED,
 } from '../../core/clueValidationMessages';
 import { isFrenchLanguage } from '../../core/clueValidation';
 
 export const GameSettings: React.FC = () => {
-  const { gameId, playerId, isGameAdmin, settings, setSettings } = useGameStore();
+  const { gameId, playerId, isGameAdmin, settings, setSettings, players } = useGameStore();
   const [dictionaries, setDictionaries] = useState<{ key: string, name: string }[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -20,6 +22,8 @@ export const GameSettings: React.FC = () => {
 
   const isCurrentLanguageFrench = isFrenchLanguage(settings.language)
   const semanticEnabled = settings.semanticClueCheckEnabled
+  const hasAIPlayer = players.some(p => p.isAI)
+  const guessAiBoardOnlyEnabled = settings.guessAiBoardOnly
 
   useEffect(() => {
     setLocalCluesDuration(settings.cluesDurationSeconds);
@@ -41,7 +45,13 @@ export const GameSettings: React.FC = () => {
     loadDictionaries();
   }, []);
 
-  const updateSettings = async (newSettings: { language: string, cluesDuration: number, guessDuration: number, semanticClueCheckEnabled?: boolean }) => {
+  const updateSettings = async (newSettings: {
+    language: string,
+    cluesDuration: number,
+    guessDuration: number,
+    semanticClueCheckEnabled?: boolean,
+    guessAiBoardOnly?: boolean,
+  }) => {
     if (!isGameAdmin || !gameId || !playerId) return;
     setLoading(true);
     try {
@@ -51,6 +61,7 @@ export const GameSettings: React.FC = () => {
         cluesDurationSeconds: updated.cluesDuration,
         guessDurationSeconds: updated.guessDuration,
         semanticClueCheckEnabled: updated.semanticClueCheckEnabled,
+        guessAiBoardOnly: updated.guessAiBoardOnly,
       });
     } catch (err) {
       console.error('Failed to update settings', err);
@@ -105,6 +116,17 @@ export const GameSettings: React.FC = () => {
       cluesDuration: localCluesDuration,
       guessDuration: localGuessDuration,
       semanticClueCheckEnabled: checked,
+    })
+  }
+
+  const handleToggleGuessAiBoardOnly = async (checked: boolean) => {
+    if (!isGameAdmin || !gameId || !playerId) return
+    await updateSettings({
+      language: settings.language,
+      cluesDuration: localCluesDuration,
+      guessDuration: localGuessDuration,
+      semanticClueCheckEnabled: settings.semanticClueCheckEnabled,
+      guessAiBoardOnly: checked,
     })
   }
 
@@ -184,6 +206,29 @@ export const GameSettings: React.FC = () => {
           {!isCurrentLanguageFrench && (
             <p className="text-xs text-slate-400 italic mt-1">
               {LOBBY_SEMANTIC_TOGGLE_TOOLTIP_DISABLED}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label
+            className="flex items-center gap-2 text-sm font-medium text-slate-600"
+            title={!hasAIPlayer ? LOBBY_GUESS_AI_BOARD_ONLY_TOOLTIP_DISABLED : undefined}
+          >
+            <input
+              type="checkbox"
+              checked={guessAiBoardOnlyEnabled && hasAIPlayer}
+              disabled={!isGameAdmin || loading || !hasAIPlayer}
+              onChange={(e) => handleToggleGuessAiBoardOnly(e.target.checked)}
+              className="accent-emerald-500 disabled:opacity-50"
+            />
+            <span className={!hasAIPlayer ? 'text-slate-400' : undefined}>
+              {LOBBY_GUESS_AI_BOARD_ONLY_LABEL}
+            </span>
+          </label>
+          {!hasAIPlayer && (
+            <p className="text-xs text-slate-400 italic mt-1">
+              {LOBBY_GUESS_AI_BOARD_ONLY_TOOLTIP_DISABLED}
             </p>
           )}
         </div>

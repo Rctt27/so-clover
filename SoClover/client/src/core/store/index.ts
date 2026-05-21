@@ -4,6 +4,7 @@ import { Role, GamePhase, ConnectionStatus } from '../../types/game'
 import { createNotificationSlice, NotificationSlice } from './notificationSlice'
 import { createBoardSlice, BoardSlice } from './boardSlice'
 import { createGuessingSlice, GuessingSlice } from './guessingSlice'
+import { createAppConfigSlice, AppConfigSlice } from './appConfigSlice'
 import { isDebug } from '../debug'
 
 interface GameState {
@@ -13,26 +14,32 @@ interface GameState {
   phase: GamePhase
   role: Role
   isGameAdmin: boolean
+  adminPlayerId: string | null
   connectionStatus: ConnectionStatus
-  players: Array<{ playerId: string, name: string, cursorColorIndex: number }>
+  players: Array<{ playerId: string, name: string, cursorColorIndex: number, isAI: boolean }>
   isInitializing: boolean
   phaseEndsAtUtc: string | null
+  aiGeneratingPlayerIds: string[]
   settings: {
     language: string
     cluesDurationSeconds: number
     guessDurationSeconds: number
     semanticClueCheckEnabled: boolean
+    guessAiBoardOnly: boolean
   }
   setPhase: (phase: GamePhase) => void
+  markAiGenerating: (playerId: string) => void
+  clearAiGenerating: (playerId: string) => void
   setRole: (role: Role) => void
   setIsGameAdmin: (isAdmin: boolean) => void
+  setAdminPlayerId: (adminPlayerId: string | null) => void
   setGameId: (gameId: string | null) => void
   setPlayerId: (playerId: string | null) => void
   setPlayerName: (playerName: string | null) => void
   setConnectionStatus: (status: ConnectionStatus) => void
-  setPlayers: (players: Array<{ playerId: string, name: string, cursorColorIndex: number }>) => void
+  setPlayers: (players: Array<{ playerId: string, name: string, cursorColorIndex: number, isAI: boolean }>) => void
   setPhaseEndsAtUtc: (deadline: string | null) => void
-  setSettings: (settings: { language: string, cluesDurationSeconds: number, guessDurationSeconds: number, semanticClueCheckEnabled: boolean }) => void
+  setSettings: (settings: { language: string, cluesDurationSeconds: number, guessDurationSeconds: number, semanticClueCheckEnabled: boolean, guessAiBoardOnly: boolean }) => void
   setIsInitializing: (isInitializing: boolean) => void
   resetAuth: () => void
 }
@@ -44,19 +51,38 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
   phase: 'Initial',
   role: 'PlayerWritingClue',
   isGameAdmin: false,
+  adminPlayerId: null,
   isInitializing: false,
   connectionStatus: 'Disconnected',
   players: [],
   phaseEndsAtUtc: null,
+  aiGeneratingPlayerIds: [],
   settings: {
     language: 'Français_OFF',
     cluesDurationSeconds: 300,
     guessDurationSeconds: 300,
     semanticClueCheckEnabled: true,
+    guessAiBoardOnly: false,
   },
-  setPhase: (phase) => set({ phase }, false, 'GameStore/setPhase'),
+  setPhase: (phase) => set(
+    (state) => ({ phase, aiGeneratingPlayerIds: phase === 'WritingClues' ? state.aiGeneratingPlayerIds : [] }),
+    false, 'GameStore/setPhase'
+  ),
+  markAiGenerating: (playerId) => set(
+    (state) => ({
+      aiGeneratingPlayerIds: state.aiGeneratingPlayerIds.includes(playerId)
+        ? state.aiGeneratingPlayerIds
+        : [...state.aiGeneratingPlayerIds, playerId]
+    }),
+    false, 'GameStore/markAiGenerating'
+  ),
+  clearAiGenerating: (playerId) => set(
+    (state) => ({ aiGeneratingPlayerIds: state.aiGeneratingPlayerIds.filter(id => id !== playerId) }),
+    false, 'GameStore/clearAiGenerating'
+  ),
   setRole: (role) => set({ role }, false, 'GameStore/setRole'),
   setIsGameAdmin: (isGameAdmin) => set({ isGameAdmin }, false, 'GameStore/setIsGameAdmin'),
+  setAdminPlayerId: (adminPlayerId) => set({ adminPlayerId }, false, 'GameStore/setAdminPlayerId'),
   setGameId: (gameId) => set({ gameId }, false, 'GameStore/setGameId'),
   setPlayerId: (playerId) => set({ playerId }, false, 'GameStore/setPlayerId'),
   setPlayerName: (playerName) => set({ playerName }, false, 'GameStore/setPlayerName'),
@@ -71,6 +97,7 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
     gameId: null,
     role: 'PlayerWritingClue',
     isGameAdmin: false,
+    adminPlayerId: null,
     players: [],
     phase: 'Initial',
     phaseEndsAtUtc: null,
@@ -78,7 +105,8 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
       language: 'Français_OFF',
       cluesDurationSeconds: 300,
       guessDurationSeconds: 300,
-      semanticClueCheckEnabled: true
+      semanticClueCheckEnabled: true,
+      guessAiBoardOnly: false,
     }
   }, false, 'GameStore/resetAuth'),
 })
@@ -135,4 +163,8 @@ export const useBoardStore = create<BoardSlice>()(
 
 export const useGuessingStore = create<GuessingSlice>()(
   (isDebug ? devtools(createGuessingSlice, { name: 'GuessingStore', enabled: true, serialize: { options: true } }) : createGuessingSlice) as StateCreator<GuessingSlice>
+)
+
+export const useAppConfigStore = create<AppConfigSlice>()(
+  (isDebug ? devtools(createAppConfigSlice, { name: 'AppConfigStore', enabled: true, serialize: { options: true } }) : createAppConfigSlice) as StateCreator<AppConfigSlice>
 )

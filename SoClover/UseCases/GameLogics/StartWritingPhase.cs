@@ -1,5 +1,9 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using SoClover.Domain;
+using SoClover.Infrastructure.AI;
 using SoClover.RealTime;
+using SoClover.UseCases.AI;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
 
@@ -21,8 +25,10 @@ public static class StartWritingPhase
         private readonly IWordDictionary _wordDictionary;
         private readonly IWordsPoolCache _poolCache;
         private readonly IConnectionTracker? _connectionTracker;
+        private readonly AiClueWorkChannel? _aiClueChannel;
+        private readonly ILogger<Handler> _logger;
 
-        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings, IWordDictionary wordDictionary, IWordsPoolCache poolCache, IConnectionTracker? connectionTracker = null)
+        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings, IWordDictionary wordDictionary, IWordsPoolCache poolCache, IConnectionTracker? connectionTracker = null, AiClueWorkChannel? aiClueChannel = null, ILogger<Handler>? logger = null)
         {
             _repo = repo;
             _events = events;
@@ -31,17 +37,20 @@ public static class StartWritingPhase
             _wordDictionary = wordDictionary;
             _poolCache = poolCache;
             _connectionTracker = connectionTracker;
+            _aiClueChannel = aiClueChannel;
+            _logger = logger ?? NullLogger<Handler>.Instance;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
         {
             var game = await _repo.Get(request.GameId, ct) ?? throw new GameNotFoundException(request.GameId);
 
-            // Verify all players have an active SignalR connection (skipped in tests where tracker is null)
+            // Verify all human players have an active SignalR connection (AI players are exempt; tracker is null in tests)
             if (_connectionTracker != null)
             {
+                // Les joueurs AI n'ont jamais de connexion SignalR — on les exclut du check.
                 var disconnectedNames = game.Players
-                    .Where(p => !_connectionTracker.IsPlayerConnected(p.Id))
+                    .Where(p => !p.IsAI && !_connectionTracker.IsPlayerConnected(p.Id))
                     .Select(p => p.Name)
                     .ToList();
                 if (disconnectedNames.Count > 0)
@@ -53,8 +62,14 @@ public static class StartWritingPhase
             // Restore WordsPool from cache (survives EF deserialization)
             await EnsureWordsPoolAsync(game, ct);
 
-            // Populate each player's board with 4 cards using the game's WordsPool
-            foreach (var player in game.Players)
+            // Ceinture-bretelle : si le flag est actif sans aucun IA présent, on ne tente
+            // même pas StartWritingPhase. L'auto-désactivation dans RemovePlayer rend ce
+            // cas théoriquement impossible, mais le coût de la vérification est nul.
+            if (game.GuessAiBoardOnly && !game.Players.Any(p => p.IsAI && !p.IsDisconnected))
+                throw new NoAiPlayerForGuessAiBoardOnlyException();
+
+            // Populate each writing participant's board with 4 cards using the game's WordsPool
+            foreach (var player in game.WritingParticipants)
             {
                 var cards = new List<Card>(4);
                 for (int i = 0; i < 4; i++)
@@ -77,6 +92,18 @@ public static class StartWritingPhase
             game.StartWritingPhase(now, duration);
             await _repo.Save(game, ct);
             await _events.Publish(new WritingPhaseStarted(game.Id), ct);
+
+            if (_aiClueChannel != null)
+            {
+                foreach (var aiPlayer in game.Players.Where(p => p.IsAI))
+                {
+                    if (!_aiClueChannel.Writer.TryWrite(new AiClueGenerationRequested(game.Id, aiPlayer.Id)))
+                        _logger.LogWarning(
+                            "AI clue channel full — generation request dropped: game={GameId} player={PlayerId}",
+                            game.Id.Value, aiPlayer.Id.Value);
+                }
+            }
+
             return new Response(game.Phase);
         }
 

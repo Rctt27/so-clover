@@ -31,6 +31,7 @@ public class GuessingTimeoutLastBoardTests
         services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
         services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
         services.AddTransient<IGetGameStateUseCase, GetGameState.Handler>();
+        services.AddSingleton<SoClover.Infrastructure.AI.IAiClueExplanationStore, SoClover.Infrastructure.AI.InMemoryAiClueExplanationStore>();
         services.AddTransient<IMoveToNextBoardUseCase, MoveToNextBoard.Handler>();
         services.AddTransient<IPlaceGuessingCardUseCase, PlaceGuessingCard.Handler>();
 
@@ -49,6 +50,7 @@ public class GuessingTimeoutLastBoardTests
         var getState = sp.GetRequiredService<IGetGameStateUseCase>();
         var moveNext = sp.GetRequiredService<IMoveToNextBoardUseCase>();
         var placeGuessing = sp.GetRequiredService<IPlaceGuessingCardUseCase>();
+        var repo = sp.GetRequiredService<IGameRepository>();
 
         // Create game with 2 players (admin + one)
         var created = await create.Handle(new CreateGame.Request("Admin"));
@@ -57,6 +59,9 @@ public class GuessingTimeoutLastBoardTests
 
         // Move to Writing and then start Guessing
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
+        // Submit all boards so BoardsToGuess.Count > 0 (Epic 03 guard).
+        var preGuessing = await repo.Get(gameId) ?? throw new Exception();
+        foreach (var pl in preGuessing.ActivePlayers) pl.Board.MarkSubmitted(clock.UtcNow);
         await startGuessing.Handle(new StartGuessingPhase.Request(gameId, true));
 
         // Reach the end of the first board by expiring time and invoking system move

@@ -92,3 +92,72 @@ public class DisconnectedPlayersException : DomainException
         PlayerNames = playerNames;
     }
 }
+
+public class AIPlayersDisabledException : DomainException
+{
+    public AIPlayersDisabledException()
+        : base("AI players are disabled on this server.")
+    {
+    }
+}
+
+public class MaxAIPlayersReachedException : DomainException
+{
+    public int CurrentCount { get; }
+    public int Max { get; }
+
+    public MaxAIPlayersReachedException(int currentCount, int max)
+        : base($"Maximum AI players reached: {currentCount}/{max}.")
+    {
+        CurrentCount = currentCount;
+        Max = max;
+    }
+}
+
+public class NoHumanGuesserException : DomainException
+{
+    public NoHumanGuesserException()
+        : base("Cannot start the guessing phase: no human player is available to guess.")
+    {
+    }
+}
+
+public class LlmBudgetExhaustedException : DomainException
+{
+    public GameId GameId { get; }
+    public int Max { get; }
+
+    public LlmBudgetExhaustedException(GameId gameId, int max)
+        : base($"LLM budget exhausted for game {gameId}: {max} requests.")
+    {
+        GameId = gameId;
+        Max = max;
+    }
+}
+
+public class UnsupportedAiLanguageException : DomainException
+{
+    public string Language { get; }
+
+    public UnsupportedAiLanguageException(string language)
+        : base($"AI players are not supported for language: {language}.")
+    {
+        Language = language;
+    }
+}
+
+public class NoAiPlayerForGuessAiBoardOnlyException : DomainException
+{
+    public NoAiPlayerForGuessAiBoardOnlyException()
+        : base("Cannot enable GuessAiBoardOnly: at least one AI player must be present in the lobby.")
+    {
+    }
+}
+
+public class HumanCannotSubmitInGuessAiBoardOnlyException : DomainException
+{
+    public HumanCannotSubmitInGuessAiBoardOnlyException()
+        : base("Humans cannot submit a board while GuessAiBoardOnly mode is active.")
+    {
+    }
+}

@@ -7,12 +7,37 @@ using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
 using SoClover.UseCases.Gameplay;
 using SoClover.UseCases.GameLogics;
+using SoClover.Infrastructure.AI;
+using Microsoft.Extensions.AI;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure game defaults from appsettings.json
 builder.Services.Configure<GameDefaultsOptions>(
     builder.Configuration.GetSection("GameDefaults"));
+
+// LLM configuration (Epic 04). Section "Llm" in appsettings.json overridable via env vars LLM__*.
+builder.Services.AddOptions<LlmOptions>()
+    .Bind(builder.Configuration.GetSection(LlmOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<LlmOptions>, LlmOptionsValidator>();
+
+// AI players feature flag (section "AIPlayers"). Disabled by default in prod.
+builder.Services.Configure<AIPlayersOptions>(
+    builder.Configuration.GetSection(AIPlayersOptions.SectionName));
+
+// Per-game LLM call budget. Singleton so counters survive across requests within a process lifetime.
+builder.Services.AddSingleton<GameLlmBudget>(sp =>
+{
+    var opts = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<LlmOptions>>().Value;
+    return new GameLlmBudget(opts.MaxCallsPerGame);
+});
+
+// IChatClient — singleton so the throttle semaphore is process-wide.
+// The factory composes Timeout(Throttle(Provider)) at construction time.
+builder.Services.AddSingleton<ChatClientFactory>();
+builder.Services.AddSingleton<IChatClient>(sp =>
+    sp.GetRequiredService<ChatClientFactory>().Create());
 
 // Infrastructure
 // Configure PostgreSQL DbContext (prod-ready)
@@ -53,6 +78,19 @@ builder.Services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handl
 builder.Services.AddTransient<ISetClueUseCase, SetClue.Handler>();
 builder.Services.AddTransient<IValidateClueUseCase, ValidateClue.Handler>();
 builder.Services.AddSingleton<SoClover.Domain.Validation.IClueValidatorFactory, SoClover.Infrastructure.Validation.ClueValidatorFactory>();
+// AI prompt authoring (Epic 05) — singleton because the FilePromptLoader cache
+// must be shared process-wide for hot-reload to be effective.
+builder.Services.AddSingleton<SoClover.Infrastructure.AI.Prompts.IAiCluePromptProviderFactory, SoClover.Infrastructure.AI.Prompts.AiCluePromptProviderFactory>();
+// Epic 06 — clue generation pipeline
+builder.Services.AddSingleton<SoClover.Infrastructure.AI.IAiClueExplanationStore,
+                              SoClover.Infrastructure.AI.InMemoryAiClueExplanationStore>();
+builder.Services.AddTransient<SoClover.UseCases.AI.IGenerateAICluesUseCase,
+                              SoClover.UseCases.AI.GenerateAIClues.Handler>();
+// Epic 07 — Background orchestration for AI clue generation.
+// AiClueWorkChannel is a singleton (one process-wide bounded queue).
+// The hosted service drains it and dispatches to IGenerateAICluesUseCase.
+builder.Services.AddSingleton<SoClover.Infrastructure.AI.AiClueWorkChannel>();
+builder.Services.AddHostedService<SoClover.Infrastructure.AI.AiClueOrchestratorHostedService>();
 builder.Services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
 builder.Services.AddTransient<IGuessUseCase, Guess.Handler>();
 builder.Services.AddTransient<IPlaceCardToGuessUseCase, PlaceCardToGuess.Handler>();
@@ -70,6 +108,7 @@ builder.Services.AddTransient<IGetScoringUseCase, GetScoring.Handler>();
 builder.Services.AddTransient<ICompleteGameUseCase, CompleteGame.Handler>();
 builder.Services.AddTransient<ILeaveGameUseCase, LeaveGame.Handler>();
 builder.Services.AddTransient<IKickPlayerUseCase, KickPlayer.Handler>();
+builder.Services.AddTransient<ICreateAIPlayerUseCase, CreateAIPlayer.Handler>();
 builder.Services.AddTransient<IDisconnectPlayerUseCase, DisconnectPlayer.Handler>();
 builder.Services.AddSingleton<SoClover.RealTime.IConnectionTracker, SoClover.RealTime.SignalRConnectionTracker>();
 
@@ -277,6 +316,75 @@ app.MapPost("/api/games/{gameId:guid}/kick", async (Guid gameId, KickPlayerReque
 })
 .WithName("KickPlayer");
 
+app.MapPost("/api/games/{gameId:guid}/ai-players", async (
+    Guid gameId,
+    CreateAIPlayerRequest? request,
+    ICreateAIPlayerUseCase useCase,
+    CancellationToken ct) =>
+{
+    if (request is null
+        || string.IsNullOrWhiteSpace(request.AdminPlayerId)
+        || string.IsNullOrWhiteSpace(request.PlayerName))
+    {
+        return Results.BadRequest(new { message = "AdminPlayerId and PlayerName are required" });
+    }
+
+    if (!Guid.TryParse(request.AdminPlayerId, out var adminGuid) || adminGuid == Guid.Empty)
+    {
+        return Results.BadRequest(new { message = "AdminPlayerId must be a valid non-empty GUID" });
+    }
+
+    try
+    {
+        var response = await useCase.Handle(new CreateAIPlayer.Request(
+            new GameId(gameId),
+            new PlayerId(adminGuid),
+            request.PlayerName,
+            request.Model,
+            request.Temperature), ct);
+
+        return Results.Ok(new { playerId = response.PlayerId.Value });
+    }
+    catch (GameNotFoundException)
+    {
+        return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (UnauthorizedAccessException)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+    catch (AIPlayersDisabledException ex)
+    {
+        return Results.Json(new { message = ex.Message }, statusCode: StatusCodes.Status403Forbidden);
+    }
+    catch (MaxAIPlayersReachedException ex)
+    {
+        return Results.Conflict(new
+        {
+            message = ex.Message,
+            currentCount = ex.CurrentCount,
+            max = ex.Max
+        });
+    }
+    catch (InvalidOperationInPhaseException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (UnsupportedAiLanguageException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (PlayerNameEmptyException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (PlayerNameTooLongException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+})
+.WithName("CreateAIPlayer");
+
 app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSettingsRequest? request, IUpdateGameSettingsUseCase useCase, CancellationToken ct) =>
 {
     if (request is null)
@@ -313,14 +421,16 @@ app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSe
                 request.Language.Trim(),
                 request.CluesDuration,
                 request.GuessDuration,
-                request.SemanticClueCheckEnabled),
+                request.SemanticClueCheckEnabled,
+                request.GuessAiBoardOnly),
             ct);
         return Results.Ok(new
         {
             language = response.Language,
             cluesDuration = response.CluesDurationSeconds,
             guessDuration = response.GuessDurationSeconds,
-            semanticClueCheckEnabled = response.SemanticClueCheckEnabled
+            semanticClueCheckEnabled = response.SemanticClueCheckEnabled,
+            guessAiBoardOnly = response.GuessAiBoardOnly
         });
     }
     catch (GameNotFoundException)
@@ -331,6 +441,10 @@ app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSe
     {
         // Avoid Results.Forbid() since no authentication is configured; return 403 directly
         return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+    catch (NoAiPlayerForGuessAiBoardOnlyException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
     }
     catch (InvalidOperationInPhaseException ex)
     {
@@ -370,6 +484,7 @@ app.MapGet("/api/games/{gameId:guid}/state", async (Guid gameId, string? playerI
             cluesDurationSecondsOverride = response.CluesDurationSecondsOverride,
             guessDurationSecondsOverride = response.GuessDurationSecondsOverride,
             semanticClueCheckEnabled = response.SemanticClueCheckEnabled,
+            guessAiBoardOnly = response.GuessAiBoardOnly,
             phase = response.Phase.ToString(),
             phaseEndsAtUtc = response.PhaseEndsAtUtc,
             adminPlayerId = response.AdminPlayerId?.ToString(),
@@ -403,13 +518,15 @@ app.MapGet("/api/games/{gameId:guid}/state", async (Guid gameId, string? playerI
                 currentBoardClues = response.GuessingState.CurrentBoardClues.Select(c => new
                 {
                     direction = c.Direction.ToString(),
-                    text = c.Text
+                    text = c.Text,
+                    explanation = c.Explanation
                 }).ToList()
             },
             players = response.Players.Select(p => new
             {
                 playerId = p.PlayerId,
                 name = p.Name,
+                isAI = p.IsAI,
                 board = new
                 {
                     top = new
@@ -600,6 +717,10 @@ app.MapPost("/api/games/{gameId:guid}/submit-board", async (Guid gameId, SubmitB
     {
         return Results.NotFound(new { message = "Game not found" });
     }
+    catch (HumanCannotSubmitInGuessAiBoardOnlyException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
     catch (InvalidOperationInPhaseException ex)
     {
         return Results.BadRequest(new { message = ex.Message });
@@ -617,6 +738,10 @@ app.MapPost("/api/games/{gameId:guid}/start-guessing", async (Guid gameId, IStar
     catch (GameNotFoundException)
     {
         return Results.NotFound(new { message = "Game not found" });
+    }
+    catch (NoHumanGuesserException ex)
+    {
+        return Results.Conflict(new { message = ex.Message });
     }
     catch (InvalidOperationInPhaseException ex)
     {
@@ -1040,6 +1165,10 @@ app.MapGet("/api/dictionaries", (IWebHostEnvironment env) =>
     }
 });
 
+app.MapGet("/api/config", (Microsoft.Extensions.Options.IOptions<AIPlayersOptions> aiOpts) =>
+    Results.Ok(new { aiPlayersEnabled = aiOpts.Value.Enabled }))
+    .WithName("GetPublicConfig");
+
 app.MapGet("/health", () => Results.Ok());
 
 app.MapFallbackToFile("index.html");
@@ -1049,7 +1178,7 @@ app.Run();
 // Request DTOs for API
 record CreateGameRequest(string PlayerName, string? Language = null);
 record JoinGameRequest(string PlayerName, bool ReplaceExisting = false);
-record UpdateGameSettingsRequest(string PlayerId, string Language, int? CluesDuration, int? GuessDuration, bool? SemanticClueCheckEnabled);
+record UpdateGameSettingsRequest(string PlayerId, string Language, int? CluesDuration, int? GuessDuration, bool? SemanticClueCheckEnabled, bool? GuessAiBoardOnly);
 record SetClueRequest(string PlayerId, string Direction, string ClueText);
 record SubmitBoardRequest(string PlayerId);
 record PlaceGuessingCardRequest(string PlayerId, int OutsideCardIndex, string Position);
@@ -1065,3 +1194,4 @@ record MoveToNextBoardRequest(string PlayerId);
 record CompleteGameRequest(string PlayerId);
 record LeaveGameRequest(string PlayerId);
 record KickPlayerRequest(string PlayerId, string AdminPlayerId);
+record CreateAIPlayerRequest(string AdminPlayerId, string PlayerName, string? Model, double? Temperature);

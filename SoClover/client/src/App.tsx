@@ -6,7 +6,7 @@ import { useSignalR } from './hooks/useSignalR'
 import { useGameSounds } from './hooks/useGameSounds'
 import { useTimeoutSafetyPolling } from './hooks/useTimeoutSafetyPolling'
 import { useWritingCluesPhaseMusic } from './hooks/useWritingCluesPhaseMusic'
-import { useGameStore } from './core/store'
+import { useGameStore, useAppConfigStore } from './core/store'
 import { HomeScreen } from './components/home/HomeScreen'
 import { LobbyPage } from './components/lobby/LobbyPage'
 import { ScoringPage } from './components/scoring/ScoringPage'
@@ -15,6 +15,7 @@ import { Timer } from './components/shared/Timer'
 import { ConnectionOverlay } from './components/shared/ConnectionOverlay'
 
 const WritingBoard = lazy(() => import('./components/writing/WritingBoard').then(m => ({ default: m.WritingBoard })))
+const WaitingForAiBoards = lazy(() => import('./components/writing/WaitingForAiBoards').then(m => ({ default: m.WaitingForAiBoards })))
 const GuessingPage = lazy(() => import('./components/guessing/GuessingPage').then(m => ({ default: m.GuessingPage })))
 
 const PHASE_TRANSITION_MS = 300
@@ -44,6 +45,12 @@ function App() {
   const isInitializing = useGameStore(s => s.isInitializing);
   const hasDeadline = useGameStore(state => !!state.phaseEndsAtUtc);
   const role = useGameStore(state => state.role);
+  const guessAiBoardOnly = useGameStore(s => s.settings.guessAiBoardOnly);
+
+  const loadConfig = useAppConfigStore(s => s.loadConfig);
+  useEffect(() => {
+    loadConfig().catch(err => debugLog('App', `Failed to load public config: ${err}`));
+  }, [loadConfig]);
 
   // ─── [DEBUG] Tracker les changements de phase ───────────────────────────────
   const prevPhaseRef = useRef(phase);
@@ -129,7 +136,7 @@ function App() {
               className="w-full"
             >
               <Suspense fallback={<PhaseLoader />}>
-                <WritingBoard />
+                {guessAiBoardOnly ? <WaitingForAiBoards /> : <WritingBoard />}
               </Suspense>
             </motion.div>
           )}

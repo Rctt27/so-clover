@@ -14,14 +14,16 @@ public static class UpdateGameSettings
         string Language,
         int? CluesDurationSeconds,
         int? GuessDurationSeconds,
-        bool? SemanticClueCheckEnabled
+        bool? SemanticClueCheckEnabled,
+        bool? GuessAiBoardOnly
     );
 
     public readonly record struct Response(
         string Language,
         int? CluesDurationSeconds,
         int? GuessDurationSeconds,
-        bool SemanticClueCheckEnabled
+        bool SemanticClueCheckEnabled,
+        bool GuessAiBoardOnly
     );
 
     public sealed class Handler : IUpdateGameSettingsUseCase
@@ -68,6 +70,11 @@ public static class UpdateGameSettings
                 game.SetSemanticClueCheckEnabled(request.SemanticClueCheckEnabled.Value);
             }
 
+            if (request.GuessAiBoardOnly.HasValue)
+            {
+                game.SetGuessAiBoardOnly(request.GuessAiBoardOnly.Value);
+            }
+
             await _repo.Save(game, ct);
             // Notify clients that the game state changed (settings updated)
             await _events.Publish(new GameSettingsUpdated(game.Id, request.PlayerId), ct);
@@ -75,7 +82,8 @@ public static class UpdateGameSettings
                 game.Language,
                 game.CluesDurationSecondsOverride,
                 game.GuessDurationSecondsOverride,
-                game.SemanticClueCheckEnabled
+                game.SemanticClueCheckEnabled,
+                game.GuessAiBoardOnly
             );
         }
     }

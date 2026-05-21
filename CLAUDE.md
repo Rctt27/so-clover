@@ -74,10 +74,24 @@ npm run dev   # Proxy automatique vers localhost:5000
 - **Mouse Tracking**: Suivi des curseurs joueurs via SignalR — `features/mouseTracking/` côté client.
 
 ### Game Flow
-1. Create game → Players join lobby
+1. Create game → Players join lobby. Only Admin player can update game settings and add AI players.
 2. Start writing phase → Each player writes clues for their board
 3. Start guessing phase → Players guess card placements on others' boards
 4. Scoring → Display results
+
+### AI Players
+
+- **Feature flag** : section `AIPlayers.Enabled` dans `appsettings*.json` (`true` en dev, `false` en prod par défaut). Quand désactivé, le bouton "+ Ajouter un joueur IA" du lobby est grisé avec tooltip, et l'endpoint `POST /api/games/{id}/ai-players` renvoie 403 (`AIPlayersDisabledException`). Le client lit le flag via `GET /api/config` au boot (slice `appConfigSlice`).
+- **Provider switch** : dev local → `appsettings.Development.json` (`Provider=OpenAI`, `BaseUrl=http://localhost:1234/v1`, `MaxConcurrency=1`). Prod → `appsettings.Production.json` (`Provider=Anthropic`, `DefaultModel=claude-haiku-4-5`, `MaxConcurrency=4`). La seule différence runtime est le binding de `IChatClient` via `ChatClientFactory` (`SoClover/Infrastructure/AI/ChatClientFactory.cs`).
+- **Secret LLM** : `LLM__APIKEY` est le **seul** paramètre LLM qui vit dans `SoClover/.env` (cf. règle de configuration ci-dessous). En dev pour tester Anthropic : `dotnet user-secrets set "Llm:ApiKey" "sk-ant-..." --project SoClover`. Ne **jamais** committer la clé.
+- **LM Studio** : application desktop, expose un serveur OpenAI-compatible sur `http://localhost:1234/v1` (port configurable dans l'UI). L'`ApiKey` n'est pas vérifiée — `"lm-studio"` factice suffit mais doit être non-vide (`LlmOptionsValidator`).
+- **Structured logs** : chaque appel LLM produit 1 log "AI clue LLM call completed" (`LatencyMs`, `Provider`, `Model`, `PromptVersion`, `Attempt`, `RemainingDirections`). Chaque clue validée/rejetée produit 1 log avec `IsValid` + `RejectionRules`. Utiliser ces props pour comparer 2 versions de prompt (`PromptVersion` = champ `version:` du frontmatter de `Infrastructure/AI/Prompts/<lang>/*.md`).
+- **Procédure opérateur complète** : `docs/ai-players/Operations_AI_Players.md`. Résultats de validation : `docs/ai-players/Epic_08_Validation_Results.md`.
+- **Troubleshooting** :
+  - `Connection refused: localhost:1234` → LM Studio pas démarré ou port différent (Settings → Server).
+  - `LlmBudgetExhaustedException` → `Llm.maxCallsPerGame` atteint (défaut 200 dans `appsettings.json`).
+  - `LLM returned invalid JSON` → modèle local trop faible. Tester un autre modèle ou baisser `defaultTemperature` à 0.3.
+  - Anthropic 429 → rate-limit du tier ; baisser `maxConcurrency` à 2 ou monter de tier.
 
 ## Testing
 
@@ -90,11 +104,17 @@ Tests use `TestClock` for time control and `InMemoryGameRepository` for isolatio
 
 ## Configuration
 
+**Règle directrice — qui met quoi** (pattern .NET idiomatique multi-couches) :
+- `appsettings.json` : défauts partagés, non-secrets, communs à tous les environnements (`GameDefaults`, tuning `Llm` : `defaultTemperature`, `maxRetries`, `timeoutSeconds`, `maxCallsPerGame`).
+- `appsettings.{Environment}.json` : overrides non-secrets spécifiques à un environnement (`Llm.Provider/BaseUrl/DefaultModel/MaxConcurrency`, `AIPlayers.Enabled`). Versionné, auditable.
+- `SoClover/.env` : **uniquement les secrets** (`LLM__APIKEY`, `POSTGRES_*`) et les vars frontend (`VITE_*`). Jamais commité. Template : `SoClover/.env.example`.
+- **Échappatoire** : les vars `LLM__*` peuvent overrider ponctuellement n'importe quelle clé `Llm:*` (cascading config providers — env vars > appsettings). À utiliser pour expérimentations locales, pas comme mode opératoire normal. Préférer `dotnet user-secrets` pour tester Anthropic en dev.
+
+Autres notes :
 - DEBUG mode uses in-memory repository
 - RELEASE mode uses PostgreSQL (`DATABASE_URL` or `ConnectionStrings:GameDb`)
 - Word dictionaries in `Infrastructure/Dictionaries/` (co-localisés avec `FileWordDictionary`)
-- Game settings in `appsettings.json` → section `GameDefaults` (via `IOptions<GameDefaultsOptions>`)
-- Env vars centralisées dans `SoClover/.env` (PostgreSQL + VITE_*) — template : `SoClover/.env.example`
+- `GameDefaults` exposé via `IOptions<GameDefaultsOptions>` ; `AIPlayers` via `IOptions<AIPlayersOptions>` ; `Llm` via `IOptions<LlmOptions>`.
 - Vite lit les vars depuis `SoClover/` (`envDir: '../'` dans `vite.config.ts`) — ne pas créer de `client/.env`
 - Debug local : créer `SoClover/.env.local` avec `VITE_DEBUG_MODE=true` (gitignored)
 
@@ -133,7 +153,7 @@ SignalR hub at `/hubs/game`.
 
 ### Backend – Gotchas & Patterns
 
-- **Scoring endpoint double-mapping** : `GetScoring.cs` retourne un `BoardResultDto`, mais `/api/games/{id}/scoring` dans `Program.cs` le re-mappe manuellement en objet anonyme. Ajouter un champ au DTO exige de mettre à jour les **deux** fichiers.
+- **HTTP endpoint double-mapping (généralisé)** : plusieurs endpoints HTTP dans `Program.cs` re-mappent manuellement les DTOs des UseCases vers des objets anonymes (notamment `/api/games/{id}/scoring` ↔ `GetScoring.cs:BoardResultDto`, et `/api/games/{id}/state` ↔ `GetGameState.cs:Response/ClueInfo/etc.`). Ajouter un champ au DTO **n'apparaîtra pas dans la réponse HTTP** tant que le mapping anonyme n'est pas mis à jour. Par contre la diffusion SignalR (`SignalREventPublisher.cs`) sérialise directement le record typé — pas de double-mapping côté events.
 - **Dépendance UseCase → RealTime interdite** : Ne jamais référencer `GameHub` directement depuis un UseCase. Utiliser une interface injectable (ex. `IConnectionTracker` dans `SoClover/RealTime/`) avec injection optionnelle (`= null`) — les tests passent sans l'enregistrer, le runtime injecte l'implémentation réelle.
 - **`ActivePlayers` vs `Players`** : `game.ActivePlayers` exclut les joueurs déconnectés (`IsDisconnected = true`). Toute logique de flux (SubmitBoard, StartGuessingPhase, MoveToNextBoard, MoveToNextGuessingBoard) doit utiliser `ActivePlayers`. `game.Players` reste pour le scoring et l'affichage complet.
 - **Revision protocol (sync)** : `Game.Revision` est monotone (bumpée lors des mutations). Les events `BoardRotated` et `GameStateUpdated` la portent. Le client drop les events de révision ≤ celle déjà appliquée — remplace l'ancien anti-echo timing-based de 500ms. Toute nouvelle mutation domaine touchant un board doit bumper Revision et les events doivent la propager.

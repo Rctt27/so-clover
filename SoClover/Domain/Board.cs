@@ -135,13 +135,15 @@ public sealed class CloverBoard
 
     public string GetClueText(Direction direction)
     {
+        // Convention "faces extérieures" : le mot attendu pour un clue est celui de la
+        // carte du coin "amont" sur la face visuellement adjacente au clue
+        // (TopLeft.Top pour Top, TopRight.Right pour Right, etc.).
         var result = direction switch
         {
-            // Pick one corner on that edge deterministically
-            Direction.Top => TopLeft?.GetWord(Direction.Bottom),
-            Direction.Right => TopRight?.GetWord(Direction.Left),
-            Direction.Bottom => BottomRight?.GetWord(Direction.Top),
-            Direction.Left => BottomLeft?.GetWord(Direction.Right),
+            Direction.Top    => TopLeft?.GetWord(Direction.Top),
+            Direction.Right  => TopRight?.GetWord(Direction.Right),
+            Direction.Bottom => BottomRight?.GetWord(Direction.Bottom),
+            Direction.Left   => BottomLeft?.GetWord(Direction.Left),
             _ => null
         };
 

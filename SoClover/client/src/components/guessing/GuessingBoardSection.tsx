@@ -13,6 +13,7 @@ export interface GuessingBoardSectionProps {
   boardCards: (CardData | null)[]
   boardGuessedCards: (CardInfoResponse | null)[]
   clues: { top: string; right: string; bottom: string; left: string }
+  clueExplanations?: { top: string | null; right: string | null; bottom: string | null; left: string | null }
   rotation: number
   currentBoardOwnerId: string | null
   isMyBoard: boolean
@@ -29,6 +30,7 @@ export const GuessingBoardSection = React.memo(({
   boardCards,
   boardGuessedCards,
   clues,
+  clueExplanations,
   rotation,
   currentBoardOwnerId,
   isMyBoard,
@@ -62,6 +64,7 @@ export const GuessingBoardSection = React.memo(({
         displacedSlot={displacedSlot}
         rotation={rotation}
         clues={clues}
+        clueExplanations={clueExplanations}
         animateEntry={true}
         showClueInputs={false}
         disabled={isDraggingDisabled}

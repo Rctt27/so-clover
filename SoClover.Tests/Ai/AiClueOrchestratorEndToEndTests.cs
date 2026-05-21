@@ -1,0 +1,261 @@
+using System.Text.Json;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using SoClover.Domain;
+using SoClover.Domain.Validation;
+using SoClover.Infrastructure;
+using SoClover.Infrastructure.AI;
+using SoClover.Infrastructure.AI.Prompts;
+using SoClover.Infrastructure.Validation;
+using SoClover.UseCases.AI;
+using SoClover.UseCases.Abstractions;
+using SoClover.UseCases.Gameplay;
+using SoClover.UseCases.GameLogics;
+using Xunit;
+
+namespace SoClover.Tests.AI;
+
+public class AiClueOrchestratorEndToEndTests
+{
+    private static ServiceProvider BuildEndToEndProvider(
+        IChatClient chatClient,
+        int maxConcurrency = 4)
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IGameRepository, InMemoryGameRepository>();
+        services.AddSingleton<InMemoryEventPublisher>();
+        services.AddSingleton<IEventPublisher>(sp => sp.GetRequiredService<InMemoryEventPublisher>());
+        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
+            "SoClover", "Infrastructure", "Dictionaries");
+        services.AddSingleton<IWordDictionary>(_ =>
+            new FileWordDictionary(Path.GetFullPath(dictionaryPath)));
+        services.AddSingleton<IClock>(_ => new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
+        services.AddSingleton<IGameSettingsProvider>(_ => new TestGameSettingsProvider());
+        services.AddSingleton<IWordsPoolCache, InMemoryWordsPoolCache>();
+        services.AddSingleton<IClueValidatorFactory, ClueValidatorFactory>();
+
+        services.AddSingleton<IChatClient>(_ => new ThrottlingChatClient(chatClient, maxConcurrency));
+        services.AddSingleton(Options.Create(new LlmOptions
+        {
+            MaxRetries = 2,
+            MaxCallsPerGame = 100,
+            MaxConcurrency = maxConcurrency,
+        }));
+        services.AddSingleton(sp => new GameLlmBudget(
+            sp.GetRequiredService<IOptions<LlmOptions>>().Value.MaxCallsPerGame));
+        services.AddSingleton<IAiCluePromptProviderFactory>(_ =>
+            new TestInlinePromptProviderFactory("Français_OFF", null));
+        services.AddSingleton<IAiClueExplanationStore, InMemoryAiClueExplanationStore>();
+        services.AddSingleton<AiClueWorkChannel>();
+
+        services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
+        services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
+        services.AddTransient<ISubmitBoardUseCase, SubmitBoard.Handler>();
+        services.AddTransient<IGenerateAICluesUseCase, GenerateAIClues.Handler>();
+
+        return services.BuildServiceProvider();
+    }
+
+    private static async Task WaitForAsync(Func<Task<bool>> predicate, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            if (await predicate()) return;
+            await Task.Delay(20);
+        }
+        throw new TimeoutException($"Condition not met within {timeout.TotalSeconds:F1}s.");
+    }
+
+    private static string[] PickSafeClues(CloverBoard board, int count)
+    {
+        var validator = new FrenchOffClueValidator();
+        var results = new List<string>();
+        for (var i = 0; results.Count < count && i < 5000; i++)
+        {
+            var candidate = $"zzqxkj{i:D4}";
+            var r = validator.Validate(candidate, Direction.Top, board);
+            if (r.IsValid) results.Add(candidate);
+        }
+        return results.ToArray();
+    }
+
+    private static void EnqueueCluesForBoard(FakeChatClient fake, CloverBoard board, TimeSpan? delay = null)
+    {
+        var safe = PickSafeClues(board, 4);
+        var json = JsonSerializer.Serialize(new
+        {
+            clues = new[]
+            {
+                new { direction = "Top",    clueWord = safe[0], explanation = "x" },
+                new { direction = "Right",  clueWord = safe[1], explanation = "x" },
+                new { direction = "Bottom", clueWord = safe[2], explanation = "x" },
+                new { direction = "Left",   clueWord = safe[3], explanation = "x" },
+            }
+        });
+        fake.Enqueue(json, delay);
+    }
+
+    [Fact]
+    public async Task Cas1_2H_plus_1AI_admin_start_then_AI_board_auto_submits_without_human_action()
+    {
+        var fake = new FakeChatClient();
+        var sp = BuildEndToEndProvider(fake);
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
+        var channel = sp.GetRequiredService<AiClueWorkChannel>();
+        var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+
+        var alice = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        var bob = new Player(PlayerId.New(), "Bob");
+        var bot = new Player(PlayerId.New(), "Bot", isAdmin: false, isAI: true,
+            aiConfig: new AIConfig("gpt-4o-mini", 0.7));
+        var game = new Game(GameId.New(), "Français_OFF");
+        game.AddPlayer(alice);
+        game.AddPlayer(bob);
+        game.AddAIPlayer(bot, max: 4);
+        await repo.Save(game);
+
+        var service = new AiClueOrchestratorHostedService(scopeFactory, channel, Microsoft.Extensions.Logging.Abstractions.NullLogger<AiClueOrchestratorHostedService>.Instance);
+        using var cts = new CancellationTokenSource();
+
+        await startWriting.Handle(new StartWritingPhase.Request(game.Id));
+
+        var botBoard = (await repo.Get(game.Id))!.Players.First(p => p.Id == bot.Id).Board;
+        EnqueueCluesForBoard(fake, botBoard);
+
+        await service.StartAsync(cts.Token);
+
+        await WaitForAsync(async () =>
+        {
+            var g = await repo.Get(game.Id);
+            return g != null && g.Players.First(p => p.Id == bot.Id).Board.IsSubmitted;
+        }, TimeSpan.FromSeconds(5));
+
+        cts.Cancel();
+        await service.StopAsync(CancellationToken.None);
+
+        var finalGame = (await repo.Get(game.Id))!;
+        var botFinal = finalGame.Players.First(p => p.Id == bot.Id);
+        Assert.True(botFinal.Board.IsSubmitted);
+        Assert.NotNull(botFinal.Board.TopClue);
+        Assert.NotNull(botFinal.Board.RightClue);
+        Assert.NotNull(botFinal.Board.BottomClue);
+        Assert.NotNull(botFinal.Board.LeftClue);
+
+        var events = sp.GetRequiredService<InMemoryEventPublisher>();
+        Assert.Equal(1, events.PublishedEvents.OfType<AiClueGenerationRequested>().Count());
+        Assert.Equal(4, events.PublishedEvents.OfType<AiClueGenerated>().Count());
+        Assert.Single(events.PublishedEvents.OfType<BoardSubmitted>().Where(e => e.PlayerId == bot.Id));
+    }
+
+    [Fact]
+    public async Task Cas2_1H_plus_4AI_with_MaxConcurrency_1_serializes_all_LLM_calls()
+    {
+        var fake = new FakeChatClient();
+        var sp = BuildEndToEndProvider(fake, maxConcurrency: 1);
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
+        var channel = sp.GetRequiredService<AiClueWorkChannel>();
+        var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+
+        var alice = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        var bots = Enumerable.Range(0, 4)
+            .Select(i => new Player(PlayerId.New(), $"Bot{i}", isAdmin: false, isAI: true,
+                aiConfig: new AIConfig("gpt-4o-mini", 0.7)))
+            .ToArray();
+        var game = new Game(GameId.New(), "Français_OFF");
+        game.AddPlayer(alice);
+        foreach (var bot in bots) game.AddAIPlayer(bot, max: 4);
+        await repo.Save(game);
+
+        await startWriting.Handle(new StartWritingPhase.Request(game.Id));
+
+        var refreshed = (await repo.Get(game.Id))!;
+        foreach (var bot in bots)
+        {
+            var board = refreshed.Players.First(p => p.Id == bot.Id).Board;
+            EnqueueCluesForBoard(fake, board, TimeSpan.FromMilliseconds(100));
+        }
+
+        var service = new AiClueOrchestratorHostedService(scopeFactory, channel, Microsoft.Extensions.Logging.Abstractions.NullLogger<AiClueOrchestratorHostedService>.Instance);
+        using var cts = new CancellationTokenSource();
+        await service.StartAsync(cts.Token);
+
+        await WaitForAsync(async () =>
+        {
+            var g = await repo.Get(game.Id);
+            return g != null && bots.All(b => g.Players.First(p => p.Id == b.Id).Board.IsSubmitted);
+        }, TimeSpan.FromSeconds(10));
+
+        cts.Cancel();
+        await service.StopAsync(CancellationToken.None);
+
+        var log = fake.CallLog;
+        Assert.Equal(4, log.Count);
+        for (var i = 1; i < log.Count; i++)
+        {
+            Assert.True(log[i].Start >= log[i - 1].End,
+                $"Call {i} started ({log[i].Start:O}) before call {i - 1} ended ({log[i - 1].End:O}) " +
+                "— MaxConcurrency=1 expected strict serialization.");
+        }
+    }
+
+    [Fact]
+    public async Task Cas3_MaxConcurrency_4_allows_concurrent_LLM_calls_across_AIs()
+    {
+        var fake = new FakeChatClient();
+        var sp = BuildEndToEndProvider(fake, maxConcurrency: 4);
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
+
+        var alice = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        var bots = Enumerable.Range(0, 4)
+            .Select(i => new Player(PlayerId.New(), $"Bot{i}", isAdmin: false, isAI: true,
+                aiConfig: new AIConfig("gpt-4o-mini", 0.7)))
+            .ToArray();
+        var game = new Game(GameId.New(), "Français_OFF");
+        game.AddPlayer(alice);
+        foreach (var bot in bots) game.AddAIPlayer(bot, max: 4);
+        await repo.Save(game);
+
+        await startWriting.Handle(new StartWritingPhase.Request(game.Id));
+
+        var refreshed = (await repo.Get(game.Id))!;
+        foreach (var bot in bots)
+        {
+            var board = refreshed.Players.First(p => p.Id == bot.Id).Board;
+            EnqueueCluesForBoard(fake, board, TimeSpan.FromMilliseconds(200));
+        }
+
+        // Run 4 GenerateAIClues.Handle in parallel — exercises ThrottlingChatClient at MaxConcurrency=4.
+        var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
+        var tasks = bots
+            .Select(bot => useCase.Handle(new GenerateAIClues.Request(game.Id, bot.Id)))
+            .ToArray();
+        await Task.WhenAll(tasks);
+
+        var log = fake.CallLog;
+        Assert.Equal(4, log.Count);
+
+        var overlaps = 0;
+        for (var i = 0; i < log.Count; i++)
+        {
+            for (var j = i + 1; j < log.Count; j++)
+            {
+                if (log[i].Start < log[j].End && log[j].Start < log[i].End)
+                    overlaps++;
+            }
+        }
+        Assert.True(overlaps >= 1,
+            $"Expected at least 1 overlapping LLM call pair with MaxConcurrency=4 — got {overlaps}. " +
+            $"Calls: {string.Join("; ", log.Select(c => $"[{c.Start:HH:mm:ss.fff}..{c.End:HH:mm:ss.fff}]"))}");
+
+        foreach (var bot in bots)
+        {
+            var g = (await repo.Get(game.Id))!;
+            Assert.True(g.Players.First(p => p.Id == bot.Id).Board.IsSubmitted);
+        }
+    }
+}

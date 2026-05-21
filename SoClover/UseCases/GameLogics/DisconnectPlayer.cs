@@ -36,9 +36,9 @@ public static class DisconnectPlayer
             await _repo.Save(game, ct);
             await _events.Publish(new PlayerDisconnected(game.Id, request.PlayerId, playerName), ct);
 
-            // Check if all remaining active players have submitted
-            var allActiveSubmitted = game.ActivePlayers.All(p => p.Board.IsSubmitted);
-            if (allActiveSubmitted && game.ActivePlayers.Count > 0)
+            // Check if all writing participants have submitted (Epic 09: respect GuessAiBoardOnly flag)
+            var allWritersSubmitted = game.WritingParticipants.All(p => p.Board.IsSubmitted);
+            if (allWritersSubmitted && game.WritingParticipants.Count > 0)
             {
                 await _startGuessing.Handle(new StartGuessingPhase.Request(game.Id), ct);
             }

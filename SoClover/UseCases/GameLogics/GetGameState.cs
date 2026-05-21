@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using SoClover.Domain;
+using SoClover.Infrastructure.AI;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
 
@@ -17,6 +18,7 @@ public static class GetGameState
         [property: JsonPropertyName("cluesDurationSecondsOverride")] int? CluesDurationSecondsOverride,
         [property: JsonPropertyName("guessDurationSecondsOverride")] int? GuessDurationSecondsOverride,
         [property: JsonPropertyName("semanticClueCheckEnabled")] bool SemanticClueCheckEnabled,
+        [property: JsonPropertyName("guessAiBoardOnly")] bool GuessAiBoardOnly,
         [property: JsonPropertyName("phase")] GamePhase Phase,
         [property: JsonPropertyName("adminPlayerId")] Guid? AdminPlayerId,
         [property: JsonPropertyName("phaseEndsAtUtc")] DateTime? PhaseEndsAtUtc,
@@ -29,6 +31,7 @@ public static class GetGameState
         [property: JsonPropertyName("playerId")] Guid PlayerId,
         [property: JsonPropertyName("name")] string Name,
         [property: JsonPropertyName("cursorColorIndex")] int CursorColorIndex,
+        [property: JsonPropertyName("isAI")] bool IsAI,
         [property: JsonPropertyName("board")] BoardState Board
     );
 
@@ -71,16 +74,21 @@ public static class GetGameState
 
     public sealed record ClueInfo(
         [property: JsonPropertyName("direction")] Direction Direction,
-        [property: JsonPropertyName("text")] string Text
+        [property: JsonPropertyName("text")] string Text,
+        // Anti-cheat: populated only once the current Guessing board is resolved
+        // (RemainingAttempts == 0 OR 4 correct). Null otherwise. See Handle() for gating.
+        [property: JsonPropertyName("explanation")] string? Explanation
     );
 
     public sealed class Handler : IGetGameStateUseCase
     {
         private readonly IGameRepository _repo;
+        private readonly IAiClueExplanationStore _explanationStore;
 
-        public Handler(IGameRepository repo)
+        public Handler(IGameRepository repo, IAiClueExplanationStore explanationStore)
         {
             _repo = repo;
+            _explanationStore = explanationStore;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
@@ -97,6 +105,7 @@ public static class GetGameState
                     p.Id.Value,
                     p.Name,
                     p.CursorColorIndex,
+                    p.IsAI,
                     new BoardState(
                         BuildDirectionState(p, Direction.Top, includeSecretsForPlayer, game.Phase),
                         BuildDirectionState(p, Direction.Right, includeSecretsForPlayer, game.Phase),
@@ -138,14 +147,24 @@ public static class GetGameState
                 var clues = new List<ClueInfo>();
                 if (owner != null)
                 {
+                    // Anti-cheat: LLM explanations are exposed only once the current board has been
+                    // fully attempted (success: 4 correct, or failure: 0 remaining attempts). They
+                    // give players the remaining time before "move to next" to read the reasoning
+                    // behind each AI clue. Server-side gate — never trust the client to hide it.
+                    var revealExplanations = game.RemainingAttempts == 0
+                        || game.CorrectlyPlacedPositions.Count == 4;
+
+                    string? ExplanationFor(Direction d)
+                        => revealExplanations ? _explanationStore.GetFor(game.Id, owner.Id, d) : null;
+
                     if (owner.Board.TopClue != null)
-                        clues.Add(new ClueInfo(Direction.Top, owner.Board.TopClue.Value.Value));
+                        clues.Add(new ClueInfo(Direction.Top, owner.Board.TopClue.Value.Value, ExplanationFor(Direction.Top)));
                     if (owner.Board.RightClue != null)
-                        clues.Add(new ClueInfo(Direction.Right, owner.Board.RightClue.Value.Value));
+                        clues.Add(new ClueInfo(Direction.Right, owner.Board.RightClue.Value.Value, ExplanationFor(Direction.Right)));
                     if (owner.Board.BottomClue != null)
-                        clues.Add(new ClueInfo(Direction.Bottom, owner.Board.BottomClue.Value.Value));
+                        clues.Add(new ClueInfo(Direction.Bottom, owner.Board.BottomClue.Value.Value, ExplanationFor(Direction.Bottom)));
                     if (owner.Board.LeftClue != null)
-                        clues.Add(new ClueInfo(Direction.Left, owner.Board.LeftClue.Value.Value));
+                        clues.Add(new ClueInfo(Direction.Left, owner.Board.LeftClue.Value.Value, ExplanationFor(Direction.Left)));
                 }
 
                 guessingState = new GuessingPhaseState(
@@ -166,6 +185,7 @@ public static class GetGameState
                 game.CluesDurationSecondsOverride,
                 game.GuessDurationSecondsOverride,
                 game.SemanticClueCheckEnabled,
+                game.GuessAiBoardOnly,
                 game.Phase,
                 game.AdminPlayerId?.Value,
                 game.PhaseEndsAtUtc,

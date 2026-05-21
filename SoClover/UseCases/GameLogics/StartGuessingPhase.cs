@@ -39,20 +39,26 @@ public static class StartGuessingPhase
             if (game.Phase != GamePhase.WritingClues)
                 throw new InvalidOperationInPhaseException("Guessing phase can only start after WritingClues.");
 
+            // Garde Epic 03 : il faut au moins un humain non-déconnecté pour deviner.
+            // S'applique même quand Force=true (sinon Guessing infinie sans guesser).
+            if (game.GuessingParticipants.Count == 0)
+                throw new NoHumanGuesserException();
+
+            // Garde Epic 03 : il faut au moins un board submitted (humain ou AI) à faire deviner.
+            if (game.BoardsToGuess.Count == 0)
+                throw new NotEnoughPlayersException(1, 0);
+
             // Vérifier que tous les joueurs ont explicitement soumis leur board, sauf si force est activé
             if (!request.Force)
             {
-                var allSubmitted = game.ActivePlayers.All(p => p.Board.IsSubmitted);
+                var allSubmitted = game.WritingParticipants.All(p => p.Board.IsSubmitted);
                 if (!allSubmitted)
                     throw new InvalidOperationInPhaseException("Cannot start Guessing: not all boards were explicitly submitted.");
             }
 
-            // Choisir aléatoirement le premier joueur
-            var players = game.ActivePlayers.ToList();
-            if (players.Count == 0)
-                throw new NotEnoughPlayersException(1, 0);
-
-            var firstPlayer = players[_random.Next(players.Count)];
+            // Choisir aléatoirement le premier board à deviner (humain ou AI submitted).
+            var boards = game.BoardsToGuess.ToList();
+            var firstPlayer = boards[_random.Next(boards.Count)];
 
             // Restore WordsPool from cache (survives EF deserialization)
             await EnsureWordsPoolAsync(game, ct);

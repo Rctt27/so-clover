@@ -17,6 +17,14 @@ export interface BoardProps {
     bottom: string;
     left: string;
   };
+  /** Per-direction LLM explanations. Server-gated: each value is null until the
+   *  current Guessing board is resolved. Only read by read-only clue displays. */
+  clueExplanations?: {
+    top: string | null;
+    right: string | null;
+    bottom: string | null;
+    left: string | null;
+  };
   guessedCards?: (import('../../../types/game').CardInfoResponse | null)[]; // For DraggableCards in Guessing
   displacedSlot?: string | null;
   showClueInputs?: boolean;
@@ -46,6 +54,7 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
   cards,
   rotation = 0,
   clues,
+  clueExplanations,
   guessedCards,
   displacedSlot,
   showClueInputs = false,
@@ -140,6 +149,7 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
               value={clueValue}
               onSave={async () => {}}
               disabled={true}
+              explanation={clueExplanations?.[pos] ?? null}
             />
           </div>
         );
