@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using SoClover.Domain;
 using SoClover.Infrastructure;
@@ -39,10 +40,15 @@ public class SignalRAiEventRoutingTests
                 Phase: GamePhase.WritingClues,
                 AdminPlayerId: playerId.Value,
                 PhaseEndsAtUtc: null,
+                Revision: 0,
                 Players: Array.Empty<GetGameState.PlayerState>(),
                 GuessingState: null));
 
-        var publisher = new SignalREventPublisher(inner, hubMock.Object, stateUseCase.Object);
+        var services = new ServiceCollection();
+        services.AddScoped<IGetGameStateUseCase>(_ => stateUseCase.Object);
+        var scopeFactory = services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
+
+        var publisher = new SignalREventPublisher(inner, hubMock.Object, scopeFactory);
         return (publisher, clientProxyMock, gameId, playerId);
     }
 

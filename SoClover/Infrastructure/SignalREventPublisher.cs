@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
 using SoClover.Domain;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
@@ -17,15 +18,15 @@ public sealed class SignalREventPublisher : IEventPublisher
 {
     private readonly InMemoryEventPublisher _inner;
     private readonly IHubContext<SoClover.RealTime.GameHub> _hub;
-    private readonly IGetGameStateUseCase _getState;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public SignalREventPublisher(InMemoryEventPublisher inner,
         IHubContext<SoClover.RealTime.GameHub> hub,
-        IGetGameStateUseCase getState)
+        IServiceScopeFactory scopeFactory)
     {
         _inner = inner;
         _hub = hub;
-        _getState = getState;
+        _scopeFactory = scopeFactory;
     }
 
     public async Task Publish<TEvent>(TEvent evt, CancellationToken ct = default)
@@ -43,7 +44,9 @@ public sealed class SignalREventPublisher : IEventPublisher
         // Optional: sanity check game still exists (ignore exceptions to avoid breaking the flow)
         try
         {
-            var state = await _getState.Handle(new GetGameState.Request(gameId.Value), ct);
+            using var scope = _scopeFactory.CreateScope();
+            var getState = scope.ServiceProvider.GetRequiredService<IGetGameStateUseCase>();
+            var state = await getState.Handle(new GetGameState.Request(gameId.Value), ct);
 
             // Optimization: In WritingClues phase, we DON'T broadcast the full gameState to everyone.
             // The public state lacks personal secrets (cards) and would overwrite local player data.

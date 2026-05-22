@@ -143,8 +143,8 @@ builder.Services.AddSingleton<IEventPublisher>(sp =>
 {
     var inner = sp.GetRequiredService<InMemoryEventPublisher>();
     var hub = sp.GetRequiredService<IHubContext<SoClover.RealTime.GameHub>>();
-    var getState = sp.GetRequiredService<IGetGameStateUseCase>();
-    return new SoClover.Infrastructure.SignalREventPublisher(inner, hub, getState);
+    var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+    return new SoClover.Infrastructure.SignalREventPublisher(inner, hub, scopeFactory);
 });
 
 // System HMAC validator (for optional system-to-system HTTP calls)
