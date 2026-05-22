@@ -1,0 +1,7 @@
+# Override compose pour tester le profil Development (LM Studio) depuis Docker.
+# Usage : docker compose -f compose.yaml -f compose.dev.yaml --env-file .env.dev up -d
+services:
+  web:
+    environment:
+      DOTNET_ENVIRONMENT: Development
+      LLM__BASEURL: http://host.docker.internal:1234/v1

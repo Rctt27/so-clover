@@ -97,8 +97,27 @@ public static class GenerateAIClues
                     _budget.TryConsume(game.Id);
                     llmCalls++;
 
-                    var (draft, promptVersion) = await CallLlmAsync(
-                        game, player, remaining, rejectedHistory, promptProvider, attempt, ct);
+                    AiBoardCluesDraft draft;
+                    int? promptVersion;
+                    try
+                    {
+                        (draft, promptVersion) = await CallLlmAsync(
+                            game, player, remaining, rejectedHistory, promptProvider, attempt, ct);
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        _logger.LogWarning(ex,
+                            "AI clue LLM call failed (attempt {Attempt}): game={GameId} player={PlayerId}",
+                            attempt, game.Id.Value, player.Id.Value);
+                        continue;
+                    }
+                    catch (System.Text.Json.JsonException ex)
+                    {
+                        _logger.LogWarning(ex,
+                            "AI clue LLM returned unparseable JSON (attempt {Attempt}): game={GameId} player={PlayerId}",
+                            attempt, game.Id.Value, player.Id.Value);
+                        continue;
+                    }
 
                     foreach (var item in draft.Clues)
                     {
@@ -250,8 +269,10 @@ public static class GenerateAIClues
                 _llmOptions.Value.Provider, effectiveModel, bundle.PromptVersion,
                 string.Join(",", remaining));
 
-            var text = response.Text
-                ?? throw new InvalidOperationException("LLM returned an empty response.");
+            var text = response.Text;
+            if (string.IsNullOrWhiteSpace(text))
+                throw new InvalidOperationException("LLM returned an empty response.");
+            text = StripThinkTags(text);
             text = StripJsonFences(text);
             var draft = JsonSerializer.Deserialize<AiBoardCluesDraft>(text, JsonOptions)
                 ?? throw new InvalidOperationException("LLM returned invalid JSON.");
@@ -269,6 +290,15 @@ public static class GenerateAIClues
             if (firstNewline >= 0) t = t[(firstNewline + 1)..];
             if (t.EndsWith("```")) t = t[..^3];
             return t.Trim();
+        }
+
+        // Modèles "thinking" embarqués (DeepSeek R1, Qwen3-thinking, etc.) émettent leur
+        // raisonnement dans <think>...</think> avant le JSON dans content.
+        private static string StripThinkTags(string text)
+        {
+            const string closeTag = "</think>";
+            var closeIdx = text.LastIndexOf(closeTag, StringComparison.OrdinalIgnoreCase);
+            return closeIdx >= 0 ? text[(closeIdx + closeTag.Length)..].Trim() : text;
         }
 
         private static HashSet<Direction> ComputeRemainingDirections(CloverBoard board)
