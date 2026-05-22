@@ -24,7 +24,6 @@ export const useSignalR = () => {
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 
   const markAiGenerating = useGameStore(s => s.markAiGenerating);
-  const setCumulativeBoardRotation = useGuessingStore(s => s.setCumulativeBoardRotation);
   const { notifyInfo, notifyWarning } = useNotifications();
   const { updateStateFromResponse } = useGameStateUpdate();
 

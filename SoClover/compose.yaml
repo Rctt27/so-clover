@@ -31,18 +31,10 @@ services:
         VITE_DEBUG_MODE: ${VITE_DEBUG_MODE:-false}
     environment:
       ConnectionStrings__GameDb: Host=db;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
-      DOTNET_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
-      # LLM provider — override appsettings.{Env}.json via env vars LLM__*.
-      # Defaults below ciblent LM Studio sur l'hôte (test local depuis Docker).
-      # Pour basculer sur Anthropic en prod : LLM__PROVIDER=Anthropic + LLM__APIKEY=sk-ant-... dans .env.
-      LLM__PROVIDER: ${LLM__PROVIDER:-OpenAI}
-      LLM__BASEURL: ${LLM__BASEURL:-http://host.docker.internal:1234/v1}
-      LLM__DEFAULTMODEL: ${LLM__DEFAULTMODEL:-lmstudio-community/Meta-Llama-3.1-8B-Instruct-GGUF}
-      LLM__MAXCONCURRENCY: ${LLM__MAXCONCURRENCY:-1}
+      DOTNET_ENVIRONMENT: ${DOTNET_ENVIRONMENT:-Production}
       LLM__APIKEY: ${LLM__APIKEY:?LLM__APIKEY must be set in .env}
     extra_hosts:
-      # Permet à `host.docker.internal` de résoudre l'hôte sous Linux (no-op sur Docker Desktop Win/Mac).
       - "host.docker.internal:host-gateway"
     depends_on:
       db:

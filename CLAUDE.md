@@ -33,12 +33,15 @@ dotnet ef database update --project SoClover
 
 ### Docker
 ```bash
-# Depuis SoClover/
+# Depuis SoClover/ — profil Production (Anthropic)
 docker compose --env-file .env build --no-cache web
 docker compose --env-file .env up -d
+
+# Profil Development (LM Studio) via override
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env.dev up -d
 ```
-- Le `compose.yaml` se trouve dans `SoClover/` — toujours lancer les commandes docker depuis ce répertoire.
-- Les secrets PostgreSQL viennent de `SoClover/.env` (ne pas committer `.env`).
+- `compose.yaml` est la base prod-ready. `compose.dev.yaml` est un override qui injecte `DOTNET_ENVIRONMENT=Development` et `LLM__BASEURL=http://host.docker.internal:1234/v1` pour parler à LM Studio sur l'hôte.
+- Les secrets (PostgreSQL, `LLM__APIKEY`) viennent de `SoClover/.env` ou `.env.dev` (jamais committés).
 
 ### Développement local (full-stack)
 ```bash
@@ -82,7 +85,7 @@ npm run dev   # Proxy automatique vers localhost:5000
 ### AI Players
 
 - **Feature flag** : section `AIPlayers.Enabled` dans `appsettings*.json` (`true` en dev, `false` en prod par défaut). Quand désactivé, le bouton "+ Ajouter un joueur IA" du lobby est grisé avec tooltip, et l'endpoint `POST /api/games/{id}/ai-players` renvoie 403 (`AIPlayersDisabledException`). Le client lit le flag via `GET /api/config` au boot (slice `appConfigSlice`).
-- **Provider switch** : dev local → `appsettings.Development.json` (`Provider=OpenAI`, `BaseUrl=http://localhost:1234/v1`, `MaxConcurrency=1`). Prod → `appsettings.Production.json` (`Provider=Anthropic`, `DefaultModel=claude-haiku-4-5`, `MaxConcurrency=4`). La seule différence runtime est le binding de `IChatClient` via `ChatClientFactory` (`SoClover/Infrastructure/AI/ChatClientFactory.cs`).
+- **Provider switch** : `appsettings.Development.json` (`Provider=OpenAI`, `BaseUrl=http://localhost:1234/v1`, `MaxConcurrency=1`) vs `appsettings.Production.json` (`Provider=Anthropic`, `DefaultModel=claude-haiku-4-5`, `MaxConcurrency=4`). Choix via `DOTNET_ENVIRONMENT` (défaut `Production`). Pour tester le profil Dev depuis Docker, utiliser l'override `compose.dev.yaml` (cf. section Docker plus haut) — il injecte `DOTNET_ENVIRONMENT=Development` et `LLM__BASEURL=http://host.docker.internal:1234/v1` (le `localhost:1234` d'appsettings est inaccessible depuis un conteneur). La seule différence runtime est le binding de `IChatClient` via `ChatClientFactory` (`SoClover/Infrastructure/AI/ChatClientFactory.cs`).
 - **Secret LLM** : `LLM__APIKEY` est le **seul** paramètre LLM qui vit dans `SoClover/.env` (cf. règle de configuration ci-dessous). En dev pour tester Anthropic : `dotnet user-secrets set "Llm:ApiKey" "sk-ant-..." --project SoClover`. Ne **jamais** committer la clé.
 - **LM Studio** : application desktop, expose un serveur OpenAI-compatible sur `http://localhost:1234/v1` (port configurable dans l'UI). L'`ApiKey` n'est pas vérifiée — `"lm-studio"` factice suffit mais doit être non-vide (`LlmOptionsValidator`).
 - **Structured logs** : chaque appel LLM produit 1 log "AI clue LLM call completed" (`LatencyMs`, `Provider`, `Model`, `PromptVersion`, `Attempt`, `RemainingDirections`). Chaque clue validée/rejetée produit 1 log avec `IsValid` + `RejectionRules`. Utiliser ces props pour comparer 2 versions de prompt (`PromptVersion` = champ `version:` du frontmatter de `Infrastructure/AI/Prompts/<lang>/*.md`).
@@ -107,8 +110,9 @@ Tests use `TestClock` for time control and `InMemoryGameRepository` for isolatio
 **Règle directrice — qui met quoi** (pattern .NET idiomatique multi-couches) :
 - `appsettings.json` : défauts partagés, non-secrets, communs à tous les environnements (`GameDefaults`, tuning `Llm` : `defaultTemperature`, `maxRetries`, `timeoutSeconds`, `maxCallsPerGame`).
 - `appsettings.{Environment}.json` : overrides non-secrets spécifiques à un environnement (`Llm.Provider/BaseUrl/DefaultModel/MaxConcurrency`, `AIPlayers.Enabled`). Versionné, auditable.
-- `SoClover/.env` : **uniquement les secrets** (`LLM__APIKEY`, `POSTGRES_*`) et les vars frontend (`VITE_*`). Jamais commité. Template : `SoClover/.env.example`.
-- **Échappatoire** : les vars `LLM__*` peuvent overrider ponctuellement n'importe quelle clé `Llm:*` (cascading config providers — env vars > appsettings). À utiliser pour expérimentations locales, pas comme mode opératoire normal. Préférer `dotnet user-secrets` pour tester Anthropic en dev.
+- `SoClover/.env` (et `.env.dev`) : secrets uniquement (`LLM__APIKEY`, `POSTGRES_*`) et vars frontend (`VITE_*`). Jamais committés. Template : `SoClover/.env.example`.
+- `SoClover/compose.dev.yaml` : override compose pour lancer le profil Development en Docker (injecte `DOTNET_ENVIRONMENT` et `LLM__BASEURL` vers `host.docker.internal`). Versionné, c'est le seul endroit qui contredit appsettings — par design, puisque l'URL `localhost` y est inutilisable.
+- **Échappatoire** : les vars `LLM__*` peuvent overrider n'importe quelle clé `Llm:*` (env vars > appsettings). Pour des expérimentations ponctuelles (autre modèle, autre concurrency), préférer `dotnet user-secrets` plutôt que `.env`.
 
 Autres notes :
 - DEBUG mode uses in-memory repository
