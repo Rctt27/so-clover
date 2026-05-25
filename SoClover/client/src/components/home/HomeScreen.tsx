@@ -2,6 +2,7 @@
 import { motion } from 'framer-motion';
 import { PlayerSetupPanel } from './PlayerSetupPanel';
 import { GameManagementPanel } from './GameManagementPanel';
+import { CONSTANTS } from '../../core/constants';
 
 export const HomeScreen: React.FC = () => {
   return (
@@ -26,7 +27,7 @@ export const HomeScreen: React.FC = () => {
       </main>
 
       <footer className="mt-12 text-gray-400 text-sm">
-        SoClover Browser Game &copy; 2026
+        SoClover Browser Game &copy; 2026 &mdash; v{CONSTANTS.APP_VERSION}
       </footer>
     </motion.div>
   );
