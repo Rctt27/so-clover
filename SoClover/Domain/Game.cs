@@ -224,7 +224,7 @@ public sealed class Game
 
         if (AdminPlayerId == playerId)
         {
-            AdminPlayerId = _players.Keys.FirstOrDefault();
+            AdminPlayerId = _players.Count > 0 ? _players.Keys.First() : null;
             if (AdminPlayerId is PlayerId newAdminId)
             {
                 _players[newAdminId].IsAdmin = true;
