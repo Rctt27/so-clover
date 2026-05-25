@@ -77,7 +77,7 @@ public class ChatClientFactoryTests
     }
 
     [Fact]
-    public void Empty_ApiKey_for_Anthropic_throws_during_creation()
+    public void Empty_ApiKey_throws_during_creation()
     {
         var factory = new ChatClientFactory(Options(new LlmOptions
         {

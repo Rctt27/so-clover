@@ -25,6 +25,7 @@ public class KickPlayerTests
         services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
         services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();
         services.AddTransient<IKickPlayerUseCase, KickPlayer.Handler>();
+        services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
         services.Configure<AIPlayersOptions>(o => o.Enabled = true);
         services.AddTransient<ICreateAIPlayerUseCase, CreateAIPlayer.Handler>();
         return services.BuildServiceProvider();
@@ -82,6 +83,41 @@ public class KickPlayerTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             kick.Handle(new KickPlayer.Request(gameId, adminId, adminId)));
+    }
+
+    [Fact]
+    public async Task Admin_cannot_kick_player_during_writing_phase()
+    {
+        var sp = BuildProvider();
+        var create = sp.GetRequiredService<ICreateGameUseCase>();
+        var join = sp.GetRequiredService<IJoinGameUseCase>();
+        var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
+        var kick = sp.GetRequiredService<IKickPlayerUseCase>();
+
+        var gameResponse = await create.Handle(new CreateGame.Request("Admin"));
+        var gameId = gameResponse.GameId;
+        var adminId = gameResponse.CreatorPlayerId;
+        var aliceId = (await join.Handle(new JoinGame.Request(gameId, "Alice"))).PlayerId;
+        await startWriting.Handle(new StartWritingPhase.Request(gameId));
+
+        await Assert.ThrowsAsync<InvalidOperationInPhaseException>(() =>
+            kick.Handle(new KickPlayer.Request(gameId, aliceId, adminId)));
+    }
+
+    [Fact]
+    public async Task Admin_cannot_kick_unknown_player()
+    {
+        var sp = BuildProvider();
+        var create = sp.GetRequiredService<ICreateGameUseCase>();
+        var kick = sp.GetRequiredService<IKickPlayerUseCase>();
+
+        var gameResponse = await create.Handle(new CreateGame.Request("Admin"));
+        var gameId = gameResponse.GameId;
+        var adminId = gameResponse.CreatorPlayerId;
+        var unknownId = PlayerId.New();
+
+        await Assert.ThrowsAsync<PlayerNotFoundException>(() =>
+            kick.Handle(new KickPlayer.Request(gameId, unknownId, adminId)));
     }
 
     [Fact]

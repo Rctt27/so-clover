@@ -1,4 +1,5 @@
 using SoClover.Domain;
+using SoClover.Tests.Helpers;
 using Xunit;
 
 namespace SoClover.Tests;
@@ -57,7 +58,7 @@ internal static class RevisionTestSetup
 
         game.AddPlayer(new Player(owner, "Owner"));
         game.AddPlayer(new Player(guesser, "Guesser"));
-        game.InitializeWordsPoolAsync(new RevisionDummyDictionary()).Wait();
+        game.InitializeWordsPoolAsync(new TestWordDictionary()).Wait();
         game.StartWritingPhase(DateTime.UtcNow, TimeSpan.FromMinutes(5));
 
         var localOwner = owner;
@@ -72,14 +73,5 @@ internal static class RevisionTestSetup
 
         game.StartGuessingPhase(owner, fifthCard, rotations, DateTime.UtcNow, TimeSpan.FromMinutes(5));
         return (game, owner, guesser);
-    }
-
-    private sealed class RevisionDummyDictionary : IWordDictionary
-    {
-        public Task<IReadOnlyList<string>> GetRandomWordsAsync(string language, int count, CancellationToken ct = default)
-            => Task.FromResult((IReadOnlyList<string>)Enumerable.Range(0, count).Select(i => $"Word{i}").ToList());
-
-        public Task<IReadOnlyList<string>> GetAllWordsAsync(string language, CancellationToken ct = default)
-            => Task.FromResult((IReadOnlyList<string>)new List<string> { "Word1", "Word2" });
     }
 }

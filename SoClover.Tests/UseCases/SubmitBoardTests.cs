@@ -5,7 +5,7 @@ using Xunit;
 
 namespace SoClover.Tests.UseCases;
 
-public class SubmitBoardRequestTests
+public class SubmitBoardTests
 {
     [Fact]
     public void Default_constructor_sets_Origin_to_Client_for_backward_compat()

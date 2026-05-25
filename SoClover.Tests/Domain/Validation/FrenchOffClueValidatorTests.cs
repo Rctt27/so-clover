@@ -119,19 +119,17 @@ public class FrenchOffClueValidatorTests
     }
 
     [Fact]
-    public void R2_stem_match_bidirectional()
+    public void R2_stem_match_when_clue_shares_stem_with_card_word()
     {
-        var board = BoardWithWords("naturiste");
-        // "naturiste" doesn't end with a voyelle, but R1 substring catches "natur" via card-in-clue? No.
-        // Use a case where R2 applies from the card side: card = "route" (ends voyelle), clue = "route66" contains "rout"
-        var b2 = BoardWithWords("route");
-        var result = _sut.Validate("routier", Direction.Top, b2);
+        // "route" ends with vowel → stem "rout" (4 chars). "routier" contains "rout" → R2.
+        var board = BoardWithWords("route");
+        var result = _sut.Validate("routier", Direction.Top, board);
         Assert.False(result.IsValid);
         Assert.Equal(ClueValidationRule.SimilarStem, result.Errors[0].Rule);
     }
 
     [Fact]
-    public void R2_consonne_final_does_not_trigger()
+    public void R2_not_triggered_when_card_word_ends_with_consonant()
     {
         var board = BoardWithWords("chat");
         var result = _sut.Validate("chien", Direction.Top, board);
@@ -141,8 +139,8 @@ public class FrenchOffClueValidatorTests
     [Fact]
     public void R2_stem_below_three_chars_is_skipped()
     {
-        // "vie" (3) → stem "vi" (2) < 3 → skip R2. R1: clue "vient" contains "vie"? yes → R1 invalid.
-        // To isolate R2 skip: use card "ami" (3, ends i) → stem "am" (2) < 3 → R2 skip. Clue "camembert" does not contain "ami".
+        // "ami" ends with vowel → stem "am" (2 chars < 3) → R2 skipped.
+        // "camembert" doesn't contain "ami" → R1 also skipped → valid.
         var board = BoardWithWords("ami");
         var result = _sut.Validate("camembert", Direction.Top, board);
         Assert.True(result.IsValid);

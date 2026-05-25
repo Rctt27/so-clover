@@ -30,9 +30,15 @@ public class LlmConfigurationTests
     }
 
     [Fact]
-    public void Defaults_from_appsettings_are_loaded()
+    public void Binding_maps_configuration_section_onto_options()
     {
-        var sp = BuildProvider(new Dictionary<string, string?>());
+        var sp = BuildProvider(new Dictionary<string, string?>
+        {
+            ["Llm:Provider"] = "OpenAI",
+            ["Llm:BaseUrl"] = "http://localhost:1234/v1",
+            ["Llm:MaxConcurrency"] = "4",
+            ["Llm:MaxCallsPerGame"] = "200"
+        });
 
         var opts = sp.GetRequiredService<IOptions<LlmOptions>>().Value;
 
@@ -40,6 +46,53 @@ public class LlmConfigurationTests
         Assert.Equal("http://localhost:1234/v1", opts.BaseUrl);
         Assert.Equal(4, opts.MaxConcurrency);
         Assert.Equal(200, opts.MaxCallsPerGame);
+    }
+
+    [Fact]
+    public void Real_appsettings_json_binds_to_valid_options()
+    {
+        // Guard test: the shipped appsettings.json must produce a valid LlmOptions.
+        // Reads the real file so a breaking edit to it fails here rather than at host startup.
+        var sp = BuildProvider(new Dictionary<string, string?>());
+
+        var opts = sp.GetRequiredService<IOptions<LlmOptions>>().Value;
+
+        Assert.False(string.IsNullOrWhiteSpace(opts.BaseUrl));
+        Assert.False(string.IsNullOrWhiteSpace(opts.DefaultModel));
+        Assert.InRange(opts.MaxConcurrency, 1, LlmOptionsValidator.MaxAllowedConcurrency);
+        Assert.True(opts.MaxCallsPerGame >= 1);
+    }
+
+    [Fact]
+    public void Env_var_with_double_underscore_maps_to_Llm_section()
+    {
+        // The host uses AddEnvironmentVariables(), which translates "LLM__MAXCONCURRENCY" → "Llm:MaxConcurrency".
+        // This verifies the real "__" mapping, not the ":" shortcut used by the other tests.
+        const string envKey = "LLM__MAXCONCURRENCY";
+        Environment.SetEnvironmentVariable(envKey, "8");
+        try
+        {
+            var appSettingsPath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "appsettings.json"));
+
+            var config = new ConfigurationBuilder()
+                .AddJsonFile(appSettingsPath, optional: false)
+                .AddEnvironmentVariables()
+                .Build();
+
+            var services = new ServiceCollection();
+            services.AddOptions<LlmOptions>()
+                .Bind(config.GetSection(LlmOptions.SectionName));
+            using var sp = services.BuildServiceProvider();
+
+            var opts = sp.GetRequiredService<IOptions<LlmOptions>>().Value;
+
+            Assert.Equal(8, opts.MaxConcurrency);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(envKey, null);
+        }
     }
 
     [Fact]

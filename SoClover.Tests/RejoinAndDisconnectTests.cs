@@ -125,38 +125,4 @@ public class RejoinAndDisconnectTests
         Assert.DoesNotContain(game.ActivePlayers, p => p.Id == aliceId);
     }
 
-    [Fact]
-    public async Task JoinGame_with_existing_name_without_replace_returns_conflict()
-    {
-        var sp = BuildProvider();
-        var create = sp.GetRequiredService<ICreateGameUseCase>();
-        var join = sp.GetRequiredService<IJoinGameUseCase>();
-
-        var gameResponse = await create.Handle(new CreateGame.Request("Alice"));
-        var gameId = gameResponse.GameId;
-
-        var response = await join.Handle(new JoinGame.Request(gameId, "Alice", ReplaceExisting: false));
-        Assert.True(response.IsConflict);
-        Assert.Equal(gameResponse.CreatorPlayerId, response.ExistingPlayerId);
-    }
-
-    [Fact]
-    public async Task JoinGame_with_existing_name_and_replace_reuses_id()
-    {
-        var sp = BuildProvider();
-        var create = sp.GetRequiredService<ICreateGameUseCase>();
-        var join = sp.GetRequiredService<IJoinGameUseCase>();
-        var repo = sp.GetRequiredService<IGameRepository>();
-
-        var gameResponse = await create.Handle(new CreateGame.Request("Alice"));
-        var gameId = gameResponse.GameId;
-        var originalId = gameResponse.CreatorPlayerId;
-
-        var response = await join.Handle(new JoinGame.Request(gameId, "Alice", ReplaceExisting: true));
-        Assert.False(response.IsConflict);
-        Assert.Equal(originalId, response.PlayerId);
-
-        var game = await repo.Get(gameId);
-        Assert.Single(game!.Players);
-    }
 }

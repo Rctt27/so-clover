@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SoClover.Domain;
 using SoClover.Infrastructure;
 using SoClover.RealTime;
+using SoClover.Tests.Helpers;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.GameLogics;
 using Xunit;
@@ -10,13 +11,6 @@ namespace SoClover.Tests.UseCases;
 
 public class StartWritingPhaseAiTests
 {
-    private sealed class FakeConnectionTracker : IConnectionTracker
-    {
-        private readonly HashSet<PlayerId> _connected;
-        public FakeConnectionTracker(IEnumerable<PlayerId> connected) => _connected = new(connected);
-        public bool IsPlayerConnected(PlayerId playerId) => _connected.Contains(playerId);
-    }
-
     private static ServiceProvider BuildProvider(IConnectionTracker tracker)
     {
         var services = new ServiceCollection();

@@ -1,4 +1,5 @@
 using SoClover.Domain;
+using SoClover.Tests.Helpers;
 using Xunit;
 
 namespace SoClover.Tests.UseCases;
@@ -109,7 +110,7 @@ public class GuessAiBoardOnlyDomainTests
             aiConfig: new AIConfig("gpt-4o-mini", 0.7));
         game.AddPlayer(human);
         game.AddPlayer(bot);
-        game.InitializeWordsPoolAsync(new InMemoryDictionary()).GetAwaiter().GetResult();
+        game.InitializeWordsPoolAsync(new TestWordDictionary()).GetAwaiter().GetResult();
         game.StartWritingPhase(DateTime.UtcNow, TimeSpan.FromMinutes(5));
 
         Assert.Throws<InvalidOperationInPhaseException>(() => game.SetGuessAiBoardOnly(true));
@@ -169,11 +170,4 @@ public class GuessAiBoardOnlyDomainTests
         Assert.True(game.GuessAiBoardOnly);
     }
 
-    private sealed class InMemoryDictionary : IWordDictionary
-    {
-        public Task<IReadOnlyList<string>> GetRandomWordsAsync(string language, int count, CancellationToken ct = default)
-            => Task.FromResult((IReadOnlyList<string>)Enumerable.Range(0, count).Select(i => $"Word{i}").ToList());
-        public Task<IReadOnlyList<string>> GetAllWordsAsync(string language, CancellationToken ct = default)
-            => Task.FromResult((IReadOnlyList<string>)new List<string> { "Word1", "Word2" });
-    }
 }

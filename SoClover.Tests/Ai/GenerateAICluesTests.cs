@@ -4,6 +4,7 @@ using SoClover.Domain.Validation;
 using SoClover.Infrastructure;
 using SoClover.Infrastructure.AI;
 using SoClover.Infrastructure.AI.Prompts;
+using SoClover.Tests.Helpers;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.AI;
 using Xunit;
@@ -22,7 +23,7 @@ public class GenerateAICluesTests
 
         var repo = sp.GetRequiredService<IGameRepository>();
         var board = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPid).Board;
-        var safe = PickSafeClues(board, 4);
+        var safe = AiTestHelpers.PickSafeClues(board,4);
 
         AiTestProvider.EnqueueValidJson(fake, new[]
         {
@@ -64,7 +65,7 @@ public class GenerateAICluesTests
         var game = await repo.Get(gameId);
         var board = game!.Players.First(p => p.Id == aiPid).Board;
         var conflict = PickConflictWord(board);
-        var safe = PickSafeClues(board, 4);
+        var safe = AiTestHelpers.PickSafeClues(board,4);
 
         AiTestProvider.EnqueueValidJson(fake, new[]
         {
@@ -112,7 +113,7 @@ public class GenerateAICluesTests
         var game = await repo.Get(gameId);
         var board = game!.Players.First(p => p.Id == aiPid).Board;
         var conflict = PickConflictWord(board);
-        var safe = PickSafeClues(board, 4);
+        var safe = AiTestHelpers.PickSafeClues(board,4);
 
         AiTestProvider.EnqueueValidJson(fake, new[]
         {
@@ -146,7 +147,7 @@ public class GenerateAICluesTests
         var game = await repo.Get(gameId);
         var validator = validatorFactory.GetFor(game!.Language, game.SemanticClueCheckEnabled);
         var board = game.Players.First(p => p.Id == aiPid).Board;
-        var safe = PickSafeClues(board, 4);
+        var safe = AiTestHelpers.PickSafeClues(board,4);
         game.SetClue(aiPid, Direction.Top,    safe[0], validator);
         game.SetClue(aiPid, Direction.Right,  safe[1], validator);
         game.SetClue(aiPid, Direction.Bottom, safe[2], validator);
@@ -184,7 +185,7 @@ public class GenerateAICluesTests
         var game = await repo.Get(gameId);
         var validator = validatorFactory.GetFor(game!.Language, game.SemanticClueCheckEnabled);
         var board = game.Players.First(p => p.Id == aiPid).Board;
-        var safe = PickSafeClues(board, 4);
+        var safe = AiTestHelpers.PickSafeClues(board,4);
         game.SetClue(aiPid, Direction.Top,   safe[0], validator);
         game.SetClue(aiPid, Direction.Right, safe[1], validator);
         await repo.Save(game);
@@ -264,7 +265,7 @@ public class GenerateAICluesTests
         var board = game!.Players.First(p => p.Id == aiPid).Board;
         var conflict = PickConflictWord(board);
 
-        var safe = PickSafeClues(board, 2);
+        var safe = AiTestHelpers.PickSafeClues(board,2);
         AiTestProvider.EnqueueValidJson(fake, new[]
         {
             (Direction.Top,    safe[0],    "ok"),
@@ -338,7 +339,7 @@ public class GenerateAICluesTests
         var board = game!.Players.First(p => p.Id == aiPid).Board;
         var conflict = PickConflictWord(board);
 
-        var safe = PickSafeClues(board, 3);
+        var safe = AiTestHelpers.PickSafeClues(board,3);
         AiTestProvider.EnqueueValidJson(fake, new[]
         {
             (Direction.Top,    safe[0],  "ok"),
@@ -394,25 +395,5 @@ public class GenerateAICluesTests
             }
         }
         throw new InvalidOperationException("No board word in [3..32] range — dictionary anomaly?");
-    }
-
-    /// <summary>
-    /// Generate <paramref name="count"/> distinct clue strings guaranteed valid against
-    /// the given board (no R1/R2 conflict). Random card words from the dictionary may
-    /// otherwise collide with hard-coded "soleil/orage/..." choices, making tests flaky.
-    /// </summary>
-    internal static string[] PickSafeClues(CloverBoard board, int count)
-    {
-        var validator = new FrenchOffClueValidator();
-        var results = new List<string>();
-        for (var i = 0; results.Count < count && i < 5000; i++)
-        {
-            var candidate = $"zzqxkj{i:D4}";
-            var r = validator.Validate(candidate, Direction.Top, board);
-            if (r.IsValid) results.Add(candidate);
-        }
-        if (results.Count < count)
-            throw new InvalidOperationException($"Could not generate {count} safe clues for this board.");
-        return results.ToArray();
     }
 }

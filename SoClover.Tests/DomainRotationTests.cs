@@ -1,30 +1,19 @@
 ﻿using SoClover.Domain;
+using SoClover.Tests.Helpers;
 using Xunit;
 
 namespace SoClover.Tests;
 
 public class DomainRotationTests
 {
-    private class DummyDictionary : IWordDictionary
-    {
-        public Task<IReadOnlyList<string>> GetRandomWordsAsync(string language, int count, CancellationToken ct = default)
-        {
-            return Task.FromResult((IReadOnlyList<string>)Enumerable.Range(0, count).Select(i => $"Word{i}").ToList());
-        }
-        public Task<IReadOnlyList<string>> GetAllWordsAsync(string language, CancellationToken ct = default)
-        {
-            return Task.FromResult((IReadOnlyList<string>)new List<string> { "Word1", "Word2" });
-        }
-    }
-
     private Game CreateGameInGuessingPhase(out PlayerId ownerId, out Card fifthCard)
     {
         var game = new Game(GameId.New());
         ownerId = PlayerId.New();
         var player = new Player(ownerId, "Owner");
         game.AddPlayer(player);
-        
-        game.InitializeWordsPoolAsync(new DummyDictionary()).Wait();
+
+        game.InitializeWordsPoolAsync(new TestWordDictionary()).Wait();
         game.StartWritingPhase(DateTime.UtcNow, TimeSpan.FromMinutes(5));
         
         // Peupler le board du joueur pour éviter NullReferenceException dans StartGuessingPhase

@@ -6,6 +6,14 @@ namespace SoClover.Infrastructure.AI.Prompts;
 public sealed class FrenchAiCluePromptProvider : IAiCluePromptProvider
 {
     private const int MaxFeedbackAttemptsPerDirection = 3;
+
+    // TODO: ce JsonSchemaText fige le schéma v7 (additionalProperties:false) et est désormais
+    // obsolète par rapport au prompt v8 (qui demande consideredAlternatives, linkToWord1Explanation,
+    // linkToWord2Explanation, linkStrengthWord1, linkStrengthWord2). Aujourd'hui il est exposé via
+    // AiCluePromptBundle.JsonSchema mais n'est consommé nulle part (jamais branché sur
+    // ChatOptions.ResponseFormat), donc aucun impact runtime. Si on l'active un jour, le synchroniser
+    // avec board-clues.md ou retirer "additionalProperties: false" sinon les modèles strict-schema
+    // rejetteront les nouveaux champs.
     private const string JsonSchemaText = """
 {
   "type": "object",

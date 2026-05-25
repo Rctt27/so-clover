@@ -4,8 +4,6 @@ using SoClover.Infrastructure;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Gameplay;
 using SoClover.UseCases.GameLogics;
-using SoClover.UseCases.Gameplay;
-using SoClover.UseCases.GameLogics;
 using Xunit;
 
 namespace SoClover.Tests;
@@ -50,7 +48,7 @@ public class FullGameFlowTests
         var join = sp.GetRequiredService<IJoinGameUseCase>();
         var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
         var setClue = sp.GetRequiredService<ISetClueUseCase>();
-        var startGuessing = sp.GetRequiredService<IStartGuessingPhaseUseCase>();
+        var submitBoard = sp.GetRequiredService<ISubmitBoardUseCase>();
         var guess = sp.GetRequiredService<IGuessUseCase>();
         var repo = sp.GetRequiredService<IGameRepository>();
 
@@ -67,7 +65,7 @@ public class FullGameFlowTests
         var phase = (await startWriting.Handle(new StartWritingPhase.Request(gameId))).Phase;
         Assert.Equal(GamePhase.WritingClues, phase);
 
-        // Set clues (labels) for directions for each player
+        // Set clues for each player
         await setClue.Handle(new SetClue.Request(gameId, adminId, Direction.Top,    "Clue Admin1"));
         await setClue.Handle(new SetClue.Request(gameId, adminId, Direction.Right,  "Clue Admin2"));
         await setClue.Handle(new SetClue.Request(gameId, adminId, Direction.Bottom, "Clue Admin3"));
@@ -83,45 +81,42 @@ public class FullGameFlowTests
         await setClue.Handle(new SetClue.Request(gameId, p2, Direction.Bottom, "Clue B3"));
         await setClue.Handle(new SetClue.Request(gameId, p2, Direction.Left,   "Clue B4"));
 
-        // Submit all boards so BoardsToGuess.Count > 0 (Epic 03 guard).
-        var preGuessing = await repo.Get(gameId) ?? throw new Exception("Game not found in test");
-        foreach (var pl in preGuessing.ActivePlayers) pl.Board.MarkSubmitted(DateTime.UtcNow);
+        // Submit all boards via use case — the last submit auto-transitions to Guessing.
+        await submitBoard.Handle(new SubmitBoard.Request(gameId, adminId));
+        await submitBoard.Handle(new SubmitBoard.Request(gameId, p1));
+        await submitBoard.Handle(new SubmitBoard.Request(gameId, p2));
 
-        // Guessing phase (force from test context)
-        phase = (await startGuessing.Handle(new StartGuessingPhase.Request(gameId, true))).Phase;
-        Assert.Equal(GamePhase.Guessing, phase);
+        Assert.Equal(GamePhase.Guessing, (await repo.Get(gameId))!.Phase);
 
-        // Prepare expected words by reading the game state
+        // Prepare expected clues by reading the game state
         var game = await repo.Get(gameId) ?? throw new Exception("Game not found in test");
         var players = game.Players.ToArray();
 
-        // For each player, guess all four directions (simulate some wrong then right guesses)
+        // For each player's board, guess all four directions (wrong then correct)
         foreach (var player in players)
         {
-            var expectedTop = player.Board.GetClueText(Direction.Top);
-            var expectedRight = player.Board.GetClueText(Direction.Right);
+            var expectedTop    = player.Board.GetClueText(Direction.Top);
+            var expectedRight  = player.Board.GetClueText(Direction.Right);
             var expectedBottom = player.Board.GetClueText(Direction.Bottom);
-            var expectedLeft = player.Board.GetClueText(Direction.Left);
+            var expectedLeft   = player.Board.GetClueText(Direction.Left);
 
-            Assert.False((await guess.Handle(new Guess.Request(gameId, player.Id, Direction.Top, "wrong"))).IsCorrect);
-            Assert.True((await guess.Handle(new Guess.Request(gameId, player.Id, Direction.Top, expectedTop))).IsCorrect);
+            Assert.False((await guess.Handle(new Guess.Request(gameId, player.Id, Direction.Top,    "wrong"))).IsCorrect);
+            Assert.True( (await guess.Handle(new Guess.Request(gameId, player.Id, Direction.Top,    expectedTop))).IsCorrect);
 
-            Assert.False((await guess.Handle(new Guess.Request(gameId, player.Id, Direction.Right, "wrong"))).IsCorrect);
-            Assert.True((await guess.Handle(new Guess.Request(gameId, player.Id, Direction.Right, expectedRight))).IsCorrect);
+            Assert.False((await guess.Handle(new Guess.Request(gameId, player.Id, Direction.Right,  "wrong"))).IsCorrect);
+            Assert.True( (await guess.Handle(new Guess.Request(gameId, player.Id, Direction.Right,  expectedRight))).IsCorrect);
 
             Assert.False((await guess.Handle(new Guess.Request(gameId, player.Id, Direction.Bottom, "wrong"))).IsCorrect);
-            Assert.True((await guess.Handle(new Guess.Request(gameId, player.Id, Direction.Bottom, expectedBottom))).IsCorrect);
+            Assert.True( (await guess.Handle(new Guess.Request(gameId, player.Id, Direction.Bottom, expectedBottom))).IsCorrect);
 
-            Assert.False((await guess.Handle(new Guess.Request(gameId, player.Id, Direction.Left, "wrong"))).IsCorrect);
-            Assert.True((await guess.Handle(new Guess.Request(gameId, player.Id, Direction.Left, expectedLeft))).IsCorrect);
+            Assert.False((await guess.Handle(new Guess.Request(gameId, player.Id, Direction.Left,   "wrong"))).IsCorrect);
+            Assert.True( (await guess.Handle(new Guess.Request(gameId, player.Id, Direction.Left,   expectedLeft))).IsCorrect);
         }
 
-        // In the new flow, the game doesn't automatically complete after all guesses.
-        // It moves to Scoring phase once all boards have been processed.
-        // Since this test uses the legacy Guess method (which doesn't exist in the new UI flow),
-        // we just verify it doesn't crash.
+        // The legacy Guess use case records answers but doesn't advance boards —
+        // the game stays in Guessing until MoveToNextBoard is called explicitly.
         game = await repo.Get(gameId) ?? throw new Exception("Game not found in test");
-        Assert.NotEqual(GamePhase.Lobby, game.Phase);
+        Assert.Equal(GamePhase.Guessing, game.Phase);
     }
 
     [Fact]

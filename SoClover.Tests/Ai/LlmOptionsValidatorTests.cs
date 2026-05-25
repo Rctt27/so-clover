@@ -97,5 +97,62 @@ public class LlmOptionsValidatorTests
         var result = validator.Validate(name: null, options: opts);
 
         Assert.True(result.Failed);
+        Assert.Contains(result.Failures!, f => f.Contains("DefaultModel", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(-10)]
+    public void MaxRetries_below_zero_is_rejected(int invalid)
+    {
+        var validator = new LlmOptionsValidator();
+        var opts = new LlmOptions { MaxRetries = invalid };
+
+        var result = validator.Validate(name: null, options: opts);
+
+        Assert.True(result.Failed);
+        Assert.Contains(result.Failures!, f => f.Contains("MaxRetries", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    public void MaxRetries_zero_or_positive_is_accepted(int valid)
+    {
+        var validator = new LlmOptionsValidator();
+        var opts = new LlmOptions { MaxRetries = valid };
+
+        var result = validator.Validate(name: null, options: opts);
+
+        Assert.True(result.Succeeded);
+    }
+
+    [Theory]
+    [InlineData(-0.1)]
+    [InlineData(2.1)]
+    [InlineData(10.0)]
+    public void DefaultTemperature_outside_0_to_2_is_rejected(double invalid)
+    {
+        var validator = new LlmOptionsValidator();
+        var opts = new LlmOptions { DefaultTemperature = invalid };
+
+        var result = validator.Validate(name: null, options: opts);
+
+        Assert.True(result.Failed);
+        Assert.Contains(result.Failures!, f => f.Contains("DefaultTemperature", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(0.7)]
+    [InlineData(2.0)]
+    public void DefaultTemperature_in_0_to_2_is_accepted(double valid)
+    {
+        var validator = new LlmOptionsValidator();
+        var opts = new LlmOptions { DefaultTemperature = valid };
+
+        var result = validator.Validate(name: null, options: opts);
+
+        Assert.True(result.Succeeded);
     }
 }

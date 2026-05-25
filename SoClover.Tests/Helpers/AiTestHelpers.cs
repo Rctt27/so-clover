@@ -1,4 +1,5 @@
 using SoClover.Domain;
+using SoClover.Domain.Validation;
 
 namespace SoClover.Tests.Helpers;
 
@@ -36,5 +37,25 @@ public static class AiTestHelpers
         ai.Board.SetClue(Direction.Left,   ClueText.Create("ai-left"));
 
         ai.Board.MarkSubmitted(nowUtc);
+    }
+
+    /// <summary>
+    /// Génère <paramref name="count"/> indices distincts garantis valides contre
+    /// le board donné (aucun conflit R1/R2). Évite la flakiness : des mots de carte
+    /// tirés aléatoirement pourraient entrer en collision avec des indices codés en dur.
+    /// </summary>
+    public static string[] PickSafeClues(CloverBoard board, int count)
+    {
+        var validator = new FrenchOffClueValidator();
+        var results = new List<string>();
+        for (var i = 0; results.Count < count && i < 5000; i++)
+        {
+            var candidate = $"zzqxkj{i:D4}";
+            var r = validator.Validate(candidate, Direction.Top, board);
+            if (r.IsValid) results.Add(candidate);
+        }
+        if (results.Count < count)
+            throw new InvalidOperationException($"Could not generate {count} safe clues for this board.");
+        return results.ToArray();
     }
 }

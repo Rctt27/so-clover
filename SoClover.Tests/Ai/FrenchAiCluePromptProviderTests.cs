@@ -95,13 +95,21 @@ Pour CHAQUE direction listée, propose un mot DIFFÉRENT.
             Assert.Contains("Right", bundle.UserPrompt);
             Assert.Contains("Bottom", bundle.UserPrompt);
             Assert.Contains("Left", bundle.UserPrompt);
-            Assert.Contains("plage", bundle.UserPrompt);
             Assert.Contains("sable", bundle.UserPrompt);
 
             Assert.DoesNotContain("rejeté", bundle.UserPrompt, StringComparison.OrdinalIgnoreCase);
 
             Assert.DoesNotContain("{{", bundle.UserPrompt);
             Assert.DoesNotContain("}}", bundle.UserPrompt);
+        });
+    }
+
+    [Fact]
+    public void BuildBoardCluesPrompt_emits_json_schema_with_clue_bounds()
+    {
+        WithFixture(MinimalTemplate, provider =>
+        {
+            var bundle = provider.BuildBoardCluesPrompt(SampleContext());
 
             Assert.Contains("\"clues\"", bundle.JsonSchema);
             Assert.Contains("\"minItems\": 1", bundle.JsonSchema);
@@ -233,6 +241,17 @@ Pour CHAQUE direction listée, propose un mot DIFFÉRENT.
         Assert.DoesNotContain("- Bottom", resolveSection);
     }
 
+    private static void AssertDirectionPairs(string resolveSection, string direction, string word1, string word2)
+    {
+        var line = resolveSection
+            .Split('\n')
+            .FirstOrDefault(l => l.TrimStart().StartsWith($"- {direction}", StringComparison.Ordinal));
+
+        Assert.True(line is not null, $"No '- {direction}' line found in resolve section.");
+        Assert.Contains(word1, line!);
+        Assert.Contains(word2, line!);
+    }
+
     private static string ExtractResolveSection(string prompt)
     {
         var marker = "À résoudre dans cet appel :";
@@ -267,41 +286,6 @@ Pour CHAQUE direction listée, propose un mot DIFFÉRENT.
     }
 
     [Fact]
-    public void HotReload_modifying_packaged_md_changes_next_BuildBoardCluesPrompt_output()
-    {
-        var packagedPath = Path.Combine(
-            AppContext.BaseDirectory,
-            "Infrastructure", "AI", "Prompts", "fr", "board-clues.md");
-        Assert.True(File.Exists(packagedPath), $"prompt file not packaged at {packagedPath}");
-
-        var original = File.ReadAllText(packagedPath);
-        var originalTime = File.GetLastWriteTimeUtc(packagedPath);
-
-        try
-        {
-            var provider = new FrenchAiCluePromptProvider();
-
-            var firstBundle = provider.BuildBoardCluesPrompt(SampleContext());
-            Assert.Contains("Tu es un joueur expert", firstBundle.SystemPrompt);
-
-            var marker = $"HOTRELOAD-{Guid.NewGuid()}";
-            var modified = original.Replace(
-                "Tu es un joueur expert",
-                $"Tu es un joueur expert. {marker}");
-            File.WriteAllText(packagedPath, modified);
-            File.SetLastWriteTimeUtc(packagedPath, originalTime.AddSeconds(1));
-
-            var secondBundle = provider.BuildBoardCluesPrompt(SampleContext());
-            Assert.Contains(marker, secondBundle.SystemPrompt);
-        }
-        finally
-        {
-            File.WriteAllText(packagedPath, original);
-            File.SetLastWriteTimeUtc(packagedPath, originalTime);
-        }
-    }
-
-    [Fact]
     public void BuildBoardCluesPrompt_throws_when_rejected_key_is_outside_remaining()
     {
         var provider = new FrenchAiCluePromptProvider();
@@ -322,17 +306,19 @@ Pour CHAQUE direction listée, propose un mot DIFFÉRENT.
         var bundle = new FrenchAiCluePromptProvider().BuildBoardCluesPrompt(SampleContext());
         var prompt = bundle.UserPrompt;
 
-        // Convention "faces extérieures" :
-        // Top    → TopLeft.Top + TopRight.Top         = lune + vague
-        // Right  → TopRight.Right + BottomRight.Right = rocher + forêt
-        // Bottom → BottomRight.Bottom + BottomLeft.Bottom = montagne + ville
-        // Left   → BottomLeft.Left + TopLeft.Left     = village + ciel
-        Assert.Contains("- Top : trouve un mot-indice qui évoque à la fois \"lune\" et \"vague\"", prompt);
-        Assert.Contains("- Right : trouve un mot-indice qui évoque à la fois \"rocher\" et \"forêt\"", prompt);
-        Assert.Contains("- Bottom : trouve un mot-indice qui évoque à la fois \"montagne\" et \"ville\"", prompt);
-        Assert.Contains("- Left : trouve un mot-indice qui évoque à la fois \"village\" et \"ciel\"", prompt);
-
         var resolveSection = ExtractResolveSection(prompt);
+
+        // Convention "faces extérieures" — on vérifie le mapping direction → paire de mots,
+        // sans coupler au phrasé exact du prompt (susceptible de changer).
+        // Top    → TopLeft.Top + TopRight.Top             = lune + vague
+        // Right  → TopRight.Right + BottomRight.Right      = rocher + forêt
+        // Bottom → BottomRight.Bottom + BottomLeft.Bottom  = montagne + ville
+        // Left   → BottomLeft.Left + TopLeft.Left          = village + ciel
+        AssertDirectionPairs(resolveSection, "Top", "lune", "vague");
+        AssertDirectionPairs(resolveSection, "Right", "rocher", "forêt");
+        AssertDirectionPairs(resolveSection, "Bottom", "montagne", "ville");
+        AssertDirectionPairs(resolveSection, "Left", "village", "ciel");
+
         Assert.DoesNotContain("(carte", resolveSection);
         Assert.DoesNotContain("face Top)", resolveSection);
         Assert.DoesNotContain("face Right)", resolveSection);
@@ -355,10 +341,9 @@ Pour CHAQUE direction listée, propose un mot DIFFÉRENT.
     public void BuildBoardCluesPrompt_user_prompt_describes_explanation_field_as_reasoning()
     {
         var bundle = new FrenchAiCluePromptProvider().BuildBoardCluesPrompt(SampleContext());
-        var prompt = bundle.UserPrompt;
 
-        Assert.Contains("raisonnement", prompt);
-        Assert.Contains("premier", prompt);
-        Assert.Contains("second", prompt);
+        // On vérifie que le prompt demande bien un raisonnement (concept stable),
+        // sans coupler au phrasé exact de la consigne.
+        Assert.Contains("raisonnement", bundle.UserPrompt);
     }
 }

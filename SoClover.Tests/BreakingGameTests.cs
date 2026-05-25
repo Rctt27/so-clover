@@ -5,8 +5,6 @@ using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
 using SoClover.UseCases.Gameplay;
 using SoClover.UseCases.GameLogics;
-using SoClover.UseCases.Gameplay;
-using SoClover.UseCases.GameLogics;
 using Xunit;
 
 namespace SoClover.Tests;
@@ -21,7 +19,6 @@ public class BreakingGameTests
         var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "Infrastructure", "Dictionaries");
         services.AddSingleton<IWordDictionary>(sp =>
             new FileWordDictionary(Path.GetFullPath(dictionaryPath)));
-        // Test-time providers
         services.AddSingleton<IClock>(sp => new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
         services.AddSingleton<IGameSettingsProvider>(sp => new TestGameSettingsProvider());
         services.AddSingleton<IWordsPoolCache, InMemoryWordsPoolCache>();
@@ -46,8 +43,9 @@ public class BreakingGameTests
         var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
         var repo = sp.GetRequiredService<IGameRepository>();
 
-        // This test expects no players, but CreateGame now adds admin automatically
-        // We need to manually create a game without players for this edge case test
+        // CreateGame.Handler ajoute automatiquement l'admin comme premier joueur,
+        // ce qui rend le cas "0 joueur" inatteignable via le use case normal.
+        // On instancie Game directement pour tester ce guard de domaine.
         var emptyGame = new Game(GameId.New());
         await emptyGame.InitializeWordsPoolAsync(sp.GetRequiredService<IWordDictionary>());
         await repo.Save(emptyGame);
@@ -65,7 +63,6 @@ public class BreakingGameTests
         var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
         var gameId = (await create.Handle(new CreateGame.Request("Admin"))).GameId;
 
-        // Admin is already in the game, start writing
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
 
         await Assert.ThrowsAsync<InvalidOperationInPhaseException>(async () =>
@@ -109,14 +106,14 @@ public class BreakingGameTests
         var createResponse = await create.Handle(new CreateGame.Request("Admin"));
         var gameId = createResponse.GameId;
         var adminId = createResponse.CreatorPlayerId;
-        await startWriting.Handle(new StartWritingPhase.Request(gameId)); // still WritingClues
+        await startWriting.Handle(new StartWritingPhase.Request(gameId));
 
         await Assert.ThrowsAsync<InvalidOperationInPhaseException>(async () =>
             await guess.Handle(new Guess.Request(gameId, adminId, Direction.Top, "whatever")));
     }
 
     [Fact]
-    public async Task SetClue_with_invalid_text_throws_InvalidClueException()
+    public async Task SetClue_with_empty_text_throws_InvalidClueException()
     {
         var sp = BuildProvider();
         var create = sp.GetRequiredService<ICreateGameUseCase>();
@@ -129,6 +126,19 @@ public class BreakingGameTests
 
         await Assert.ThrowsAsync<InvalidClueException>(async () =>
             await setClue.Handle(new SetClue.Request(gameId, adminId, Direction.Top, "")));
+    }
+
+    [Fact]
+    public async Task SetClue_with_text_too_long_throws_InvalidClueException()
+    {
+        var sp = BuildProvider();
+        var create = sp.GetRequiredService<ICreateGameUseCase>();
+        var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
+        var setClue = sp.GetRequiredService<ISetClueUseCase>();
+        var createResponse = await create.Handle(new CreateGame.Request("Admin"));
+        var gameId = createResponse.GameId;
+        var adminId = createResponse.CreatorPlayerId;
+        await startWriting.Handle(new StartWritingPhase.Request(gameId));
 
         var longText = new string('a', 33);
         await Assert.ThrowsAsync<InvalidClueException>(async () =>
@@ -136,7 +146,7 @@ public class BreakingGameTests
     }
 
     [Fact]
-    public async Task PlaceCard_with_invalid_words_throws_CardWord_exceptions()
+    public async Task PlaceCard_with_empty_word_throws_CardWordEmptyException()
     {
         var sp = BuildProvider();
         var create = sp.GetRequiredService<ICreateGameUseCase>();
@@ -147,6 +157,17 @@ public class BreakingGameTests
 
         await Assert.ThrowsAsync<CardWordEmptyException>(async () =>
             await place.Handle(new PlaceCardToGuess.Request(gameId, adminId, BoardPosition.TopLeft, "", "b", "c", "d")));
+    }
+
+    [Fact]
+    public async Task PlaceCard_with_word_too_long_throws_CardWordTooLongException()
+    {
+        var sp = BuildProvider();
+        var create = sp.GetRequiredService<ICreateGameUseCase>();
+        var place = sp.GetRequiredService<IPlaceCardToGuessUseCase>();
+        var createResponse = await create.Handle(new CreateGame.Request("Admin"));
+        var gameId = createResponse.GameId;
+        var adminId = createResponse.CreatorPlayerId;
 
         var longWord = new string('x', 33);
         await Assert.ThrowsAsync<CardWordTooLongException>(async () =>
@@ -154,7 +175,7 @@ public class BreakingGameTests
     }
 
     [Fact]
-    public async Task Join_with_invalid_player_name_throws_specific_exceptions()
+    public async Task Join_with_empty_name_throws_PlayerNameEmptyException()
     {
         var sp = BuildProvider();
         var create = sp.GetRequiredService<ICreateGameUseCase>();
@@ -163,6 +184,15 @@ public class BreakingGameTests
 
         await Assert.ThrowsAsync<PlayerNameEmptyException>(async () =>
             await join.Handle(new JoinGame.Request(gameId, " ")));
+    }
+
+    [Fact]
+    public async Task Join_with_name_too_long_throws_PlayerNameTooLongException()
+    {
+        var sp = BuildProvider();
+        var create = sp.GetRequiredService<ICreateGameUseCase>();
+        var join = sp.GetRequiredService<IJoinGameUseCase>();
+        var gameId = (await create.Handle(new CreateGame.Request("Admin"))).GameId;
 
         var longName = new string('n', 33);
         await Assert.ThrowsAsync<PlayerNameTooLongException>(async () =>
@@ -177,10 +207,9 @@ public class BreakingGameTests
         var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
         var startGuessing = sp.GetRequiredService<IStartGuessingPhaseUseCase>();
         var guess = sp.GetRequiredService<IGuessUseCase>();
+        var repo = sp.GetRequiredService<IGameRepository>();
         var gameId = (await create.Handle(new CreateGame.Request("Admin"))).GameId;
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
-        // Submit all boards so BoardsToGuess.Count > 0 (Epic 03 guard).
-        var repo = sp.GetRequiredService<IGameRepository>();
         var preGuessing = await repo.Get(gameId) ?? throw new Exception();
         foreach (var pl in preGuessing.ActivePlayers) pl.Board.MarkSubmitted(DateTime.UtcNow);
         await startGuessing.Handle(new StartGuessingPhase.Request(gameId, true));
@@ -190,16 +219,44 @@ public class BreakingGameTests
     }
 
     [Fact]
-    public async Task UseCases_with_unknown_game_throw_GameNotFound()
+    public async Task JoinGame_with_unknown_game_throws_GameNotFoundException()
     {
         var sp = BuildProvider();
         var join = sp.GetRequiredService<IJoinGameUseCase>();
+
+        await Assert.ThrowsAsync<GameNotFoundException>(async () =>
+            await join.Handle(new JoinGame.Request(GameId.New(), "Alice")));
+    }
+
+    [Fact]
+    public async Task StartWritingPhase_with_unknown_game_throws_GameNotFoundException()
+    {
+        var sp = BuildProvider();
         var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
 
-        var unknown = GameId.New();
         await Assert.ThrowsAsync<GameNotFoundException>(async () =>
-            await join.Handle(new JoinGame.Request(unknown, "Alice")));
-        await Assert.ThrowsAsync<GameNotFoundException>(async () =>
-            await startWriting.Handle(new StartWritingPhase.Request(unknown)));
+            await startWriting.Handle(new StartWritingPhase.Request(GameId.New())));
+    }
+
+    [Fact]
+    public async Task StartGuessing_with_Force_throws_NotEnoughPlayers_when_no_board_submitted()
+    {
+        var sp = BuildProvider();
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var dict = sp.GetRequiredService<IWordDictionary>();
+
+        var game = new Game(GameId.New());
+        var alice = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        game.AddPlayer(alice);
+        await game.InitializeWordsPoolAsync(dict);
+        game.StartWritingPhase(DateTime.UtcNow, TimeSpan.FromMinutes(5));
+        await repo.Save(game);
+
+        var useCase = sp.GetRequiredService<IStartGuessingPhaseUseCase>();
+
+        var ex = await Assert.ThrowsAsync<NotEnoughPlayersException>(
+            () => useCase.Handle(new StartGuessingPhase.Request(game.Id, Force: true)));
+        Assert.Equal(1, ex.RequiredMinimum);
+        Assert.Equal(0, ex.ActualCount);
     }
 }

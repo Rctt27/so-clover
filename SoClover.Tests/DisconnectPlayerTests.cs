@@ -51,7 +51,7 @@ public class DisconnectPlayerTests
 
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
 
-        // Alice disconnects during WritingClues
+        // --- 1. La déconnexion marque le joueur et le retire des ActivePlayers ---
         var result = await disconnect.Handle(new DisconnectPlayer.Request(gameId, aliceId));
         Assert.True(result.Success);
 
@@ -60,7 +60,7 @@ public class DisconnectPlayerTests
         Assert.True(alice.IsDisconnected);
         Assert.Single(game.ActivePlayers);
 
-        // Admin submits clues — game should auto-transition since only active player submitted
+        // --- 2. La soumission du seul joueur actif déclenche la transition vers Guessing ---
         await setClue.Handle(new SetClue.Request(gameId, adminId, Direction.Top, "c1"));
         await setClue.Handle(new SetClue.Request(gameId, adminId, Direction.Right, "c2"));
         await setClue.Handle(new SetClue.Request(gameId, adminId, Direction.Bottom, "c3"));
@@ -70,14 +70,14 @@ public class DisconnectPlayerTests
         game = await repo.Get(gameId);
         Assert.Equal(GamePhase.Guessing, game!.Phase);
 
-        // Verify disconnected player has a BoardResult
+        // --- 3. Le joueur déconnecté a un BoardResult avec IsDisconnected = true ---
         Assert.True(game.BoardResults.ContainsKey(aliceId));
         Assert.False(game.BoardResults[aliceId].WasGuessed);
         Assert.True(game.BoardResults[aliceId].IsDisconnected);
     }
 
     [Fact]
-    public async Task DisconnectPlayer_in_GuessAiBoardOnly_does_not_use_ActivePlayers_for_all_submitted_check()
+    public async Task Disconnect_last_human_in_GuessAiBoardOnly_triggers_guessing_transition()
     {
         var sp = BuildProvider();
         var repo = sp.GetRequiredService<IGameRepository>();

@@ -1,8 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using SoClover.Domain;
-using SoClover.Domain.Validation;
 using SoClover.Infrastructure;
 using SoClover.Infrastructure.AI;
+using SoClover.Tests.Helpers;
 using SoClover.UseCases.AI;
 using SoClover.UseCases.Abstractions;
 using Xunit;
@@ -23,7 +23,7 @@ public class AiClueOrchestratorHostedServiceTests
         var aiPid = aiPids[0];
         var repo = sp.GetRequiredService<IGameRepository>();
         var board = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPid).Board;
-        var safe = PickSafeClues(board, 4);
+        var safe = AiTestHelpers.PickSafeClues(board, 4);
         AiTestProvider.EnqueueValidJson(fake, new[]
         {
             (Direction.Top,    safe[0], "x"),
@@ -63,12 +63,13 @@ public class AiClueOrchestratorHostedServiceTests
         var repo = sp.GetRequiredService<IGameRepository>();
         var board1 = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPids[1]).Board;
 
-        // First AI: invalid JSON → JsonException bubbles out of Handle on first attempt
-        // (retry loop has no try/catch around CallLlmAsync), so only one fake response is consumed.
-        fake.Enqueue("not-valid-json");
+        // First AI: the LLM call throws an exception type that Handle does NOT catch
+        // (it only swallows InvalidOperationException/JsonException to retry). It bubbles
+        // out of Handle and must be caught by the orchestrator, consuming one fake response.
+        fake.EnqueueException(new TimeoutException("boom"));
 
         // Second AI: valid clues.
-        var safe = PickSafeClues(board1, 4);
+        var safe = AiTestHelpers.PickSafeClues(board1, 4);
         AiTestProvider.EnqueueValidJson(fake, new[]
         {
             (Direction.Top,    safe[0], "x"),
@@ -107,18 +108,5 @@ public class AiClueOrchestratorHostedServiceTests
             await Task.Delay(20);
         }
         throw new TimeoutException($"Condition not met within {timeout.TotalSeconds:F1}s.");
-    }
-
-    private static string[] PickSafeClues(CloverBoard board, int count)
-    {
-        var validator = new FrenchOffClueValidator();
-        var results = new List<string>();
-        for (var i = 0; results.Count < count && i < 5000; i++)
-        {
-            var candidate = $"zzqxkj{i:D4}";
-            var r = validator.Validate(candidate, Direction.Top, board);
-            if (r.IsValid) results.Add(candidate);
-        }
-        return results.ToArray();
     }
 }

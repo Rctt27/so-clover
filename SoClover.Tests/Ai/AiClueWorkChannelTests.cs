@@ -43,4 +43,27 @@ public class AiClueWorkChannelTests
 
         Assert.Equal(new[] { p1, p2 }, received);
     }
+
+    [Fact]
+    public async Task Writing_past_capacity_never_blocks_and_drops_overflow()
+    {
+        var channel = new AiClueWorkChannel();
+        var gameId = GameId.New();
+
+        // Bounded(100) with FullMode=DropWrite: writing well past capacity must
+        // complete without blocking the producer (StartWritingPhase.Handle never stalls).
+        var write = Task.Run(async () =>
+        {
+            for (var i = 0; i < 250; i++)
+                await channel.Writer.WriteAsync(new AiClueGenerationRequested(gameId, PlayerId.New()));
+            channel.Writer.Complete();
+        });
+
+        var completed = await Task.WhenAny(write, Task.Delay(TimeSpan.FromSeconds(2))) == write;
+        Assert.True(completed, "Writing past capacity blocked — DropWrite semantics broken.");
+
+        var count = 0;
+        await foreach (var _ in channel.Reader.ReadAllAsync()) count++;
+        Assert.Equal(100, count);
+    }
 }

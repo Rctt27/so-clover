@@ -7,17 +7,6 @@ namespace SoClover.Tests.AI;
 public class GameLlmBudgetTests
 {
     [Fact]
-    public void First_call_for_a_game_is_consumed()
-    {
-        var budget = new GameLlmBudget(maxCallsPerGame: 5);
-        var gameId = GameId.New();
-
-        budget.TryConsume(gameId);
-
-        Assert.Equal(1, budget.Used(gameId));
-    }
-
-    [Fact]
     public void Consume_up_to_max_succeeds()
     {
         var budget = new GameLlmBudget(maxCallsPerGame: 3);

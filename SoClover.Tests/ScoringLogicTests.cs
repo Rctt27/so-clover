@@ -39,7 +39,7 @@ public class ScoringLogicTests
     }
 
     [Fact]
-    public async Task When_one_player_succeeds_and_one_fails_scoring_should_reflect_it()
+    public async Task Scoring_records_both_boards_as_failed_when_guessing_attempts_exhausted()
     {
         var sp = BuildProvider();
         var clock = (TestClock)sp.GetRequiredService<IClock>();
@@ -128,7 +128,7 @@ public class ScoringLogicTests
         // 4. Check Scoring
         var scoring = await getScoring.Handle(new GetScoring.Request(gameId));
         
-        Assert.Equal(2, scoring.SuccessfulBoards.Count + scoring.FailedBoards.Count);
-        Assert.True(scoring.FailedBoards.Count > 0, "Should have at least one failed board");
+        Assert.Equal(2, scoring.FailedBoards.Count);
+        Assert.Empty(scoring.SuccessfulBoards);
     }
 }

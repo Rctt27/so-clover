@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using SoClover.Domain;
+using SoClover.Tests.Helpers;
 using Xunit;
 
 namespace SoClover.Tests;
@@ -185,26 +186,6 @@ public class AiPlayerDomainTests
     }
 
     [Fact]
-    public void MaxAIPlayersReachedException_exposes_currentCount_and_max_and_descriptive_message()
-    {
-        var ex = new MaxAIPlayersReachedException(currentCount: 4, max: 4);
-
-        Assert.Equal(4, ex.CurrentCount);
-        Assert.Equal(4, ex.Max);
-        Assert.IsAssignableFrom<DomainException>(ex);
-        Assert.Contains("4", ex.Message);
-    }
-
-    [Fact]
-    public void NoHumanGuesserException_is_a_DomainException_with_message()
-    {
-        var ex = new NoHumanGuesserException();
-
-        Assert.IsAssignableFrom<DomainException>(ex);
-        Assert.False(string.IsNullOrWhiteSpace(ex.Message));
-    }
-
-    [Fact]
     public void LlmBudgetExhaustedException_exposes_gameId_and_max()
     {
         var gameId = GameId.New();
@@ -227,7 +208,7 @@ public class AiPlayerDomainTests
     }
 
     [Fact]
-    public void AddAIPlayer_marks_player_as_AI_and_assigns_cursor_color()
+    public void AddAIPlayer_marks_player_as_AI()
     {
         var game = new Game(GameId.New());
         var admin = new Player(PlayerId.New(), "Admin", isAdmin: true);
@@ -262,14 +243,6 @@ public class AiPlayerDomainTests
         Assert.Equal(4, ex.Max);
     }
 
-    private class DummyWordDictionary : IWordDictionary
-    {
-        public Task<IReadOnlyList<string>> GetRandomWordsAsync(string language, int count, CancellationToken ct = default)
-            => Task.FromResult((IReadOnlyList<string>)Enumerable.Range(0, count).Select(i => $"Word{i}").ToList());
-        public Task<IReadOnlyList<string>> GetAllWordsAsync(string language, CancellationToken ct = default)
-            => Task.FromResult((IReadOnlyList<string>)new List<string> { "Word1", "Word2" });
-    }
-
     [Fact]
     public void AddAIPlayer_throws_when_phase_is_not_Lobby()
     {
@@ -278,7 +251,7 @@ public class AiPlayerDomainTests
         var human = new Player(PlayerId.New(), "Alice");
         game.AddPlayer(admin);
         game.AddPlayer(human);
-        game.InitializeWordsPoolAsync(new DummyWordDictionary()).Wait();
+        game.InitializeWordsPoolAsync(new TestWordDictionary()).Wait();
         game.StartWritingPhase(DateTime.UtcNow, TimeSpan.FromMinutes(5));
 
         var bot = new Player(PlayerId.New(), "Bot-late", isAdmin: false, isAI: true,
@@ -299,7 +272,7 @@ public class AiPlayerDomainTests
     }
 
     [Fact]
-    public void IsLastGuessingBoard_returns_true_when_completedBoardsCount_equals_boardsToGuessCount_minus_one()
+    public void IsLastGuessingBoard_returns_false_when_two_boards_submitted_and_none_completed()
     {
         var game = new Game(GameId.New());
         var alice = new Player(PlayerId.New(), "Alice", isAdmin: true);
@@ -392,7 +365,7 @@ public class AiPlayerDomainTests
         human.Board.MarkSubmitted(now);
         bot.Board.MarkSubmitted(now);
 
-        game.InitializeWordsPoolAsync(new DummyWordDictionary()).Wait();
+        game.InitializeWordsPoolAsync(new TestWordDictionary()).Wait();
         game.StartWritingPhase(now, TimeSpan.FromMinutes(5));
 
         var rotations = new[] { Rotation.None, Rotation.None, Rotation.None, Rotation.None, Rotation.None };

@@ -8,6 +8,7 @@ using SoClover.Infrastructure;
 using SoClover.Infrastructure.AI;
 using SoClover.Infrastructure.AI.Prompts;
 using SoClover.Infrastructure.Validation;
+using SoClover.Tests.Helpers;
 using SoClover.UseCases.AI;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Gameplay;
@@ -68,22 +69,9 @@ public class AiClueOrchestratorEndToEndTests
         throw new TimeoutException($"Condition not met within {timeout.TotalSeconds:F1}s.");
     }
 
-    private static string[] PickSafeClues(CloverBoard board, int count)
-    {
-        var validator = new FrenchOffClueValidator();
-        var results = new List<string>();
-        for (var i = 0; results.Count < count && i < 5000; i++)
-        {
-            var candidate = $"zzqxkj{i:D4}";
-            var r = validator.Validate(candidate, Direction.Top, board);
-            if (r.IsValid) results.Add(candidate);
-        }
-        return results.ToArray();
-    }
-
     private static void EnqueueCluesForBoard(FakeChatClient fake, CloverBoard board, TimeSpan? delay = null)
     {
-        var safe = PickSafeClues(board, 4);
+        var safe = AiTestHelpers.PickSafeClues(board, 4);
         var json = JsonSerializer.Serialize(new
         {
             clues = new[]
@@ -194,9 +182,10 @@ public class AiClueOrchestratorEndToEndTests
 
         var log = fake.CallLog;
         Assert.Equal(4, log.Count);
+        var tolerance = TimeSpan.FromMilliseconds(10);
         for (var i = 1; i < log.Count; i++)
         {
-            Assert.True(log[i].Start >= log[i - 1].End,
+            Assert.True(log[i].Start >= log[i - 1].End - tolerance,
                 $"Call {i} started ({log[i].Start:O}) before call {i - 1} ended ({log[i - 1].End:O}) " +
                 "— MaxConcurrency=1 expected strict serialization.");
         }

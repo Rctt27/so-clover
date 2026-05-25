@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SoClover.Domain;
+using SoClover.Tests.Helpers;
 using SoClover.UseCases.AI;
 using Xunit;
 
@@ -20,7 +21,7 @@ public class GenerateAICluesLoggingTests
 
         var repo = sp.GetRequiredService<SoClover.UseCases.Abstractions.IGameRepository>();
         var board = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPid).Board;
-        var safe = GenerateAICluesTests.PickSafeClues(board, 4);
+        var safe = AiTestHelpers.PickSafeClues(board, 4);
         AiTestProvider.EnqueueValidJson(fake, new[]
         {
             (Direction.Top,    safe[0], "exp"),
@@ -59,7 +60,7 @@ public class GenerateAICluesLoggingTests
 
         var repo = sp.GetRequiredService<SoClover.UseCases.Abstractions.IGameRepository>();
         var board = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPid).Board;
-        var safe = GenerateAICluesTests.PickSafeClues(board, 4);
+        var safe = AiTestHelpers.PickSafeClues(board, 4);
         AiTestProvider.EnqueueValidJson(fake, new[]
         {
             (Direction.Top,    safe[0], "exp"),

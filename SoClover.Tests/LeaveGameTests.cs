@@ -23,6 +23,7 @@ public class LeaveGameTests
         services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
         services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();
         services.AddTransient<ILeaveGameUseCase, LeaveGame.Handler>();
+        services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
         return services.BuildServiceProvider();
     }
 
@@ -47,6 +48,43 @@ public class LeaveGameTests
         game = await repo.Get(gameId);
         Assert.Equal(1, game!.Players.Count);
         Assert.DoesNotContain(game.Players, p => p.Id == aliceId);
+    }
+
+    [Fact]
+    public async Task Leave_game_during_writing_phase_throws()
+    {
+        var sp = BuildProvider();
+        var create = sp.GetRequiredService<ICreateGameUseCase>();
+        var join = sp.GetRequiredService<IJoinGameUseCase>();
+        var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
+        var leave = sp.GetRequiredService<ILeaveGameUseCase>();
+
+        var gameResponse = await create.Handle(new CreateGame.Request("Admin"));
+        var gameId = gameResponse.GameId;
+        var aliceId = (await join.Handle(new JoinGame.Request(gameId, "Alice"))).PlayerId;
+        await startWriting.Handle(new StartWritingPhase.Request(gameId));
+
+        await Assert.ThrowsAsync<InvalidOperationInPhaseException>(() =>
+            leave.Handle(new LeaveGame.Request(gameId, aliceId)));
+    }
+
+    [Fact]
+    public async Task Leave_game_when_last_player_leaves()
+    {
+        var sp = BuildProvider();
+        var create = sp.GetRequiredService<ICreateGameUseCase>();
+        var leave = sp.GetRequiredService<ILeaveGameUseCase>();
+        var repo = sp.GetRequiredService<IGameRepository>();
+
+        var gameResponse = await create.Handle(new CreateGame.Request("Admin"));
+        var gameId = gameResponse.GameId;
+        var adminId = gameResponse.CreatorPlayerId;
+
+        await leave.Handle(new LeaveGame.Request(gameId, adminId));
+
+        var game = await repo.Get(gameId);
+        Assert.Empty(game!.Players);
+        Assert.Null(game.AdminPlayerId);
     }
 
     [Fact]

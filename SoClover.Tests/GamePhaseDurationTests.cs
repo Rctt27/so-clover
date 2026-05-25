@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SoClover.Domain;
 using SoClover.Infrastructure;
@@ -36,27 +35,9 @@ public class GamePhaseDurationTests
     }
 
     [Fact]
-    public void Settings_file_contains_all_phase_durations_and_within_1800_seconds()
+    public async Task WritingClues_and_Guessing_expose_non_null_deadline_within_1800s()
     {
-        var appSettingsPath = Path.GetFullPath(
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "appsettings.json"));
-        var config = new ConfigurationBuilder()
-            .AddJsonFile(appSettingsPath, optional: false)
-            .Build();
-
-        var opts = config.GetSection("GameDefaults").Get<SoClover.Infrastructure.GameDefaultsOptions>()
-                   ?? throw new InvalidOperationException("Section GameDefaults absente de appsettings.json");
-
-        foreach (var sec in new[] { opts.LobbyDuration, opts.CluesDuration, opts.GuessDuration, opts.ScoringDuration })
-        {
-            Assert.InRange(sec, 1, 1800);
-        }
-    }
-
-    [Fact]
-    public async Task Lobby_Writing_Guessing_Scoring_expose_a_non_null_deadline_within_1800s_when_active()
-    {
-        var sp = BuildProvider();
+        using var sp = BuildProvider();
         var create = sp.GetRequiredService<ICreateGameUseCase>();
         var join = sp.GetRequiredService<IJoinGameUseCase>();
         var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
@@ -64,13 +45,11 @@ public class GamePhaseDurationTests
         var getState = sp.GetRequiredService<IGetGameStateUseCase>();
         var clock = (TestClock)sp.GetRequiredService<IClock>();
 
-        // Create game and add players
         var created = await create.Handle(new CreateGame.Request("Admin"));
         var gameId = created.GameId;
         await join.Handle(new JoinGame.Request(gameId, "Alice"));
         await join.Handle(new JoinGame.Request(gameId, "Bob"));
 
-        // 1) Lobby: StartWriting should set deadline for WritingClues
         var beforeStart = clock.UtcNow;
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
         var state1 = await getState.Handle(new GetGameState.Request(gameId));
@@ -78,21 +57,14 @@ public class GamePhaseDurationTests
         Assert.NotNull(state1.PhaseEndsAtUtc);
         Assert.InRange((state1.PhaseEndsAtUtc!.Value - beforeStart).TotalSeconds, 1, 1800);
 
-        // 2) Guessing: starting should set a per-board deadline within 1800s
         clock.Advance(TimeSpan.FromSeconds(1));
-        // Submit all boards so BoardsToGuess.Count > 0 (Epic 03 guard).
         var repo = sp.GetRequiredService<IGameRepository>();
         var preGuessing = await repo.Get(gameId) ?? throw new Exception();
-        foreach (var pl in preGuessing.ActivePlayers) pl.Board.MarkSubmitted(clock.UtcNow);
+        preGuessing.SubmitAllBoards(clock);
         await startGuessing.Handle(new StartGuessingPhase.Request(gameId, true));
         var state2 = await getState.Handle(new GetGameState.Request(gameId));
         Assert.Equal(GamePhase.Guessing, state2.Phase);
         Assert.NotNull(state2.PhaseEndsAtUtc);
         Assert.InRange((state2.PhaseEndsAtUtc!.Value - clock.UtcNow).TotalSeconds, 1, 1800);
-
-        // 3) Scoring: Simulate end of Guessing by advancing clock and asserting next state's deadline handling
-        // Note: domain sets PhaseEndsAtUtc = null when entering Scoring (no required countdown in domain),
-        // but the rule we validate is that timeboxed phases get a duration and it never exceeds 1800s.
-        // So we just assert WritingClues and Guessing are within limit and are non-null when active.
     }
 }

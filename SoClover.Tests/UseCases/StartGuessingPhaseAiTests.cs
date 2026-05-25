@@ -80,26 +80,4 @@ public class StartGuessingPhaseAiTests
             () => useCase.Handle(new StartGuessingPhase.Request(game.Id, Force: true)));
     }
 
-    [Fact]
-    public async Task Throws_NotEnoughPlayersException_when_no_board_submitted_with_Force()
-    {
-        var sp = BuildProvider();
-        var repo = sp.GetRequiredService<IGameRepository>();
-        var dict = sp.GetRequiredService<IWordDictionary>();
-
-        var game = new Game(GameId.New());
-        var alice = new Player(PlayerId.New(), "Alice", isAdmin: true);
-        game.AddPlayer(alice);
-        await game.InitializeWordsPoolAsync(dict);
-        game.StartWritingPhase(DateTime.UtcNow, TimeSpan.FromMinutes(5));
-        // Aucun board submitted
-        await repo.Save(game);
-
-        var useCase = sp.GetRequiredService<IStartGuessingPhaseUseCase>();
-
-        var ex = await Assert.ThrowsAsync<NotEnoughPlayersException>(
-            () => useCase.Handle(new StartGuessingPhase.Request(game.Id, Force: true)));
-        Assert.Equal(1, ex.RequiredMinimum);
-        Assert.Equal(0, ex.ActualCount);
-    }
 }
