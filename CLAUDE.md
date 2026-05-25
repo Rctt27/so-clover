@@ -105,6 +105,14 @@ Key test files:
 
 Tests use `TestClock` for time control and `InMemoryGameRepository` for isolation.
 
+## Local Docker End-to-end testing
+
+Developer needs to perform end-to-end testing on local dev env using Docker before push new code
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env.dev build --no-cache
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env.dev up -d
+```
+
 ## Configuration
 
 **Règle directrice — qui met quoi** (pattern .NET idiomatique multi-couches) :
