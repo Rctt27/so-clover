@@ -342,7 +342,8 @@ const DraggableCardImpl = ({
       {isCorrect && (
         <motion.div
           initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
+          animate={{ scale: 1, opacity: 1, rotate: -cumulativeBoardRotation }}
+          transition={{ rotate: { duration: 0.5, ease: 'easeInOut' } }}
           className="absolute inset-0 flex items-center justify-center pointer-events-none"
           style={{ zIndex: 120 }}
         >
