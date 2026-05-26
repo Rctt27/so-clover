@@ -73,7 +73,7 @@ export const GuessingControls = React.memo(({
             <BoardRotationControls
               rotation={rotation}
               onRotate={onRotate}
-              disabled={isValidationPending || isBoardGuessed}
+              disabled={isValidationPending}
             />
 
             <button
