@@ -5,3 +5,9 @@ services:
     environment:
       DOTNET_ENVIRONMENT: Development
       LLM__BASEURL: http://host.docker.internal:1234/v1
+
+# En local le réseau Caddy centralisé du VPS n'existe pas. On override le
+# `external: true` de compose.yaml pour que Docker crée un réseau proxy local jetable.
+networks:
+  proxy:
+    external: false
