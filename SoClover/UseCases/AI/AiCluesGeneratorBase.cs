@@ -64,6 +64,9 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
         _logger = logger ?? NullLogger.Instance;
     }
 
+    // Nombre maximal de tentatives d'appel LLM par direction (1 essai + MaxRetries).
+    protected int MaxAttempts => _llmOptions.Value.MaxRetries + 1;
+
     public async Task<GenerateAIClues.Response> Handle(
         GenerateAIClues.Request request, CancellationToken ct = default)
     {
@@ -90,7 +93,7 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
         var validator = _validatorFactory.GetFor(game.Language, game.SemanticClueCheckEnabled);
 
         var rejectedHistory = new Dictionary<Direction, List<RejectedAttempt>>();
-        var maxAttempts = _llmOptions.Value.MaxRetries + 1;
+        var maxAttempts = MaxAttempts;
 
         try
         {

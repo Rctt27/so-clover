@@ -49,7 +49,7 @@ public static class GenerateAIClues
             IClueValidator validator,
             CancellationToken ct)
         {
-            var maxAttempts = _llmOptions.Value.MaxRetries + 1;
+            var maxAttempts = MaxAttempts;
 
             for (var attempt = 0; attempt < maxAttempts && remaining.Count > 0; attempt++)
             {
