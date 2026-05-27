@@ -346,4 +346,21 @@ Pour CHAQUE direction listée, propose un mot DIFFÉRENT.
         // sans coupler au phrasé exact de la consigne.
         Assert.Contains("raisonnement", bundle.UserPrompt);
     }
+
+    [Fact]
+    public void BuildBoardCluesPrompt_includes_reasoning_block_in_system_when_reasoning_enabled()
+    {
+        var bundle = new FrenchAiCluePromptProvider()
+            .BuildBoardCluesPrompt(SampleContext() with { IncludeReasoning = true });
+
+        Assert.Contains("de façon ramassée", bundle.SystemPrompt);
+    }
+
+    [Fact]
+    public void BuildBoardCluesPrompt_omits_reasoning_block_when_reasoning_disabled_by_default()
+    {
+        var bundle = new FrenchAiCluePromptProvider().BuildBoardCluesPrompt(SampleContext());
+
+        Assert.DoesNotContain("de façon ramassée", bundle.SystemPrompt);
+    }
 }

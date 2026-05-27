@@ -377,6 +377,130 @@ public class GenerateAICluesTests
         Assert.False(b.IsSubmitted);
     }
 
+    [Fact]
+    public async Task Response_wrapped_in_think_tags_is_stripped_before_json_parse()
+    {
+        var fake = new FakeChatClient();
+        var sp = AiTestProvider.Build(fake);
+        var (gameId, aiPids) = await AiTestProvider.SetupGameWithAis(sp);
+        var aiPid = aiPids[0];
+
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var board = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPid).Board;
+        var safe = AiTestHelpers.PickSafeClues(board, 4);
+
+        var clues = new[]
+        {
+            new { direction = "Top",    clueWord = safe[0], explanation = "ok" },
+            new { direction = "Right",  clueWord = safe[1], explanation = "ok" },
+            new { direction = "Bottom", clueWord = safe[2], explanation = "ok" },
+            new { direction = "Left",   clueWord = safe[3], explanation = "ok" },
+        };
+        var json = System.Text.Json.JsonSerializer.Serialize(new { clues });
+        // Simule un modèle reasoning qui inline son raisonnement avant le JSON (parsing natif OFF).
+        fake.Enqueue($"<think>j'analyse les paires d'arêtes...</think>\n{json}");
+
+        var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
+        var events = sp.GetRequiredService<InMemoryEventPublisher>();
+
+        var response = await useCase.Handle(new GenerateAIClues.Request(gameId, aiPid));
+
+        Assert.Equal(4, response.SucceededCount);
+        Assert.Equal(0, response.FailedCount);
+        Assert.Equal(4, events.PublishedEvents.OfType<AiClueGenerated>().Count());
+    }
+
+    [Fact]
+    public async Task Response_wrapped_in_mistral_think_tags_is_stripped_before_json_parse()
+    {
+        var fake = new FakeChatClient();
+        var sp = AiTestProvider.Build(fake);
+        var (gameId, aiPids) = await AiTestProvider.SetupGameWithAis(sp);
+        var aiPid = aiPids[0];
+
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var board = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPid).Board;
+        var safe = AiTestHelpers.PickSafeClues(board, 4);
+
+        var clues = new[]
+        {
+            new { direction = "Top",    clueWord = safe[0], explanation = "ok" },
+            new { direction = "Right",  clueWord = safe[1], explanation = "ok" },
+            new { direction = "Bottom", clueWord = safe[2], explanation = "ok" },
+            new { direction = "Left",   clueWord = safe[3], explanation = "ok" },
+        };
+        var json = System.Text.Json.JsonSerializer.Serialize(new { clues });
+        // Format Mistral (Ministral-Reasoning) : [THINK]...[/THINK] inliné dans content.
+        fake.Enqueue($"[THINK]j'analyse les paires d'arêtes...[/THINK]\n{json}");
+
+        var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
+        var events = sp.GetRequiredService<InMemoryEventPublisher>();
+
+        var response = await useCase.Handle(new GenerateAIClues.Request(gameId, aiPid));
+
+        Assert.Equal(4, response.SucceededCount);
+        Assert.Equal(0, response.FailedCount);
+        Assert.Equal(4, events.PublishedEvents.OfType<AiClueGenerated>().Count());
+    }
+
+    [Fact]
+    public async Task ChatOptions_carry_configured_TopP_and_MaxOutputTokens()
+    {
+        var fake = new FakeChatClient();
+        var sp = AiTestProvider.Build(fake, topP: 0.95, maxOutputTokens: 2048);
+        var (gameId, aiPids) = await AiTestProvider.SetupGameWithAis(sp);
+        var aiPid = aiPids[0];
+
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var board = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPid).Board;
+        var safe = AiTestHelpers.PickSafeClues(board, 4);
+
+        AiTestProvider.EnqueueValidJson(fake, new[]
+        {
+            (Direction.Top,    safe[0], "ok"),
+            (Direction.Right,  safe[1], "ok"),
+            (Direction.Bottom, safe[2], "ok"),
+            (Direction.Left,   safe[3], "ok"),
+        });
+
+        var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
+        await useCase.Handle(new GenerateAIClues.Request(gameId, aiPid));
+
+        Assert.NotNull(fake.LastOptions);
+        Assert.Equal(0.95f, fake.LastOptions!.TopP);
+        Assert.Equal(2048, fake.LastOptions.MaxOutputTokens);
+        // La température per-player (AIConfig) prime sur le défaut de config.
+        Assert.Equal(0.7f, fake.LastOptions.Temperature);
+    }
+
+    [Fact]
+    public async Task ChatOptions_omit_TopP_and_MaxOutputTokens_when_unconfigured()
+    {
+        var fake = new FakeChatClient();
+        var sp = AiTestProvider.Build(fake);
+        var (gameId, aiPids) = await AiTestProvider.SetupGameWithAis(sp);
+        var aiPid = aiPids[0];
+
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var board = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPid).Board;
+        var safe = AiTestHelpers.PickSafeClues(board, 4);
+
+        AiTestProvider.EnqueueValidJson(fake, new[]
+        {
+            (Direction.Top,    safe[0], "ok"),
+            (Direction.Right,  safe[1], "ok"),
+            (Direction.Bottom, safe[2], "ok"),
+            (Direction.Left,   safe[3], "ok"),
+        });
+
+        var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
+        await useCase.Handle(new GenerateAIClues.Request(gameId, aiPid));
+
+        Assert.NotNull(fake.LastOptions);
+        Assert.Null(fake.LastOptions!.TopP);
+        Assert.Null(fake.LastOptions.MaxOutputTokens);
+    }
+
     /// <summary>
     /// Pick any board card word that is >= 3 chars and <= 32 chars so that
     /// (a) FrenchOffClueValidator actually evaluates it (skips < 3 chars), and
