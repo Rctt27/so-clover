@@ -35,6 +35,7 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
     protected readonly ILogger _logger;
 
     private int _llmCalls;
+    private int? _lastPromptVersion;
     private (string Path, DateTime LastWriteTimeUtc, string Content)? _reasoningPreambleCache;
 
     protected AiCluesGeneratorBase(
@@ -194,7 +195,7 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
             _logger.LogInformation(
                 "AI clue validated: game={GameId} player={PlayerId} direction={Direction} clueText={ClueText} isValid={IsValid} promptVersion={PromptVersion} provider={LlmProvider} model={LlmModel}",
                 game.Id.Value, player.Id.Value, dir, item.ClueWord, true,
-                (int?)null, _llmOptions.Value.Provider, _llmOptions.Value.DefaultModel);
+                _lastPromptVersion, _llmOptions.Value.Provider, _llmOptions.Value.DefaultModel);
             return true;
         }
 
@@ -204,7 +205,7 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
         _logger.LogInformation(
             "AI clue rejected: game={GameId} player={PlayerId} direction={Direction} clueText={ClueText} isValid={IsValid} rejectionRules={RejectionRules} promptVersion={PromptVersion} provider={LlmProvider} model={LlmModel}",
             game.Id.Value, player.Id.Value, dir, item.ClueWord, false,
-            rules, (int?)null, _llmOptions.Value.Provider, _llmOptions.Value.DefaultModel);
+            rules, _lastPromptVersion, _llmOptions.Value.Provider, _llmOptions.Value.DefaultModel);
         return false;
     }
 
@@ -294,6 +295,7 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
         text = StripJsonFences(text);
         var draft = JsonSerializer.Deserialize<AiBoardCluesDraft>(text, JsonOptions)
             ?? throw new InvalidOperationException("LLM returned invalid JSON.");
+        _lastPromptVersion = bundle.PromptVersion;
         return (draft, bundle.PromptVersion);
     }
 
