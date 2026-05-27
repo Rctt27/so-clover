@@ -208,6 +208,16 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
         return false;
     }
 
+    /// <summary>
+    /// Génère et applique les indices IA pour toutes les directions encore présentes dans <paramref name="remaining"/>.
+    /// </summary>
+    /// <remarks>
+    /// Contrat de mutation obligatoire : chaque implémentation doit retirer de <paramref name="remaining"/>
+    /// toute direction dont l'indice a été appliqué avec succès. La classe de base lit <paramref name="remaining"/>
+    /// après l'appel pour calculer <c>SucceededCount</c>/<c>FailedCount</c>, décider de l'auto-soumission
+    /// et émettre les événements finaux — omettre ce retrait produit des compteurs erronés et un événement
+    /// <c>AiPlayerBoardFailed</c> spurieux.
+    /// </remarks>
     protected abstract Task FillRemainingAsync(
         Game game,
         Player player,
