@@ -18,3 +18,4 @@ Historique des versions de SoClover. Le projet suit [SemVer](https://semver.org/
 | v2.5.1 | `a72dd88` | 2026-05-26 | Durcissement IA prod + affichage de la version dans l'UI |
 | v2.5.2 | `d814fef` | 2026-05-26 | Release : APP_VERSION mise à jour |
 | v2.6.0 | `3d7462d` | 2026-05-27 | Joueurs IA disponibles aussi pour le dictionnaire Anglais (EN) |
+| v2.7.0 | `526f43b` | 2026-05-27 | Validation sémantique des indices étendue au dictionnaire Anglais (parité IA + humains) |
