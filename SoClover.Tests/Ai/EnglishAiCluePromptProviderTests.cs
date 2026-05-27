@@ -1,4 +1,5 @@
 using SoClover.Domain;
+using SoClover.Domain.Validation;
 using SoClover.Infrastructure.AI.Prompts;
 using Xunit;
 
@@ -66,5 +67,18 @@ public sealed class EnglishAiCluePromptProviderTests
         Assert.Contains("rejected", bundle.UserPrompt);
         Assert.Contains("\"wave\"", bundle.UserPrompt);
         Assert.DoesNotContain("rejeté", bundle.UserPrompt);
+    }
+
+    [Fact]
+    public void FormatRejectionReason_renders_english_wording()
+    {
+        var result = ClueValidationResult.Invalid(
+            new ClueValidationError(ClueValidationRule.ExactMatch, "beach", Direction.Top));
+
+        var reason = new EnglishAiCluePromptProvider().FormatRejectionReason(result);
+
+        Assert.Contains("with the word \"beach\"", reason);
+        Assert.Contains("ExactMatch", reason);
+        Assert.DoesNotContain("avec le mot", reason);
     }
 }

@@ -167,13 +167,7 @@ public sealed class Game
     {
         Id = id;
         Language = string.IsNullOrWhiteSpace(language) ? "Français_OFF" : language.Trim();
-        SemanticClueCheckEnabled = IsFrenchLanguage(Language);
-    }
-
-    private static bool IsFrenchLanguage(string language)
-    {
-        var norm = TextNormalizer.Normalize(language);
-        return norm.StartsWith("francais", StringComparison.Ordinal);
+        SemanticClueCheckEnabled = SemanticValidationSupport.IsSupported(Language);
     }
 
     // Backward/compat helper used by use cases: check if a given player is admin based on player flag.
@@ -312,7 +306,7 @@ public sealed class Game
         {
             Language = trimmed;
             _wordsPool = null;
-            if (!IsFrenchLanguage(Language))
+            if (!SemanticValidationSupport.IsSupported(Language))
                 SemanticClueCheckEnabled = false;
         }
     }
@@ -323,8 +317,8 @@ public sealed class Game
             throw new InvalidOperationInPhaseException("Semantic clue check can only be toggled in the Lobby phase.");
         BumpRevision();
 
-        if (enabled && !IsFrenchLanguage(Language))
-            throw new InvalidOperationException("Semantic clue check is only available for the French dictionary.");
+        if (enabled && !SemanticValidationSupport.IsSupported(Language))
+            throw new InvalidOperationException("Semantic clue check is only available for dictionaries with semantic validation support.");
 
         SemanticClueCheckEnabled = enabled;
     }

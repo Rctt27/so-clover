@@ -1,4 +1,5 @@
 using SoClover.Domain;
+using SoClover.Domain.Validation;
 
 namespace SoClover.Infrastructure.AI.Prompts;
 
@@ -6,6 +7,12 @@ public interface IAiCluePromptProvider
 {
     string Language { get; }
     AiCluePromptBundle BuildBoardCluesPrompt(BoardCluesPromptContext context);
+
+    /// <summary>
+    /// Renders a validation rejection into a human-readable reason in this provider's language,
+    /// so the retry-feedback block injected into the prompt stays linguistically coherent.
+    /// </summary>
+    string FormatRejectionReason(ClueValidationResult result);
 }
 
 /// <summary>

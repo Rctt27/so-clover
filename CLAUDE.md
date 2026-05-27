@@ -13,9 +13,9 @@ Le projet suit **SemVer** (`vMAJOR.MINOR.PATCH`), avec des tags Git annotés et 
 - **MINOR** : nouvelle feature notable.
 - **PATCH** : correctifs / durcissements sans nouvelle feature.
 
-**Version courante : `2.6.0`.**
+**Version courante : `2.7.0`.**
 
-Jalons structurants : réécriture du front en React/TypeScript (v2.0), temps réel SignalR (v1.3), persistance PostgreSQL (v1.2), joueurs IA (v2.5), support du dictionnaire Anglais (v2.6). Historique complet des tags : voir [`CHANGELOG.md`](CHANGELOG.md).
+Jalons structurants : réécriture du front en React/TypeScript (v2.0), temps réel SignalR (v1.3), persistance PostgreSQL (v1.2), joueurs IA (v2.5), support du dictionnaire Anglais (v2.6), validation sémantique des indices étendue à l'Anglais (v2.7). Historique complet des tags : voir [`CHANGELOG.md`](CHANGELOG.md).
 
 ### Processus à chaque nouvelle release (OBLIGATOIRE)
 1. Mettre à jour `CONSTANTS.APP_VERSION` dans `SoClover/client/src/core/constants.ts` — c'est cette

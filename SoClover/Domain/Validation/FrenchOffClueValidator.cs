@@ -1,63 +1,31 @@
-﻿namespace SoClover.Domain.Validation;
+namespace SoClover.Domain.Validation;
 
-public sealed class FrenchOffClueValidator : IClueValidator
+public sealed class FrenchOffClueValidator : SubstringClueValidator
 {
-    private const int MinWordLength = 3;
+    public override string Language => "Français_OFF";
 
-    public string Language => "Français_OFF";
     private static readonly HashSet<char> Voyelles = new() { 'a', 'e', 'i', 'o', 'u', 'y' };
 
-    public ClueValidationResult Validate(string clueText, Direction direction, CloverBoard board)
+    // R2 — French morphology heuristic: strip a single trailing vowel from the card word, then re-test
+    // the substring relation. Catches "naturiste" against "nature" (stem "natur").
+    protected override void CheckAdditionalRules(
+        string clueNorm,
+        string wordNorm,
+        string word,
+        Direction? wordDirection,
+        List<ClueValidationError> errors)
     {
-        var clueNorm = TextNormalizer.Normalize(clueText);
-        if (clueNorm.Length == 0)
-            return ClueValidationResult.Valid();
+        if (!Voyelles.Contains(wordNorm[^1]))
+            return;
 
-        var errors = new List<ClueValidationError>();
-        foreach (var (word, wordDirection) in EnumerateBoardWords(board))
+        var stem = wordNorm[..^1];
+        if (stem.Length < MinWordLength)
+            return;
+
+        if (clueNorm.Contains(stem, StringComparison.Ordinal)
+            || (clueNorm.Length >= MinWordLength && stem.Contains(clueNorm, StringComparison.Ordinal)))
         {
-            var wordNorm = TextNormalizer.Normalize(word);
-            if (wordNorm.Length < MinWordLength)
-                continue;
-
-            // R1 — bidirectional substring on full word
-            if (clueNorm.Contains(wordNorm, StringComparison.Ordinal)
-                || (clueNorm.Length >= MinWordLength && wordNorm.Contains(clueNorm, StringComparison.Ordinal)))
-            {
-                errors.Add(new ClueValidationError(ClueValidationRule.ExactMatch, word, wordDirection));
-                continue; // R1 wins — skip R2 for this word
-            }
-
-            // R2 — voyelle stem
-            if (!Voyelles.Contains(wordNorm[^1]))
-                continue;
-
-            var stem = wordNorm[..^1];
-            if (stem.Length < MinWordLength)
-                continue;
-
-            if (clueNorm.Contains(stem, StringComparison.Ordinal)
-                || (clueNorm.Length >= MinWordLength && stem.Contains(clueNorm, StringComparison.Ordinal)))
-            {
-                errors.Add(new ClueValidationError(ClueValidationRule.SimilarStem, word, wordDirection));
-            }
-        }
-
-        return errors.Count == 0
-            ? ClueValidationResult.Valid()
-            : ClueValidationResult.Invalid(errors.ToArray());
-    }
-
-    private static IEnumerable<(string Word, Direction? Direction)> EnumerateBoardWords(CloverBoard board)
-    {
-        foreach (var oriented in new[] { board.TopLeft, board.TopRight, board.BottomRight, board.BottomLeft })
-        {
-            if (oriented == null) continue;
-            var card = oriented.Card;
-            yield return (card.TopWord, null);
-            yield return (card.RightWord, null);
-            yield return (card.BottomWord, null);
-            yield return (card.LeftWord, null);
+            errors.Add(new ClueValidationError(ClueValidationRule.SimilarStem, word, wordDirection));
         }
     }
 }

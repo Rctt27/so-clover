@@ -1,5 +1,6 @@
 using System.Text;
 using SoClover.Domain;
+using SoClover.Domain.Validation;
 
 namespace SoClover.Infrastructure.AI.Prompts;
 
@@ -9,10 +10,12 @@ namespace SoClover.Infrastructure.AI.Prompts;
 /// naturally in that language.
 /// </summary>
 public sealed record AiCluePromptLabels(
-    string CardLineFormat,        // {0}=position {1}=top {2}=right {3}=bottom {4}=left
-    string DirectionLineFormat,   // {0}=direction {1}=wordA {2}=wordB
-    string RetryDirectionFormat,  // {0}=direction
-    string RetryAttemptFormat);   // {0}=clueText {1}=rejectionReason
+    string CardLineFormat,                  // {0}=position {1}=top {2}=right {3}=bottom {4}=left
+    string DirectionLineFormat,             // {0}=direction {1}=wordA {2}=wordB
+    string RetryDirectionFormat,            // {0}=direction
+    string RetryAttemptFormat,              // {0}=clueText {1}=rejectionReason
+    string RejectionRuleWithDirectionFormat, // {0}=rule {1}=cardWord {2}=direction
+    string RejectionRuleFormat);            // {0}=rule {1}=cardWord
 
 /// <summary>
 /// Language-agnostic So Clover board-clues prompt provider. The only language-specific inputs are
@@ -84,6 +87,14 @@ public abstract class FileAiCluePromptProvider : IAiCluePromptProvider
         var user = SubstituteUser(sections.User, sections.RetryFeedback, context, cardsByPosition);
 
         return new AiCluePromptBundle(system, user, JsonSchemaText, sections.Version);
+    }
+
+    public string FormatRejectionReason(ClueValidationResult result)
+    {
+        return string.Join("; ", result.Errors.Select(e =>
+            e.ConflictingDirection is { } d
+                ? string.Format(_labels.RejectionRuleWithDirectionFormat, e.Rule, e.CardWord, d)
+                : string.Format(_labels.RejectionRuleFormat, e.Rule, e.CardWord)));
     }
 
     private static void ValidateContext(BoardCluesPromptContext ctx)

@@ -143,7 +143,7 @@ public static class GenerateAIClues
                         }
                         else
                         {
-                            AppendRejection(rejectedHistory, dir, item.ClueWord, result);
+                            AppendRejection(rejectedHistory, dir, item.ClueWord, result, promptProvider);
 
                             var rules = string.Join(",", result.Errors.Select(e => e.Rule.ToString()));
                             _logger.LogInformation(
@@ -333,17 +333,12 @@ public static class GenerateAIClues
             Dictionary<Direction, List<RejectedAttempt>> history,
             Direction dir,
             string clueText,
-            ClueValidationResult result)
+            ClueValidationResult result,
+            IAiCluePromptProvider promptProvider)
         {
             if (!history.TryGetValue(dir, out var list))
                 history[dir] = list = new List<RejectedAttempt>();
-            list.Add(new RejectedAttempt(clueText, FormatRejection(result)));
+            list.Add(new RejectedAttempt(clueText, promptProvider.FormatRejectionReason(result)));
         }
-
-        private static string FormatRejection(ClueValidationResult r) =>
-            string.Join("; ", r.Errors.Select(e =>
-                e.ConflictingDirection is { } d
-                    ? $"{e.Rule} avec le mot \"{e.CardWord}\" (direction {d})"
-                    : $"{e.Rule} avec le mot \"{e.CardWord}\""));
     }
 }

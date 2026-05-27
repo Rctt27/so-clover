@@ -1,3 +1,4 @@
+using SoClover.Domain.Validation;
 using SoClover.Infrastructure.AI.Prompts;
 
 namespace SoClover.Tests.AI;
@@ -24,4 +25,7 @@ public sealed class InlinePromptProvider : IAiCluePromptProvider
 
     public AiCluePromptBundle BuildBoardCluesPrompt(BoardCluesPromptContext context)
         => _build(context);
+
+    public string FormatRejectionReason(ClueValidationResult result)
+        => string.Join("; ", result.Errors.Select(e => $"{e.Rule}:{e.CardWord}"));
 }

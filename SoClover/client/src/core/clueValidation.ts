@@ -28,13 +28,22 @@ export const normalizeText = (input: string | null | undefined): string => {
 export const isFrenchLanguage = (language: string): boolean =>
     normalizeText(language).startsWith('francais')
 
+// Languages whose dictionaries support semantic clue conformity validation.
+// Keep in sync with the backend SemanticValidationSupport.
+const SEMANTIC_SUPPORTED_PREFIXES = ['francais', 'english']
+
+export const supportsSemanticCheck = (language: string): boolean => {
+    const norm = normalizeText(language)
+    return SEMANTIC_SUPPORTED_PREFIXES.some(prefix => norm.startsWith(prefix))
+}
+
 export const validateClueLocally = (
     clueText: string,
     boardWords: string[],
     language: string,
     semanticCheckEnabled: boolean
 ): ClueValidationResult => {
-    if (!semanticCheckEnabled || !isFrenchLanguage(language))
+    if (!semanticCheckEnabled || !supportsSemanticCheck(language))
         return { isValid: true, errors: [] }
 
     const clueNorm = normalizeText(clueText)
@@ -42,6 +51,8 @@ export const validateClueLocally = (
         return { isValid: true, errors: [] }
 
     const errors: ClueValidationError[] = []
+    // R2 (vowel stem) is a French morphology heuristic — not applied to other languages.
+    const applyStemRule = isFrenchLanguage(language)
 
     for (const word of boardWords) {
         const wordNorm = normalizeText(word)
@@ -51,6 +62,8 @@ export const validateClueLocally = (
             errors.push({ rule: 'ExactMatch', cardWord: word })
             continue
         }
+
+        if (!applyStemRule) continue
 
         const lastChar = wordNorm[wordNorm.length - 1]
         if (!VOYELLES.has(lastChar)) continue
