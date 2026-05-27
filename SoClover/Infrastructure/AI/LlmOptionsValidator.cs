@@ -50,6 +50,18 @@ public sealed class LlmOptionsValidator : IValidateOptions<LlmOptions>
                 $"LlmOptions.DefaultTemperature must be in [0.0, 2.0] (got {options.DefaultTemperature}).");
         }
 
+        if (options.TopP is { } topP && (topP <= 0.0 || topP > 1.0))
+        {
+            failures.Add(
+                $"LlmOptions.TopP must be in (0.0, 1.0] when set (got {topP}).");
+        }
+
+        if (options.MaxOutputTokens is { } maxTokens && maxTokens < 1)
+        {
+            failures.Add(
+                $"LlmOptions.MaxOutputTokens must be >= 1 when set (got {maxTokens}).");
+        }
+
         return failures.Count == 0
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);

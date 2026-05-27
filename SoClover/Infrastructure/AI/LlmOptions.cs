@@ -9,8 +9,33 @@ public sealed class LlmOptions
     public string ApiKey { get; set; } = "lm-studio";
     public string DefaultModel { get; set; } = "lmstudio-community/Meta-Llama-3.1-8B-Instruct-GGUF";
     public double DefaultTemperature { get; set; } = 0.7;
+
+    // Sampling nucleus (top_p). Null = défaut du provider. Reco modèles reasoning Mistral : 0.95.
+    public double? TopP { get; set; } = null;
+
+    // Plafond de tokens de complétion (max_tokens). Null = défaut du provider. Utile pour borner les
+    // runs de raisonnement et éviter qu'un modèle reasoning ne s'emballe.
+    public int? MaxOutputTokens { get; set; } = null;
+
     public int MaxRetries { get; set; } = 2;
     public int TimeoutSeconds { get; set; } = 60;
     public int MaxConcurrency { get; set; } = 4;
     public int MaxCallsPerGame { get; set; } = 200;
+
+    // Mode reasoning natif (cf. docs CLAUDE.md). Défaut OFF : le prompt prescriptif baseline est utilisé
+    // et aucun paramètre natif n'est passé. Quand ON, le prompt advisory est activé et le
+    // IReasoningRequestConfigurator injecte les paramètres natifs du provider.
+    public bool ReasoningEnabled { get; set; } = false;
+
+    // OpenAI/o-series/LM Studio : "low" | "medium" | "high". Null = défaut du provider.
+    public string? ReasoningEffort { get; set; } = null;
+
+    // Anthropic extended thinking : budget de tokens de raisonnement. Null = pas de budget explicite.
+    public int? ThinkingBudgetTokens { get; set; } = null;
+
+    // Préambule système de raisonnement propre au modèle (agnostique). Certains modèles reasoning
+    // (ex. Mistral Ministral-Reasoning) n'activent leur raisonnement QUE si leur system prompt officiel
+    // est présent. Renseigner ici le chemin vers ce fichier (ex. SYSTEM_PROMPT.txt du modèle) ; son
+    // contenu est préfixé au system prompt quand le mode reasoning est actif. Null/vide = rien injecté.
+    public string? ReasoningSystemPromptPath { get; set; } = null;
 }
