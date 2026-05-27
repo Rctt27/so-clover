@@ -1,0 +1,20 @@
+# Changelog
+
+Historique des versions de SoClover. Le projet suit [SemVer](https://semver.org/lang/fr/) (`vMAJOR.MINOR.PATCH`) avec des tags Git annotés et des GitHub Releases.
+
+| Tag | Commit | Date | Jalon |
+|-----|--------|------|-------|
+| v1.0.0 | `0b8e59f` | 2025-10-31 | Première version jouable de bout en bout (front legacy vanilla JS) |
+| v1.1.0 | `b0a235b` | 2025-11-01 | Phases minutées + paramètres de partie dynamiques |
+| v1.2.0 | `f2ffadf` | 2025-11-11 | Persistance PostgreSQL (EF Core) + déploiement Docker |
+| v1.3.0 | `8909f99` | 2025-12-05 | Temps réel via SignalR (fin du polling) |
+| v1.4.0 | `1124e7b` | 2025-12-21 | Suivi des curseurs + UX clavier |
+| v2.0.0 | `1e333c6` | 2026-01-22 | Réécriture complète du front en React/TypeScript |
+| v2.1.0 | `152594d` | 2026-04-07 | Gamification : sons, confettis, transitions, musique |
+| v2.2.0 | `cb3317f` | 2026-04-09 | Robustesse : mode debug, centralisation config, cleanup legacy |
+| v2.3.0 | `954b945` | 2026-04-15 | Déconnexion/reconnexion + kick admin |
+| v2.4.0 | `c7d4189` | 2026-04-18 | Validation sémantique des indices (FR) |
+| v2.5.0 | `af44b5b` | 2026-05-21 | Joueurs IA (LLM Anthropic / LM Studio) |
+| v2.5.1 | `a72dd88` | 2026-05-26 | Durcissement IA prod + affichage de la version dans l'UI |
+| v2.5.2 | `d814fef` | 2026-05-26 | Release : APP_VERSION mise à jour |
+| v2.6.0 | `3d7462d` | 2026-05-27 | Joueurs IA disponibles aussi pour le dictionnaire Anglais (EN) |
