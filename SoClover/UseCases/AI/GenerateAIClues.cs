@@ -8,6 +8,7 @@ using SoClover.Domain;
 using SoClover.Domain.Validation;
 using SoClover.Infrastructure.AI;
 using SoClover.Infrastructure.AI.Prompts;
+using SoClover.Infrastructure.AI.Reasoning;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
 using SoClover.UseCases.Gameplay;
@@ -38,6 +39,7 @@ public static class GenerateAIClues
         private readonly IOptions<LlmOptions> _llmOptions;
         private readonly GameLlmBudget _budget;
         private readonly ISubmitBoardUseCase _submitBoard;
+        private readonly IReasoningRequestConfigurator _reasoningConfigurator;
         private readonly ILogger<Handler> _logger;
 
         public Handler(
@@ -50,6 +52,7 @@ public static class GenerateAIClues
             IOptions<LlmOptions> llmOptions,
             GameLlmBudget budget,
             ISubmitBoardUseCase submitBoard,
+            IReasoningRequestConfigurator? reasoningConfigurator = null,
             ILogger<Handler>? logger = null)
         {
             _repo = repo;
@@ -61,6 +64,7 @@ public static class GenerateAIClues
             _llmOptions = llmOptions;
             _budget = budget;
             _submitBoard = submitBoard;
+            _reasoningConfigurator = reasoningConfigurator ?? new NullReasoningConfigurator();
             _logger = logger ?? NullLogger<Handler>.Instance;
         }
 
@@ -236,27 +240,45 @@ public static class GenerateAIClues
             var rejectedRO = rejectedHistory.ToDictionary(
                 kv => kv.Key,
                 kv => (IReadOnlyList<RejectedAttempt>)kv.Value.AsReadOnly());
+            var reasoningEnabled = _llmOptions.Value.ReasoningEnabled;
             var context = new BoardCluesPromptContext(
-                game.Language, cards, remaining.ToList().AsReadOnly(), rejectedRO);
+                game.Language, cards, remaining.ToList().AsReadOnly(), rejectedRO,
+                IncludeReasoning: reasoningEnabled);
             var bundle = promptProvider.BuildBoardCluesPrompt(context);
+
+            var systemPrompt = bundle.SystemPrompt;
+            if (reasoningEnabled)
+            {
+                var preamble = ReadReasoningPreamble(_llmOptions.Value.ReasoningSystemPromptPath);
+                if (!string.IsNullOrWhiteSpace(preamble))
+                    systemPrompt = $"{preamble.Trim()}\n\n{systemPrompt}";
+            }
 
             var messages = new[]
             {
-                new ChatMessage(ChatRole.System, bundle.SystemPrompt),
+                new ChatMessage(ChatRole.System, systemPrompt),
                 new ChatMessage(ChatRole.User, bundle.UserPrompt),
             };
 
-            ChatOptions? chatOptions = null;
-            if (player.AIConfig is { } cfg)
-            {
-                chatOptions = new ChatOptions
-                {
-                    ModelId = cfg.Model,
-                    Temperature = (float)cfg.Temperature,
-                };
-            }
+            var opts = _llmOptions.Value;
+            var effectiveModel = player.AIConfig?.Model ?? opts.DefaultModel;
 
-            var effectiveModel = player.AIConfig?.Model ?? _llmOptions.Value.DefaultModel;
+            // Tous les paramètres de sampling/complétion viennent de la config (appsettings → LlmOptions),
+            // la température pouvant être surchargée par joueur via AIConfig.
+            var chatOptions = new ChatOptions
+            {
+                ModelId = effectiveModel,
+                Temperature = (float)(player.AIConfig?.Temperature ?? opts.DefaultTemperature),
+            };
+            if (opts.TopP is { } topP)
+                chatOptions.TopP = (float)topP;
+            if (opts.MaxOutputTokens is { } maxOutputTokens)
+                chatOptions.MaxOutputTokens = maxOutputTokens;
+
+            // En mode reasoning, injecter en plus les paramètres natifs du provider (reasoning_effort,
+            // thinking budget) sur le même ChatOptions.
+            if (reasoningEnabled)
+                _reasoningConfigurator.Configure(chatOptions);
 
             var sw = Stopwatch.StartNew();
             var response = await _chatClient.GetResponseAsync(messages, options: chatOptions, ct)
@@ -292,14 +314,62 @@ public static class GenerateAIClues
             return t.Trim();
         }
 
-        // Modèles "thinking" embarqués (DeepSeek R1, Qwen3-thinking, etc.) émettent leur
-        // raisonnement dans <think>...</think> avant le JSON dans content.
+        // Modèles "thinking" embarqués (DeepSeek R1, Qwen3-thinking, Mistral-Reasoning, etc.) émettent
+        // leur raisonnement avant le JSON dans content quand le parsing natif côté serveur est OFF :
+        // soit <think>...</think> (DeepSeek/Qwen), soit [THINK]...[/THINK] (Mistral). On retire jusqu'au
+        // dernier tag fermant rencontré, quel que soit le style.
         private static string StripThinkTags(string text)
         {
-            const string closeTag = "</think>";
-            var closeIdx = text.LastIndexOf(closeTag, StringComparison.OrdinalIgnoreCase);
-            return closeIdx >= 0 ? text[(closeIdx + closeTag.Length)..].Trim() : text;
+            foreach (var closeTag in new[] { "</think>", "[/THINK]" })
+            {
+                var closeIdx = text.LastIndexOf(closeTag, StringComparison.OrdinalIgnoreCase);
+                if (closeIdx >= 0)
+                    text = text[(closeIdx + closeTag.Length)..];
+            }
+            return text.Trim();
         }
+
+        // Lit (avec cache mtime) le préambule système de raisonnement propre au modèle. Tolérant :
+        // chemin absent/illisible → null (la génération continue sans préambule).
+        private string ReadReasoningPreamble(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return string.Empty;
+
+            // Chemin relatif → résolu contre AppContext.BaseDirectory (où vivent les binaires + le
+            // Content copié), comme les providers de prompt. Robuste en conteneur (WORKDIR /app) où le
+            // cwd n'est pas garanti d'être le content root.
+            if (!Path.IsPathRooted(path))
+                path = Path.Combine(AppContext.BaseDirectory, path);
+
+            try
+            {
+                var info = new FileInfo(path);
+                if (!info.Exists)
+                {
+                    _logger.LogWarning(
+                        "Reasoning system prompt file not found: {Path}. Continuing without preamble.", path);
+                    return string.Empty;
+                }
+
+                var lastWrite = info.LastWriteTimeUtc;
+                if (_reasoningPreambleCache is { } cached
+                    && cached.Path == path && cached.LastWriteTimeUtc == lastWrite)
+                    return cached.Content;
+
+                var content = File.ReadAllText(path);
+                _reasoningPreambleCache = (path, lastWrite, content);
+                return content;
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex,
+                    "Failed to read reasoning system prompt file: {Path}. Continuing without preamble.", path);
+                return string.Empty;
+            }
+        }
+
+        private (string Path, DateTime LastWriteTimeUtc, string Content)? _reasoningPreambleCache;
 
         private static HashSet<Direction> ComputeRemainingDirections(CloverBoard board)
         {
