@@ -22,6 +22,12 @@ public sealed class LlmOptions
     public int MaxConcurrency { get; set; } = 4;
     public int MaxCallsPerGame { get; set; } = 200;
 
+    // Granularité des appels LLM pour la génération d'indices IA. PerBoard (défaut) = 1 appel couvrant
+    // toutes les directions restantes du board (comportement historique). PerDirection = 1 appel par
+    // direction (jusqu'à 4 appels/board), plus fiable pour les modèles reasoning locaux. Axe orthogonal
+    // à ReasoningEnabled. Surcharge : LLM__GENERATIONMODE.
+    public AiClueGenerationMode GenerationMode { get; set; } = AiClueGenerationMode.PerBoard;
+
     // Mode reasoning natif (cf. docs CLAUDE.md). Défaut OFF : le prompt prescriptif baseline est utilisé
     // et aucun paramètre natif n'est passé. Quand ON, le prompt advisory est activé et le
     // IReasoningRequestConfigurator injecte les paramètres natifs du provider.
