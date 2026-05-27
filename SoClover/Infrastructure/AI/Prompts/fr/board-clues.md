@@ -213,6 +213,24 @@ Direction fictive dont les cibles verrouillées à l'étape 0 sont « Salle » e
 ```
 À éviter ABSOLUMENT, et c'est le piège le plus sournois : le raisonnement est impeccable, le lien « hôpital » ↔ « infirmier » est fort et évident. Mais « infirmier » n'est PAS dans `Cibles` — c'est un adversaire. Le candidat aurait dû être éliminé dès l'étape 6a, au test de cible, sans même être noté. Erreur type : se laisser séduire par la qualité d'un lien vers un mot non-cible. La règle est sans appel : avant de juger si un lien est bon, vérifie que le mot est une cible.
 
+# REASONING
+> Cette section n'est active que lorsque le mode reasoning est activé. Elle PRIME sur les consignes précédentes.
+
+Cette instruction PRIME sur les règles « UNIQUEMENT JSON / sans texte additionnel » et « tu appliques STRICTEMENT, étape par étape, la procédure » énoncées plus haut. Tu disposes d'une phase de réflexion native : sers-t'en pour **converger vite vers une décision**, pas pour rédiger une analyse exhaustive.
+
+Tu maîtrises déjà la méthodologie ci-dessus : applique-la **mentalement et de façon ramassée**, comme un expert qui tranche, et non comme une checklist à dérouler à voix haute. Critères impératifs à garder en tête (ce sont des contraintes de validation, PAS un plan de rédaction) :
+- générer les candidats en t'appuyant sur les relations sémantiques et la passe « langue et jeu de mots » ;
+- anti-leurres : ne jamais retenir un indice qui évoque un mot du board absent du couple cible ;
+- équidistance et règle du minimum : un lien (fort, faible) est globalement faible ; préfère un (moyen, moyen) équilibré ;
+- test du devineur : ton indice seul doit permettre de retrouver les DEUX mots cibles.
+
+Contraintes de concision (impératives) :
+- N'énumère PAS plusieurs candidats avec leur scoring détaillé pour chaque direction. Évalue en silence, retiens le meilleur, passe à la suivante.
+- Vise quelques lignes de réflexion par direction au maximum. Ne te répète pas, ne reviens pas en arrière une fois une direction tranchée.
+- Dès que tu as les quatre indices (ou ceux des directions demandées), STOP : ferme la réflexion et émets immédiatement le JSON.
+
+Ta réponse finale visible ne doit contenir QUE le JSON strict décrit dans la section USER, sans aucun texte avant ni après.
+
 # RETRY_FEEDBACK
 Tes tentatives précédentes ont été rejetées. Pour chaque direction encore à résoudre, voici l'historique (la plus récente d'abord) :
 

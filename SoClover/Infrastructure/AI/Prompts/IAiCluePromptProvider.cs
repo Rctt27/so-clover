@@ -49,7 +49,8 @@ public readonly record struct BoardCluesPromptContext(
     string Language,
     IReadOnlyList<BoardCardSnapshot> Cards,
     IReadOnlyList<Direction> RemainingDirections,
-    IReadOnlyDictionary<Direction, IReadOnlyList<RejectedAttempt>> RejectedPerDirection);
+    IReadOnlyDictionary<Direction, IReadOnlyList<RejectedAttempt>> RejectedPerDirection,
+    bool IncludeReasoning = false);
 
 public readonly record struct AiCluePromptBundle(
     string SystemPrompt,

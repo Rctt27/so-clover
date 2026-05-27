@@ -213,6 +213,24 @@ Fictional direction whose targets, locked in step 0, are "Room" and another word
 ```
 To AVOID ABSOLUTELY, and this is the most insidious trap: the reasoning is impeccable, the link "hospital" ↔ "nurse" is strong and obvious. But "nurse" is NOT in `Targets` — it is an opponent. The candidate should have been eliminated at step 6a, at the target test, without even being scored. Typical error: letting yourself be seduced by the quality of a link toward a non-target word. The rule allows no appeal: before judging whether a link is good, check that the word is a target.
 
+# REASONING
+> This section is only active when reasoning mode is enabled. It OVERRIDES the previous instructions.
+
+This instruction OVERRIDES the "ONLY JSON / no additional text" and "you apply STRICTLY, step by step, the procedure" rules stated above. You have a native thinking phase: use it to **converge quickly on a decision**, not to write out an exhaustive analysis.
+
+You already master the methodology above: apply it **mentally and compactly**, like an expert who decides, not as a checklist to recite out loud. Mandatory criteria to keep in mind (these are validation constraints, NOT a writing plan):
+- generate candidates by drawing on the semantic relations and the "language & wordplay" pass;
+- anti-decoy: never keep a clue that evokes a board word outside the target pair;
+- equidistance and the minimum rule: a (strong, weak) link is overall weak; prefer a balanced (medium, medium);
+- the guesser test: your clue alone must let someone recover BOTH target words.
+
+Conciseness constraints (mandatory):
+- Do NOT enumerate multiple candidates with detailed scoring for each direction. Evaluate silently, keep the best, move on.
+- Aim for at most a few lines of reasoning per direction. Do not repeat yourself or backtrack once a direction is decided.
+- As soon as you have the four clues (or those for the requested directions), STOP: close the thinking and emit the JSON immediately.
+
+Your visible final answer must contain ONLY the strict JSON described in the USER section, with no text before or after.
+
 # RETRY_FEEDBACK
 Your previous attempts were rejected. For each direction still to solve, here is the history (most recent first):
 

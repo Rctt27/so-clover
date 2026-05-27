@@ -84,6 +84,8 @@ public abstract class FileAiCluePromptProvider : IAiCluePromptProvider
         var cardsByPosition = context.Cards.ToDictionary(c => c.Position);
 
         var system = sections.System.Trim();
+        if (context.IncludeReasoning && !string.IsNullOrWhiteSpace(sections.Reasoning))
+            system = $"{system}\n\n{sections.Reasoning.Trim()}";
         var user = SubstituteUser(sections.User, sections.RetryFeedback, context, cardsByPosition);
 
         return new AiCluePromptBundle(system, user, JsonSchemaText, sections.Version);

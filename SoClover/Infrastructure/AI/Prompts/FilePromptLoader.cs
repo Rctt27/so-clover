@@ -55,6 +55,7 @@ public sealed class FilePromptLoader
         var system = new System.Text.StringBuilder();
         var user = new System.Text.StringBuilder();
         var retry = new System.Text.StringBuilder();
+        var reasoning = new System.Text.StringBuilder();
 
         for (var i = startIndex; i < lines.Length; i++)
         {
@@ -70,6 +71,7 @@ public sealed class FilePromptLoader
                 case "SYSTEM": system.AppendLine(line); break;
                 case "USER": user.AppendLine(line); break;
                 case "RETRY_FEEDBACK": retry.AppendLine(line); break;
+                case "REASONING": reasoning.AppendLine(line); break;
             }
         }
 
@@ -77,7 +79,8 @@ public sealed class FilePromptLoader
             system.ToString(),
             user.ToString(),
             retry.ToString(),
-            version);
+            version,
+            reasoning.ToString());
     }
 
     private sealed record CacheEntry(DateTime LastWriteTimeUtc, ParsedPromptSections Sections);
@@ -87,4 +90,5 @@ public readonly record struct ParsedPromptSections(
     string System,
     string User,
     string RetryFeedback,
-    int? Version);
+    int? Version,
+    string Reasoning = "");
