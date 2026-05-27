@@ -39,6 +39,22 @@ builder.Services.AddSingleton<ChatClientFactory>();
 builder.Services.AddSingleton<IChatClient>(sp =>
     sp.GetRequiredService<ChatClientFactory>().Create());
 
+// Reasoning configurator — injecte les paramètres natifs du provider quand le mode reasoning est ON.
+// Choix de l'impl selon LlmProvider (miroir du switch de ChatClientFactory) ; no-op si désactivé.
+builder.Services.AddSingleton<SoClover.Infrastructure.AI.Reasoning.IReasoningRequestConfigurator>(sp =>
+{
+    var opts = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<LlmOptions>>();
+    if (!opts.Value.ReasoningEnabled)
+        return new SoClover.Infrastructure.AI.Reasoning.NullReasoningConfigurator();
+
+    return opts.Value.Provider switch
+    {
+        LlmProvider.OpenAI => new SoClover.Infrastructure.AI.Reasoning.OpenAIReasoningConfigurator(opts),
+        LlmProvider.Anthropic => new SoClover.Infrastructure.AI.Reasoning.AnthropicReasoningConfigurator(opts),
+        _ => new SoClover.Infrastructure.AI.Reasoning.NullReasoningConfigurator(),
+    };
+});
+
 // Infrastructure
 // Configure PostgreSQL DbContext (prod-ready)
 var connectionString = builder.Configuration.GetConnectionString("GameDb") ?? Environment.GetEnvironmentVariable("DATABASE_URL") ?? "Host=localhost;Database=soclover;Username=postgres;Password=postgres";
