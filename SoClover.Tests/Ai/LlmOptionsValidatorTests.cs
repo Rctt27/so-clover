@@ -221,4 +221,17 @@ public class LlmOptionsValidatorTests
         Assert.True(result.Failed);
         Assert.Contains(result.Failures!, f => f.Contains("GenerationMode", StringComparison.OrdinalIgnoreCase));
     }
+
+    [Theory]
+    [InlineData(AiClueGenerationMode.PerBoard)]
+    [InlineData(AiClueGenerationMode.PerDirection)]
+    public void GenerationMode_defined_values_are_accepted(AiClueGenerationMode valid)
+    {
+        var validator = new LlmOptionsValidator();
+        var opts = new LlmOptions { GenerationMode = valid };
+
+        var result = validator.Validate(name: null, options: opts);
+
+        Assert.True(result.Succeeded);
+    }
 }
