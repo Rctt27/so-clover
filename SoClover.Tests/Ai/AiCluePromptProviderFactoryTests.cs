@@ -17,14 +17,37 @@ public sealed class AiCluePromptProviderFactoryTests
     }
 
     [Theory]
-    [InlineData("Klingon")]
     [InlineData("English")]
+    [InlineData("english")]
+    [InlineData("English_(from_FR_OFF)")]
+    [InlineData("ENGLISH")]
+    public void IsLanguageSupported_returns_true_for_english_variants(string lang)
+    {
+        var factory = new AiCluePromptProviderFactory();
+        Assert.True(factory.IsLanguageSupported(lang));
+    }
+
+    [Theory]
+    [InlineData("Klingon")]
+    [InlineData("Portuguese_(from_FR_OFF)")]
     [InlineData("")]
     [InlineData(null)]
     public void IsLanguageSupported_returns_false_for_unsupported_or_null(string? lang)
     {
         var factory = new AiCluePromptProviderFactory();
         Assert.False(factory.IsLanguageSupported(lang!));
+    }
+
+    [Fact]
+    public void GetFor_returns_english_provider_for_english_language()
+    {
+        var factory = new AiCluePromptProviderFactory();
+
+        var provider = factory.GetFor("English_(from_FR_OFF)");
+
+        Assert.NotNull(provider);
+        Assert.Equal("English_(from_FR_OFF)", provider.Language);
+        Assert.IsType<EnglishAiCluePromptProvider>(provider);
     }
 
     [Fact]
