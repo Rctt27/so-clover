@@ -1,8 +1,5 @@
-using System.Diagnostics;
-using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using SoClover.Domain;
 using SoClover.Domain.Validation;
@@ -10,7 +7,6 @@ using SoClover.Infrastructure.AI;
 using SoClover.Infrastructure.AI.Prompts;
 using SoClover.Infrastructure.AI.Reasoning;
 using SoClover.UseCases.Abstractions;
-using SoClover.UseCases.Errors;
 using SoClover.UseCases.Gameplay;
 
 namespace SoClover.UseCases.AI;
@@ -23,25 +19,8 @@ public static class GenerateAIClues
 
     public readonly record struct Response(int SucceededCount, int FailedCount, int LlmCallsConsumed);
 
-    public sealed class Handler : IGenerateAICluesUseCase
+    public sealed class Handler : AiCluesGeneratorBase
     {
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            PropertyNameCaseInsensitive = true,
-        };
-
-        private readonly IGameRepository _repo;
-        private readonly IClueValidatorFactory _validatorFactory;
-        private readonly IChatClient _chatClient;
-        private readonly IAiCluePromptProviderFactory _promptProviderFactory;
-        private readonly IAiClueExplanationStore _explanationStore;
-        private readonly IEventPublisher _events;
-        private readonly IOptions<LlmOptions> _llmOptions;
-        private readonly GameLlmBudget _budget;
-        private readonly ISubmitBoardUseCase _submitBoard;
-        private readonly IReasoningRequestConfigurator _reasoningConfigurator;
-        private readonly ILogger<Handler> _logger;
-
         public Handler(
             IGameRepository repo,
             IClueValidatorFactory validatorFactory,
@@ -54,361 +33,63 @@ public static class GenerateAIClues
             ISubmitBoardUseCase submitBoard,
             IReasoningRequestConfigurator? reasoningConfigurator = null,
             ILogger<Handler>? logger = null)
+            : base(repo, validatorFactory, chatClient, promptProviderFactory, explanationStore,
+                   events, llmOptions, budget, submitBoard, reasoningConfigurator, logger)
         {
-            _repo = repo;
-            _validatorFactory = validatorFactory;
-            _chatClient = chatClient;
-            _promptProviderFactory = promptProviderFactory;
-            _explanationStore = explanationStore;
-            _events = events;
-            _llmOptions = llmOptions;
-            _budget = budget;
-            _submitBoard = submitBoard;
-            _reasoningConfigurator = reasoningConfigurator ?? new NullReasoningConfigurator();
-            _logger = logger ?? NullLogger<Handler>.Instance;
         }
 
-        public async Task<Response> Handle(Request request, CancellationToken ct = default)
-        {
-            var game = await _repo.Get(request.GameId, ct)
-                ?? throw new GameNotFoundException(request.GameId);
-            var player = game.Players.FirstOrDefault(p => p.Id == request.PlayerId)
-                ?? throw new PlayerNotFoundException(request.PlayerId);
-            if (!player.IsAI)
-                throw new InvalidOperationException(
-                    $"Player {request.PlayerId} is not an AI player.");
-
-            await _events.Publish(new AiClueGenerationRequested(game.Id, player.Id), ct);
-
-            var remaining = ComputeRemainingDirections(player.Board);
-            if (remaining.Count == 0)
-            {
-                return new Response(SucceededCount: 4, FailedCount: 0, LlmCallsConsumed: 0);
-            }
-
-            var promptProvider = _promptProviderFactory.GetFor(game.Language)
-                ?? throw new UnsupportedAiLanguageException(game.Language);
-            var validator = _validatorFactory.GetFor(game.Language, game.SemanticClueCheckEnabled);
-
-            var rejectedHistory = new Dictionary<Direction, List<RejectedAttempt>>();
-            var maxAttempts = _llmOptions.Value.MaxRetries + 1;
-            var llmCalls = 0;
-
-            try
-            {
-                for (var attempt = 0; attempt < maxAttempts && remaining.Count > 0; attempt++)
-                {
-                    _budget.TryConsume(game.Id);
-                    llmCalls++;
-
-                    AiBoardCluesDraft draft;
-                    int? promptVersion;
-                    try
-                    {
-                        (draft, promptVersion) = await CallLlmAsync(
-                            game, player, remaining, rejectedHistory, promptProvider, attempt, ct);
-                    }
-                    catch (InvalidOperationException ex)
-                    {
-                        _logger.LogWarning(ex,
-                            "AI clue LLM call failed (attempt {Attempt}): game={GameId} player={PlayerId}",
-                            attempt, game.Id.Value, player.Id.Value);
-                        continue;
-                    }
-                    catch (System.Text.Json.JsonException ex)
-                    {
-                        _logger.LogWarning(ex,
-                            "AI clue LLM returned unparseable JSON (attempt {Attempt}): game={GameId} player={PlayerId}",
-                            attempt, game.Id.Value, player.Id.Value);
-                        continue;
-                    }
-
-                    foreach (var item in draft.Clues)
-                    {
-                        if (!Enum.TryParse<Direction>(item.Direction, ignoreCase: true, out var dir))
-                            continue;
-                        if (!remaining.Contains(dir))
-                            continue;
-
-                        var result = game.SetClue(player.Id, dir, item.ClueWord, validator);
-                        if (result.IsValid)
-                        {
-                            _explanationStore.Save(game.Id, player.Id, dir, item.Explanation);
-                            await _repo.Save(game, ct);
-                            await _events.Publish(
-                                new AiClueGenerated(game.Id, player.Id, dir, item.ClueWord, item.Explanation),
-                                ct);
-                            remaining.Remove(dir);
-
-                            _logger.LogInformation(
-                                "AI clue validated: game={GameId} player={PlayerId} direction={Direction} clueText={ClueText} isValid={IsValid} promptVersion={PromptVersion} provider={LlmProvider} model={LlmModel}",
-                                game.Id.Value, player.Id.Value, dir, item.ClueWord, true,
-                                promptVersion, _llmOptions.Value.Provider, _llmOptions.Value.DefaultModel);
-                        }
-                        else
-                        {
-                            AppendRejection(rejectedHistory, dir, item.ClueWord, result, promptProvider);
-
-                            var rules = string.Join(",", result.Errors.Select(e => e.Rule.ToString()));
-                            _logger.LogInformation(
-                                "AI clue rejected: game={GameId} player={PlayerId} direction={Direction} clueText={ClueText} isValid={IsValid} rejectionRules={RejectionRules} promptVersion={PromptVersion} provider={LlmProvider} model={LlmModel}",
-                                game.Id.Value, player.Id.Value, dir, item.ClueWord, false,
-                                rules, promptVersion, _llmOptions.Value.Provider, _llmOptions.Value.DefaultModel);
-                        }
-                    }
-                }
-            }
-            catch (LlmBudgetExhaustedException)
-            {
-                _logger.LogWarning(
-                    "AI clue generation stopped: LLM budget exhausted for game={GameId} player={PlayerId}",
-                    game.Id.Value, player.Id.Value);
-
-                foreach (var dir in remaining)
-                {
-                    await _events.Publish(
-                        new AiClueGenerationFailed(
-                            game.Id, player.Id, dir,
-                            Reason: "LLM budget exhausted.",
-                            AttemptedClues: Array.Empty<string>()),
-                        ct);
-                }
-                await _events.Publish(
-                    new AiPlayerBoardFailed(game.Id, player.Id, "LLM budget exhausted."), ct);
-
-                var budgetFailed = remaining.Count;
-                return new Response(
-                    SucceededCount: 4 - budgetFailed,
-                    FailedCount: budgetFailed,
-                    LlmCallsConsumed: llmCalls);
-            }
-
-            foreach (var dir in remaining)
-            {
-                var attempted = rejectedHistory.TryGetValue(dir, out var list)
-                    ? (IReadOnlyList<string>)list.Select(r => r.ClueText).ToList().AsReadOnly()
-                    : Array.Empty<string>();
-                await _events.Publish(
-                    new AiClueGenerationFailed(
-                        game.Id, player.Id, dir,
-                        Reason: "Max retries exhausted with no valid clue.",
-                        AttemptedClues: attempted),
-                    ct);
-            }
-
-            if (remaining.Count > 0)
-            {
-                await _events.Publish(
-                    new AiPlayerBoardFailed(
-                        game.Id, player.Id,
-                        $"{remaining.Count} direction(s) could not be generated after {maxAttempts} attempt(s)."),
-                    ct);
-            }
-
-            if (remaining.Count == 0)
-            {
-                try
-                {
-                    await _submitBoard.Handle(
-                        new SubmitBoard.Request(game.Id, player.Id, InvocationOrigin.System), ct);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex,
-                        "AI auto-submit failed: game={GameId} player={PlayerId}",
-                        game.Id.Value, player.Id.Value);
-                }
-            }
-
-            var failed = remaining.Count;
-            return new Response(
-                SucceededCount: 4 - failed,
-                FailedCount: failed,
-                LlmCallsConsumed: llmCalls);
-        }
-
-        private async Task<(AiBoardCluesDraft Draft, int? PromptVersion)> CallLlmAsync(
+        // Pipeline PerBoard : un seul appel LLM couvre toutes les directions restantes, jusqu'à
+        // MaxRetries+1 tentatives. Chaque clue valide est appliquée et retirée de `remaining`.
+        protected override async Task FillRemainingAsync(
             Game game,
             Player player,
             HashSet<Direction> remaining,
             Dictionary<Direction, List<RejectedAttempt>> rejectedHistory,
             IAiCluePromptProvider promptProvider,
-            int attempt,
+            IClueValidator validator,
             CancellationToken ct)
         {
-            var cards = BuildBoardCardSnapshots(player.Board);
-            var rejectedRO = rejectedHistory.ToDictionary(
-                kv => kv.Key,
-                kv => (IReadOnlyList<RejectedAttempt>)kv.Value.AsReadOnly());
-            var reasoningEnabled = _llmOptions.Value.ReasoningEnabled;
-            var context = new BoardCluesPromptContext(
-                game.Language, cards, remaining.ToList().AsReadOnly(), rejectedRO,
-                IncludeReasoning: reasoningEnabled);
-            var bundle = promptProvider.BuildBoardCluesPrompt(context);
+            var maxAttempts = _llmOptions.Value.MaxRetries + 1;
 
-            var systemPrompt = bundle.SystemPrompt;
-            if (reasoningEnabled)
+            for (var attempt = 0; attempt < maxAttempts && remaining.Count > 0; attempt++)
             {
-                var preamble = ReadReasoningPreamble(_llmOptions.Value.ReasoningSystemPromptPath);
-                if (!string.IsNullOrWhiteSpace(preamble))
-                    systemPrompt = $"{preamble.Trim()}\n\n{systemPrompt}";
-            }
+                ConsumeBudget(game.Id);
 
-            var messages = new[]
-            {
-                new ChatMessage(ChatRole.System, systemPrompt),
-                new ChatMessage(ChatRole.User, bundle.UserPrompt),
-            };
-
-            var opts = _llmOptions.Value;
-            var effectiveModel = player.AIConfig?.Model ?? opts.DefaultModel;
-
-            // Tous les paramètres de sampling/complétion viennent de la config (appsettings → LlmOptions),
-            // la température pouvant être surchargée par joueur via AIConfig.
-            var chatOptions = new ChatOptions
-            {
-                ModelId = effectiveModel,
-                Temperature = (float)(player.AIConfig?.Temperature ?? opts.DefaultTemperature),
-            };
-            if (opts.TopP is { } topP)
-                chatOptions.TopP = (float)topP;
-            if (opts.MaxOutputTokens is { } maxOutputTokens)
-                chatOptions.MaxOutputTokens = maxOutputTokens;
-
-            // En mode reasoning, injecter en plus les paramètres natifs du provider (reasoning_effort,
-            // thinking budget) sur le même ChatOptions.
-            if (reasoningEnabled)
-                _reasoningConfigurator.Configure(chatOptions);
-
-            var sw = Stopwatch.StartNew();
-            var response = await _chatClient.GetResponseAsync(messages, options: chatOptions, ct)
-                .ConfigureAwait(false);
-            sw.Stop();
-
-            _logger.LogInformation(
-                "AI clue LLM call completed: game={GameId} player={PlayerId} attempt={Attempt} latencyMs={LatencyMs} provider={LlmProvider} model={LlmModel} promptVersion={PromptVersion} remainingDirections={RemainingDirections}",
-                game.Id.Value, player.Id.Value, attempt, sw.ElapsedMilliseconds,
-                _llmOptions.Value.Provider, effectiveModel, bundle.PromptVersion,
-                string.Join(",", remaining));
-
-            var text = response.Text;
-            if (string.IsNullOrWhiteSpace(text))
-                throw new InvalidOperationException("LLM returned an empty response.");
-            text = StripThinkTags(text);
-            text = StripJsonFences(text);
-            var draft = JsonSerializer.Deserialize<AiBoardCluesDraft>(text, JsonOptions)
-                ?? throw new InvalidOperationException("LLM returned invalid JSON.");
-            return (draft, bundle.PromptVersion);
-        }
-
-        // Certains modèles locaux (Gemma 3, Llama 3.1, etc.) mimicent l'exemple ```json
-        // du prompt et enrobent la réponse. Strip défensif avant désérialisation.
-        private static string StripJsonFences(string text)
-        {
-            var t = text.Trim();
-            if (!t.StartsWith("```")) return t;
-
-            var firstNewline = t.IndexOf('\n');
-            if (firstNewline >= 0) t = t[(firstNewline + 1)..];
-            if (t.EndsWith("```")) t = t[..^3];
-            return t.Trim();
-        }
-
-        // Modèles "thinking" embarqués (DeepSeek R1, Qwen3-thinking, Mistral-Reasoning, etc.) émettent
-        // leur raisonnement avant le JSON dans content quand le parsing natif côté serveur est OFF :
-        // soit <think>...</think> (DeepSeek/Qwen), soit [THINK]...[/THINK] (Mistral). On retire jusqu'au
-        // dernier tag fermant rencontré, quel que soit le style.
-        private static string StripThinkTags(string text)
-        {
-            foreach (var closeTag in new[] { "</think>", "[/THINK]" })
-            {
-                var closeIdx = text.LastIndexOf(closeTag, StringComparison.OrdinalIgnoreCase);
-                if (closeIdx >= 0)
-                    text = text[(closeIdx + closeTag.Length)..];
-            }
-            return text.Trim();
-        }
-
-        // Lit (avec cache mtime) le préambule système de raisonnement propre au modèle. Tolérant :
-        // chemin absent/illisible → null (la génération continue sans préambule).
-        private string ReadReasoningPreamble(string? path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-                return string.Empty;
-
-            // Chemin relatif → résolu contre AppContext.BaseDirectory (où vivent les binaires + le
-            // Content copié), comme les providers de prompt. Robuste en conteneur (WORKDIR /app) où le
-            // cwd n'est pas garanti d'être le content root.
-            if (!Path.IsPathRooted(path))
-                path = Path.Combine(AppContext.BaseDirectory, path);
-
-            try
-            {
-                var info = new FileInfo(path);
-                if (!info.Exists)
+                AiBoardCluesDraft draft;
+                try
                 {
-                    _logger.LogWarning(
-                        "Reasoning system prompt file not found: {Path}. Continuing without preamble.", path);
-                    return string.Empty;
+                    (draft, _) = await CallLlmAsync(
+                        game, player, remaining, rejectedHistory, promptProvider, attempt, ct);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    _logger.LogWarning(ex,
+                        "AI clue LLM call failed (attempt {Attempt}): game={GameId} player={PlayerId}",
+                        attempt, game.Id.Value, player.Id.Value);
+                    continue;
+                }
+                catch (System.Text.Json.JsonException ex)
+                {
+                    _logger.LogWarning(ex,
+                        "AI clue LLM returned unparseable JSON (attempt {Attempt}): game={GameId} player={PlayerId}",
+                        attempt, game.Id.Value, player.Id.Value);
+                    continue;
                 }
 
-                var lastWrite = info.LastWriteTimeUtc;
-                if (_reasoningPreambleCache is { } cached
-                    && cached.Path == path && cached.LastWriteTimeUtc == lastWrite)
-                    return cached.Content;
+                foreach (var item in draft.Clues)
+                {
+                    if (!Enum.TryParse<Direction>(item.Direction, ignoreCase: true, out var dir))
+                        continue;
+                    if (!remaining.Contains(dir))
+                        continue;
 
-                var content = File.ReadAllText(path);
-                _reasoningPreambleCache = (path, lastWrite, content);
-                return content;
+                    if (await TryApplyClueAsync(
+                            game, player, dir, item, validator, promptProvider, rejectedHistory, ct))
+                    {
+                        remaining.Remove(dir);
+                    }
+                }
             }
-            catch (IOException ex)
-            {
-                _logger.LogWarning(ex,
-                    "Failed to read reasoning system prompt file: {Path}. Continuing without preamble.", path);
-                return string.Empty;
-            }
-        }
-
-        private (string Path, DateTime LastWriteTimeUtc, string Content)? _reasoningPreambleCache;
-
-        private static HashSet<Direction> ComputeRemainingDirections(CloverBoard board)
-        {
-            var remaining = new HashSet<Direction>();
-            if (board.TopClue is null)    remaining.Add(Direction.Top);
-            if (board.RightClue is null)  remaining.Add(Direction.Right);
-            if (board.BottomClue is null) remaining.Add(Direction.Bottom);
-            if (board.LeftClue is null)   remaining.Add(Direction.Left);
-            return remaining;
-        }
-
-        private static IReadOnlyList<BoardCardSnapshot> BuildBoardCardSnapshots(CloverBoard board)
-        {
-            return new List<BoardCardSnapshot>
-            {
-                Snapshot(BoardPosition.TopLeft,     board.TopLeft!),
-                Snapshot(BoardPosition.TopRight,    board.TopRight!),
-                Snapshot(BoardPosition.BottomRight, board.BottomRight!),
-                Snapshot(BoardPosition.BottomLeft,  board.BottomLeft!),
-            }.AsReadOnly();
-        }
-
-        private static BoardCardSnapshot Snapshot(BoardPosition pos, OrientedCard oc) =>
-            new(pos,
-                TopWord:    oc.GetWord(Direction.Top),
-                RightWord:  oc.GetWord(Direction.Right),
-                BottomWord: oc.GetWord(Direction.Bottom),
-                LeftWord:   oc.GetWord(Direction.Left));
-
-        private static void AppendRejection(
-            Dictionary<Direction, List<RejectedAttempt>> history,
-            Direction dir,
-            string clueText,
-            ClueValidationResult result,
-            IAiCluePromptProvider promptProvider)
-        {
-            if (!history.TryGetValue(dir, out var list))
-                history[dir] = list = new List<RejectedAttempt>();
-            list.Add(new RejectedAttempt(clueText, promptProvider.FormatRejectionReason(result)));
         }
     }
 }
