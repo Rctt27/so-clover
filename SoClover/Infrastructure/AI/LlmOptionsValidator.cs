@@ -62,6 +62,12 @@ public sealed class LlmOptionsValidator : IValidateOptions<LlmOptions>
                 $"LlmOptions.MaxOutputTokens must be >= 1 when set (got {maxTokens}).");
         }
 
+        if (!Enum.IsDefined(options.GenerationMode))
+        {
+            failures.Add(
+                $"LlmOptions.GenerationMode must be a defined AiClueGenerationMode value (got {options.GenerationMode}).");
+        }
+
         return failures.Count == 0
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);

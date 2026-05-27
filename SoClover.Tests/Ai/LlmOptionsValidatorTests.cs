@@ -209,4 +209,16 @@ public class LlmOptionsValidatorTests
         Assert.True(result.Failed);
         Assert.Contains(result.Failures!, f => f.Contains("MaxOutputTokens", StringComparison.OrdinalIgnoreCase));
     }
+
+    [Fact]
+    public void GenerationMode_outside_enum_is_rejected()
+    {
+        var validator = new LlmOptionsValidator();
+        var opts = new LlmOptions { GenerationMode = (AiClueGenerationMode)99 };
+
+        var result = validator.Validate(name: null, options: opts);
+
+        Assert.True(result.Failed);
+        Assert.Contains(result.Failures!, f => f.Contains("GenerationMode", StringComparison.OrdinalIgnoreCase));
+    }
 }
