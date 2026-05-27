@@ -34,10 +34,13 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
     protected readonly IReasoningRequestConfigurator _reasoningConfigurator;
     protected readonly ILogger _logger;
 
+    // État par requête : valable uniquement parce que le use case est enregistré en DI transient (1 instance par appel Handle). _llmCalls est remis à 0 en tête de Handle ; ne pas passer ce type en Scoped/Singleton.
     private int _llmCalls;
     private int? _lastPromptVersion;
     private (string Path, DateTime LastWriteTimeUtc, string Content)? _reasoningPreambleCache;
 
+    // Les sous-classes concrètes doivent exposer un ILogger<LeurType>? dans leur ctor et le passer ici,
+    // sinon la catégorie de log est perdue (fallback NullLogger).
     protected AiCluesGeneratorBase(
         IGameRepository repo,
         IClueValidatorFactory validatorFactory,
