@@ -19,13 +19,15 @@ namespace SoClover.Tests.AI;
 public class GenerateAICluesPerDirectionTests
 {
     private static ServiceProvider BuildPerDirection(
-        FakeChatClient chat, int budgetMaxCallsPerGame = 50)
+        FakeChatClient chat, int budgetMaxCallsPerGame = 50,
+        Func<BoardCluesPromptContext, AiCluePromptBundle>? promptBuild = null)
     {
-        return BuildPerDirectionDirect(chat, budgetMaxCallsPerGame);
+        return BuildPerDirectionDirect(chat, budgetMaxCallsPerGame, promptBuild);
     }
 
     private static ServiceProvider BuildPerDirectionDirect(
-        FakeChatClient chat, int budgetMaxCallsPerGame)
+        FakeChatClient chat, int budgetMaxCallsPerGame,
+        Func<BoardCluesPromptContext, AiCluePromptBundle>? promptBuild = null)
     {
         // Recopie la registration d'AiTestProvider.Build mais enregistre GenerateAICluesPerDirection.Handler.
         var services = new ServiceCollection();
@@ -50,7 +52,7 @@ public class GenerateAICluesPerDirectionTests
         services.AddSingleton(sp => new GameLlmBudget(
             sp.GetRequiredService<IOptions<LlmOptions>>().Value.MaxCallsPerGame));
         services.AddSingleton<IAiCluePromptProviderFactory>(_ =>
-            new TestInlinePromptProviderFactory("Français_OFF", null));
+            new TestInlinePromptProviderFactory("Français_OFF", promptBuild));
         services.AddSingleton<IAiClueExplanationStore, InMemoryAiClueExplanationStore>();
         services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
         services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
@@ -213,6 +215,35 @@ public class GenerateAICluesPerDirectionTests
         var failed = events.PublishedEvents.OfType<AiClueGenerationFailed>().ToList();
         Assert.Contains(failed, e => e.Direction == Direction.Bottom && e.Reason.Contains("budget"));
         Assert.Contains(failed, e => e.Direction == Direction.Left   && e.Reason.Contains("budget"));
+    }
+
+    [Fact]
+    public async Task EachCall_carries_exactly_one_remaining_direction()
+    {
+        var fake = new FakeChatClient();
+        var capturedRemaining = new List<int>();
+        var sp = BuildPerDirection(fake, promptBuild: ctx =>
+        {
+            capturedRemaining.Add(ctx.RemainingDirections.Count);
+            return new AiCluePromptBundle("S", "U", "{}");
+        });
+        var (gameId, aiPids) = await AiTestProvider.SetupGameWithAis(sp);
+        var aiPid = aiPids[0];
+
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var board = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPid).Board;
+        var safe = AiTestHelpers.PickSafeClues(board, 4);
+
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Top,    safe[0], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Right,  safe[1], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Bottom, safe[2], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Left,   safe[3], "ok") });
+
+        await sp.GetRequiredService<IGenerateAICluesUseCase>()
+            .Handle(new GenerateAIClues.Request(gameId, aiPid));
+
+        Assert.Equal(4, capturedRemaining.Count);
+        Assert.All(capturedRemaining, c => Assert.Equal(1, c));
     }
 
     private static string PickConflictWord(CloverBoard board)
