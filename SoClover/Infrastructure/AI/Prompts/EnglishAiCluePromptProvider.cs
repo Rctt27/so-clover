@@ -11,14 +11,21 @@ public sealed class EnglishAiCluePromptProvider : FileAiCluePromptProvider
         RejectionRuleFormat: "{0} with the word \"{1}\"");
 
     public EnglishAiCluePromptProvider()
-        : this(new FilePromptLoader(), DefaultPromptPath()) { }
+        : this(new FilePromptLoader(), DefaultPromptPath(), DefaultPerDirectionPromptPath()) { }
 
-    internal EnglishAiCluePromptProvider(FilePromptLoader loader, string promptFilePath)
-        : base(loader, promptFilePath, Labels, "English_(from_FR_OFF)") { }
+    internal EnglishAiCluePromptProvider(
+        FilePromptLoader loader, string promptFilePath, string perDirectionPromptFilePath)
+        : base(loader, promptFilePath, perDirectionPromptFilePath, Labels, "English_(from_FR_OFF)") { }
 
     private static string DefaultPromptPath()
     {
         var baseDir = AppContext.BaseDirectory;
         return Path.Combine(baseDir, "Infrastructure", "AI", "Prompts", "en", "board-clues.md");
+    }
+
+    private static string DefaultPerDirectionPromptPath()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        return Path.Combine(baseDir, "Infrastructure", "AI", "Prompts", "en", "board-clues-per-direction.md");
     }
 }
