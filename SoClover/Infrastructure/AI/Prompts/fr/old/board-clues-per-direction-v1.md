@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 1
 language: fr
 description: Prompt pour générer UN mot-indice pour UNE direction donnée — So Clover FR PerDirection.
 ---
@@ -140,8 +140,6 @@ Réponds UNIQUEMENT avec ce JSON :
 > Les mots utilisés dans les exemples ci-dessous (rivage, sable, perle, etc.) sont choisis volontairement HORS de tout board réel. Ils illustrent UNIQUEMENT la forme attendue et le type de raisonnement. N'utilise JAMAIS ces mots-indices dans ta réponse : ton board contient d'autres mots, et tes indices doivent venir exclusivement des mots de TON board.
 
 ### Exemple A — procédure déroulée (à titre pédagogique)
-> Cet exemple détaille les étapes pour aider un modèle non-reasoning à converger. **En mode reasoning, ne reproduis PAS ce format dans ta phase de pensée** — voir la section REASONING. Le format « Étape 1 : … Étape 2 : … » est un anti-format en reasoning.
-
 Direction fictive, mots Cible « sable » et « plage ».
 - Étape 1 : *sable* active → grain, désert, château, mer, dune, sablier, chaud, pied nu… ; *plage* active → mer, soleil, parasol, vacances, vague, serviette, galet…
 - Étape 2 : intersection nette autour de « mer » et du bord de mer.
@@ -209,38 +207,22 @@ Direction fictive dont les Cible verrouillées à l'étape 0 sont « Salle » et
 À éviter ABSOLUMENT, et c'est le piège le plus sournois : le raisonnement est impeccable, le lien « hôpital » ↔ « infirmier » est fort et évident. Mais « infirmier » n'est PAS dans `Cible` — c'est un adversaire. Le candidat aurait dû être éliminé dès l'étape 6a, au test de cible, sans même être noté. Erreur type : se laisser séduire par la qualité d'un lien vers un mot non-cible. La règle est sans appel : avant de juger si un lien est bon, vérifie que le mot est une cible.
 
 # REASONING
-> Cette section n'est active que lorsque le mode reasoning est activé. Elle REMPLACE le contrat « tu appliques STRICTEMENT, étape par étape, la procédure » énoncé dans le SYSTEM : la « Procédure de raisonnement obligatoire » du bloc USER devient un **index mental**, plus une checklist à dérouler.
+> Cette section n'est active que lorsque le mode reasoning est activé. Elle PRIME sur les consignes précédentes.
 
-Tu disposes d'une phase de réflexion native, et tu maîtrises déjà la méthodologie ci-dessus comme un expert francophone du jeu. Tranche vite : tu ne rédiges pas d'analyse, tu ne déroules pas la procédure.
+Cette instruction PRIME sur les règles « UNIQUEMENT JSON / sans texte additionnel » et « tu appliques STRICTEMENT, étape par étape, la procédure » énoncées plus haut. Tu disposes d'une phase de réflexion native : sers-t'en pour **converger vite vers une décision**, pas pour rédiger une analyse exhaustive.
 
-## Formats INTERDITS dans ta phase de pensée
+Tu maîtrises déjà la méthodologie ci-dessus : applique-la **mentalement et de façon ramassée**, comme un expert qui tranche, et non comme une checklist à dérouler à voix haute. Critères impératifs à garder en tête (ce sont des contraintes de validation, PAS un plan de rédaction) :
+- générer les candidats en t'appuyant sur les relations sémantiques et la passe « langue et jeu de mots » ;
+- anti-leurres : ne jamais retenir un indice qui évoque un mot du board absent du couple cible ;
+- équidistance et règle du minimum : un lien (fort, faible) est globalement faible ; préfère un (moyen, moyen) équilibré ;
+- test du devineur : ton indice seul doit permettre de retrouver les DEUX mots Cible.
 
-Ces formats consomment ton budget de tokens sans améliorer la qualité de l'indice. Si tu te surprends à les produire, arrête-toi et tranche :
+Contraintes de concision (impératives) :
+- N'énumère PAS plusieurs candidats avec leur scoring détaillé. Évalue en silence, retiens le meilleur candidat.
+- Vise quelques lignes de réflexion maximum, ne reviens pas en arrière une fois la direction tranchée.
+- Dès que tu as ton indice, STOP : ferme la réflexion et émets immédiatement le JSON.
 
-1. **Étaler 8 à 12 associations par mot Cible** (étape 1 du USER). Tu identifies en silence les associations les plus saillantes, sans les lister.
-2. **Parcourir explicitement la liste numérotée des 10 relations sémantiques** (étape 3 du USER). Tu reconnais celle qui s'applique ; tu ne la cherches pas en passant chaque relation en revue.
-3. **Construire et scorer 3 à 5 candidats** avec leur évaluation (fort, moyen, faible) sur les deux mots (étapes 5 et 6b du USER). Tu retiens UN candidat. Un second n'apparaît que pour valider que le premier est meilleur, en deux lignes maximum.
-4. **Reproduire le format de l'Exemple A** (« Étape 1 : … Étape 2 : … Étape 3 : … »). Cet exemple est pédagogique pour le mode non-reasoning ; en reasoning, c'est un anti-format.
-5. **Recopier les listes du USER** (les 10 relations, les 14 mots adversaires, les formulations interdites). Tu les as déjà en mémoire — les répéter ne sert à rien.
-
-## Les quatre seuls contrôles à effectuer
-
-Ta réflexion utile se résume à ces vérifications, et à rien d'autre :
-
-- **Anti-leurres** — ton candidat n'évoque AUCUN mot du board absent du couple Cible (étape 0 + étape 6a du USER).
-- **Équidistance + règle du minimum** — lien d'intensité comparable sur les deux mots Cible ; un (fort, faible) est rejeté au profit d'un (moyen, moyen).
-- **Test du devineur** — ton mot seul suffit à retrouver les DEUX mots Cible, pas seulement un.
-- **Contrat formel** — 1 mot français de 1 à 18 caractères, qui ne contient pas et n'est pas contenu dans un mot du board, sans racine évidente partagée.
-
-## Budget de réflexion
-
-Cap indicatif : **300 à 500 tokens de pensée par direction**. Si tu approches ou dépasses ce cap, c'est que tu déroules au lieu de trancher — ferme la réflexion et émets immédiatement le JSON avec ton meilleur candidat courant, même imparfait. Un indice (moyen, moyen) livré dans le budget vaut toujours mieux qu'un indice (fort, fort) jamais livré.
-
-Une fois la direction tranchée, tu ne reviens pas en arrière.
-
-## Sortie
-
-Ta réponse finale visible ne contient QUE le JSON strict décrit dans la section USER, sans aucun texte avant ni après.
+Ta réponse finale visible ne doit contenir QUE le JSON strict décrit dans la section USER, sans aucun texte avant ni après.
 
 # RETRY_FEEDBACK
 Ta tentative précédente a été rejetée. Voici l'historique pour cette direction (la plus récente d'abord) :
