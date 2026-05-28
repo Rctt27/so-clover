@@ -174,6 +174,47 @@ public class GenerateAICluesPerDirectionTests
         Assert.False(game!.Players.First(p => p.Id == aiPid).Board.IsSubmitted);
     }
 
+    [Fact]
+    public async Task BudgetExhausted_midboard_persists_resolved_directions_and_fails_remaining()
+    {
+        var fake = new FakeChatClient();
+        // Budget = 2 → 2 directions résolues, puis LlmBudgetExhaustedException sur la 3e.
+        var sp = BuildPerDirection(fake, budgetMaxCallsPerGame: 2);
+        var (gameId, aiPids) = await AiTestProvider.SetupGameWithAis(sp);
+        var aiPid = aiPids[0];
+
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var board = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPid).Board;
+        var safe = AiTestHelpers.PickSafeClues(board, 2);
+
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Top,   safe[0], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Right, safe[1], "ok") });
+        // pas besoin d'enfiler plus : ConsumeBudget va lever avant le 3e appel
+
+        var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
+        var events = sp.GetRequiredService<InMemoryEventPublisher>();
+
+        var response = await useCase.Handle(new GenerateAIClues.Request(gameId, aiPid));
+
+        Assert.Equal(2, response.SucceededCount);
+        Assert.Equal(2, response.FailedCount);
+        Assert.Equal(2, response.LlmCallsConsumed); // 2 appels consommés, le 3e a levé avant l'incrément
+
+        // Top et Right ont été persistés
+        var game = await repo.Get(gameId);
+        var savedBoard = game!.Players.First(p => p.Id == aiPid).Board;
+        Assert.NotNull(savedBoard.TopClue);
+        Assert.NotNull(savedBoard.RightClue);
+        Assert.Null(savedBoard.BottomClue);
+        Assert.Null(savedBoard.LeftClue);
+        Assert.False(savedBoard.IsSubmitted);
+
+        // Events budget
+        var failed = events.PublishedEvents.OfType<AiClueGenerationFailed>().ToList();
+        Assert.Contains(failed, e => e.Direction == Direction.Bottom && e.Reason.Contains("budget"));
+        Assert.Contains(failed, e => e.Direction == Direction.Left   && e.Reason.Contains("budget"));
+    }
+
     private static string PickConflictWord(CloverBoard board)
     {
         // Réutilise le pattern du test PerBoard : prend un mot apparaissant déjà sur le board pour forcer un rejet.
