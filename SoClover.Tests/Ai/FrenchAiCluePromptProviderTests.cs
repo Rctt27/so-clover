@@ -37,7 +37,7 @@ public sealed class FrenchAiCluePromptProviderTests
         File.WriteAllText(fixturePath, template);
         try
         {
-            var provider = new FrenchAiCluePromptProvider(new FilePromptLoader(), fixturePath);
+            var provider = new FrenchAiCluePromptProvider(new FilePromptLoader(), fixturePath, fixturePath);
             body(provider);
         }
         finally
@@ -345,5 +345,22 @@ Pour CHAQUE direction listée, propose un mot DIFFÉRENT.
         // On vérifie que le prompt demande bien un raisonnement (concept stable),
         // sans coupler au phrasé exact de la consigne.
         Assert.Contains("raisonnement", bundle.UserPrompt);
+    }
+
+    [Fact]
+    public void BuildBoardCluesPrompt_includes_reasoning_block_in_system_when_reasoning_enabled()
+    {
+        var bundle = new FrenchAiCluePromptProvider()
+            .BuildBoardCluesPrompt(SampleContext() with { IncludeReasoning = true });
+
+        Assert.Contains("de façon ramassée", bundle.SystemPrompt);
+    }
+
+    [Fact]
+    public void BuildBoardCluesPrompt_omits_reasoning_block_when_reasoning_disabled_by_default()
+    {
+        var bundle = new FrenchAiCluePromptProvider().BuildBoardCluesPrompt(SampleContext());
+
+        Assert.DoesNotContain("de façon ramassée", bundle.SystemPrompt);
     }
 }

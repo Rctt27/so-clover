@@ -61,15 +61,34 @@ public abstract class FileAiCluePromptProvider : IAiCluePromptProvider
     private static readonly Direction[] AllDirections =
         [Direction.Top, Direction.Right, Direction.Bottom, Direction.Left];
 
+    private const string SingleClueJsonSchemaText = """
+{
+  "type": "object",
+  "properties": {
+    "direction": { "type": "string", "enum": ["Top", "Right", "Bottom", "Left"] },
+    "clueWord": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "explanation": { "type": "string", "minLength": 1 }
+  },
+  "required": ["direction", "clueWord", "explanation"],
+  "additionalProperties": false
+}
+""";
+
     private readonly FilePromptLoader _loader;
     private readonly string _promptFilePath;
+    private readonly string _perDirectionPromptFilePath;
     private readonly AiCluePromptLabels _labels;
 
     protected FileAiCluePromptProvider(
-        FilePromptLoader loader, string promptFilePath, AiCluePromptLabels labels, string language)
+        FilePromptLoader loader,
+        string promptFilePath,
+        string perDirectionPromptFilePath,
+        AiCluePromptLabels labels,
+        string language)
     {
         _loader = loader;
         _promptFilePath = promptFilePath;
+        _perDirectionPromptFilePath = perDirectionPromptFilePath;
         _labels = labels;
         Language = language;
     }
@@ -84,9 +103,50 @@ public abstract class FileAiCluePromptProvider : IAiCluePromptProvider
         var cardsByPosition = context.Cards.ToDictionary(c => c.Position);
 
         var system = sections.System.Trim();
+        if (context.IncludeReasoning && !string.IsNullOrWhiteSpace(sections.Reasoning))
+            system = $"{system}\n\n{sections.Reasoning.Trim()}";
         var user = SubstituteUser(sections.User, sections.RetryFeedback, context, cardsByPosition);
 
         return new AiCluePromptBundle(system, user, JsonSchemaText, sections.Version);
+    }
+
+    public AiCluePromptBundle BuildSingleDirectionCluePrompt(BoardCluesPromptContext context)
+    {
+        ValidateContext(context);
+        if (context.RemainingDirections.Count != 1)
+            throw new ArgumentException(
+                "BuildSingleDirectionCluePrompt requires exactly 1 remaining direction.",
+                nameof(context));
+
+        var sections = _loader.Load(_perDirectionPromptFilePath);
+        var cardsByPosition = context.Cards.ToDictionary(c => c.Position);
+
+        var system = sections.System.Trim();
+        if (context.IncludeReasoning && !string.IsNullOrWhiteSpace(sections.Reasoning))
+            system = $"{system}\n\n{sections.Reasoning.Trim()}";
+
+        var user = SubstituteUserSingle(sections.User, sections.RetryFeedback, context, cardsByPosition);
+
+        return new AiCluePromptBundle(system, user, SingleClueJsonSchemaText, sections.Version);
+    }
+
+    private string SubstituteUserSingle(
+        string userTemplate,
+        string retryFeedbackTemplate,
+        BoardCluesPromptContext context,
+        IReadOnlyDictionary<BoardPosition, BoardCardSnapshot> cardsByPosition)
+    {
+        var boardLayout = BuildBoardLayout(context.Cards);
+        var directionToResolve = BuildDirectionsToResolve(context.RemainingDirections, cardsByPosition);
+        var allWordsList = BuildAllBoardWordsList(context.Cards);
+        var retryBlock = BuildRetryBlock(retryFeedbackTemplate, context.RejectedPerDirection);
+
+        var sb = new StringBuilder(userTemplate);
+        sb.Replace("{{boardLayout}}", boardLayout);
+        sb.Replace("{{directionToResolve}}", directionToResolve);
+        sb.Replace("{{allBoardWordsList}}", allWordsList);
+        sb.Replace("{{retryFeedback}}", retryBlock);
+        return sb.ToString().Trim();
     }
 
     public string FormatRejectionReason(ClueValidationResult result)

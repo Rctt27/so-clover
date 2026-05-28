@@ -13,7 +13,7 @@ Le projet suit **SemVer** (`vMAJOR.MINOR.PATCH`), avec des tags Git annotés et 
 - **MINOR** : nouvelle feature notable.
 - **PATCH** : correctifs / durcissements sans nouvelle feature.
 
-**Version courante : `2.7.0`.**
+**Version courante : `2.8.0`.**
 
 Jalons structurants : réécriture du front en React/TypeScript (v2.0), temps réel SignalR (v1.3), persistance PostgreSQL (v1.2), joueurs IA (v2.5), support du dictionnaire Anglais (v2.6), validation sémantique des indices étendue à l'Anglais (v2.7). Historique complet des tags : voir [`CHANGELOG.md`](CHANGELOG.md).
 
@@ -106,17 +106,17 @@ npm run dev   # Proxy automatique vers localhost:5000
 
 ### AI Players
 
-- **Feature flag** : section `AIPlayers.Enabled` dans `appsettings*.json` (`true` en dev, `false` en prod par défaut). Quand désactivé, le bouton "+ Ajouter un joueur IA" du lobby est grisé avec tooltip, et l'endpoint `POST /api/games/{id}/ai-players` renvoie 403 (`AIPlayersDisabledException`). Le client lit le flag via `GET /api/config` au boot (slice `appConfigSlice`).
-- **Provider switch** : `appsettings.Development.json` (`Provider=OpenAI`, `BaseUrl=http://localhost:1234/v1`, `MaxConcurrency=1`) vs `appsettings.Production.json` (`Provider=Anthropic`, `DefaultModel=claude-haiku-4-5`, `MaxConcurrency=4`). Choix via `DOTNET_ENVIRONMENT` (défaut `Production`). Pour tester le profil Dev depuis Docker, utiliser l'override `compose.dev.yaml` (cf. section Docker plus haut) — il injecte `DOTNET_ENVIRONMENT=Development` et `LLM__BASEURL=http://host.docker.internal:1234/v1` (le `localhost:1234` d'appsettings est inaccessible depuis un conteneur). La seule différence runtime est le binding de `IChatClient` via `ChatClientFactory` (`SoClover/Infrastructure/AI/ChatClientFactory.cs`).
-- **Secret LLM** : `LLM__APIKEY` est le **seul** paramètre LLM qui vit dans `SoClover/.env` (cf. règle de configuration ci-dessous). En dev pour tester Anthropic : `dotnet user-secrets set "Llm:ApiKey" "sk-ant-..." --project SoClover`. Ne **jamais** committer la clé.
-- **LM Studio** : application desktop, expose un serveur OpenAI-compatible sur `http://localhost:1234/v1` (port configurable dans l'UI). L'`ApiKey` n'est pas vérifiée — `"lm-studio"` factice suffit mais doit être non-vide (`LlmOptionsValidator`).
-- **Structured logs** : chaque appel LLM produit 1 log "AI clue LLM call completed" (`LatencyMs`, `Provider`, `Model`, `PromptVersion`, `Attempt`, `RemainingDirections`). Chaque clue validée/rejetée produit 1 log avec `IsValid` + `RejectionRules`. Utiliser ces props pour comparer 2 versions de prompt (`PromptVersion` = champ `version:` du frontmatter de `Infrastructure/AI/Prompts/<lang>/*.md`).
-- **Procédure opérateur complète** : `docs/ai-players/Operations_AI_Players.md`. Résultats de validation : `docs/ai-players/Epic_08_Validation_Results.md`.
-- **Troubleshooting** :
-  - `Connection refused: localhost:1234` → LM Studio pas démarré ou port différent (Settings → Server).
-  - `LlmBudgetExhaustedException` → `Llm.maxCallsPerGame` atteint (défaut 200 dans `appsettings.json`).
-  - `LLM returned invalid JSON` → modèle local trop faible. Tester un autre modèle ou baisser `defaultTemperature` à 0.3.
-  - Anthropic 429 → rate-limit du tier ; baisser `maxConcurrency` à 2 ou monter de tier.
+- **Procédure complète** : `docs/ai-players/Operations_AI_Players.md` (setup, troubleshooting, A/B reasoning). Résultats de validation : `docs/ai-players/Epic_08_Validation_Results.md`.
+- **Prompts** : format, placeholders & hot-reload dans `Infrastructure/AI/Prompts/README.md`.
+- **Feature flag** : `AIPlayers.Enabled` dans `appsettings*.json`. Quand désactivé, endpoint `POST /api/games/{id}/ai-players` renvoie 403 et le bouton lobby est grisé. Frontend lit le flag via `GET /api/config` au boot (slice `appConfigSlice`).
+- **Provider** : Development = LM Studio (`localhost:1234/v1`, `MaxConcurrency=1`), Production = Anthropic (`claude-haiku-4-5`, `MaxConcurrency=4`). Switch via `DOTNET_ENVIRONMENT`. Docker : utiliser `compose.dev.yaml` (injecte `LLM__BASEURL=http://host.docker.internal:1234/v1`). Binding via `ChatClientFactory`.
+- **Secret** : `LLM__APIKEY` uniquement dans `.env` — jamais committé. Dev Anthropic : `dotnet user-secrets set "Llm:ApiKey" "sk-ant-..." --project SoClover`.
+- **Structured logs** : log "AI clue LLM call completed" par appel (`LatencyMs`, `Provider`, `Model`, `PromptVersion`, `Attempt`, `RemainingDirections`) + log par clue (`IsValid`, `RejectionRules`). `PromptVersion` = champ `version:` du frontmatter du fichier prompt.
+- **Mode reasoning** : flag `Llm.ReasoningEnabled` (défaut `false`). OFF = prompt prescriptif, JSON uniquement. ON = section `# REASONING` appendée au system prompt + paramètres natifs provider injectés via `IReasoningRequestConfigurator` (`ReasoningEffort` OpenAI, `ThinkingBudgetTokens` Anthropic). Certains modèles nécessitent un system prompt trigger (`Llm.ReasoningSystemPromptPath`) pour activer leur reasoning natif.
+- **Prompts AI Clues** : deux fichiers co-localisés par langue dans `SoClover/Infrastructure/AI/Prompts/<lang>/` :
+  - `board-clues.md` — utilisé par le pipeline `PerBoard` (multi-directions, JSON `{ clues: [...] }`).
+  - `board-clues-per-direction.md` — utilisé par le pipeline `PerDirection` (mono-cible, JSON `{ direction, clueWord, explanation }`).
+  Convention : **le pipeline détermine le prompt** (jamais déduit du `remaining.Count`) → pas de fuite cross-mode lors d'un retry partiel PerBoard. La traçabilité est dans `PromptVersion` du log structuré « AI clue LLM call completed ».
 
 ## Testing
 
@@ -138,7 +138,7 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env.dev up -d
 ## Configuration
 
 **Règle directrice — qui met quoi** (pattern .NET idiomatique multi-couches) :
-- `appsettings.json` : défauts partagés, non-secrets, communs à tous les environnements (`GameDefaults`, tuning `Llm` : `defaultTemperature`, `maxRetries`, `timeoutSeconds`, `maxCallsPerGame`).
+- `appsettings.json` : défauts partagés, non-secrets, communs à tous les environnements (`GameDefaults`, tuning `Llm` : `defaultTemperature`, `topP`, `maxOutputTokens`, `maxRetries`, `timeoutSeconds`, `maxCallsPerGame`). `topP` et `maxOutputTokens` sont nullables (null = défaut du provider) et appliqués sur le `ChatOptions` de chaque appel (`GenerateAIClues.CallLlmAsync`). `defaultTemperature` sert de défaut quand le joueur IA n'a pas de température explicite dans son `AIConfig`. Pour les modèles reasoning Mistral, reco : `temp 1.0 / topP 0.95` + `maxRetries 0` (un run reasoning échoué coûte cher, inutile de retenter ×3).
 - `appsettings.{Environment}.json` : overrides non-secrets spécifiques à un environnement (`Llm.Provider/BaseUrl/DefaultModel/MaxConcurrency`, `AIPlayers.Enabled`). Versionné, auditable.
 - `SoClover/.env` (et `.env.dev`) : secrets uniquement (`LLM__APIKEY`, `POSTGRES_*`) et vars frontend (`VITE_*`). Jamais committés. Template : `SoClover/.env.example`.
 - `SoClover/compose.dev.yaml` : override compose pour lancer le profil Development en Docker (injecte `DOTNET_ENVIRONMENT` et `LLM__BASEURL` vers `host.docker.internal`). Versionné, c'est le seul endroit qui contredit appsettings — par design, puisque l'URL `localhost` y est inutilisable.

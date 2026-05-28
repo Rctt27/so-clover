@@ -11,11 +11,16 @@ namespace SoClover.Tests.AI;
 public sealed class InlinePromptProvider : IAiCluePromptProvider
 {
     private readonly Func<BoardCluesPromptContext, AiCluePromptBundle> _build;
+    private readonly Func<BoardCluesPromptContext, AiCluePromptBundle> _buildSingle;
 
-    public InlinePromptProvider(string language, Func<BoardCluesPromptContext, AiCluePromptBundle> build)
+    public InlinePromptProvider(
+        string language,
+        Func<BoardCluesPromptContext, AiCluePromptBundle> build,
+        Func<BoardCluesPromptContext, AiCluePromptBundle>? buildSingle = null)
     {
         Language = language;
         _build = build;
+        _buildSingle = buildSingle ?? build;
     }
 
     public InlinePromptProvider(string language, AiCluePromptBundle fixedBundle)
@@ -25,6 +30,15 @@ public sealed class InlinePromptProvider : IAiCluePromptProvider
 
     public AiCluePromptBundle BuildBoardCluesPrompt(BoardCluesPromptContext context)
         => _build(context);
+
+    public AiCluePromptBundle BuildSingleDirectionCluePrompt(BoardCluesPromptContext context)
+    {
+        if (context.RemainingDirections.Count != 1)
+            throw new ArgumentException(
+                "BuildSingleDirectionCluePrompt requires exactly 1 remaining direction.",
+                nameof(context));
+        return _buildSingle(context);
+    }
 
     public string FormatRejectionReason(ClueValidationResult result)
         => string.Join("; ", result.Errors.Select(e => $"{e.Rule}:{e.CardWord}"));

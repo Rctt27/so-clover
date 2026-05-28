@@ -155,4 +155,83 @@ public class LlmOptionsValidatorTests
 
         Assert.True(result.Succeeded);
     }
+
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(-0.1)]
+    [InlineData(1.1)]
+    public void TopP_outside_0_exclusive_to_1_is_rejected(double invalid)
+    {
+        var validator = new LlmOptionsValidator();
+        var opts = new LlmOptions { TopP = invalid };
+
+        var result = validator.Validate(name: null, options: opts);
+
+        Assert.True(result.Failed);
+        Assert.Contains(result.Failures!, f => f.Contains("TopP", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData(0.95)]
+    [InlineData(1.0)]
+    [InlineData(0.1)]
+    public void TopP_in_valid_range_is_accepted(double valid)
+    {
+        var validator = new LlmOptionsValidator();
+        var opts = new LlmOptions { TopP = valid };
+
+        var result = validator.Validate(name: null, options: opts);
+
+        Assert.True(result.Succeeded);
+    }
+
+    [Fact]
+    public void Null_TopP_and_MaxOutputTokens_are_accepted()
+    {
+        var validator = new LlmOptionsValidator();
+        var opts = new LlmOptions { TopP = null, MaxOutputTokens = null };
+
+        var result = validator.Validate(name: null, options: opts);
+
+        Assert.True(result.Succeeded);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void MaxOutputTokens_below_1_is_rejected(int invalid)
+    {
+        var validator = new LlmOptionsValidator();
+        var opts = new LlmOptions { MaxOutputTokens = invalid };
+
+        var result = validator.Validate(name: null, options: opts);
+
+        Assert.True(result.Failed);
+        Assert.Contains(result.Failures!, f => f.Contains("MaxOutputTokens", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void GenerationMode_outside_enum_is_rejected()
+    {
+        var validator = new LlmOptionsValidator();
+        var opts = new LlmOptions { GenerationMode = (AiClueGenerationMode)99 };
+
+        var result = validator.Validate(name: null, options: opts);
+
+        Assert.True(result.Failed);
+        Assert.Contains(result.Failures!, f => f.Contains("GenerationMode", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData(AiClueGenerationMode.PerBoard)]
+    [InlineData(AiClueGenerationMode.PerDirection)]
+    public void GenerationMode_defined_values_are_accepted(AiClueGenerationMode valid)
+    {
+        var validator = new LlmOptionsValidator();
+        var opts = new LlmOptions { GenerationMode = valid };
+
+        var result = validator.Validate(name: null, options: opts);
+
+        Assert.True(result.Succeeded);
+    }
 }

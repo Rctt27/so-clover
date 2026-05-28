@@ -20,6 +20,9 @@ public sealed class FakeChatClient : IChatClient
 
     public int CallCount => _calls.Count;
 
+    /// <summary>Options passed to the most recent GetResponseAsync call (for asserting sampling/params).</summary>
+    public ChatOptions? LastOptions { get; private set; }
+
     /// <summary>Enqueues a string response, optionally delayed to simulate latency.</summary>
     public void Enqueue(string text, TimeSpan? artificialDelay = null)
     {
@@ -38,6 +41,7 @@ public sealed class FakeChatClient : IChatClient
         CancellationToken cancellationToken = default)
     {
         var start = DateTime.UtcNow;
+        LastOptions = options;
 
         if (!_queue.TryDequeue(out var scripted))
         {

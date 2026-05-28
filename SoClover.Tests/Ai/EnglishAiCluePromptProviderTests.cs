@@ -81,4 +81,21 @@ public sealed class EnglishAiCluePromptProviderTests
         Assert.Contains("ExactMatch", reason);
         Assert.DoesNotContain("avec le mot", reason);
     }
+
+    [Fact]
+    public void BuildBoardCluesPrompt_includes_reasoning_block_in_system_when_reasoning_enabled()
+    {
+        var bundle = new EnglishAiCluePromptProvider()
+            .BuildBoardCluesPrompt(SampleContext() with { IncludeReasoning = true });
+
+        Assert.Contains("mentally and compactly", bundle.SystemPrompt);
+    }
+
+    [Fact]
+    public void BuildBoardCluesPrompt_omits_reasoning_block_when_reasoning_disabled_by_default()
+    {
+        var bundle = new EnglishAiCluePromptProvider().BuildBoardCluesPrompt(SampleContext());
+
+        Assert.DoesNotContain("mentally and compactly", bundle.SystemPrompt);
+    }
 }

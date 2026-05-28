@@ -21,7 +21,10 @@ internal static class AiTestProvider
     public static ServiceProvider Build(
         IChatClient chatClient,
         int budgetMaxCallsPerGame = 50,
-        Func<BoardCluesPromptContext, AiCluePromptBundle>? promptBuild = null)
+        Func<BoardCluesPromptContext, AiCluePromptBundle>? promptBuild = null,
+        double? topP = null,
+        int? maxOutputTokens = null,
+        double? defaultTemperature = null)
     {
         var services = new ServiceCollection();
         services.AddSingleton<IGameRepository, InMemoryGameRepository>();
@@ -41,6 +44,9 @@ internal static class AiTestProvider
         {
             MaxRetries = 2,
             MaxCallsPerGame = Math.Max(1, budgetMaxCallsPerGame),
+            TopP = topP,
+            MaxOutputTokens = maxOutputTokens,
+            DefaultTemperature = defaultTemperature ?? 0.7,
         }));
         services.AddSingleton(sp => new GameLlmBudget(
             sp.GetRequiredService<IOptions<LlmOptions>>().Value.MaxCallsPerGame));
