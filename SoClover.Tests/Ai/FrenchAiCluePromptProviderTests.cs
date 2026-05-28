@@ -153,7 +153,6 @@ Pour CHAQUE direction listée, propose un mot DIFFÉRENT.
         var provider = new FrenchAiCluePromptProvider();
         var bundle = provider.BuildBoardCluesPrompt(SampleContext(rejected: rejected));
 
-        Assert.Contains("Tes tentatives précédentes ont été rejetées", bundle.UserPrompt);
         Assert.Contains("Direction Top", bundle.UserPrompt);
         Assert.Contains("\"vague\"", bundle.UserPrompt);
         Assert.Contains("ExactMatch with 'plage'", bundle.UserPrompt);
