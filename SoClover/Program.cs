@@ -100,8 +100,16 @@ builder.Services.AddSingleton<SoClover.Infrastructure.AI.Prompts.IAiCluePromptPr
 // Epic 06 — clue generation pipeline
 builder.Services.AddSingleton<SoClover.Infrastructure.AI.IAiClueExplanationStore,
                               SoClover.Infrastructure.AI.InMemoryAiClueExplanationStore>();
-builder.Services.AddTransient<SoClover.UseCases.AI.IGenerateAICluesUseCase,
-                              SoClover.UseCases.AI.GenerateAIClues.Handler>();
+builder.Services.AddTransient<SoClover.UseCases.AI.IGenerateAICluesUseCase>(sp =>
+{
+    var mode = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SoClover.Infrastructure.AI.LlmOptions>>()
+                 .Value.GenerationMode;
+    return mode == SoClover.Infrastructure.AI.AiClueGenerationMode.PerDirection
+        ? Microsoft.Extensions.DependencyInjection.ActivatorUtilities
+            .CreateInstance<SoClover.UseCases.AI.GenerateAICluesPerDirection.Handler>(sp)
+        : Microsoft.Extensions.DependencyInjection.ActivatorUtilities
+            .CreateInstance<SoClover.UseCases.AI.GenerateAIClues.Handler>(sp);
+});
 // Epic 07 — Background orchestration for AI clue generation.
 // AiClueWorkChannel is a singleton (one process-wide bounded queue).
 // The hosted service drains it and dispatches to IGenerateAICluesUseCase.
