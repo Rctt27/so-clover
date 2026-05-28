@@ -24,7 +24,9 @@ internal static class AiTestProvider
         Func<BoardCluesPromptContext, AiCluePromptBundle>? promptBuild = null,
         double? topP = null,
         int? maxOutputTokens = null,
-        double? defaultTemperature = null)
+        double? defaultTemperature = null,
+        AiClueGenerationMode generationMode = AiClueGenerationMode.PerBoard,
+        bool reasoningEnabled = false)
     {
         var services = new ServiceCollection();
         services.AddSingleton<IGameRepository, InMemoryGameRepository>();
@@ -47,6 +49,8 @@ internal static class AiTestProvider
             TopP = topP,
             MaxOutputTokens = maxOutputTokens,
             DefaultTemperature = defaultTemperature ?? 0.7,
+            GenerationMode = generationMode,
+            ReasoningEnabled = reasoningEnabled,
         }));
         services.AddSingleton(sp => new GameLlmBudget(
             sp.GetRequiredService<IOptions<LlmOptions>>().Value.MaxCallsPerGame));
@@ -57,7 +61,11 @@ internal static class AiTestProvider
         services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
         services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
         services.AddTransient<ISubmitBoardUseCase, SubmitBoard.Handler>();
-        services.AddTransient<IGenerateAICluesUseCase, GenerateAIClues.Handler>();
+
+        if (generationMode == AiClueGenerationMode.PerDirection)
+            services.AddTransient<IGenerateAICluesUseCase, GenerateAICluesPerDirection.Handler>();
+        else
+            services.AddTransient<IGenerateAICluesUseCase, GenerateAIClues.Handler>();
 
         return services.BuildServiceProvider();
     }
