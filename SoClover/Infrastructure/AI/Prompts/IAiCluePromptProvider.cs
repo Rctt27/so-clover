@@ -9,6 +9,14 @@ public interface IAiCluePromptProvider
     AiCluePromptBundle BuildBoardCluesPrompt(BoardCluesPromptContext context);
 
     /// <summary>
+    /// Mono-target variant used by the PerDirection pipeline. Precondition:
+    /// <c>context.RemainingDirections.Count == 1</c> (otherwise <see cref="ArgumentException"/>).
+    /// Returns a bundle pointing to the dedicated PerDirection prompt and a mono-clue JSON schema
+    /// (single object, no <c>clues</c> wrapper).
+    /// </summary>
+    AiCluePromptBundle BuildSingleDirectionCluePrompt(BoardCluesPromptContext context);
+
+    /// <summary>
     /// Renders a validation rejection into a human-readable reason in this provider's language,
     /// so the retry-feedback block injected into the prompt stays linguistically coherent.
     /// </summary>
