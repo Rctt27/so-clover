@@ -37,7 +37,7 @@ public sealed class FrenchAiCluePromptProviderTests
         File.WriteAllText(fixturePath, template);
         try
         {
-            var provider = new FrenchAiCluePromptProvider(new FilePromptLoader(), fixturePath);
+            var provider = new FrenchAiCluePromptProvider(new FilePromptLoader(), fixturePath, fixturePath);
             body(provider);
         }
         finally
