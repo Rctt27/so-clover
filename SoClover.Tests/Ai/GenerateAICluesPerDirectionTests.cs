@@ -91,4 +91,48 @@ public class GenerateAICluesPerDirectionTests
         var game = await repo.Get(gameId);
         Assert.True(game!.Players.First(p => p.Id == aiPid).Board.IsSubmitted);
     }
+
+    [Fact]
+    public async Task Retry_one_direction_first_attempt_invalid_second_attempt_valid()
+    {
+        var fake = new FakeChatClient();
+        var sp = BuildPerDirection(fake);
+        var (gameId, aiPids) = await AiTestProvider.SetupGameWithAis(sp);
+        var aiPid = aiPids[0];
+
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var board = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPid).Board;
+        var safe = AiTestHelpers.PickSafeClues(board, 4);
+        var conflict = PickConflictWord(board);
+
+        // Top OK
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Top, safe[0], "ok") });
+        // Right : 1re tentative invalide (mot du board), 2e OK
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Right, conflict, "conflit") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Right, safe[1], "ok") });
+        // Bottom + Left OK
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Bottom, safe[2], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Left,   safe[3], "ok") });
+
+        var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
+        var events = sp.GetRequiredService<InMemoryEventPublisher>();
+
+        var response = await useCase.Handle(new GenerateAIClues.Request(gameId, aiPid));
+
+        Assert.Equal(4, response.SucceededCount);
+        Assert.Equal(0, response.FailedCount);
+        Assert.Equal(5, response.LlmCallsConsumed); // 4 directions + 1 retry sur Right
+
+        var generated = events.PublishedEvents.OfType<AiClueGenerated>().ToList();
+        Assert.Equal(4, generated.Count);
+
+        var game = await repo.Get(gameId);
+        Assert.True(game!.Players.First(p => p.Id == aiPid).Board.IsSubmitted);
+    }
+
+    private static string PickConflictWord(CloverBoard board)
+    {
+        // Réutilise le pattern du test PerBoard : prend un mot apparaissant déjà sur le board pour forcer un rejet.
+        return board.TopLeft!.GetWord(Direction.Top);
+    }
 }
