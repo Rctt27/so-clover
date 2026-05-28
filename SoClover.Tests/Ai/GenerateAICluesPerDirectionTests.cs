@@ -212,6 +212,70 @@ public class GenerateAICluesPerDirectionTests
         Assert.All(capturedRemaining, c => Assert.Equal(1, c));
     }
 
+    [Fact]
+    public async Task ReasoningDisabled_propagates_IncludeReasoning_false_to_prompt_context()
+    {
+        var fake = new FakeChatClient();
+        var capturedIncludeReasoning = new List<bool>();
+        var sp = BuildPerDirection(
+            fake,
+            promptBuild: ctx =>
+            {
+                capturedIncludeReasoning.Add(ctx.IncludeReasoning);
+                return new AiCluePromptBundle("S", "U", "{}");
+            },
+            reasoningEnabled: false);
+        var (gameId, aiPids) = await AiTestProvider.SetupGameWithAis(sp);
+        var aiPid = aiPids[0];
+
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var board = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPid).Board;
+        var safe = AiTestHelpers.PickSafeClues(board, 4);
+
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Top,    safe[0], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Right,  safe[1], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Bottom, safe[2], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Left,   safe[3], "ok") });
+
+        await sp.GetRequiredService<IGenerateAICluesUseCase>()
+            .Handle(new GenerateAIClues.Request(gameId, aiPid));
+
+        Assert.Equal(4, capturedIncludeReasoning.Count);
+        Assert.All(capturedIncludeReasoning, v => Assert.False(v));
+    }
+
+    [Fact]
+    public async Task ReasoningEnabled_propagates_IncludeReasoning_true_to_prompt_context()
+    {
+        var fake = new FakeChatClient();
+        var capturedIncludeReasoning = new List<bool>();
+        var sp = BuildPerDirection(
+            fake,
+            promptBuild: ctx =>
+            {
+                capturedIncludeReasoning.Add(ctx.IncludeReasoning);
+                return new AiCluePromptBundle("S", "U", "{}");
+            },
+            reasoningEnabled: true);
+        var (gameId, aiPids) = await AiTestProvider.SetupGameWithAis(sp);
+        var aiPid = aiPids[0];
+
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var board = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPid).Board;
+        var safe = AiTestHelpers.PickSafeClues(board, 4);
+
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Top,    safe[0], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Right,  safe[1], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Bottom, safe[2], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Left,   safe[3], "ok") });
+
+        await sp.GetRequiredService<IGenerateAICluesUseCase>()
+            .Handle(new GenerateAIClues.Request(gameId, aiPid));
+
+        Assert.Equal(4, capturedIncludeReasoning.Count);
+        Assert.All(capturedIncludeReasoning, v => Assert.True(v));
+    }
+
     private static string PickConflictWord(CloverBoard board)
     {
         // Réutilise le pattern du test PerBoard : prend un mot apparaissant déjà sur le board pour forcer un rejet.
