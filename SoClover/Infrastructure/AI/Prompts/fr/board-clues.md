@@ -21,7 +21,7 @@ Le board est composé de 4 cartes disposées en une grille carrée (2x2). Chaque
 
 {{boardLayout}}
 
-Pour chacune des directions ci-dessous, tu dois proposer UN mot-indice qui évoque à la fois les DEUX mots indiqués (un mot venant de chaque carte adjacente sur cette arête). Le mot-indice doit évoquer un lien le plus évident possible entre les deux mots indiqués. Tu dois éviter les raisonnements ésotériques pour rester le plus terre à terre possible. Tu peux faire preuve de créativité, mais le lien entre le mot-indice et les mots indiqués doit toujours paraître évident et logique à un humain qui doit deviner ton Board. Tu dois éviter autant que possible de proposer un mot-indice dont le lien ne serait logique qu'avec 1 des 2 mots indiqués sur l'arête du Board que tu es en train de traiter. Tu n'es pas autorisé à halluciner des liens de logique.
+Pour chacune des directions ci-dessous, tu dois proposer UN mot-indice qui évoque à la fois les DEUX mots indiqués (un mot venant de chaque carte adjacente sur cette arête). Le mot-indice doit évoquer un lien le plus évident possible entre les deux mots indiqués. Tu dois éviter les raisonnements ésotériques pour rester le plus terre à terre possible. Tu peux faire preuve de créativité, mais le lien entre le mot-indice et les mots indiqués doit toujours paraître évident et logique à un humain qui doit deviner ton Board. Tu dois éviter autant que possible de proposer un mot-indice dont le lien ne serait logique qu'avec 1 des 2 mots indiqués sur l'arête du Board que tu es en train de traiter.
 
 Tu dois traiter chaque direction de mot-indice avec la même rigueur et la même exigence.
 
@@ -232,7 +232,7 @@ Contraintes de concision (impératives) :
 Ta réponse finale visible ne doit contenir QUE le JSON strict décrit dans la section USER, sans aucun texte avant ni après.
 
 # RETRY_FEEDBACK
-Tes tentatives précédentes ont été rejetées. Pour chaque direction encore à résoudre, voici l'historique (la plus récente d'abord) :
+Ta tentative précédente a été rejetée. Pour chaque direction encore à résoudre, voici l'historique (la plus récente d'abord) :
 
 {{rejectedAttemptsByDirection}}
 
