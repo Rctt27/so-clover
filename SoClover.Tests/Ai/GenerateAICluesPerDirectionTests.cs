@@ -130,6 +130,50 @@ public class GenerateAICluesPerDirectionTests
         Assert.True(game!.Players.First(p => p.Id == aiPid).Board.IsSubmitted);
     }
 
+    [Fact]
+    public async Task PartialExhaustion_two_directions_fail_after_max_retries_no_auto_submit()
+    {
+        var fake = new FakeChatClient();
+        var sp = BuildPerDirection(fake);
+        var (gameId, aiPids) = await AiTestProvider.SetupGameWithAis(sp);
+        var aiPid = aiPids[0];
+
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var board = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPid).Board;
+        var safe = AiTestHelpers.PickSafeClues(board, 2);
+        var conflict = PickConflictWord(board);
+
+        // Top OK, Right : 3 tentatives invalides, Bottom OK, Left : 3 tentatives invalides.
+        // MaxRetries=2 (cf. AiTestProvider) → maxAttempts=3 par direction.
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Top, safe[0], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Right, conflict, "c1") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Right, conflict, "c2") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Right, conflict, "c3") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Bottom, safe[1], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Left, conflict, "c1") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Left, conflict, "c2") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Left, conflict, "c3") });
+
+        var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
+        var events = sp.GetRequiredService<InMemoryEventPublisher>();
+
+        var response = await useCase.Handle(new GenerateAIClues.Request(gameId, aiPid));
+
+        Assert.Equal(2, response.SucceededCount);
+        Assert.Equal(2, response.FailedCount);
+        Assert.Equal(8, response.LlmCallsConsumed);
+
+        // Events finaux émis par la base pour Right et Left
+        var failed = events.PublishedEvents.OfType<AiClueGenerationFailed>().ToList();
+        Assert.Contains(failed, e => e.Direction == Direction.Right);
+        Assert.Contains(failed, e => e.Direction == Direction.Left);
+        Assert.Contains(events.PublishedEvents.OfType<AiPlayerBoardFailed>(), _ => true);
+
+        // Pas d'auto-submit
+        var game = await repo.Get(gameId);
+        Assert.False(game!.Players.First(p => p.Id == aiPid).Board.IsSubmitted);
+    }
+
     private static string PickConflictWord(CloverBoard board)
     {
         // Réutilise le pattern du test PerBoard : prend un mot apparaissant déjà sur le board pour forcer un rejet.
