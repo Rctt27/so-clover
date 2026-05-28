@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -56,7 +57,23 @@ public static class GenerateAICluesPerDirection
                     {
                         var single = new HashSet<Direction> { dir };
                         (draft, _) = await CallLlmAsync(
-                            game, player, single, rejectedHistory, promptProvider, attempt, ct);
+                            game, player, single, rejectedHistory, promptProvider, attempt, ct,
+                            buildBundle: static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                            parseResponse: static text =>
+                            {
+                                // Tolérance : accepte le format mono-clue (canonique pour PerDirection) OU
+                                // le format wrapped { clues: [...] } (compat tests + modèles non-strict).
+                                using var doc = JsonDocument.Parse(text);
+                                if (doc.RootElement.ValueKind == JsonValueKind.Object
+                                    && doc.RootElement.TryGetProperty("clues", out _))
+                                {
+                                    return JsonSerializer.Deserialize<AiBoardCluesDraft>(text, JsonOptions)
+                                        ?? throw new InvalidOperationException("LLM returned invalid JSON.");
+                                }
+                                var item = JsonSerializer.Deserialize<AiClueDraft>(text, JsonOptions)
+                                    ?? throw new InvalidOperationException("LLM returned invalid mono-clue JSON.");
+                                return new AiBoardCluesDraft(new[] { item });
+                            });
                     }
                     catch (InvalidOperationException ex)
                     {

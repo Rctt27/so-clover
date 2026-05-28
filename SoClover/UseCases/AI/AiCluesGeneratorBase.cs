@@ -241,8 +241,14 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
         Dictionary<Direction, List<RejectedAttempt>> rejectedHistory,
         IAiCluePromptProvider promptProvider,
         int attempt,
-        CancellationToken ct)
+        CancellationToken ct,
+        Func<IAiCluePromptProvider, BoardCluesPromptContext, AiCluePromptBundle>? buildBundle = null,
+        Func<string, AiBoardCluesDraft>? parseResponse = null)
     {
+        buildBundle ??= static (p, ctx) => p.BuildBoardCluesPrompt(ctx);
+        parseResponse ??= static text => JsonSerializer.Deserialize<AiBoardCluesDraft>(text, JsonOptions)
+            ?? throw new InvalidOperationException("LLM returned invalid JSON.");
+
         var cards = BuildBoardCardSnapshots(player.Board);
         var rejectedRO = rejectedHistory.ToDictionary(
             kv => kv.Key,
@@ -251,7 +257,7 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
         var context = new BoardCluesPromptContext(
             game.Language, cards, remaining.ToList().AsReadOnly(), rejectedRO,
             IncludeReasoning: reasoningEnabled);
-        var bundle = promptProvider.BuildBoardCluesPrompt(context);
+        var bundle = buildBundle(promptProvider, context);
 
         var systemPrompt = bundle.SystemPrompt;
         if (reasoningEnabled)
@@ -299,8 +305,7 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
             throw new InvalidOperationException("LLM returned an empty response.");
         text = StripThinkTags(text);
         text = StripJsonFences(text);
-        var draft = JsonSerializer.Deserialize<AiBoardCluesDraft>(text, JsonOptions)
-            ?? throw new InvalidOperationException("LLM returned invalid JSON.");
+        var draft = parseResponse(text);
         _lastPromptVersion = bundle.PromptVersion;
         return (draft, bundle.PromptVersion);
     }

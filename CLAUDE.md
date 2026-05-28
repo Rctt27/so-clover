@@ -113,6 +113,10 @@ npm run dev   # Proxy automatique vers localhost:5000
 - **Secret** : `LLM__APIKEY` uniquement dans `.env` — jamais committé. Dev Anthropic : `dotnet user-secrets set "Llm:ApiKey" "sk-ant-..." --project SoClover`.
 - **Structured logs** : log "AI clue LLM call completed" par appel (`LatencyMs`, `Provider`, `Model`, `PromptVersion`, `Attempt`, `RemainingDirections`) + log par clue (`IsValid`, `RejectionRules`). `PromptVersion` = champ `version:` du frontmatter du fichier prompt.
 - **Mode reasoning** : flag `Llm.ReasoningEnabled` (défaut `false`). OFF = prompt prescriptif, JSON uniquement. ON = section `# REASONING` appendée au system prompt + paramètres natifs provider injectés via `IReasoningRequestConfigurator` (`ReasoningEffort` OpenAI, `ThinkingBudgetTokens` Anthropic). Certains modèles nécessitent un system prompt trigger (`Llm.ReasoningSystemPromptPath`) pour activer leur reasoning natif.
+- **Prompts AI Clues** : deux fichiers co-localisés par langue dans `SoClover/Infrastructure/AI/Prompts/<lang>/` :
+  - `board-clues.md` — utilisé par le pipeline `PerBoard` (multi-directions, JSON `{ clues: [...] }`).
+  - `board-clues-per-direction.md` — utilisé par le pipeline `PerDirection` (mono-cible, JSON `{ direction, clueWord, explanation }`).
+  Convention : **le pipeline détermine le prompt** (jamais déduit du `remaining.Count`) → pas de fuite cross-mode lors d'un retry partiel PerBoard. La traçabilité est dans `PromptVersion` du log structuré « AI clue LLM call completed ».
 
 ## Testing
 
