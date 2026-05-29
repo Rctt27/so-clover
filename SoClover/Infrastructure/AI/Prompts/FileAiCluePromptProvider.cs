@@ -77,6 +77,7 @@ public abstract class FileAiCluePromptProvider : IAiCluePromptProvider
     private readonly FilePromptLoader _loader;
     private readonly string _promptFilePath;
     private readonly string _perDirectionPromptFilePath;
+    private readonly string? _perDirectionReasoningPromptFilePath;
     private readonly AiCluePromptLabels _labels;
 
     protected FileAiCluePromptProvider(
@@ -84,13 +85,15 @@ public abstract class FileAiCluePromptProvider : IAiCluePromptProvider
         string promptFilePath,
         string perDirectionPromptFilePath,
         AiCluePromptLabels labels,
-        string language)
+        string language,
+        string? perDirectionReasoningPromptFilePath = null)
     {
         _loader = loader;
         _promptFilePath = promptFilePath;
         _perDirectionPromptFilePath = perDirectionPromptFilePath;
         _labels = labels;
         Language = language;
+        _perDirectionReasoningPromptFilePath = perDirectionReasoningPromptFilePath;
     }
 
     public string Language { get; }
@@ -118,8 +121,28 @@ public abstract class FileAiCluePromptProvider : IAiCluePromptProvider
                 "BuildSingleDirectionCluePrompt requires exactly 1 remaining direction.",
                 nameof(context));
 
-        var sections = _loader.Load(_perDirectionPromptFilePath);
         var cardsByPosition = context.Cards.ToDictionary(c => c.Position);
+
+        // Variante reasoning dédiée : fichier opt-in par langue, fail-fast.
+        // Le fichier IS la variante reasoning → aucune section # REASONING n'est appendée.
+        if (context.IncludeReasoning && _perDirectionReasoningPromptFilePath is not null)
+        {
+            if (!File.Exists(_perDirectionReasoningPromptFilePath))
+                throw new FileNotFoundException(
+                    "Reasoning-dedicated PerDirection prompt missing",
+                    _perDirectionReasoningPromptFilePath);
+
+            var reasoningSections = _loader.Load(_perDirectionReasoningPromptFilePath);
+            var reasoningUser = SubstituteUserSingle(
+                reasoningSections.User, reasoningSections.RetryFeedback, context, cardsByPosition);
+            return new AiCluePromptBundle(
+                reasoningSections.System.Trim(),
+                reasoningUser,
+                SingleClueJsonSchemaText,
+                reasoningSections.Version);
+        }
+
+        var sections = _loader.Load(_perDirectionPromptFilePath);
 
         var system = sections.System.Trim();
         if (context.IncludeReasoning && !string.IsNullOrWhiteSpace(sections.Reasoning))
