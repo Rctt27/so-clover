@@ -60,6 +60,7 @@ docker compose --env-file .env build --no-cache web
 docker compose --env-file .env up -d
 
 # Profil Development (LM Studio) via override
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env.dev build --no-cache
 docker compose -f compose.yaml -f compose.dev.yaml --env-file .env.dev up -d
 ```
 - `compose.yaml` est la base prod-ready. `compose.dev.yaml` est un override qui injecte `DOTNET_ENVIRONMENT=Development` et `LLM__BASEURL=http://host.docker.internal:1234/v1` pour parler à LM Studio sur l'hôte.
@@ -112,7 +113,7 @@ npm run dev   # Proxy automatique vers localhost:5000
 - **Provider** : Development = LM Studio (`localhost:1234/v1`, `MaxConcurrency=1`), Production = Anthropic (`claude-haiku-4-5`, `MaxConcurrency=4`). Switch via `DOTNET_ENVIRONMENT`. Docker : utiliser `compose.dev.yaml` (injecte `LLM__BASEURL=http://host.docker.internal:1234/v1`). Binding via `ChatClientFactory`.
 - **Secret** : `LLM__APIKEY` uniquement dans `.env` — jamais committé. Dev Anthropic : `dotnet user-secrets set "Llm:ApiKey" "sk-ant-..." --project SoClover`.
 - **Structured logs** : log "AI clue LLM call completed" par appel (`LatencyMs`, `Provider`, `Model`, `PromptVersion`, `Attempt`, `RemainingDirections`) + log par clue (`IsValid`, `RejectionRules`). `PromptVersion` = champ `version:` du frontmatter du fichier prompt.
-- **Mode reasoning** : flag `Llm.ReasoningEnabled` (défaut `false`). OFF = prompt prescriptif, JSON uniquement. ON = section `# REASONING` appendée au system prompt + paramètres natifs provider injectés via `IReasoningRequestConfigurator` (`ReasoningEffort` OpenAI, `ThinkingBudgetTokens` Anthropic). Certains modèles nécessitent un system prompt trigger (`Llm.ReasoningSystemPromptPath`) pour activer leur reasoning natif.
+- **Mode reasoning** : flag `Llm.ReasoningEnabled` (défaut `false`). OFF = prompt prescriptif, JSON uniquement. ON = section `# REASONING` appendée au system prompt + paramètres natifs provider injectés via `IReasoningRequestConfigurator` (`ReasoningEffort` OpenAI, `ThinkingBudgetTokens` Anthropic). Certains modèles nécessitent un system prompt trigger (`Llm.ReasoningSystemPromptPathEnabler`) pour activer leur reasoning natif.
 - **Mode de génération** : flag `Llm.GenerationMode` (défaut `PerBoard`, surcharge `LLM__GENERATIONMODE`). `PerBoard` = 1 appel LLM par board couvrant les 4 directions restantes (pipeline historique). `PerDirection` = 1 appel par direction (jusqu'à 4 appels séquentiels par board). Sélection câblée dans `Program.cs` via `ActivatorUtilities.CreateInstance` selon `IOptions<LlmOptions>.GenerationMode` → résout `GenerateAIClues.Handler` ou `GenerateAICluesPerDirection.Handler`. Motivation : `PerDirection` fiabilise la convergence des modèles reasoning locaux (ministral 14B) qui n'émettaient pas le JSON final en `PerBoard`.
 - **Matrice 2×2 (granularité × reasoning)** : les axes `GenerationMode` et `ReasoningEnabled` sont **orthogonaux** — les 4 combinaisons sont valides et indépendantes (`PerDirection` + reasoning OFF est jugé prometteur côté qualité/coût). Le découplage est garanti par la factorisation dans `AiCluesGeneratorBase.CallLlmAsync` (lit `ReasoningEnabled` quel que soit le pipeline appelant).
 - **Coût & latence PerDirection** : worst-case **4×(MaxRetries+1)** appels par board (avec `maxRetries: 0` reco reasoning → exactement 4 appels). Consomme donc `maxCallsPerGame` plus vite que `PerBoard`. Exécution **séquentielle** (pas de mutation concurrente de `Game`) → latence totale = somme des appels ; en reasoning mode le total peut être lourd, mais chaque appel single-direction reste plus court à converger qu'un appel multi-directions.
@@ -130,14 +131,6 @@ Key test files:
 - `DomainRotationTests.cs` - Card rotation logic
 
 Tests use `TestClock` for time control and `InMemoryGameRepository` for isolation.
-
-## Local Docker End-to-end testing
-
-Developer needs to perform end-to-end testing on local dev env using Docker before push new code
-```bash
-docker compose -f compose.yaml -f compose.dev.yaml --env-file .env.dev build --no-cache
-docker compose -f compose.yaml -f compose.dev.yaml --env-file .env.dev up -d
-```
 
 ## Configuration
 
