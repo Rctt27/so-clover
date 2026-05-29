@@ -197,6 +197,24 @@ public sealed class SignalREventPublisher : IEventPublisher
                         }, ct);
                     break;
                 }
+                case SoClover.UseCases.AI.AiClueProgressUpdate aiProgress:
+                {
+                    await _hub.Clients.Group($"game-{state.GameId}")
+                        .SendAsync("AiClueProgressUpdate", new
+                        {
+                            gameId = state.GameId,
+                            playerId = aiProgress.PlayerId.Value.ToString(),
+                            cluesSubmitted = aiProgress.CluesSubmitted,
+                            retriesByDirection = new
+                            {
+                                top = aiProgress.RetriesByDirection.GetValueOrDefault(Direction.Top),
+                                right = aiProgress.RetriesByDirection.GetValueOrDefault(Direction.Right),
+                                bottom = aiProgress.RetriesByDirection.GetValueOrDefault(Direction.Bottom),
+                                left = aiProgress.RetriesByDirection.GetValueOrDefault(Direction.Left)
+                            }
+                        }, ct);
+                    break;
+                }
                 case SoClover.UseCases.AI.AiClueGenerationFailed aiFail:
                 {
                     await _hub.Clients.Group($"game-{state.GameId}")

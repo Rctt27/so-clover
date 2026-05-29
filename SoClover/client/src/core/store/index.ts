@@ -7,6 +7,18 @@ import { createGuessingSlice, GuessingSlice } from './guessingSlice'
 import { createAppConfigSlice, AppConfigSlice } from './appConfigSlice'
 import { isDebug } from '../debug'
 
+export interface AiClueRetries {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
+
+export interface AiClueProgress {
+  submitted: number
+  retries: AiClueRetries
+}
+
 interface GameState {
   gameId: string | null
   playerId: string | null
@@ -20,6 +32,7 @@ interface GameState {
   isInitializing: boolean
   phaseEndsAtUtc: string | null
   aiGeneratingPlayerIds: string[]
+  aiClueProgress: Record<string, AiClueProgress>
   settings: {
     language: string
     cluesDurationSeconds: number
@@ -30,6 +43,8 @@ interface GameState {
   setPhase: (phase: GamePhase) => void
   markAiGenerating: (playerId: string) => void
   clearAiGenerating: (playerId: string) => void
+  setAiClueProgress: (playerId: string, submitted: number, retries: AiClueRetries) => void
+  clearAiClueProgress: (playerId: string) => void
   setRole: (role: Role) => void
   setIsGameAdmin: (isAdmin: boolean) => void
   setAdminPlayerId: (adminPlayerId: string | null) => void
@@ -57,6 +72,7 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
   players: [],
   phaseEndsAtUtc: null,
   aiGeneratingPlayerIds: [],
+  aiClueProgress: {},
   settings: {
     language: 'Français_OFF',
     cluesDurationSeconds: 300,
@@ -65,7 +81,11 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
     guessAiBoardOnly: false,
   },
   setPhase: (phase) => set(
-    (state) => ({ phase, aiGeneratingPlayerIds: phase === 'WritingClues' ? state.aiGeneratingPlayerIds : [] }),
+    (state) => ({
+      phase,
+      aiGeneratingPlayerIds: phase === 'WritingClues' ? state.aiGeneratingPlayerIds : [],
+      aiClueProgress: phase === 'WritingClues' ? state.aiClueProgress : {},
+    }),
     false, 'GameStore/setPhase'
   ),
   markAiGenerating: (playerId) => set(
@@ -79,6 +99,21 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
   clearAiGenerating: (playerId) => set(
     (state) => ({ aiGeneratingPlayerIds: state.aiGeneratingPlayerIds.filter(id => id !== playerId) }),
     false, 'GameStore/clearAiGenerating'
+  ),
+  setAiClueProgress: (playerId, submitted, retries) => set(
+    (state) => ({
+      aiClueProgress: { ...state.aiClueProgress, [playerId]: { submitted, retries } }
+    }),
+    false, 'GameStore/setAiClueProgress'
+  ),
+  clearAiClueProgress: (playerId) => set(
+    (state) => {
+      if (!(playerId in state.aiClueProgress)) return state
+      const next = { ...state.aiClueProgress }
+      delete next[playerId]
+      return { aiClueProgress: next }
+    },
+    false, 'GameStore/clearAiClueProgress'
   ),
   setRole: (role) => set({ role }, false, 'GameStore/setRole'),
   setIsGameAdmin: (isGameAdmin) => set({ isGameAdmin }, false, 'GameStore/setIsGameAdmin'),

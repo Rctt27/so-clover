@@ -202,6 +202,8 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
                 "AI clue validated: game={GameId} player={PlayerId} direction={Direction} clueText={ClueText} isValid={IsValid} promptVersion={PromptVersion} provider={LlmProvider} model={LlmModel}",
                 game.Id.Value, player.Id.Value, dir, item.ClueWord, true,
                 _lastPromptVersion, _llmOptions.Value.Provider, _llmOptions.Value.DefaultModel);
+
+            await PublishProgressAsync(game, player, rejectedHistory, ct);
             return true;
         }
 
@@ -212,7 +214,39 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
             "AI clue rejected: game={GameId} player={PlayerId} direction={Direction} clueText={ClueText} isValid={IsValid} rejectionRules={RejectionRules} promptVersion={PromptVersion} provider={LlmProvider} model={LlmModel}",
             game.Id.Value, player.Id.Value, dir, item.ClueWord, false,
             rules, _lastPromptVersion, _llmOptions.Value.Provider, _llmOptions.Value.DefaultModel);
+
+        await PublishProgressAsync(game, player, rejectedHistory, ct);
         return false;
+    }
+
+    /// <summary>
+    /// Émet la progression absolue du board (indices validés + retries par direction).
+    /// Appelée après chaque tentative (succès ou rejet) depuis la méthode partagée
+    /// <see cref="TryApplyClueAsync"/> → les deux pipelines (PerBoard / PerDirection) en bénéficient.
+    /// </summary>
+    private async Task PublishProgressAsync(
+        Game game,
+        Player player,
+        Dictionary<Direction, List<RejectedAttempt>> rejectedHistory,
+        CancellationToken ct)
+    {
+        var board = player.Board;
+        var submitted = 0;
+        if (board.TopClue is not null)    submitted++;
+        if (board.RightClue is not null)  submitted++;
+        if (board.BottomClue is not null) submitted++;
+        if (board.LeftClue is not null)   submitted++;
+
+        var retries = new Dictionary<Direction, int>
+        {
+            [Direction.Top]    = rejectedHistory.GetValueOrDefault(Direction.Top)?.Count ?? 0,
+            [Direction.Right]  = rejectedHistory.GetValueOrDefault(Direction.Right)?.Count ?? 0,
+            [Direction.Bottom] = rejectedHistory.GetValueOrDefault(Direction.Bottom)?.Count ?? 0,
+            [Direction.Left]   = rejectedHistory.GetValueOrDefault(Direction.Left)?.Count ?? 0,
+        };
+
+        await _events.Publish(
+            new AiClueProgressUpdate(game.Id, player.Id, submitted, retries), ct);
     }
 
     /// <summary>

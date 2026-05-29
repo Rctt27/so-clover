@@ -24,6 +24,7 @@ export const useSignalR = () => {
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 
   const markAiGenerating = useGameStore(s => s.markAiGenerating);
+  const setAiClueProgress = useGameStore(s => s.setAiClueProgress);
   const { notifyInfo, notifyWarning } = useNotifications();
   const { updateStateFromResponse } = useGameStateUpdate();
 
@@ -50,11 +51,14 @@ export const useSignalR = () => {
   }, [gameId, playerId, updateStateFromResponse, setIsInitializing]);
 
   const clearSubmittedAiGenerating = useCallback(() => {
-    const { aiGeneratingPlayerIds, clearAiGenerating } = useGameStore.getState();
+    const { aiGeneratingPlayerIds, clearAiGenerating, clearAiClueProgress } = useGameStore.getState();
     if (aiGeneratingPlayerIds.length === 0) return;
     const boards = useBoardStore.getState().otherBoards;
     aiGeneratingPlayerIds.forEach(pid => {
-      if (boards[pid]?.isSubmitted) clearAiGenerating(pid);
+      if (boards[pid]?.isSubmitted) {
+        clearAiGenerating(pid);
+        clearAiClueProgress(pid);
+      }
     });
   }, []);
 
@@ -176,6 +180,17 @@ export const useSignalR = () => {
       if (data?.playerId) markAiGenerating(data.playerId);
     };
 
+    const handleAiClueProgressUpdate = (data: any) => {
+      if (!data?.playerId) return;
+      const r = data.retriesByDirection ?? {};
+      setAiClueProgress(data.playerId, data.cluesSubmitted ?? 0, {
+        top: r.top ?? 0,
+        right: r.right ?? 0,
+        bottom: r.bottom ?? 0,
+        left: r.left ?? 0,
+      });
+    };
+
     signalRClient.on('GameStateUpdated', handleStateUpdated);
     signalRClient.on('ServerNotification', handleServerNotification);
     signalRClient.on('PlayerJoined', handlePlayerJoined);
@@ -184,6 +199,7 @@ export const useSignalR = () => {
     signalRClient.on('BoardRotationUpdated', handleBoardRotationUpdated);
     signalRClient.on('GuessingBoardValidated', handleGuessingBoardValidated);
     signalRClient.on('AiClueGenerationRequested', handleAiClueGenerationRequested);
+    signalRClient.on('AiClueProgressUpdate', handleAiClueProgressUpdate);
 
     const connection = signalRClient.getConnection();
 
@@ -213,9 +229,10 @@ export const useSignalR = () => {
       signalRClient.off('BoardRotationUpdated', handleBoardRotationUpdated);
       signalRClient.off('GuessingBoardValidated', handleGuessingBoardValidated);
       signalRClient.off('AiClueGenerationRequested', handleAiClueGenerationRequested);
+      signalRClient.off('AiClueProgressUpdate', handleAiClueProgressUpdate);
     };
   // Note: 'phase' intentionnellement absent des deps — géré via phaseRef.
   // Ajouter phase ici recyclerait l'effect à chaque transition → refreshGameState()
   // pendant l'exit animation → re-renders AnimatePresence → safeToRemove périmé → page blanche.
-  }, [gameId, playerId, setConnectionStatus, setIsInitializing, notifyInfo, notifyWarning, refreshGameState, resetAuth, markAiGenerating, clearSubmittedAiGenerating]);
+  }, [gameId, playerId, setConnectionStatus, setIsInitializing, notifyInfo, notifyWarning, refreshGameState, resetAuth, markAiGenerating, setAiClueProgress, clearSubmittedAiGenerating]);
 };
