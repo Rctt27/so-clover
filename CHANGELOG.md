@@ -20,5 +20,5 @@ Historique des versions de SoClover. Le projet suit [SemVer](https://semver.org/
 | v2.6.0 | `3d7462d` | 2026-05-27 | Joueurs IA disponibles aussi pour le dictionnaire Anglais (EN) |
 | v2.7.0 | `526f43b` | 2026-05-27 | Validation sémantique des indices étendue au dictionnaire Anglais (parité IA + humains) |
 | v2.8.0 | `7c6af91` | 2026-05-27 | Mode reasoning natif togglable pour les joueurs IA (LM Studio Ministral-Reasoning, OpenAI o-series, Anthropic extended thinking) |
-| v2.9.0 | `` | 2026-05-28 | Mode de génération IA PerDirection — 1 appel LLM par direction (fiabilise la convergence des modèles reasoning locaux) |
+| v2.9.0 | `85446e5` | 2026-05-28 | Mode de génération IA PerDirection — 1 appel LLM par direction (fiabilise la convergence des modèles reasoning locaux) |
 | v2.9.1 | `d9c1d38` | 2026-05-29 | Prompt reasoning-only dédié PerDirection (FR+EN) — fichier `board-clues-per-direction.reasoning.md` chargé quand reasoning ON, sans procédure prescriptive parasite |
