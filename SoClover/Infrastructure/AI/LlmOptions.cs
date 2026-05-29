@@ -39,9 +39,11 @@ public sealed class LlmOptions
     // Anthropic extended thinking : budget de tokens de raisonnement. Null = pas de budget explicite.
     public int? ThinkingBudgetTokens { get; set; } = null;
 
-    // Préambule système de raisonnement propre au modèle (agnostique). Certains modèles reasoning
-    // (ex. Mistral Ministral-Reasoning) n'activent leur raisonnement QUE si leur system prompt officiel
-    // est présent. Renseigner ici le chemin vers ce fichier (ex. SYSTEM_PROMPT.txt du modèle) ; son
-    // contenu est préfixé au system prompt quand le mode reasoning est actif. Null/vide = rien injecté.
-    public string? ReasoningSystemPromptPath { get; set; } = null;
+    // Préambule système de raisonnement propre au modèle (agnostique de la tâche/langue). C'est le
+    // DÉCLENCHEUR du reasoning natif : certains modèles (ex. Mistral Ministral-Reasoning) n'activent
+    // leur raisonnement QUE si leur system prompt officiel est présent. À ne pas confondre avec le
+    // prompt métier reasoning (board-clues-per-direction.reasoning.md), qui décrit la tâche So Clover.
+    // Renseigner ici le chemin vers ce fichier (ex. SYSTEM_PROMPT.txt du modèle) ; son contenu est
+    // préfixé au system prompt quand le mode reasoning est actif. Null/vide = rien injecté.
+    public string? ReasoningSystemPromptPathEnabler { get; set; } = null;
 }

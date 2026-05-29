@@ -262,7 +262,7 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
         var systemPrompt = bundle.SystemPrompt;
         if (reasoningEnabled)
         {
-            var preamble = ReadReasoningPreamble(_llmOptions.Value.ReasoningSystemPromptPath);
+            var preamble = ReadReasoningPreamble(_llmOptions.Value.ReasoningSystemPromptPathEnabler);
             if (!string.IsNullOrWhiteSpace(preamble))
                 systemPrompt = $"{preamble.Trim()}\n\n{systemPrompt}";
         }
