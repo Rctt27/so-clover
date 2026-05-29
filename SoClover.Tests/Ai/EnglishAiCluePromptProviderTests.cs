@@ -8,6 +8,7 @@ namespace SoClover.Tests.AI;
 public sealed class EnglishAiCluePromptProviderTests
 {
     private static BoardCluesPromptContext SampleContext(
+        IReadOnlyList<Direction>? remaining = null,
         IReadOnlyDictionary<Direction, IReadOnlyList<RejectedAttempt>>? rejected = null)
     {
         var cards = new[]
@@ -25,7 +26,8 @@ public sealed class EnglishAiCluePromptProviderTests
         return new BoardCluesPromptContext(
             Language: "English_(from_FR_OFF)",
             Cards: cards,
-            RemainingDirections: new[] { Direction.Top, Direction.Right, Direction.Bottom, Direction.Left },
+            RemainingDirections: remaining
+                ?? new[] { Direction.Top, Direction.Right, Direction.Bottom, Direction.Left },
             RejectedPerDirection: rejected
                 ?? new Dictionary<Direction, IReadOnlyList<RejectedAttempt>>());
     }
@@ -61,7 +63,7 @@ public sealed class EnglishAiCluePromptProviderTests
             [Direction.Top] = new[] { new RejectedAttempt("wave", "ExactMatch with 'beach'") },
         };
 
-        var bundle = new EnglishAiCluePromptProvider().BuildBoardCluesPrompt(SampleContext(rejected));
+        var bundle = new EnglishAiCluePromptProvider().BuildBoardCluesPrompt(SampleContext(rejected: rejected));
 
         Assert.Contains("Direction Top:", bundle.UserPrompt);
         Assert.Contains("rejected", bundle.UserPrompt);
@@ -97,5 +99,144 @@ public sealed class EnglishAiCluePromptProviderTests
         var bundle = new EnglishAiCluePromptProvider().BuildBoardCluesPrompt(SampleContext());
 
         Assert.DoesNotContain("mentally and compactly", bundle.SystemPrompt);
+    }
+
+    private static void WithDualFixture(
+        string standardBody, string reasoningBody, Action<EnglishAiCluePromptProvider> body)
+    {
+        var standardPath = Path.Combine(Path.GetTempPath(), $"test-std-{Guid.NewGuid()}.md");
+        var reasoningPath = Path.Combine(Path.GetTempPath(), $"test-rsn-{Guid.NewGuid()}.md");
+        File.WriteAllText(standardPath, standardBody);
+        File.WriteAllText(reasoningPath, reasoningBody);
+        try
+        {
+            var provider = new EnglishAiCluePromptProvider(
+                new FilePromptLoader(), standardPath, standardPath, reasoningPath);
+            body(provider);
+        }
+        finally
+        {
+            if (File.Exists(standardPath)) File.Delete(standardPath);
+            if (File.Exists(reasoningPath)) File.Delete(reasoningPath);
+        }
+    }
+
+    private static void WithFixture(string template, Action<EnglishAiCluePromptProvider> body)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"test-{Guid.NewGuid()}.md");
+        File.WriteAllText(path, template);
+        try
+        {
+            var provider = new EnglishAiCluePromptProvider(new FilePromptLoader(), path, path);
+            body(provider);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    private const string StandardSingleTemplate = """
+---
+version: 1
+---
+# SYSTEM
+SYSTEM-STANDARD-SENTINEL
+
+# USER
+{{boardLayout}}
+{{directionToResolve}}
+{{allBoardWordsList}}
+{{retryFeedback}}
+
+# REASONING
+REASONING-APPENDED-SENTINEL
+
+# RETRY_FEEDBACK
+{{rejectedAttemptsByDirection}}
+""";
+
+    private const string ReasoningSingleTemplate = """
+---
+version: 7
+---
+# SYSTEM
+SYSTEM-REASONING-SENTINEL
+
+# USER
+{{boardLayout}}
+{{directionToResolve}}
+{{allBoardWordsList}}
+{{retryFeedback}}
+
+# REASONING
+IGNORED-REASONING-SECTION-SENTINEL
+
+# RETRY_FEEDBACK
+{{rejectedAttemptsByDirection}}
+""";
+
+    [Fact]
+    public void SingleDirection_reasoning_on_with_dedicated_file_uses_reasoning_system_and_version()
+    {
+        WithDualFixture(StandardSingleTemplate, ReasoningSingleTemplate, provider =>
+        {
+            var ctx = SampleContext(remaining: new[] { Direction.Top }) with { IncludeReasoning = true };
+            var bundle = provider.BuildSingleDirectionCluePrompt(ctx);
+
+            Assert.Contains("SYSTEM-REASONING-SENTINEL", bundle.SystemPrompt);
+            Assert.DoesNotContain("SYSTEM-STANDARD-SENTINEL", bundle.SystemPrompt);
+            Assert.DoesNotContain("IGNORED-REASONING-SECTION-SENTINEL", bundle.SystemPrompt);
+            Assert.Equal(7, bundle.PromptVersion);
+        });
+    }
+
+    [Fact]
+    public void SingleDirection_reasoning_off_with_dedicated_file_uses_standard_system_and_version()
+    {
+        WithDualFixture(StandardSingleTemplate, ReasoningSingleTemplate, provider =>
+        {
+            var ctx = SampleContext(remaining: new[] { Direction.Top });
+            var bundle = provider.BuildSingleDirectionCluePrompt(ctx);
+
+            Assert.Contains("SYSTEM-STANDARD-SENTINEL", bundle.SystemPrompt);
+            Assert.DoesNotContain("SYSTEM-REASONING-SENTINEL", bundle.SystemPrompt);
+            Assert.Equal(1, bundle.PromptVersion);
+        });
+    }
+
+    [Fact]
+    public void SingleDirection_reasoning_on_with_missing_dedicated_file_throws_filenotfound()
+    {
+        var standardPath = Path.Combine(Path.GetTempPath(), $"test-std-{Guid.NewGuid()}.md");
+        var missingReasoningPath = Path.Combine(Path.GetTempPath(), $"test-missing-{Guid.NewGuid()}.md");
+        File.WriteAllText(standardPath, StandardSingleTemplate);
+        try
+        {
+            var provider = new EnglishAiCluePromptProvider(
+                new FilePromptLoader(), standardPath, standardPath, missingReasoningPath);
+            var ctx = SampleContext(remaining: new[] { Direction.Top }) with { IncludeReasoning = true };
+
+            var ex = Assert.Throws<FileNotFoundException>(
+                () => provider.BuildSingleDirectionCluePrompt(ctx));
+            Assert.Contains(missingReasoningPath, ex.Message + ex.FileName);
+        }
+        finally
+        {
+            if (File.Exists(standardPath)) File.Delete(standardPath);
+        }
+    }
+
+    [Fact]
+    public void SingleDirection_reasoning_on_with_null_path_falls_back_to_standard_and_appends_reasoning()
+    {
+        WithFixture(StandardSingleTemplate, provider =>
+        {
+            var ctx = SampleContext(remaining: new[] { Direction.Top }) with { IncludeReasoning = true };
+            var bundle = provider.BuildSingleDirectionCluePrompt(ctx);
+
+            Assert.Contains("SYSTEM-STANDARD-SENTINEL", bundle.SystemPrompt);
+            Assert.Contains("REASONING-APPENDED-SENTINEL", bundle.SystemPrompt);
+        });
     }
 }
