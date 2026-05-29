@@ -11,11 +11,24 @@ public sealed class EnglishAiCluePromptProvider : FileAiCluePromptProvider
         RejectionRuleFormat: "{0} with the word \"{1}\"");
 
     public EnglishAiCluePromptProvider()
-        : this(new FilePromptLoader(), DefaultPromptPath(), DefaultPerDirectionPromptPath()) { }
+        : this(
+            new FilePromptLoader(),
+            DefaultPromptPath(),
+            DefaultPerDirectionPromptPath(),
+            DefaultPerDirectionReasoningPromptPath()) { }
 
     internal EnglishAiCluePromptProvider(
-        FilePromptLoader loader, string promptFilePath, string perDirectionPromptFilePath)
-        : base(loader, promptFilePath, perDirectionPromptFilePath, Labels, "English_(from_FR_OFF)") { }
+        FilePromptLoader loader,
+        string promptFilePath,
+        string perDirectionPromptFilePath,
+        string? perDirectionReasoningPromptFilePath = null)
+        : base(
+            loader,
+            promptFilePath,
+            perDirectionPromptFilePath,
+            Labels,
+            "English_(from_FR_OFF)",
+            perDirectionReasoningPromptFilePath) { }
 
     private static string DefaultPromptPath()
     {
@@ -27,5 +40,12 @@ public sealed class EnglishAiCluePromptProvider : FileAiCluePromptProvider
     {
         var baseDir = AppContext.BaseDirectory;
         return Path.Combine(baseDir, "Infrastructure", "AI", "Prompts", "en", "board-clues-per-direction.md");
+    }
+
+    private static string DefaultPerDirectionReasoningPromptPath()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        return Path.Combine(
+            baseDir, "Infrastructure", "AI", "Prompts", "en", "board-clues-per-direction.reasoning.md");
     }
 }
