@@ -121,14 +121,14 @@ public sealed class EnglishAiCluePromptProviderTests
         }
     }
 
-    private static void WithSingleFixture(string body, Action<EnglishAiCluePromptProvider> body2)
+    private static void WithFixture(string template, Action<EnglishAiCluePromptProvider> body)
     {
         var path = Path.Combine(Path.GetTempPath(), $"test-{Guid.NewGuid()}.md");
-        File.WriteAllText(path, body);
+        File.WriteAllText(path, template);
         try
         {
             var provider = new EnglishAiCluePromptProvider(new FilePromptLoader(), path, path);
-            body2(provider);
+            body(provider);
         }
         finally
         {
@@ -230,7 +230,7 @@ IGNORED-REASONING-SECTION-SENTINEL
     [Fact]
     public void SingleDirection_reasoning_on_with_null_path_falls_back_to_standard_and_appends_reasoning()
     {
-        WithSingleFixture(StandardSingleTemplate, provider =>
+        WithFixture(StandardSingleTemplate, provider =>
         {
             var ctx = SampleContext(remaining: new[] { Direction.Top }) with { IncludeReasoning = true };
             var bundle = provider.BuildSingleDirectionCluePrompt(ctx);
