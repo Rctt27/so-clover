@@ -4,7 +4,7 @@ namespace SoClover.Infrastructure.Persistence;
 
 public sealed class GameEntity
 {
-    public Guid Id { get; set; }
+    public string Id { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string? Language { get; set; }
     public DateTime? PhaseEndsAtUtc { get; set; }

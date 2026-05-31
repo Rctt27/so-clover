@@ -168,17 +168,17 @@ public sealed class EfGameRepository : IGameRepository
 internal sealed class GameIdJsonConverter : JsonConverter<GameId>
 {
     public override GameId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        => new(reader.GetGuid());
+        => new(reader.GetString()!);
 
     public override void Write(Utf8JsonWriter writer, GameId value, JsonSerializerOptions options)
         => writer.WriteStringValue(value.Value);
 
     // Support dictionary keys of type GameId
     public override GameId ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        => new(Guid.Parse(reader.GetString()!));
+        => new(reader.GetString()!);
 
     public override void WriteAsPropertyName(Utf8JsonWriter writer, GameId value, JsonSerializerOptions options)
-        => writer.WritePropertyName(value.Value.ToString());
+        => writer.WritePropertyName(value.Value);
 }
 
 internal sealed class PlayerIdJsonConverter : JsonConverter<PlayerId>
