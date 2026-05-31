@@ -3,6 +3,7 @@ import { useGameStore } from '../../core/store';
 import { PlayerList } from './PlayerList';
 import { GameSettings } from './GameSettings';
 import { gameApi } from '../../api/game-api';
+import { gameShareUrl } from '../../core/gameUrl';
 
 export const LobbyPage: React.FC = () => {
   const { gameId, playerId, isGameAdmin, players, resetAuth, setSettings } = useGameStore();
@@ -82,7 +83,7 @@ export const LobbyPage: React.FC = () => {
 
   const copyToClipboard = () => {
     if (gameId) {
-      navigator.clipboard.writeText(gameId);
+      navigator.clipboard.writeText(gameShareUrl(gameId));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -93,7 +94,7 @@ export const LobbyPage: React.FC = () => {
       <header className="mb-8 text-center">
         <h1 className="text-4xl font-black text-emerald-600 mb-2">SO CLOVER!</h1>
         <div className="inline-flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-full border border-slate-200">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">ID de partie</span>
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Code de partie</span>
           <code className="text-emerald-700 font-mono font-bold">{gameId}</code>
           <button 
             onClick={copyToClipboard}
