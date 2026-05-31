@@ -18,8 +18,9 @@ public static class CreateGame
         private readonly IWordsPoolCache _poolCache;
         private readonly IClock _clock;
         private readonly IGameSettingsProvider _settings;
+        private readonly IGameCodeGenerator _codeGen;
 
-        public Handler(IGameRepository repo, IEventPublisher events, IWordDictionary wordDictionary, IWordsPoolCache poolCache, IClock clock, IGameSettingsProvider settings)
+        public Handler(IGameRepository repo, IEventPublisher events, IWordDictionary wordDictionary, IWordsPoolCache poolCache, IClock clock, IGameSettingsProvider settings, IGameCodeGenerator? codeGen = null)
         {
             _repo = repo;
             _events = events;
@@ -27,11 +28,23 @@ public static class CreateGame
             _poolCache = poolCache;
             _clock = clock;
             _settings = settings;
+            // Fallback runtime/tests : générateur par défaut basé sur le dictionnaire déjà injecté
+            // (UseCases -> Domain IWordDictionary, pas de dépendance Infrastructure).
+            _codeGen = codeGen ?? new GameCodeGenerator(wordDictionary);
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
         {
-            var game = new Game(GameId.New(), request.Language);
+            // Génère un code lisible 4-mots, unique vis-à-vis des parties existantes.
+            GameId id;
+            var attempts = 0;
+            do
+            {
+                id = GameId.From(await _codeGen.GenerateAsync(ct));
+            }
+            while (await _repo.Get(id, ct) is not null && ++attempts < 5);
+
+            var game = new Game(id, request.Language);
             var pool = await game.InitializeWordsPoolAsync(_wordDictionary, ct);
             _poolCache.Set(game.Id, pool);
 
