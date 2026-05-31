@@ -1,9 +1,12 @@
 namespace SoClover.Domain;
 
-public readonly record struct GameId(Guid Value)
+public readonly record struct GameId(string Value)
 {
-    public static GameId New() => new(Guid.NewGuid());
-    public override string ToString() => Value.ToString();
+    // Conservé pour les ~80 usages de test : id opaque unique, NON lisible.
+    // La génération du code lisible passe par IGameCodeGenerator (cf. CreateGame).
+    public static GameId New() => new(Guid.NewGuid().ToString("N"));
+    public static GameId From(string value) => new(value);
+    public override string ToString() => Value;
 }
 
 public readonly record struct PlayerId(Guid Value)
