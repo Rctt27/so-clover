@@ -7,6 +7,7 @@ import { useGameSounds } from './hooks/useGameSounds'
 import { useTimeoutSafetyPolling } from './hooks/useTimeoutSafetyPolling'
 import { useWritingCluesPhaseMusic } from './hooks/useWritingCluesPhaseMusic'
 import { useGameStore, useAppConfigStore } from './core/store'
+import { readGameCodeFromUrl, syncGameUrl, clearGameUrl } from './core/gameUrl'
 import { HomeScreen } from './components/home/HomeScreen'
 import { LobbyPage } from './components/lobby/LobbyPage'
 import { ScoringPage } from './components/scoring/ScoringPage'
@@ -46,6 +47,34 @@ function App() {
   const hasDeadline = useGameStore(state => !!state.phaseEndsAtUtc);
   const role = useGameStore(state => state.role);
   const guessAiBoardOnly = useGameStore(s => s.settings.guessAiBoardOnly);
+
+  // ─── Sync URL ↔ partie courante (History API léger) ─────────────────────────
+  const prevGameIdRef = useRef<string | null>(gameId);
+  useEffect(() => {
+    const prev = prevGameIdRef.current;
+    if (gameId) {
+      syncGameUrl(gameId);          // dans une partie → /g/<code>
+    } else if (prev) {
+      clearGameUrl();               // on avait une partie, plus maintenant → /
+    }
+    // (gameId null + prev null = arrivée fraîche sur /g/<code> : on garde l'URL
+    //  pour le pré-remplissage du formulaire de join, cf. GameManagementPanel)
+    prevGameIdRef.current = gameId;
+  }, [gameId]);
+
+  // Bouton « précédent » du navigateur : si l'URL ne pointe plus vers la partie, on quitte.
+  useEffect(() => {
+    const onPop = () => {
+      const code = readGameCodeFromUrl();
+      const gid = useGameStore.getState().gameId;
+      if (!code && gid) {
+        useGameStore.getState().resetAuth();
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  // ────────────────────────────────────────────────────────────────────────────
 
   const loadConfig = useAppConfigStore(s => s.loadConfig);
   useEffect(() => {
