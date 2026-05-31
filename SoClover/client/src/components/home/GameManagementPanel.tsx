@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { Gamepad2, LogIn, Loader2 } from 'lucide-react';
 import { useGameStore } from '../../core/store';
 import { gameApi, JoinGameResponse } from '../../api/game-api';
+import { readGameCodeFromUrl } from '../../core/gameUrl';
 
 export const GameManagementPanel: React.FC = () => {
   const { playerName, setGameId, setPlayerId, setIsGameAdmin, setPhase, setPlayers } = useGameStore();
-  const [gameIdInput, setGameIdInput] = useState('');
+  const [gameIdInput, setGameIdInput] = useState(() => readGameCodeFromUrl() ?? '');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
