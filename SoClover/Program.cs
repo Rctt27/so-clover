@@ -86,6 +86,7 @@ builder.Services.AddHostedService<CleanupHostedService>(); // periodic cleanup o
 // Domain services (CardFactory is now created internally by Game)
 
 // Use cases
+builder.Services.AddSingleton<SoClover.UseCases.GameLogics.IGameCodeGenerator, SoClover.UseCases.GameLogics.GameCodeGenerator>();
 builder.Services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
 builder.Services.AddTransient<IDeleteGameUseCase, DeleteGame.Handler>();
 builder.Services.AddTransient<IJoinGameUseCase, JoinGame.Handler>();
@@ -223,9 +224,9 @@ app.MapPost("/api/games", async (CreateGameRequest? request, ICreateGameUseCase 
 })
 .WithName("CreateGame");
 
-app.MapDelete("/api/games/{gameId:guid}", async (Guid gameId, IDeleteGameUseCase useCase, CancellationToken ct) =>
+app.MapDelete("/api/games/{gameId}", async (string gameId, IDeleteGameUseCase useCase, CancellationToken ct) =>
 {
-    var request = new DeleteGame.Request(new GameId(gameId));
+    var request = new DeleteGame.Request(GameId.From(gameId));
     var response = await useCase.Handle(request, ct);
 
     if (!response.Success)
@@ -237,7 +238,7 @@ app.MapDelete("/api/games/{gameId:guid}", async (Guid gameId, IDeleteGameUseCase
 })
 .WithName("DeleteGame");
 
-app.MapPost("/api/games/{gameId:guid}/join", async (Guid gameId, JoinGameRequest? request, IJoinGameUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games/{gameId}/join", async (string gameId, JoinGameRequest? request, IJoinGameUseCase useCase, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request?.PlayerName))
     {
@@ -247,7 +248,7 @@ app.MapPost("/api/games/{gameId:guid}/join", async (Guid gameId, JoinGameRequest
     try
     {
         var response = await useCase.Handle(
-            new JoinGame.Request(new GameId(gameId), request.PlayerName, request.ReplaceExisting), ct);
+            new JoinGame.Request(GameId.From(gameId), request.PlayerName, request.ReplaceExisting), ct);
 
         if (response.IsConflict)
         {
@@ -271,7 +272,7 @@ app.MapPost("/api/games/{gameId:guid}/join", async (Guid gameId, JoinGameRequest
 })
 .WithName("JoinGame");
 
-app.MapPost("/api/games/{gameId:guid}/leave", async (Guid gameId, LeaveGameRequest? request, ILeaveGameUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games/{gameId}/leave", async (string gameId, LeaveGameRequest? request, ILeaveGameUseCase useCase, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request?.PlayerId))
     {
@@ -285,7 +286,7 @@ app.MapPost("/api/games/{gameId:guid}/leave", async (Guid gameId, LeaveGameReque
 
     try
     {
-        var response = await useCase.Handle(new LeaveGame.Request(new GameId(gameId), new PlayerId(playerGuid)), ct);
+        var response = await useCase.Handle(new LeaveGame.Request(GameId.From(gameId), new PlayerId(playerGuid)), ct);
         return Results.Ok(new { success = response.Success });
     }
     catch (GameNotFoundException)
@@ -299,7 +300,7 @@ app.MapPost("/api/games/{gameId:guid}/leave", async (Guid gameId, LeaveGameReque
 })
 .WithName("LeaveGame");
 
-app.MapPost("/api/games/{gameId:guid}/kick", async (Guid gameId, KickPlayerRequest? request, IKickPlayerUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games/{gameId}/kick", async (string gameId, KickPlayerRequest? request, IKickPlayerUseCase useCase, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request?.PlayerId) || string.IsNullOrWhiteSpace(request?.AdminPlayerId))
     {
@@ -314,7 +315,7 @@ app.MapPost("/api/games/{gameId:guid}/kick", async (Guid gameId, KickPlayerReque
     try
     {
         var response = await useCase.Handle(
-            new KickPlayer.Request(new GameId(gameId), new PlayerId(targetGuid), new PlayerId(adminGuid)), ct);
+            new KickPlayer.Request(GameId.From(gameId), new PlayerId(targetGuid), new PlayerId(adminGuid)), ct);
         return Results.Ok(new { success = response.Success, kickedPlayerName = response.KickedPlayerName });
     }
     catch (GameNotFoundException)
@@ -340,8 +341,8 @@ app.MapPost("/api/games/{gameId:guid}/kick", async (Guid gameId, KickPlayerReque
 })
 .WithName("KickPlayer");
 
-app.MapPost("/api/games/{gameId:guid}/ai-players", async (
-    Guid gameId,
+app.MapPost("/api/games/{gameId}/ai-players", async (
+    string gameId,
     CreateAIPlayerRequest? request,
     ICreateAIPlayerUseCase useCase,
     CancellationToken ct) =>
@@ -361,7 +362,7 @@ app.MapPost("/api/games/{gameId:guid}/ai-players", async (
     try
     {
         var response = await useCase.Handle(new CreateAIPlayer.Request(
-            new GameId(gameId),
+            GameId.From(gameId),
             new PlayerId(adminGuid),
             request.PlayerName,
             request.Model,
@@ -409,7 +410,7 @@ app.MapPost("/api/games/{gameId:guid}/ai-players", async (
 })
 .WithName("CreateAIPlayer");
 
-app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSettingsRequest? request, IUpdateGameSettingsUseCase useCase, CancellationToken ct) =>
+app.MapPut("/api/games/{gameId}/settings", async (string gameId, UpdateGameSettingsRequest? request, IUpdateGameSettingsUseCase useCase, CancellationToken ct) =>
 {
     if (request is null)
     {
@@ -440,7 +441,7 @@ app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSe
     {
         var response = await useCase.Handle(
             new UpdateGameSettings.Request(
-                new GameId(gameId),
+                GameId.From(gameId),
                 new PlayerId(playerGuid),
                 request.Language.Trim(),
                 request.CluesDuration,
@@ -489,7 +490,7 @@ app.MapPut("/api/games/{gameId:guid}/settings", async (Guid gameId, UpdateGameSe
 })
 .WithName("UpdateGameSettings");
 
-app.MapGet("/api/games/{gameId:guid}/state", async (Guid gameId, string? playerId, bool includeSecrets, IGetGameStateUseCase useCase, CancellationToken ct) =>
+app.MapGet("/api/games/{gameId}/state", async (string gameId, string? playerId, bool includeSecrets, IGetGameStateUseCase useCase, CancellationToken ct) =>
 {
     try
     {
@@ -500,7 +501,7 @@ app.MapGet("/api/games/{gameId:guid}/state", async (Guid gameId, string? playerI
             requestingPlayerId = new PlayerId(pid);
         }
 
-        var response = await useCase.Handle(new GetGameState.Request(new GameId(gameId), includeSecrets, requestingPlayerId), ct);
+        var response = await useCase.Handle(new GetGameState.Request(GameId.From(gameId), includeSecrets, requestingPlayerId), ct);
         var result = new
         {
             gameId = response.GameId,
@@ -633,11 +634,11 @@ app.MapGet("/api/games/{gameId:guid}/state", async (Guid gameId, string? playerI
 })
 .WithName("GetGameState");
 
-app.MapPost("/api/games/{gameId:guid}/start", async (Guid gameId, IStartWritingPhaseUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games/{gameId}/start", async (string gameId, IStartWritingPhaseUseCase useCase, CancellationToken ct) =>
 {
     try
     {
-        var response = await useCase.Handle(new StartWritingPhase.Request(new GameId(gameId)), ct);
+        var response = await useCase.Handle(new StartWritingPhase.Request(GameId.From(gameId)), ct);
         return Results.Ok(new { phase = response.Phase.ToString() });
     }
     catch (GameNotFoundException)
@@ -651,7 +652,7 @@ app.MapPost("/api/games/{gameId:guid}/start", async (Guid gameId, IStartWritingP
 })
 .WithName("StartWritingPhase");
 
-app.MapPost("/api/games/{gameId:guid}/clues", async (Guid gameId, SetClueRequest? request, ISetClueUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games/{gameId}/clues", async (string gameId, SetClueRequest? request, ISetClueUseCase useCase, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request?.PlayerId) || string.IsNullOrWhiteSpace(request?.Direction) || string.IsNullOrWhiteSpace(request?.ClueText))
     {
@@ -663,7 +664,7 @@ app.MapPost("/api/games/{gameId:guid}/clues", async (Guid gameId, SetClueRequest
         var direction = Enum.Parse<Direction>(request.Direction);
         var parsed = Guid.Parse(request.PlayerId);
         if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
-        var response = await useCase.Handle(new SetClue.Request(new GameId(gameId), new PlayerId(parsed), direction, request.ClueText), ct);
+        var response = await useCase.Handle(new SetClue.Request(GameId.From(gameId), new PlayerId(parsed), direction, request.ClueText), ct);
         if (!response.Validation.IsValid)
         {
             return Results.BadRequest(new
@@ -690,7 +691,7 @@ app.MapPost("/api/games/{gameId:guid}/clues", async (Guid gameId, SetClueRequest
 })
 .WithName("SetClue");
 
-app.MapPost("/api/games/{gameId:guid}/clues/validate", async (Guid gameId, SetClueRequest? request, IValidateClueUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games/{gameId}/clues/validate", async (string gameId, SetClueRequest? request, IValidateClueUseCase useCase, CancellationToken ct) =>
     {
         if (request is null || string.IsNullOrWhiteSpace(request.PlayerId) || string.IsNullOrWhiteSpace(request.Direction))
             return Results.BadRequest(new { message = "PlayerId and Direction are required" });
@@ -700,7 +701,7 @@ app.MapPost("/api/games/{gameId:guid}/clues/validate", async (Guid gameId, SetCl
             var direction = Enum.Parse<Direction>(request.Direction);
             var parsed = Guid.Parse(request.PlayerId);
             if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
-            var response = await useCase.Handle(new ValidateClue.Request(new GameId(gameId), new PlayerId(parsed), direction, request.ClueText ?? string.Empty), ct);
+            var response = await useCase.Handle(new ValidateClue.Request(GameId.From(gameId), new PlayerId(parsed), direction, request.ClueText ?? string.Empty), ct);
             return Results.Ok(new
             {
                 isValid = response.Validation.IsValid,
@@ -723,7 +724,7 @@ app.MapPost("/api/games/{gameId:guid}/clues/validate", async (Guid gameId, SetCl
     })
     .WithName("ValidateClue");
 
-app.MapPost("/api/games/{gameId:guid}/submit-board", async (Guid gameId, SubmitBoardRequest? request, ISubmitBoardUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games/{gameId}/submit-board", async (string gameId, SubmitBoardRequest? request, ISubmitBoardUseCase useCase, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request?.PlayerId))
     {
@@ -734,7 +735,7 @@ app.MapPost("/api/games/{gameId:guid}/submit-board", async (Guid gameId, SubmitB
     {
         var parsed = Guid.Parse(request.PlayerId);
         if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
-        await useCase.Handle(new SubmitBoard.Request(new GameId(gameId), new PlayerId(parsed)), ct);
+        await useCase.Handle(new SubmitBoard.Request(GameId.From(gameId), new PlayerId(parsed)), ct);
         return Results.Ok(new { message = "Board submitted successfully" });
     }
     catch (GameNotFoundException)
@@ -752,11 +753,11 @@ app.MapPost("/api/games/{gameId:guid}/submit-board", async (Guid gameId, SubmitB
 })
 .WithName("SubmitBoard");
 
-app.MapPost("/api/games/{gameId:guid}/start-guessing", async (Guid gameId, IStartGuessingPhaseUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games/{gameId}/start-guessing", async (string gameId, IStartGuessingPhaseUseCase useCase, CancellationToken ct) =>
 {
     try
     {
-        var response = await useCase.Handle(new StartGuessingPhase.Request(new GameId(gameId)), ct);
+        var response = await useCase.Handle(new StartGuessingPhase.Request(GameId.From(gameId)), ct);
         return Results.Ok(new { phase = response.Phase.ToString(), currentBoardOwner = response.CurrentBoardOwner.Value });
     }
     catch (GameNotFoundException)
@@ -774,7 +775,7 @@ app.MapPost("/api/games/{gameId:guid}/start-guessing", async (Guid gameId, IStar
 })
 .WithName("StartGuessingPhase");
 
-app.MapPost("/api/games/{gameId:guid}/place-guessing-card", async (Guid gameId, PlaceGuessingCardRequest? request, IPlaceGuessingCardUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games/{gameId}/place-guessing-card", async (string gameId, PlaceGuessingCardRequest? request, IPlaceGuessingCardUseCase useCase, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request?.PlayerId))
         return Results.BadRequest(new { message = "PlayerId is required" });
@@ -785,7 +786,7 @@ app.MapPost("/api/games/{gameId:guid}/place-guessing-card", async (Guid gameId, 
         var parsed = Guid.Parse(request.PlayerId);
         if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
         await useCase.Handle(new PlaceGuessingCard.Request(
-            new GameId(gameId),
+            GameId.From(gameId),
             new PlayerId(parsed),
             request.OutsideCardIndex,
             position
@@ -803,7 +804,7 @@ app.MapPost("/api/games/{gameId:guid}/place-guessing-card", async (Guid gameId, 
 })
 .WithName("PlaceGuessingCard");
 
-app.MapPost("/api/games/{gameId:guid}/swap-guessing-cards", async (Guid gameId, SwapGuessingCardsRequest? request, ISwapGuessingCardsUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games/{gameId}/swap-guessing-cards", async (string gameId, SwapGuessingCardsRequest? request, ISwapGuessingCardsUseCase useCase, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request?.PlayerId))
         return Results.BadRequest(new { message = "PlayerId is required" });
@@ -815,7 +816,7 @@ app.MapPost("/api/games/{gameId:guid}/swap-guessing-cards", async (Guid gameId, 
         var parsed = Guid.Parse(request.PlayerId);
         if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
         await useCase.Handle(new SwapGuessingCards.Request(
-            new GameId(gameId),
+            GameId.From(gameId),
             new PlayerId(parsed),
             position1,
             position2
@@ -833,7 +834,7 @@ app.MapPost("/api/games/{gameId:guid}/swap-guessing-cards", async (Guid gameId, 
 })
 .WithName("SwapGuessingCards");
 
-app.MapPost("/api/games/{gameId:guid}/swap-outside-pool-cards", async (Guid gameId, SwapOutsidePoolCardsRequest? request, ISwapOutsidePoolCardsUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games/{gameId}/swap-outside-pool-cards", async (string gameId, SwapOutsidePoolCardsRequest? request, ISwapOutsidePoolCardsUseCase useCase, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request?.PlayerId))
         return Results.BadRequest(new { message = "PlayerId is required" });
@@ -843,7 +844,7 @@ app.MapPost("/api/games/{gameId:guid}/swap-outside-pool-cards", async (Guid game
         var parsed = Guid.Parse(request.PlayerId);
         if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
         await useCase.Handle(new SwapOutsidePoolCards.Request(
-            new GameId(gameId),
+            GameId.From(gameId),
             new PlayerId(parsed),
             request.Index1,
             request.Index2
@@ -865,7 +866,7 @@ app.MapPost("/api/games/{gameId:guid}/swap-outside-pool-cards", async (Guid game
 })
 .WithName("SwapOutsidePoolCards");
 
-app.MapPost("/api/games/{gameId:guid}/return-guessing-card", async (Guid gameId, ReturnGuessingCardRequest? request, IReturnGuessingCardUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games/{gameId}/return-guessing-card", async (string gameId, ReturnGuessingCardRequest? request, IReturnGuessingCardUseCase useCase, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request?.PlayerId))
         return Results.BadRequest(new { message = "PlayerId is required" });
@@ -876,7 +877,7 @@ app.MapPost("/api/games/{gameId:guid}/return-guessing-card", async (Guid gameId,
         var parsed = Guid.Parse(request.PlayerId);
         if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
         await useCase.Handle(new ReturnGuessingCard.Request(
-            new GameId(gameId),
+            GameId.From(gameId),
             new PlayerId(parsed),
             position
         ), ct);
@@ -893,7 +894,7 @@ app.MapPost("/api/games/{gameId:guid}/return-guessing-card", async (Guid gameId,
 })
 .WithName("ReturnGuessingCard");
 
-app.MapPost("/api/games/{gameId:guid}/rotate-board", async (Guid gameId, RotateBoardRequest? request, IRotateBoardUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games/{gameId}/rotate-board", async (string gameId, RotateBoardRequest? request, IRotateBoardUseCase useCase, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request?.PlayerId) || !request.CumulativeRotation.HasValue)
     {
@@ -905,7 +906,7 @@ app.MapPost("/api/games/{gameId:guid}/rotate-board", async (Guid gameId, RotateB
         var parsed = Guid.Parse(request.PlayerId);
         if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
         await useCase.Handle(new RotateBoard.Request(
-            new GameId(gameId),
+            GameId.From(gameId),
             new PlayerId(parsed),
             request.CumulativeRotation.Value
         ), ct);
@@ -927,7 +928,7 @@ app.MapPost("/api/games/{gameId:guid}/rotate-board", async (Guid gameId, RotateB
 })
 .WithName("RotateBoard");
 
-app.MapPost("/api/games/{gameId:guid}/rotate-card", async (Guid gameId, RotateCardRequest? request, IRotateCardUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games/{gameId}/rotate-card", async (string gameId, RotateCardRequest? request, IRotateCardUseCase useCase, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request?.PlayerId))
         return Results.BadRequest(new { message = "PlayerId is required" });
@@ -943,7 +944,7 @@ app.MapPost("/api/games/{gameId:guid}/rotate-card", async (Guid gameId, RotateCa
             var parsed = Guid.Parse(request.PlayerId);
             if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
             await useCase.Handle(new RotateCard.Request(
-                new GameId(gameId),
+                GameId.From(gameId),
                 new PlayerId(parsed),
                 null,
                 position,
@@ -955,7 +956,7 @@ app.MapPost("/api/games/{gameId:guid}/rotate-card", async (Guid gameId, RotateCa
             var parsed = Guid.Parse(request.PlayerId);
             if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
             await useCase.Handle(new RotateCard.Request(
-                new GameId(gameId),
+                GameId.From(gameId),
                 new PlayerId(parsed),
                 request.OutsideCardIndex.Value,
                 null,
@@ -984,7 +985,7 @@ app.MapPost("/api/games/{gameId:guid}/rotate-card", async (Guid gameId, RotateCa
 })
 .WithName("RotateCard");
 
-app.MapPost("/api/games/{gameId:guid}/validate-guessing-board", async (Guid gameId, ValidateGuessingBoardRequest? request, IValidateGuessingBoardUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games/{gameId}/validate-guessing-board", async (string gameId, ValidateGuessingBoardRequest? request, IValidateGuessingBoardUseCase useCase, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request?.PlayerId))
         return Results.BadRequest(new { message = "PlayerId is required" });
@@ -994,7 +995,7 @@ app.MapPost("/api/games/{gameId:guid}/validate-guessing-board", async (Guid game
         var parsed = Guid.Parse(request.PlayerId);
         if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
         var response = await useCase.Handle(new ValidateGuessingBoard.Request(
-            new GameId(gameId),
+            GameId.From(gameId),
             new PlayerId(parsed)
         ), ct);
         return Results.Ok(new
@@ -1017,7 +1018,7 @@ app.MapPost("/api/games/{gameId:guid}/validate-guessing-board", async (Guid game
 })
 .WithName("ValidateGuessingBoard");
 
-app.MapPost("/api/games/{gameId:guid}/move-to-next-board", async (Guid gameId, MoveToNextBoardRequest? request, IMoveToNextBoardUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games/{gameId}/move-to-next-board", async (string gameId, MoveToNextBoardRequest? request, IMoveToNextBoardUseCase useCase, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request?.PlayerId))
         return Results.BadRequest(new { message = "PlayerId is required" });
@@ -1027,7 +1028,7 @@ app.MapPost("/api/games/{gameId:guid}/move-to-next-board", async (Guid gameId, M
         var parsed = Guid.Parse(request.PlayerId);
         if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
         var response = await useCase.Handle(new MoveToNextBoard.Request(
-            new GameId(gameId),
+            GameId.From(gameId),
             new PlayerId(parsed)
         ), ct);
         return Results.Ok(new
@@ -1051,11 +1052,11 @@ app.MapPost("/api/games/{gameId:guid}/move-to-next-board", async (Guid gameId, M
 })
 .WithName("MoveToNextBoard");
 
-app.MapGet("/api/games/{gameId:guid}/scoring", async (Guid gameId, IGetScoringUseCase useCase, CancellationToken ct) =>
+app.MapGet("/api/games/{gameId}/scoring", async (string gameId, IGetScoringUseCase useCase, CancellationToken ct) =>
 {
     try
     {
-        var response = await useCase.Handle(new GetScoring.Request(new GameId(gameId)), ct);
+        var response = await useCase.Handle(new GetScoring.Request(GameId.From(gameId)), ct);
         return Results.Ok(new
         {
             successfulBoards = response.SuccessfulBoards.Select(b => new
@@ -1089,7 +1090,7 @@ app.MapGet("/api/games/{gameId:guid}/scoring", async (Guid gameId, IGetScoringUs
 })
 .WithName("GetScoring");
 
-app.MapPost("/api/games/{gameId:guid}/complete", async (Guid gameId, CompleteGameRequest? request, ICompleteGameUseCase useCase, CancellationToken ct) =>
+app.MapPost("/api/games/{gameId}/complete", async (string gameId, CompleteGameRequest? request, ICompleteGameUseCase useCase, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request?.PlayerId))
         return Results.BadRequest(new { message = "PlayerId is required" });
@@ -1099,7 +1100,7 @@ app.MapPost("/api/games/{gameId:guid}/complete", async (Guid gameId, CompleteGam
         var parsed = Guid.Parse(request.PlayerId);
         if (parsed == Guid.Empty) return Results.BadRequest(new { message = "PlayerId must not be empty GUID" });
         var response = await useCase.Handle(new CompleteGame.Request(
-            new GameId(gameId),
+            GameId.From(gameId),
             new PlayerId(parsed)
         ), ct);
         return Results.Ok(new { phase = response.Phase.ToString() });
@@ -1121,8 +1122,8 @@ app.MapPost("/api/games/{gameId:guid}/complete", async (Guid gameId, CompleteGam
 .WithName("CompleteGame");
 
 // Optional: System-only endpoint to force move to next board via HTTP, authenticated by HMAC
-app.MapPost("/api/system/games/{gameId:guid}/move-to-next-board", async (
-    Guid gameId,
+app.MapPost("/api/system/games/{gameId}/move-to-next-board", async (
+    string gameId,
     HttpRequest http,
     IMoveToNextBoardUseCase useCase,
     IHmacValidator validator,
@@ -1138,7 +1139,7 @@ app.MapPost("/api/system/games/{gameId:guid}/move-to-next-board", async (
     try
     {
         var response = await useCase.Handle(new MoveToNextBoard.Request(
-            new GameId(gameId),
+            GameId.From(gameId),
             default,
             SoClover.UseCases.Abstractions.InvocationOrigin.System
         ), ct);
