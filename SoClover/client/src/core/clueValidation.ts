@@ -79,6 +79,27 @@ export const validateClueLocally = (
     return { isValid: errors.length === 0, errors }
 }
 
+/**
+ * Décide si la vérification sémantique d'un indice doit s'exécuter, et la calcule le cas échéant.
+ *
+ * La vérification sémantique n'a de sens que pendant la phase WritingClues, lorsque l'auteur compose
+ * son indice contre ses 4 cartes. Hors édition (affichage en lecture seule des phases Guessing/Scoring),
+ * elle ne doit JAMAIS s'exécuter : le board de Guessing inclut une 5e carte leurre tirée au hasard dont
+ * un mot peut, par hasard, être proche d'un indice déjà rédigé — ce qui produirait un faux positif.
+ *
+ * @returns le résultat de validation en mode éditable, ou `null` quand aucune validation ne doit avoir lieu.
+ */
+export const computeLocalClueValidity = (
+    isEditable: boolean,
+    clueText: string,
+    boardWords: string[],
+    language: string,
+    semanticCheckEnabled: boolean
+): ClueValidationResult | null => {
+    if (!isEditable) return null
+    return validateClueLocally(clueText, boardWords, language, semanticCheckEnabled)
+}
+
 export const collectBoardWords = (cards: Array<{ words: string[] } | null>): string[] => {
     const out: string[] = []
     for (const card of cards) {

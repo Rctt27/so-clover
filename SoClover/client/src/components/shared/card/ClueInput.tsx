@@ -29,7 +29,9 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
   const inputRef = useRef<HTMLInputElement>(null)
   const clueAnchorRef = useRef<HTMLDivElement>(null)
 
-  const { validateImmediately } = useClueValidation(position, localValue)
+  // La vérification sémantique n'est pertinente qu'en édition (phase WritingClues).
+  // En lecture seule (Guessing/Scoring), `disabled` est vrai → on ne valide pas.
+  const { validateImmediately } = useClueValidation(position, localValue, !disabled)
   const validity = useBoardStore((s) => s.clueValidity[position])
 
   const boardGeo = computeBoardGeometry(CONSTANTS.ASSET_REFERENCES.board)

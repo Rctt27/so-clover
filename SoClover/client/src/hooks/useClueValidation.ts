@@ -2,12 +2,16 @@ import { useEffect, useRef, useCallback, useMemo } from 'react'
 import { useGameStore, useBoardStore } from '../core/store'
 import { gameApi } from '../api/game-api'
 import { CONSTANTS } from '../core/constants'
-import { validateClueLocally, collectBoardWords } from '../core/clueValidation'
+import { computeLocalClueValidity, collectBoardWords } from '../core/clueValidation'
 
 type Position = 'top' | 'right' | 'bottom' | 'left'
 const positionToDirection = (p: Position) => p.charAt(0).toUpperCase() + p.slice(1)
 
-export const useClueValidation = (position: Position, clueText: string) => {
+/**
+ * @param isEditable la vérification sémantique ne s'exécute QUE lorsque l'input est éditable
+ *   (phase WritingClues). En lecture seule (Guessing/Scoring), aucune validation n'est lancée.
+ */
+export const useClueValidation = (position: Position, clueText: string, isEditable = true) => {
   const { gameId, playerId, settings } = useGameStore()
   const { myBoard, setClueValidity } = useBoardStore()
 
@@ -24,12 +28,16 @@ export const useClueValidation = (position: Position, clueText: string) => {
 
   useEffect(() => {
     const trimmed = clueText.trim()
-    const local = validateClueLocally(
+    const local = computeLocalClueValidity(
+      isEditable,
       trimmed,
       boardWords,
       settings.language,
       settings.semanticClueCheckEnabled
     )
+
+    // Lecture seule (Guessing/Scoring) → on ne touche pas à la validité ni au serveur.
+    if (local === null) return
 
     setClueValidity(position, { ...local, isChecking: !local.isValid ? false : trimmed.length > 0 })
 
@@ -69,14 +77,15 @@ export const useClueValidation = (position: Position, clueText: string) => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [clueText, settings.language, settings.semanticClueCheckEnabled, gameId, playerId, position, setClueValidity, boardWordsKey])
+  }, [clueText, settings.language, settings.semanticClueCheckEnabled, gameId, playerId, position, setClueValidity, boardWordsKey, isEditable])
 
   const validateImmediately = useCallback(async (): Promise<boolean> => {
     const trimmed = clueText.trim()
     if (trimmed.length === 0) return true
     if (!gameId || !playerId) return true
 
-    const local = validateClueLocally(trimmed, boardWords, settings.language, settings.semanticClueCheckEnabled)
+    const local = computeLocalClueValidity(isEditable, trimmed, boardWords, settings.language, settings.semanticClueCheckEnabled)
+    if (local === null) return true // lecture seule : pas de validation
     if (!local.isValid) {
       setClueValidity(position, { ...local, isChecking: false })
       return false
@@ -89,7 +98,7 @@ export const useClueValidation = (position: Position, clueText: string) => {
     } catch {
       return local.isValid
     }
-  }, [clueText, gameId, playerId, position, settings.language, settings.semanticClueCheckEnabled, boardWordsKey, setClueValidity])
+  }, [clueText, gameId, playerId, position, settings.language, settings.semanticClueCheckEnabled, boardWordsKey, setClueValidity, isEditable])
 
   return { validateImmediately }
 }
