@@ -23,3 +23,4 @@ Historique des versions de SoClover. Le projet suit [SemVer](https://semver.org/
 | v2.9.0 | `85446e5` | 2026-05-28 | Mode de génération IA PerDirection — 1 appel LLM par direction (fiabilise la convergence des modèles reasoning locaux) |
 | v2.9.1 | `d9c1d38` | 2026-05-29 | Prompt reasoning-only dédié PerDirection (FR+EN) — fichier `board-clues-per-direction.reasoning.md` chargé quand reasoning ON, sans procédure prescriptive parasite |
 | v2.9.2 | `b4393a8` | 2026-05-29 | Progression de génération des indices IA sur l'écran d'attente — indices validés (X/4) + retries par direction, via event SignalR `AiClueProgressUpdate` (couvre PerBoard & PerDirection) |
+| v2.10.0 | `bdcfdce` | 2026-05-31 | Code de partie lisible 4-mots anglais slugifiés (`lamp-pear-house-sheep`) remplaçant le GUID — PK PostgreSQL en `text`, code exposé dans l'URL `/g/<code>` (History API) pour retour/partage de partie |
