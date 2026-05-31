@@ -1,6 +1,6 @@
 ﻿-- PostgreSQL migration: create games table for SoClover
 CREATE TABLE IF NOT EXISTS public.games (
-    id uuid PRIMARY KEY,
+    id text PRIMARY KEY,
     status text NOT NULL,
     language text NULL,
     phase_ends_at_utc timestamptz NULL,
@@ -18,7 +18,7 @@ CREATE INDEX IF NOT EXISTS ix_games_phase_ends_at_utc ON public.games(phase_ends
 -- PostgreSQL migration: create game_results table to store per-player scoring results
 CREATE TABLE IF NOT EXISTS public.game_results (
     id uuid PRIMARY KEY,
-    game_id uuid NOT NULL REFERENCES public.games(id) ON DELETE CASCADE,
+    game_id text NOT NULL REFERENCES public.games(id) ON DELETE CASCADE,
     player_name text NOT NULL,
     board_is_guessed boolean NOT NULL,
     attempts integer NOT NULL,
