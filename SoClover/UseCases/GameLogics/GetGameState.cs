@@ -13,7 +13,7 @@ public static class GetGameState
     public readonly record struct Request(GameId GameId, bool IncludeSecrets = false, PlayerId? RequestingPlayerId = null);
 
     public sealed record Response(
-        [property: JsonPropertyName("gameId")] Guid GameId,
+        [property: JsonPropertyName("gameId")] string GameId,
         [property: JsonPropertyName("language")] string Language,
         [property: JsonPropertyName("cluesDurationSecondsOverride")] int? CluesDurationSecondsOverride,
         [property: JsonPropertyName("guessDurationSecondsOverride")] int? GuessDurationSecondsOverride,

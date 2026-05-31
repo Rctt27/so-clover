@@ -14,7 +14,7 @@ namespace SoClover.Tests.Helpers;
 /// </summary>
 public sealed class JsonSerializingGameRepository : IGameRepository
 {
-    private readonly ConcurrentDictionary<Guid, string> _store = new();
+    private readonly ConcurrentDictionary<string, string> _store = new();
     private readonly JsonSerializerOptions _json;
 
     public JsonSerializingGameRepository()

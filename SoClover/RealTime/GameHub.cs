@@ -28,7 +28,7 @@ public sealed class GameHub : Hub
 
     public async Task JoinGame(string gameId, string playerId)
     {
-        if (!Guid.TryParse(gameId, out var gid) || !Guid.TryParse(playerId, out var pid))
+        if (string.IsNullOrWhiteSpace(gameId) || !Guid.TryParse(playerId, out var pid))
         {
             throw new HubException("Invalid identifiers");
         }
@@ -41,7 +41,7 @@ public sealed class GameHub : Hub
             Console.WriteLine($"[GameHub] Cancelled disconnect timer for player {playerId}");
         }
 
-        var response = await _getState.Handle(new GetGameState.Request(new GameId(gid)), CancellationToken.None);
+        var response = await _getState.Handle(new GetGameState.Request(GameId.From(gameId)), CancellationToken.None);
 
         var isMember = response.Players.Any(p => p.PlayerId == pid);
         if (!isMember)
@@ -84,21 +84,21 @@ public sealed class GameHub : Hub
 
                         using var scope = _scopeFactory.CreateScope();
                         var repo = scope.ServiceProvider.GetRequiredService<IGameRepository>();
-                        var game = await repo.Get(new GameId(Guid.Parse(gameId)));
+                        var game = await repo.Get(GameId.From(gameId));
                         if (game == null) return;
 
                         if (game.Phase == GamePhase.Lobby)
                         {
                             var leaveUseCase = scope.ServiceProvider.GetRequiredService<ILeaveGameUseCase>();
                             await leaveUseCase.Handle(new LeaveGame.Request(
-                                new GameId(Guid.Parse(gameId)),
+                                GameId.From(gameId),
                                 new PlayerId(Guid.Parse(playerId))));
                         }
                         else if (game.Phase == GamePhase.WritingClues)
                         {
                             var disconnectUseCase = scope.ServiceProvider.GetRequiredService<IDisconnectPlayerUseCase>();
                             await disconnectUseCase.Handle(new DisconnectPlayer.Request(
-                                new GameId(Guid.Parse(gameId)),
+                                GameId.From(gameId),
                                 new PlayerId(Guid.Parse(playerId))));
                         }
                     }
@@ -131,7 +131,7 @@ public sealed class GameHub : Hub
 
     public async Task SendMousePositions(string gameId, string playerId, List<MouseMoveDto> positions)
     {
-        if (!Guid.TryParse(gameId, out var gid) || !Guid.TryParse(playerId, out var pid) || positions == null || positions.Count == 0)
+        if (string.IsNullOrWhiteSpace(gameId) || !Guid.TryParse(playerId, out var pid) || positions == null || positions.Count == 0)
         {
             return;
         }
@@ -142,7 +142,7 @@ public sealed class GameHub : Hub
         if (now - last < MouseRate) return;
         _lastMouse[key] = now;
 
-        var state = await _getState.Handle(new GetGameState.Request(new GameId(gid)), CancellationToken.None);
+        var state = await _getState.Handle(new GetGameState.Request(GameId.From(gameId)), CancellationToken.None);
         var player = state.Players.FirstOrDefault(p => p.PlayerId == pid);
         if (player is null) return;
         if (state.Phase != GamePhase.Guessing || state.GuessingState is null) return;
@@ -160,7 +160,7 @@ public sealed class GameHub : Hub
 
     public async Task BroadcastBoardRotation(string gameId, int cumulativeRotation)
     {
-        if (!Guid.TryParse(gameId, out _)) return;
+        if (string.IsNullOrWhiteSpace(gameId)) return;
         await Clients.OthersInGroup(GroupName(gameId)).SendAsync("BoardRotationUpdated", new { cumulativeRotation });
     }
 }
