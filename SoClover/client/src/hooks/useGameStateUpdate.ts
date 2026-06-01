@@ -125,7 +125,7 @@ export const useGameStateUpdate = () => {
           currentBoardClues: state.guessingState.currentBoardClues,
           cumulativeBoardRotation: state.guessingState.cumulativeBoardRotation ?? 0,
           lastAppliedRotationRevision: state.revision,
-          failedPlacements: state.guessingState.failedPlacements ?? [],
+          failedPlacements: state.guessingState.failedPlacements,
         });
       } else {
         // Same board: write everything except rotation, which is gated by revision.
@@ -136,7 +136,7 @@ export const useGameStateUpdate = () => {
           correctlyPlacedPositions: state.guessingState.correctlyPlacedPositions,
           remainingAttempts: state.guessingState.remainingAttempts,
           currentBoardClues: state.guessingState.currentBoardClues,
-          failedPlacements: state.guessingState.failedPlacements ?? [],
+          failedPlacements: state.guessingState.failedPlacements,
         });
         prevState.applyServerRotation(state.guessingState.cumulativeBoardRotation ?? 0, state.revision);
       }

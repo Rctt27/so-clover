@@ -122,6 +122,53 @@ public class GuessingFailedPlacementsTests
     }
 
     [Fact]
+    public async Task Validate_does_not_duplicate_an_identical_failed_placement()
+    {
+        var sp = BuildProvider();
+        var (gameId, repo) = await ReachGuessing(sp);
+        var game = (await repo.Get(gameId))!;
+
+        // First failed attempt: bonus card at TopLeft (always wrong)
+        var bonusId = ForceFailedBoard(game);
+        game.ValidateGuessingBoard();
+
+        // After validation, TopLeft is empty/unlocked and bonus card is back in OutsideCards.
+        // Re-create the EXACT same failed placement.
+        int bonusIndex = -1;
+        for (int i = 0; i < game.OutsideCards.Count; i++)
+        {
+            if (game.OutsideCards[i] != null && game.OutsideCards[i]!.Card.Id.Value == bonusId)
+            {
+                bonusIndex = i;
+                break;
+            }
+        }
+        Assert.True(bonusIndex >= 0, "La carte bonus doit être revenue dans le pool après validation");
+
+        // Place bonus at TopLeft again (same position as first attempt)
+        game.PlaceCardOnGuessingBoard(bonusIndex, BoardPosition.TopLeft);
+
+        // Fill all remaining empty non-locked positions with any available pool card
+        var allPositions = new[] { BoardPosition.TopLeft, BoardPosition.TopRight, BoardPosition.BottomRight, BoardPosition.BottomLeft };
+        foreach (var pos in allPositions)
+        {
+            if (game.CorrectlyPlacedPositions.Contains(pos)) continue;
+            if (game.GuessedCardPositions[pos] != null) continue;
+
+            int pi = 0;
+            while (pi < game.OutsideCards.Count && game.OutsideCards[pi] == null) pi++;
+            Assert.True(pi < game.OutsideCards.Count, "Plus de cartes disponibles dans le pool pour remplir le board");
+            game.PlaceCardOnGuessingBoard(pi, pos);
+        }
+
+        // Second validation — same bonus at TopLeft
+        game.ValidateGuessingBoard();
+
+        // Dedup: TopLeft+bonusId must appear exactly once in FailedPlacements
+        Assert.Equal(1, game.FailedPlacements.Count(f => f.Position == BoardPosition.TopLeft && f.CardId == bonusId));
+    }
+
+    [Fact]
     public async Task GetGameState_exposes_failed_placements()
     {
         var sp = BuildProvider();

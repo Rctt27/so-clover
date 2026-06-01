@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { create, type UseBoundStore, type StoreApi } from 'zustand'
 import { createGuessingSlice, GuessingSlice } from './guessingSlice'
 
-
 describe('applyServerRotation', () => {
   let store: UseBoundStore<StoreApi<GuessingSlice>>
 

@@ -69,6 +69,7 @@
       iconClass: 'w-7 h-7 text-orange-500 drop-shadow',
       offsetClass: 'top-1 right-1',
       zIndex: 121, // au-dessus du contenu carte (110), ≈ niveau correct (120)
+      iconZIndex: 122,
     },
   },
   

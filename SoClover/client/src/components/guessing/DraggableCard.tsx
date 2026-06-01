@@ -385,7 +385,7 @@ const DraggableCardImpl = ({
           {/* Icône warning top-right — contre-rotée pour rester droite */}
           <div
             className="absolute inset-0 pointer-events-none"
-            style={{ zIndex: CONSTANTS.THEME_CONFIG.warningOverlay.zIndex + 1 }}
+            style={{ zIndex: CONSTANTS.THEME_CONFIG.warningOverlay.iconZIndex }}
           >
             <motion.div
               className={`absolute ${CONSTANTS.THEME_CONFIG.warningOverlay.offsetClass}`}
@@ -393,7 +393,7 @@ const DraggableCardImpl = ({
               animate={{ scale: 1, opacity: 1, rotate: -cumulativeBoardRotation }}
               transition={{ rotate: { duration: 0.5, ease: 'easeInOut' } }}
             >
-              <AlertTriangle className={CONSTANTS.THEME_CONFIG.warningOverlay.iconClass} />
+              <AlertTriangle className={CONSTANTS.THEME_CONFIG.warningOverlay.iconClass} aria-label="Position déjà tentée et fausse" />
             </motion.div>
           </div>
         </>

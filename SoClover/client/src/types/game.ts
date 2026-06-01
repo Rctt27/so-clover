@@ -57,7 +57,7 @@ export interface CardInfoResponse {
 export interface FailedPlacementInfo {
   position: string; // "TopLeft" | "TopRight" | "BottomRight" | "BottomLeft"
   cardId: string;
-  rotation: string; // "None" | "Right90" | "Right180" | "Right270"
+  rotation: string; // "None" | "Right90" | "Right180" | "Right270" (also accepts "Clockwise*" variants)
 }
 
 export interface GuessingPhaseStateResponse {
