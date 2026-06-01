@@ -9,7 +9,6 @@ import { playSound } from '../../core/sounds'
 import { CONSTANTS } from '../../core/constants'
 import { LOGICAL_SLOTS } from '../../core/utils'
 import { draggableCardArePropsEqual } from './draggableCardArePropsEqual'
-import { AlertTriangle } from 'lucide-react'
 import { isPlacementAlreadyTried } from '../../core/isPlacementAlreadyTried'
 
 export interface DraggableCardProps {
@@ -377,13 +376,17 @@ const DraggableCardImpl = ({
       {/* Warning : combinaison position/rotation déjà tentée et fausse */}
       {isAlreadyTried && (
         <>
-          {/* Outline orange inset — épouse les coins arrondis de la carte (même rayon que
-              GAME_CARD.borderRadius) ; suit le board (pas de contre-rotation) */}
-          <div
+          {/* Outline orange inset — la carte est carrée (aucun coin arrondi) : on enveloppe
+              donc son contour exact avec un rayon nul. Inset (box-shadow) → zéro impact layout.
+              Fade-in retardé (cf. appearDelaySec) pour ne pas apparaître pendant une rotation. */}
+          <motion.div
             className={`absolute inset-0 pointer-events-none ${CONSTANTS.THEME_CONFIG.warningOverlay.outlineClass}`}
-            style={{
-              zIndex: CONSTANTS.THEME_CONFIG.warningOverlay.zIndex,
-              borderRadius: CONSTANTS.GAME_CARD.borderRadius,
+            style={{ zIndex: CONSTANTS.THEME_CONFIG.warningOverlay.zIndex }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{
+              duration: CONSTANTS.THEME_CONFIG.warningOverlay.fadeDurationSec,
+              delay: CONSTANTS.THEME_CONFIG.warningOverlay.appearDelaySec,
             }}
           />
           {/* Icône warning — on contre-rotne le cadre pleine carte (pivot = centre carte,
@@ -399,9 +402,25 @@ const DraggableCardImpl = ({
               className={`absolute ${CONSTANTS.THEME_CONFIG.warningOverlay.offsetClass}`}
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.2 }}
+              transition={{
+                duration: CONSTANTS.THEME_CONFIG.warningOverlay.fadeDurationSec,
+                delay: CONSTANTS.THEME_CONFIG.warningOverlay.appearDelaySec,
+              }}
             >
-              <AlertTriangle className={CONSTANTS.THEME_CONFIG.warningOverlay.iconClass} aria-label="Position déjà tentée et fausse" />
+              {/* Triangle orange plein + point d'exclamation blanc (plus lisible qu'un outline) */}
+              <svg
+                viewBox="0 0 24 24"
+                className={CONSTANTS.THEME_CONFIG.warningOverlay.iconClass}
+                role="img"
+                aria-label="Position déjà tentée et fausse"
+              >
+                <path
+                  className="fill-orange-500"
+                  d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.401 3.003Z"
+                />
+                <path className="fill-white" d="M12 8.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V9a.75.75 0 0 1 .75-.75Z" />
+                <circle className="fill-white" cx="12" cy="15.9" r="1" />
+              </svg>
             </motion.div>
           </motion.div>
         </>

@@ -3,7 +3,6 @@ import { useGameStore } from '../../core/store';
 import { PlayerList } from './PlayerList';
 import { GameSettings } from './GameSettings';
 import { gameApi } from '../../api/game-api';
-import { gameShareUrl } from '../../core/gameUrl';
 
 export const LobbyPage: React.FC = () => {
   const { gameId, playerId, isGameAdmin, players, resetAuth, setSettings } = useGameStore();

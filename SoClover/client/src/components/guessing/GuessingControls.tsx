@@ -105,14 +105,19 @@ export const GuessingControls = React.memo(({
             <span className="text-red-600 font-bold">Dommage ! Plus de tentatives pour ce plateau.</span>
           ) : (
             <>
-              Replacer les 4 cartes sur le plateau en fonction des indices.
-              {!isMyBoard && ' Attention à la carte bonus !'}
               {isMyBoard && ' Vous ne pouvez pas manipuler votre propre plateau.'}
             </>
           )}
         </p>
-        {!isMyBoard && !canMoveToNext && hasTriedPlacement && (
-          <p className="text-orange-600 font-semibold mt-2 text-sm">
+        {/* Toujours monté (quand on devine un plateau) pour réserver sa hauteur : on ne fait
+            que basculer l'opacité → aucun reflow/saut de layout quand le warning apparaît. */}
+        {!isMyBoard && !canMoveToNext && (
+          <p
+            className={`text-orange-600 font-semibold mt-2 text-sm transition-opacity duration-200 ${
+              hasTriedPlacement ? 'opacity-100' : 'opacity-0'
+            }`}
+            aria-hidden={!hasTriedPlacement}
+          >
             ⚠️ Au moins une carte est dans une position déjà testée et fausse. Déplacez-la ou tournez-la avant de valider.
           </p>
         )}
