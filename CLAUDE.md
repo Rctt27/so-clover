@@ -17,6 +17,19 @@ Le projet suit **SemVer** (`vMAJOR.MINOR.PATCH`), avec des tags Git annotés et 
 
 Jalons structurants : réécriture du front en React/TypeScript (v2.0), temps réel SignalR (v1.3), persistance PostgreSQL (v1.2), joueurs IA (v2.5), support du dictionnaire Anglais (v2.6), validation sémantique des indices étendue à l'Anglais (v2.7), code de partie lisible 4-mots exposé dans l'URL `/g/<code>` (v2.10). Historique complet des tags : voir [`CHANGELOG.md`](CHANGELOG.md).
 
+### ⚠️ Pré-requis ABSOLU avant toute release : le code doit être sur `main`
+**On ne tague et on ne release JAMAIS depuis une branche de feature.** Le déploiement
+(`docs/deploy.md`) fait `git archive HEAD … SoClover/` sur la branche courante (= `main`) :
+**tout ce qui n'est pas mergé dans `main` est invisible en prod**, même si un tag et une
+GitHub Release existent. Le numéro de version (`APP_VERSION`) et le code peuvent alors
+diverger — la prod affiche la bonne version mais sert l'ancien code (incident v2.11.0 :
+feature taguée sur `feat/guessing-tried-placement-warning`, jamais mergée, jamais déployée ;
+résolue en v2.12.0). Avant de taguer, vérifier impérativement :
+- la feature est **mergée dans `main`** et `git status` est propre (rien d'oublié) ;
+- le commit qu'on s'apprête à taguer est bien sur `main` : `git branch --contains <commit>` doit lister `main` ;
+- `APP_VERSION` **et** le code de la feature sont tous deux présents sur `main` (pas seulement le bump de version) ;
+- après build, vérifier que le bundle servi en prod contient bien la nouvelle `APP_VERSION` (cf. vérification post-déploiement).
+
 ### Processus à chaque nouvelle release (OBLIGATOIRE)
 1. Mettre à jour `CONSTANTS.APP_VERSION` dans `SoClover/client/src/core/constants.ts` — c'est cette
    valeur qui s'affiche dans le footer de l'écran d'accueil (`components/home/HomeScreen.tsx`).
