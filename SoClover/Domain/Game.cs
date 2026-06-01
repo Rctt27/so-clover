@@ -75,6 +75,10 @@ public sealed class Game
     public HashSet<BoardPosition> CorrectlyPlacedPositions { get; private set; } = new();
 
     [JsonInclude]
+    [JsonPropertyName("failedPlacements")]
+    public List<FailedPlacement> FailedPlacements { get; private set; } = new();
+
+    [JsonInclude]
     [JsonPropertyName("completedBoardsCount")]
     public int CompletedBoardsCount { get; private set; } = 0;
 
@@ -452,6 +456,7 @@ public sealed class Game
 
         RemainingAttempts = 3;
         CorrectlyPlacedPositions = new HashSet<BoardPosition>();
+        FailedPlacements = new List<FailedPlacement>();
         CompletedBoardsCount = 0;
 
         // Initialize scoring tracking
@@ -650,6 +655,9 @@ public sealed class Game
             else
             {
                 incorrectPositions.Add(position);
+                var failed = new FailedPlacement(position, guessedCard.Card.Id.Value, guessedCard.Rotation);
+                if (!FailedPlacements.Contains(failed))
+                    FailedPlacements.Add(failed);
             }
         }
 
@@ -799,6 +807,7 @@ public sealed class Game
 
             RemainingAttempts = 3;
             CorrectlyPlacedPositions = new HashSet<BoardPosition>();
+            FailedPlacements = new List<FailedPlacement>();
 
             // Réinitialiser le tracking pour le nouveau board
             _currentBoardStartTime = nowUtc;

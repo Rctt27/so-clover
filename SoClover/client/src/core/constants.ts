@@ -1,6 +1,6 @@
 ﻿export const CONSTANTS = {
   // À mettre à jour à chaque release de version (cf. CLAUDE.md § Versioning)
-  APP_VERSION: '2.11.1',
+  APP_VERSION: '2.12.0',
   GAME_URL_PREFIX: '/g/',
   SIGNALR_HUB_URL: '/hubs/game',
   MOUSE_THROTTLE_MS: 30,
@@ -62,7 +62,20 @@
           transition: { duration: 0.3, ease: 'easeOut' as const }
         }
       }
-    }
+    },
+    warningOverlay: {
+      // outline INSET (box-shadow) → la carte conserve ses dimensions, zéro impact layout.
+      // Les cartes sont carrées (aucun coin arrondi) : pas de rayon, l'outline épouse le contour exact.
+      outlineClass: 'ring-2 ring-orange-500 ring-inset',
+      iconClass: 'w-7 h-7 drop-shadow', // couleurs portées par les fill-* du SVG (triangle orange, exclamation blanche)
+      offsetClass: 'top-1 right-1',
+      zIndex: 121, // au-dessus du contenu carte (110), ≈ niveau correct (120)
+      iconZIndex: 122,
+      // Délai d'apparition calé sur la durée de rotation de la carte (CardAnimation rotate = 0.5s)
+      // pour que le warning ne « pop » pas avant la fin du pivot. Fade-in doux ensuite.
+      appearDelaySec: 0.25,
+      fadeDurationSec: 0.25,
+    },
   },
   
   CANVAS_COLORS: {

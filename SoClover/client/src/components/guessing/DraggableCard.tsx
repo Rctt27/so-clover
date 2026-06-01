@@ -9,6 +9,7 @@ import { playSound } from '../../core/sounds'
 import { CONSTANTS } from '../../core/constants'
 import { LOGICAL_SLOTS } from '../../core/utils'
 import { draggableCardArePropsEqual } from './draggableCardArePropsEqual'
+import { isPlacementAlreadyTried } from '../../core/isPlacementAlreadyTried'
 
 export interface DraggableCardProps {
   card: CardInfoResponse
@@ -56,6 +57,7 @@ const DraggableCardImpl = ({
   const { gameId, playerId, role } = useGameStore()
   const { cumulativeBoardRotation, isValidationPending } = useGuessingStore()
   const validationResults = useGuessingStore((s) => s.validationResults)
+  const failedPlacements = useGuessingStore((s) => s.failedPlacements)
   const isLocalDragInProgress = useGuessingStore((s) => s.isLocalDragInProgress)
   const setLocalDragActive = useGuessingStore((s) => s.setLocalDragActive)
 
@@ -65,6 +67,9 @@ const DraggableCardImpl = ({
     boardPosition != null && (validationResults?.incorrectPositions?.includes(boardPosition) ?? false)
   const isNewlyCorrect =
     boardPosition != null && (validationResults?.correctPositions?.includes(boardPosition) ?? false)
+  const isAlreadyTried =
+    boardPosition != null && !isLocked && !isCorrect &&
+    isPlacementAlreadyTried(failedPlacements, card.cardId, boardPosition, card.rotation)
 
   // Rotation du backend (normalisée 0-270)
   const backendRotation = rotationToDegrees(card.rotation);
@@ -366,6 +371,59 @@ const DraggableCardImpl = ({
       {/* Overlay pour les cartes verrouillées */}
       {isLocked && !isCorrect && (
         <div className="absolute inset-0 bg-slate-500/10 rounded-xl pointer-events-none" />
+      )}
+
+      {/* Warning : combinaison position/rotation déjà tentée et fausse */}
+      {isAlreadyTried && (
+        <>
+          {/* Outline orange inset — la carte est carrée (aucun coin arrondi) : on enveloppe
+              donc son contour exact avec un rayon nul. Inset (box-shadow) → zéro impact layout.
+              Fade-in retardé (cf. appearDelaySec) pour ne pas apparaître pendant une rotation. */}
+          <motion.div
+            className={`absolute inset-0 pointer-events-none ${CONSTANTS.THEME_CONFIG.warningOverlay.outlineClass}`}
+            style={{ zIndex: CONSTANTS.THEME_CONFIG.warningOverlay.zIndex }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{
+              duration: CONSTANTS.THEME_CONFIG.warningOverlay.fadeDurationSec,
+              delay: CONSTANTS.THEME_CONFIG.warningOverlay.appearDelaySec,
+            }}
+          />
+          {/* Icône warning — on contre-rotne le cadre pleine carte (pivot = centre carte,
+              comme l'icône « correct ») pour annuler la rotation du board : l'icône reste
+              ainsi toujours en HAUT-DROITE visuelle de la carte ET le glyphe reste droit. */}
+          <motion.div
+            className="absolute inset-0 pointer-events-none"
+            style={{ zIndex: CONSTANTS.THEME_CONFIG.warningOverlay.iconZIndex }}
+            animate={{ rotate: -cumulativeBoardRotation }}
+            transition={{ rotate: { duration: 0.5, ease: 'easeInOut' } }}
+          >
+            <motion.div
+              className={`absolute ${CONSTANTS.THEME_CONFIG.warningOverlay.offsetClass}`}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{
+                duration: CONSTANTS.THEME_CONFIG.warningOverlay.fadeDurationSec,
+                delay: CONSTANTS.THEME_CONFIG.warningOverlay.appearDelaySec,
+              }}
+            >
+              {/* Triangle orange plein + point d'exclamation blanc (plus lisible qu'un outline) */}
+              <svg
+                viewBox="0 0 24 24"
+                className={CONSTANTS.THEME_CONFIG.warningOverlay.iconClass}
+                role="img"
+                aria-label="Position déjà tentée et fausse"
+              >
+                <path
+                  className="fill-orange-500"
+                  d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.401 3.003Z"
+                />
+                <path className="fill-white" d="M12 8.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V9a.75.75 0 0 1 .75-.75Z" />
+                <circle className="fill-white" cx="12" cy="15.9" r="1" />
+              </svg>
+            </motion.div>
+          </motion.div>
+        </>
       )}
     </motion.div>
   )

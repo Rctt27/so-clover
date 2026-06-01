@@ -15,6 +15,7 @@ export interface GuessingControlsProps {
   onNextBoard: () => void
   rotation: number
   onRotate: (direction: 'left' | 'right') => void
+  hasTriedPlacement: boolean
 }
 
 export const GuessingControls = React.memo(({
@@ -28,6 +29,7 @@ export const GuessingControls = React.memo(({
   onNextBoard,
   rotation,
   onRotate,
+  hasTriedPlacement,
 }: GuessingControlsProps) => {
   // Mute state (synced with localStorage)
   const [muted, setMuted] = useState(isMuted)
@@ -78,7 +80,7 @@ export const GuessingControls = React.memo(({
 
             <button
               onClick={canMoveToNext ? onNextBoard : onValidate}
-              disabled={isValidationPending || (!isBoardFull && !canMoveToNext)}
+              disabled={isValidationPending || (!isBoardFull && !canMoveToNext) || (!canMoveToNext && hasTriedPlacement)}
               className={`px-12 py-4 rounded-full text-white font-bold text-xl shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 ${
                 canMoveToNext ? 'bg-blue-600 hover:bg-blue-700 shadow-blue/30' :
                 isBoardFull ? 'bg-clover hover:bg-clover-dark shadow-clover/30' : 'bg-gray-400'
@@ -103,12 +105,22 @@ export const GuessingControls = React.memo(({
             <span className="text-red-600 font-bold">Dommage ! Plus de tentatives pour ce plateau.</span>
           ) : (
             <>
-              Replacer les 4 cartes sur le plateau en fonction des indices.
-              {!isMyBoard && ' Attention à la carte bonus !'}
               {isMyBoard && ' Vous ne pouvez pas manipuler votre propre plateau.'}
             </>
           )}
         </p>
+        {/* Toujours monté (quand on devine un plateau) pour réserver sa hauteur : on ne fait
+            que basculer l'opacité → aucun reflow/saut de layout quand le warning apparaît. */}
+        {!isMyBoard && !canMoveToNext && (
+          <p
+            className={`text-orange-600 font-semibold mt-2 text-sm transition-opacity duration-200 ${
+              hasTriedPlacement ? 'opacity-100' : 'opacity-0'
+            }`}
+            aria-hidden={!hasTriedPlacement}
+          >
+            ⚠️ Au moins une carte est dans une position déjà testée et fausse. Déplacez-la ou tournez-la avant de valider.
+          </p>
+        )}
         {!isBoardGuessed && remainingAttempts > 0 && !isMyBoard && (
           <p className="text-clover-dark font-bold mt-2">
             Tentatives restantes : {remainingAttempts}

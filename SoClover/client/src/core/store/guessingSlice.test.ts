@@ -39,3 +39,20 @@ describe('applyServerRotation', () => {
     expect(store.getState().lastAppliedRotationRevision).toBe(4)
   })
 })
+
+describe('failedPlacements', () => {
+  it('defaults to an empty array', () => {
+    const store = create<GuessingSlice>()(createGuessingSlice as any)
+    expect(store.getState().failedPlacements).toEqual([])
+  })
+
+  it('is cleared by resetGuessingState', () => {
+    const store = create<GuessingSlice>()(createGuessingSlice as any)
+    store.getState().setGuessingState({
+      failedPlacements: [{ position: 'TopLeft', cardId: 'c1', rotation: 'None' }],
+    })
+    expect(store.getState().failedPlacements).toHaveLength(1)
+    store.getState().resetGuessingState()
+    expect(store.getState().failedPlacements).toEqual([])
+  })
+})
