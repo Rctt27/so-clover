@@ -377,25 +377,33 @@ const DraggableCardImpl = ({
       {/* Warning : combinaison position/rotation déjà tentée et fausse */}
       {isAlreadyTried && (
         <>
-          {/* Outline orange inset — suit le board (pas de contre-rotation) */}
+          {/* Outline orange inset — épouse les coins arrondis de la carte (même rayon que
+              GAME_CARD.borderRadius) ; suit le board (pas de contre-rotation) */}
           <div
             className={`absolute inset-0 pointer-events-none ${CONSTANTS.THEME_CONFIG.warningOverlay.outlineClass}`}
-            style={{ zIndex: CONSTANTS.THEME_CONFIG.warningOverlay.zIndex }}
+            style={{
+              zIndex: CONSTANTS.THEME_CONFIG.warningOverlay.zIndex,
+              borderRadius: CONSTANTS.GAME_CARD.borderRadius,
+            }}
           />
-          {/* Icône warning top-right — contre-rotée pour rester droite */}
-          <div
+          {/* Icône warning — on contre-rotne le cadre pleine carte (pivot = centre carte,
+              comme l'icône « correct ») pour annuler la rotation du board : l'icône reste
+              ainsi toujours en HAUT-DROITE visuelle de la carte ET le glyphe reste droit. */}
+          <motion.div
             className="absolute inset-0 pointer-events-none"
             style={{ zIndex: CONSTANTS.THEME_CONFIG.warningOverlay.iconZIndex }}
+            animate={{ rotate: -cumulativeBoardRotation }}
+            transition={{ rotate: { duration: 0.5, ease: 'easeInOut' } }}
           >
             <motion.div
               className={`absolute ${CONSTANTS.THEME_CONFIG.warningOverlay.offsetClass}`}
               initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1, rotate: -cumulativeBoardRotation }}
-              transition={{ rotate: { duration: 0.5, ease: 'easeInOut' } }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.2 }}
             >
               <AlertTriangle className={CONSTANTS.THEME_CONFIG.warningOverlay.iconClass} aria-label="Position déjà tentée et fausse" />
             </motion.div>
-          </div>
+          </motion.div>
         </>
       )}
     </motion.div>
