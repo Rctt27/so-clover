@@ -9,6 +9,8 @@ import { playSound } from '../../core/sounds'
 import { CONSTANTS } from '../../core/constants'
 import { LOGICAL_SLOTS } from '../../core/utils'
 import { draggableCardArePropsEqual } from './draggableCardArePropsEqual'
+import { AlertTriangle } from 'lucide-react'
+import { isPlacementAlreadyTried } from '../../core/isPlacementAlreadyTried'
 
 export interface DraggableCardProps {
   card: CardInfoResponse
@@ -56,6 +58,7 @@ const DraggableCardImpl = ({
   const { gameId, playerId, role } = useGameStore()
   const { cumulativeBoardRotation, isValidationPending } = useGuessingStore()
   const validationResults = useGuessingStore((s) => s.validationResults)
+  const failedPlacements = useGuessingStore((s) => s.failedPlacements)
   const isLocalDragInProgress = useGuessingStore((s) => s.isLocalDragInProgress)
   const setLocalDragActive = useGuessingStore((s) => s.setLocalDragActive)
 
@@ -65,6 +68,9 @@ const DraggableCardImpl = ({
     boardPosition != null && (validationResults?.incorrectPositions?.includes(boardPosition) ?? false)
   const isNewlyCorrect =
     boardPosition != null && (validationResults?.correctPositions?.includes(boardPosition) ?? false)
+  const isAlreadyTried =
+    boardPosition != null && !isLocked && !isCorrect &&
+    isPlacementAlreadyTried(failedPlacements, card.cardId, boardPosition, card.rotation)
 
   // Rotation du backend (normalisée 0-270)
   const backendRotation = rotationToDegrees(card.rotation);
@@ -366,6 +372,31 @@ const DraggableCardImpl = ({
       {/* Overlay pour les cartes verrouillées */}
       {isLocked && !isCorrect && (
         <div className="absolute inset-0 bg-slate-500/10 rounded-xl pointer-events-none" />
+      )}
+
+      {/* Warning : combinaison position/rotation déjà tentée et fausse */}
+      {isAlreadyTried && (
+        <>
+          {/* Outline orange inset — suit le board (pas de contre-rotation) */}
+          <div
+            className={`absolute inset-0 pointer-events-none ${CONSTANTS.THEME_CONFIG.warningOverlay.outlineClass}`}
+            style={{ zIndex: CONSTANTS.THEME_CONFIG.warningOverlay.zIndex }}
+          />
+          {/* Icône warning top-right — contre-rotée pour rester droite */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ zIndex: CONSTANTS.THEME_CONFIG.warningOverlay.zIndex + 1 }}
+          >
+            <motion.div
+              className={`absolute ${CONSTANTS.THEME_CONFIG.warningOverlay.offsetClass}`}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1, rotate: -cumulativeBoardRotation }}
+              transition={{ rotate: { duration: 0.5, ease: 'easeInOut' } }}
+            >
+              <AlertTriangle className={CONSTANTS.THEME_CONFIG.warningOverlay.iconClass} />
+            </motion.div>
+          </div>
+        </>
       )}
     </motion.div>
   )
