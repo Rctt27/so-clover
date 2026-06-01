@@ -62,7 +62,14 @@
           transition: { duration: 0.3, ease: 'easeOut' as const }
         }
       }
-    }
+    },
+    warningOverlay: {
+      // outline INSET → la carte conserve ses dimensions
+      outlineClass: 'ring-2 ring-orange-500 ring-inset rounded-xl',
+      iconClass: 'w-7 h-7 text-orange-500 drop-shadow',
+      offsetClass: 'top-1 right-1',
+      zIndex: 121, // au-dessus du contenu carte (110), ≈ niveau correct (120)
+    },
   },
   
   CANVAS_COLORS: {
