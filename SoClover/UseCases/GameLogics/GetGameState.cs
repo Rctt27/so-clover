@@ -69,7 +69,8 @@ public static class GetGameState
         [property: JsonPropertyName("correctlyPlacedPositions")] IReadOnlyList<BoardPosition> CorrectlyPlacedPositions,
         [property: JsonPropertyName("remainingAttempts")] int RemainingAttempts,
         [property: JsonPropertyName("currentBoardClues")] IReadOnlyList<ClueInfo> CurrentBoardClues,
-        [property: JsonPropertyName("cumulativeBoardRotation")] int CumulativeBoardRotation
+        [property: JsonPropertyName("cumulativeBoardRotation")] int CumulativeBoardRotation,
+        [property: JsonPropertyName("failedPlacements")] IReadOnlyList<FailedPlacementInfo> FailedPlacements
     );
 
     public sealed record ClueInfo(
@@ -78,6 +79,12 @@ public static class GetGameState
         // Anti-cheat: populated only once the current Guessing board is resolved
         // (RemainingAttempts == 0 OR 4 correct). Null otherwise. See Handle() for gating.
         [property: JsonPropertyName("explanation")] string? Explanation
+    );
+
+    public sealed record FailedPlacementInfo(
+        [property: JsonPropertyName("position")] BoardPosition Position,
+        [property: JsonPropertyName("cardId")] string CardId,
+        [property: JsonPropertyName("rotation")] string Rotation
     );
 
     public sealed class Handler : IGetGameStateUseCase
@@ -175,7 +182,10 @@ public static class GetGameState
                     game.CorrectlyPlacedPositions.ToList(),
                     game.RemainingAttempts,
                     clues,
-                    game.CumulativeBoardRotation
+                    game.CumulativeBoardRotation,
+                    game.FailedPlacements
+                        .Select(f => new FailedPlacementInfo(f.Position, f.CardId.ToString(), f.Rotation.ToString()))
+                        .ToList()
                 );
             }
 
