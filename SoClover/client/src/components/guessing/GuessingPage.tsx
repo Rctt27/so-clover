@@ -12,6 +12,7 @@ import { GuessingControls } from './GuessingControls'
 import { CardData, rotationToDegrees, CardInfoResponse } from '../../types/game'
 import { playSound } from '../../core/sounds'
 import { debugLog } from '../../core/debug'
+import { isPlacementAlreadyTried } from '../../core/isPlacementAlreadyTried'
 
 export const GuessingPage = () => {
   const { playerId } = useGameStore()
@@ -25,6 +26,7 @@ export const GuessingPage = () => {
     isValidationPending,
     remainingAttempts,
     correctlyPlacedPositions,
+    failedPlacements,
   } = useGuessingStore(
     (s) => ({
       currentBoardOwnerName: s.currentBoardOwnerName,
@@ -36,6 +38,7 @@ export const GuessingPage = () => {
       isValidationPending: s.isValidationPending,
       remainingAttempts: s.remainingAttempts,
       correctlyPlacedPositions: s.correctlyPlacedPositions,
+      failedPlacements: s.failedPlacements,
     }),
     shallow,
   )
@@ -71,6 +74,16 @@ export const GuessingPage = () => {
 
   const isBoardGuessed = correctlyPlacedPositions.length === 4
   const canMoveToNext = isBoardGuessed || (remainingAttempts === 0 && !isValidationPending)
+
+  const hasTriedPlacement = useMemo(
+    () =>
+      (['TopLeft', 'TopRight', 'BottomRight', 'BottomLeft'] as const).some((pos) => {
+        if (correctlyPlacedPositions.includes(pos)) return false
+        const c = guessedPositions[pos]
+        return !!c && isPlacementAlreadyTried(failedPlacements, c.cardId, pos, c.rotation)
+      }),
+    [guessedPositions, failedPlacements, correctlyPlacedPositions],
+  )
 
   // ─── Custom drag hooks ──────────────────────────────────────────────────────
 
@@ -276,6 +289,7 @@ export const GuessingPage = () => {
             onNextBoard={nextBoard}
             rotation={safeCumulativeRotation}
             onRotate={handleRotateBoard}
+            hasTriedPlacement={hasTriedPlacement}
           />
         </div>
 
