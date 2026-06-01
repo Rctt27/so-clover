@@ -1,5 +1,5 @@
 import { StateCreator } from 'zustand'
-import { CardInfoResponse, ClueInfoResponse } from '../../types/game'
+import { CardInfoResponse, ClueInfoResponse, FailedPlacementInfo } from '../../types/game'
 
 export interface GuessingSlice {
   // État provenant du serveur
@@ -10,6 +10,7 @@ export interface GuessingSlice {
   correctlyPlacedPositions: string[]
   remainingAttempts: number
   currentBoardClues: ClueInfoResponse[]
+  failedPlacements: FailedPlacementInfo[]
 
   // État local (UI)
   selectedCardId: string | null // Pour le mode tablette / clic-clic
@@ -54,6 +55,7 @@ export const createGuessingSlice: StateCreator<GuessingSlice, [["zustand/devtool
   correctlyPlacedPositions: [],
   remainingAttempts: 0,
   currentBoardClues: [],
+  failedPlacements: [],
 
   selectedCardId: null,
   cumulativeBoardRotation: 0,
@@ -103,6 +105,7 @@ export const createGuessingSlice: StateCreator<GuessingSlice, [["zustand/devtool
     correctlyPlacedPositions: [],
     remainingAttempts: 0,
     currentBoardClues: [],
+    failedPlacements: [],
     selectedCardId: null,
     cumulativeBoardRotation: 0,
     lastAppliedRotationRevision: 0,
