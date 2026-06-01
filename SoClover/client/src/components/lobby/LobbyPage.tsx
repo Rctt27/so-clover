@@ -83,7 +83,7 @@ export const LobbyPage: React.FC = () => {
 
   const copyToClipboard = () => {
     if (gameId) {
-      navigator.clipboard.writeText(gameShareUrl(gameId));
+      navigator.clipboard.writeText(gameId);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
