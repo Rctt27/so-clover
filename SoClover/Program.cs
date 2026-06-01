@@ -545,6 +545,12 @@ app.MapGet("/api/games/{gameId}/state", async (string gameId, string? playerId, 
                     direction = c.Direction.ToString(),
                     text = c.Text,
                     explanation = c.Explanation
+                }).ToList(),
+                failedPlacements = response.GuessingState.FailedPlacements.Select(f => new
+                {
+                    position = f.Position.ToString(),
+                    cardId = f.CardId,
+                    rotation = f.Rotation
                 }).ToList()
             },
             players = response.Players.Select(p => new
