@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using SoClover.Domain;
 using SoClover.Infrastructure;
+using SoClover.Tests.Helpers;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Gameplay;
 using SoClover.UseCases.GameLogics;
@@ -10,10 +11,13 @@ namespace SoClover.Tests;
 
 public class GuessingFailedPlacementsTests
 {
-    private static ServiceProvider BuildProvider()
+    private static ServiceProvider BuildProvider(bool jsonRepo = false)
     {
         var services = new ServiceCollection();
-        services.AddSingleton<IGameRepository, InMemoryGameRepository>();
+        if (jsonRepo)
+            services.AddSingleton<IGameRepository, JsonSerializingGameRepository>();
+        else
+            services.AddSingleton<IGameRepository, InMemoryGameRepository>();
         services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
         var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "Infrastructure", "Dictionaries");
         services.AddSingleton<IWordDictionary>(sp => new FileWordDictionary(Path.GetFullPath(dictionaryPath)));
@@ -184,5 +188,32 @@ public class GuessingFailedPlacementsTests
         Assert.NotNull(state.GuessingState);
         Assert.Contains(state.GuessingState!.FailedPlacements,
             f => f.Position == BoardPosition.TopLeft && f.CardId == bonusId.ToString());
+    }
+
+    [Fact]
+    public async Task FailedPlacements_survive_json_serialization_round_trip()
+    {
+        // Use the JSON-serializing repo to exercise the RELEASE persistence path (JSONB).
+        var sp = BuildProvider(jsonRepo: true);
+        var (gameId, repo) = await ReachGuessing(sp);
+        var game = (await repo.Get(gameId))!;
+
+        // Force a failed placement and capture its rotation before the round-trip.
+        var bonusId = ForceFailedBoard(game);
+        game.ValidateGuessingBoard();
+
+        Assert.NotEmpty(game.FailedPlacements);
+        var originalEntry = game.FailedPlacements.Single(f => f.Position == BoardPosition.TopLeft && f.CardId == bonusId);
+
+        // Persist via JSON round-trip (Save serializes → Get deserializes fresh instance).
+        await repo.Save(game);
+        var reloaded = (await repo.Get(gameId))!;
+
+        // FailedPlacements must survive the JSON round-trip.
+        Assert.Equal(game.FailedPlacements.Count, reloaded.FailedPlacements.Count);
+        Assert.Contains(reloaded.FailedPlacements,
+            f => f.Position == BoardPosition.TopLeft
+                 && f.CardId == bonusId
+                 && f.Rotation == originalEntry.Rotation);
     }
 }
