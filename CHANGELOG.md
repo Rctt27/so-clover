@@ -26,3 +26,4 @@ Historique des versions de SoClover. Le projet suit [SemVer](https://semver.org/
 | v2.10.0 | `bdcfdce` | 2026-05-31 | Code de partie lisible 4-mots anglais slugifiés (`lamp-pear-house-sheep`) remplaçant le GUID — PK PostgreSQL en `text`, code exposé dans l'URL `/g/<code>` (History API) pour retour/partage de partie |
 | v2.10.1 | `5bc49f5` | 2026-05-31 | Isolation de la vérification sémantique des indices à la phase WritingClues — suppression des faux positifs en phase Guessing causés par la 5e carte leurre |
 | v2.11.0 | `cc4cd3b` | 2026-06-01 | Avertissement « position déjà essayée » en phase Guessing — outline orange + icône warning sur les combinaisons (carte/position/rotation) déjà tentées et fausses, bouton « Valider » grisé si position connue fausse |
+| v2.11.1 | `16516c9` | 2026-06-01 | Release : APP_VERSION mise à jour |
