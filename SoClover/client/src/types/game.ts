@@ -54,6 +54,12 @@ export interface CardInfoResponse {
   rotation: string; // "None", "Clockwise90", "Clockwise180", "Clockwise270"
 }
 
+export interface FailedPlacementInfo {
+  position: string; // "TopLeft" | "TopRight" | "BottomRight" | "BottomLeft"
+  cardId: string;
+  rotation: string; // "None" | "Right90" | "Right180" | "Right270"
+}
+
 export interface GuessingPhaseStateResponse {
   currentBoardOwnerId: string | null;
   currentBoardOwnerName: string | null;
@@ -63,6 +69,7 @@ export interface GuessingPhaseStateResponse {
   remainingAttempts: number;
   currentBoardClues: ClueInfoResponse[];
   cumulativeBoardRotation: number;
+  failedPlacements: FailedPlacementInfo[];
 }
 
 export interface ClueInfoResponse {
