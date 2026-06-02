@@ -13,6 +13,10 @@ export interface OutsideCardPoolProps {
   highlightedSlot?: string | null
   /** Drag handlers factory from useCardDrag */
   dragHandlers?: (slotId: string, cardId: string) => { onPointerDown: (e: React.PointerEvent) => void }
+  /** Clic-clic (tablette) : sélection/placement par slot. undefined si désactivé. */
+  onSlotClick?: (slotId: string) => void
+  /** Slot actuellement sélectionné (clic-clic) — pour l'anneau visuel. */
+  selectedSlotId?: string | null
   /** Card id currently being dragged (to hide it in source slot) */
   dragSourceCardId?: string | null
   /** Source slot id of the current/last drag (paired with dragSourceCardId).
@@ -24,9 +28,10 @@ interface PoolSlotProps {
   id: string;
   children: React.ReactNode;
   isHighlighted: boolean;
+  onClick?: () => void;
 }
 
-const PoolSlot = ({ id, children, isHighlighted }: PoolSlotProps) => {
+const PoolSlot = ({ id, children, isHighlighted, onClick }: PoolSlotProps) => {
   const { slotMinPx, slotMaxPx } = CONSTANTS.ASSET_REFERENCES.pool;
   // Slot carré dimensionné sur la hauteur de la rangée centrale (100cqh fourni par le
   // container-type:size de GuessingPage). Réserve 4rem = 2×gap-6 (2×1.5rem) + pb-4 (1rem)
@@ -35,6 +40,7 @@ const PoolSlot = ({ id, children, isHighlighted }: PoolSlotProps) => {
   return (
     <div
       data-slot-id={id}
+      onClick={onClick}
       style={{ width: sideLength, height: sideLength }}
       className={`relative rounded-2xl flex items-center justify-center transition-all duration-300 border-2 border-dashed ${
         isHighlighted
@@ -60,10 +66,12 @@ export const OutsideCardPool = ({
   displacedSlot,
   highlightedSlot,
   dragHandlers,
+  onSlotClick,
+  selectedSlotId,
   dragSourceCardId,
   dragSourceSlot,
 }: OutsideCardPoolProps) => {
-  const { selectedCardId, setSelectedCardId, isValidationPending } = useGuessingStore()
+  const { isValidationPending } = useGuessingStore()
 
   return (
     <div className="flex flex-col gap-6 items-center px-4 pb-4 pt-0">
@@ -72,9 +80,15 @@ export const OutsideCardPool = ({
         const slotId = `pool-${slotIndex}`;
         const isDisplaced = !!(displacedSlot && displacedSlot === slotId);
         const isHighlighted = highlightedSlot === slotId;
+        const canInteract = !disabled && !isValidationPending;
 
         return (
-          <PoolSlot key={slotId} id={slotId} isHighlighted={isHighlighted}>
+          <PoolSlot
+            key={slotId}
+            id={slotId}
+            isHighlighted={isHighlighted}
+            onClick={canInteract && onSlotClick ? () => onSlotClick(slotId) : undefined}
+          >
             {card && (
               <DraggableCard
                 key={card.cardId}
@@ -82,12 +96,11 @@ export const OutsideCardPool = ({
                 index={slotIndex}
                 isOutside={true}
                 isLocked={disabled || isValidationPending}
-                isSelected={selectedCardId === `outside-${card.cardId}`}
+                isSelected={selectedSlotId === slotId}
                 isDisplaced={isDisplaced}
                 isDragSource={dragSourceCardId === card.cardId && dragSourceSlot === slotId}
-                onClick={() => !disabled && !isValidationPending && setSelectedCardId(selectedCardId === `outside-${card.cardId}` ? null : `outside-${card.cardId}`)}
                 onPointerDown={
-                  dragHandlers && !disabled && !isValidationPending
+                  dragHandlers && canInteract
                     ? dragHandlers(slotId, card.cardId).onPointerDown
                     : undefined
                 }

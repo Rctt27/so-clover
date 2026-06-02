@@ -216,7 +216,12 @@ export function useCardDrag(options: UseCardDragOptions): {
       const dy = y - startPosRef.current.y
       if (Math.hypot(dx, dy) < ACTIVATION_DISTANCE) return
 
-      // Threshold crossed — begin drag
+      // Threshold crossed — begin drag.
+      // preventDefault est appelé ICI (et non sur pointerdown) pour qu'un simple tap —
+      // qui ne franchit jamais le seuil — laisse passer l'événement `click` natif.
+      // C'est ce click qui pilote le mode clic-clic (tablette). Bloquer le default dès
+      // le franchissement du seuil suffit à inhiber le click parasite d'un vrai drag.
+      e.preventDefault()
       activatedRef.current = true
       draggingRef.current = true
 
@@ -343,7 +348,8 @@ export function useCardDrag(options: UseCardDragOptions): {
         if (e.button !== 0) return   // left click / primary touch only
         if (draggingRef.current) return  // already dragging
 
-        e.preventDefault()
+        // Pas de preventDefault ici : on le diffère à l'activation du drag (cf. handlePointerMove)
+        // afin de préserver le click natif sur un simple tap (mode clic-clic tablette).
 
         // Annule le reset différé d'un drag précédent : sinon il pourrait nuker
         // le state du nouveau drag pendant son déroulé.

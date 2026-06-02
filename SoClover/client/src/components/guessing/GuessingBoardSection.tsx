@@ -23,6 +23,8 @@ export interface GuessingBoardSectionProps {
   displacedSlot: string | null
   dragState: DragState
   createDragHandlers: (slotId: string, cardId: string) => { onPointerDown: (e: React.PointerEvent) => void }
+  onSlotClick?: (slotId: string) => void
+  selectedSlot?: string | null
 }
 
 export const GuessingBoardSection = React.memo(({
@@ -40,6 +42,8 @@ export const GuessingBoardSection = React.memo(({
   displacedSlot,
   dragState,
   createDragHandlers,
+  onSlotClick,
+  selectedSlot,
 }: GuessingBoardSectionProps) => {
   const isMouseTrackingEnabled = useMouseTrackingEnabled()
 
@@ -74,6 +78,8 @@ export const GuessingBoardSection = React.memo(({
         ownerId={currentBoardOwnerId || undefined}
         highlightedSlot={boardHighlightedSlot}
         dragHandlers={isDraggingDisabled ? undefined : createDragHandlers}
+        onSlotClick={isDraggingDisabled ? undefined : onSlotClick}
+        selectedSlot={selectedSlot}
         dragSourceCardId={dragState.draggedCardId}
         dragSourceSlot={dragState.sourceSlot}
         dragTargetSlot={dragState.targetSlot}

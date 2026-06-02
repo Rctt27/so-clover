@@ -13,7 +13,7 @@ export interface GuessingSlice {
   failedPlacements: FailedPlacementInfo[]
 
   // État local (UI)
-  selectedCardId: string | null // Pour le mode tablette / clic-clic
+  selectedSlotId: string | null // Slot sélectionné pour le mode clic-clic (tablette) : 'pool-N' ou slot logique board
   cumulativeBoardRotation: number
   lastAppliedRotationRevision: number
   isValidationPending: boolean
@@ -38,7 +38,7 @@ export interface GuessingSlice {
   applyServerRotation: (rotation: number, revision: number) => boolean
   setIsValidationPending: (pending: boolean) => void
   setValidationResults: (results: { correctPositions: string[], incorrectPositions: string[] } | null) => void
-  setSelectedCardId: (id: string | null) => void
+  setSelectedSlotId: (id: string | null) => void
   resetGuessingState: () => void
 }
 
@@ -57,7 +57,7 @@ export const createGuessingSlice: StateCreator<GuessingSlice, [["zustand/devtool
   currentBoardClues: [],
   failedPlacements: [],
 
-  selectedCardId: null,
+  selectedSlotId: null,
   cumulativeBoardRotation: 0,
   lastAppliedRotationRevision: 0,
   isValidationPending: false,
@@ -91,7 +91,7 @@ export const createGuessingSlice: StateCreator<GuessingSlice, [["zustand/devtool
   setLocalDragActive: (active) => set({ isLocalDragInProgress: active }, false, 'GuessingStore/setLocalDragActive'),
   setIsValidationPending: (pending) => set({ isValidationPending: pending }, false, 'GuessingStore/setIsValidationPending'),
   setValidationResults: (results) => set({ validationResults: results }, false, 'GuessingStore/setValidationResults'),
-  setSelectedCardId: (id) => set({ selectedCardId: id }, false, 'GuessingStore/setSelectedCardId'),
+  setSelectedSlotId: (id) => set({ selectedSlotId: id }, false, 'GuessingStore/setSelectedSlotId'),
   resetGuessingState: () => set({
     currentBoardOwnerId: null,
     currentBoardOwnerName: null,
@@ -106,7 +106,7 @@ export const createGuessingSlice: StateCreator<GuessingSlice, [["zustand/devtool
     remainingAttempts: 0,
     currentBoardClues: [],
     failedPlacements: [],
-    selectedCardId: null,
+    selectedSlotId: null,
     cumulativeBoardRotation: 0,
     lastAppliedRotationRevision: 0,
     isValidationPending: false,

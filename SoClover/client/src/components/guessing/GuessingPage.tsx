@@ -45,6 +45,8 @@ export const GuessingPage = () => {
   )
   const setCumulativeBoardRotation = useGuessingStore((s) => s.setCumulativeBoardRotation)
   const resetGuessingState = useGuessingStore((s) => s.resetGuessingState)
+  const selectedSlotId = useGuessingStore((s) => s.selectedSlotId)
+  const setSelectedSlotId = useGuessingStore((s) => s.setSelectedSlotId)
   const {
     fetchGameState,
     loading,
@@ -202,6 +204,56 @@ export const GuessingPage = () => {
     broadcastBoardRotation(newRotation)
   }, [isMyBoard, isValidationPending, safeCumulativeRotation, setCumulativeBoardRotation, broadcastBoardRotation])
 
+  // ─── Clic-clic (tablette) ─────────────────────────────────────────────────
+  // Le drag tactile étant peu fiable sur tablette, on offre un mode « clic carte
+  // puis clic emplacement ». Réutilise handleDragEnd (logique 100 % slot-based).
+
+  // Un slot peut être « source » (= porte une carte sélectionnable)
+  const slotHasCard = useCallback(
+    (slotId: string): boolean => {
+      if (slotId.startsWith('pool-')) {
+        const idx = parseInt(slotId.replace('pool-', ''), 10)
+        return !!outsideCards[idx]
+      }
+      return !!guessedPositions[slotId]
+    },
+    [outsideCards, guessedPositions],
+  )
+
+  const handleSlotClick = useCallback(
+    (slotId: string) => {
+      if (isMyBoard || isValidationPending || canMoveToNext) return
+      // Slots board déjà validés : verrouillés
+      if (correctlyPlacedPositions.includes(slotId)) return
+
+      // Re-clic sur le slot sélectionné → désélection
+      if (selectedSlotId === slotId) {
+        setSelectedSlotId(null)
+        return
+      }
+
+      // Pas encore de sélection : on ne sélectionne qu'un slot porteur d'une carte
+      if (!selectedSlotId) {
+        if (slotHasCard(slotId)) setSelectedSlotId(slotId)
+        return
+      }
+
+      // Une sélection existe → on traite ce clic comme la cible du déplacement
+      setSelectedSlotId(null)
+      void handleDragEnd(selectedSlotId, slotId)
+    },
+    [
+      isMyBoard,
+      isValidationPending,
+      canMoveToNext,
+      correctlyPlacedPositions,
+      selectedSlotId,
+      setSelectedSlotId,
+      slotHasCard,
+      handleDragEnd,
+    ],
+  )
+
   // Find the card being dragged for the overlay
   const findDraggedCard = useCallback((): CardInfoResponse | null => {
     const cardId = dragState.draggedCardId
@@ -262,6 +314,8 @@ export const GuessingPage = () => {
             displacedSlot={displacedSlot}
             highlightedSlot={poolHighlightedSlot}
             dragHandlers={isMyBoard || isValidationPending || canMoveToNext ? undefined : createDragHandlers}
+            onSlotClick={isMyBoard || isValidationPending || canMoveToNext ? undefined : handleSlotClick}
+            selectedSlotId={selectedSlotId}
             dragSourceCardId={dragState.draggedCardId}
             dragSourceSlot={dragState.sourceSlot}
           />
@@ -291,6 +345,8 @@ export const GuessingPage = () => {
               displacedSlot={displacedSlot}
               dragState={dragState}
               createDragHandlers={createDragHandlers}
+              onSlotClick={handleSlotClick}
+              selectedSlot={selectedSlotId}
             />
           </div>
 
@@ -318,6 +374,8 @@ export const GuessingPage = () => {
             displacedSlot={displacedSlot}
             highlightedSlot={poolHighlightedSlot}
             dragHandlers={isMyBoard || isValidationPending || canMoveToNext ? undefined : createDragHandlers}
+            onSlotClick={isMyBoard || isValidationPending || canMoveToNext ? undefined : handleSlotClick}
+            selectedSlotId={selectedSlotId}
             dragSourceCardId={dragState.draggedCardId}
             dragSourceSlot={dragState.sourceSlot}
           />

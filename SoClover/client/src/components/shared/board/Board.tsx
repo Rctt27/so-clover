@@ -44,6 +44,10 @@ export interface BoardProps {
   highlightedSlot?: string | null;
   /** Drag handlers factory from useCardDrag */
   dragHandlers?: (slotId: string, cardId: string) => { onPointerDown: (e: React.PointerEvent) => void };
+  /** Clic-clic (tablette) : sélection/placement par slot logique. undefined si désactivé. */
+  onSlotClick?: (slotId: string) => void;
+  /** Slot logique actuellement sélectionné (clic-clic) — pour l'anneau visuel. */
+  selectedSlot?: string | null;
   /** Card id currently being dragged (to hide it in source slot) */
   dragSourceCardId?: string | null;
   /** Source slot id of the current/last drag (paired with dragSourceCardId).
@@ -72,6 +76,8 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
   correctPositions = [],
   highlightedSlot,
   dragHandlers,
+  onSlotClick,
+  selectedSlot,
   dragSourceCardId,
   dragSourceSlot,
   dragTargetSlot,
@@ -189,10 +195,13 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
               <div
                 key={vIndex}
                 data-slot-id={logicalPosName}
+                onClick={onSlotClick ? () => onSlotClick(logicalPosName) : undefined}
                 style={getSlotStyle(vIndex)}
-                className={`rounded-lg transition-all duration-200 ${
+                className={`rounded-lg transition-all duration-200 ${onSlotClick ? 'cursor-pointer' : ''} ${
                   highlightedSlot === logicalPosName
                     ? 'bg-clover/30 ring-8 ring-clover/50 scale-105 z-50 shadow-[0_0_20px_rgba(76,175,80,0.4)]'
+                    : selectedSlot === logicalPosName
+                    ? 'ring-4 ring-clover/60 scale-105'
                     : ''
                 }`}
               >
@@ -251,6 +260,8 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
                       isDisplaced={isDisplaced}
                       isDragSource={dragSourceCardId === guessedCard.cardId && dragSourceSlot === logicalPosName}
                       isDragTarget={dragTargetSlot === logicalPosName}
+                      isSelected={selectedSlot === logicalPosName}
+                      onClick={onSlotClick ? () => onSlotClick(logicalPosName) : undefined}
                       onPointerDown={
                         dragHandlers
                           ? dragHandlers(logicalPosName, guessedCard.cardId).onPointerDown
