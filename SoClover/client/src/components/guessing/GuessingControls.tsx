@@ -58,9 +58,9 @@ export const GuessingControls = React.memo(({
   }, [remainingAttempts, isBoardGuessed])
 
   return (
-    <div className="flex flex-col items-center gap-6">
+    <div className="flex flex-col items-center gap-3">
       {/* Espace fixe pour maintenir l'alignement vertical constant */}
-      <div className="flex flex-col items-center gap-4" style={{ minHeight: '160px' }}>
+      <div className="flex flex-col items-center gap-3" style={{ minHeight: '120px' }}>
         {!isMyBoard && (
           <>
             <BoardRotationControls
@@ -72,7 +72,7 @@ export const GuessingControls = React.memo(({
             <button
               onClick={canMoveToNext ? onNextBoard : onValidate}
               disabled={isValidationPending || (!isBoardFull && !canMoveToNext) || (!canMoveToNext && hasTriedPlacement)}
-              className={`px-12 py-4 rounded-full text-white font-bold text-xl shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 ${
+              className={`px-10 py-3 rounded-full text-white font-bold text-lg shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 ${
                 canMoveToNext ? 'bg-blue-600 hover:bg-blue-700 shadow-blue/30' :
                 isBoardFull ? 'bg-clover hover:bg-clover-dark shadow-clover/30' : 'bg-gray-400'
               }`}
@@ -88,7 +88,7 @@ export const GuessingControls = React.memo(({
         )}
       </div>
 
-      <div className="text-center text-gray-700 bg-white/20 p-4 rounded-lg backdrop-blur-md border border-white/30 max-w-md">
+      <div className="text-center text-gray-700 bg-white/20 px-3 py-2 rounded-lg backdrop-blur-md border border-white/30 max-w-md">
         <p className="text-sm italic">
           {isBoardGuessed ? (
             <span className="text-clover-dark font-bold text-lg">Bravo ! Plateau complété !</span>

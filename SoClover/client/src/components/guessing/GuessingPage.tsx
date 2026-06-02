@@ -235,7 +235,7 @@ export const GuessingPage = () => {
     dragState.targetSlot?.startsWith('pool-') ? dragState.targetSlot : null
 
   return (
-    <div className="flex flex-col h-[100svh]">
+    <div className="flex flex-col h-[calc(100svh-2rem)]">
       {/* Header Info */}
       <div className="bg-white/30 backdrop-blur-sm shadow-sm p-4 text-center">
         <h1 className="text-2xl font-bold text-gray-800">Phase de Déduction</h1>
@@ -267,7 +267,7 @@ export const GuessingPage = () => {
         </div>
 
         {/* Board Central */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 min-w-0 max-w-[1000px]">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 min-w-0 max-w-[1000px] self-stretch">
           {/* Sous-zone plateau : flex-1 prend la hauteur résiduelle de la colonne (= hauteur
               rangée − contrôles) ; container-type:size en fait le conteneur de référence du
               plateau → 100cqw = largeur colonne centrale, 100cqh = hauteur sous-zone. */}
