@@ -57,7 +57,7 @@ export const OutsideCardPool = ({
   const { selectedCardId, setSelectedCardId, isValidationPending } = useGuessingStore()
 
   return (
-    <div className="flex flex-col gap-6 items-center p-4 min-w-[280px]">
+    <div className="flex flex-col gap-6 items-center px-4 pb-4 pt-0 min-w-[280px]">
       {cards.map((card, i) => {
         const slotIndex = startIndex + i;
         const slotId = `pool-${slotIndex}`;

@@ -244,7 +244,7 @@ export const GuessingPage = () => {
         </p>
       </div>
 
-      <div className="flex flex-1 items-center justify-between px-8 py-4 gap-8 overflow-hidden">
+      <div className="flex flex-1 items-start justify-center px-8 py-4 gap-8 overflow-hidden">
         {/* Pool Gauche */}
         <div className="flex-none">
           <OutsideCardPool
