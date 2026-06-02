@@ -236,8 +236,9 @@ export const GuessingPage = () => {
 
   return (
     <div className="flex flex-col h-[calc(100svh-2rem)]">
-      {/* Header Info */}
-      <div className="bg-white/30 backdrop-blur-sm shadow-sm p-4 text-center">
+      {/* Header Info — titre + sous-titre sur une seule ligne pour gagner de la hauteur
+          (utile sur les viewports courts type tablette). */}
+      <div className="bg-white/30 backdrop-blur-sm shadow-sm py-2 px-4 flex items-baseline justify-center gap-3 flex-wrap">
         <h1 className="text-2xl font-bold text-gray-800">Phase de Déduction</h1>
         <p className="text-gray-600">
           Plateau de{' '}
