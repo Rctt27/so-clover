@@ -2,6 +2,7 @@ import React from 'react'
 import { DraggableCard } from './DraggableCard'
 import { CardInfoResponse } from '../../types/game'
 import { useGuessingStore } from '../../core/store'
+import { CONSTANTS } from '../../core/constants'
 
 export interface OutsideCardPoolProps {
   cards: (CardInfoResponse | null)[]
@@ -25,24 +26,32 @@ interface PoolSlotProps {
   isHighlighted: boolean;
 }
 
-const PoolSlot = ({ id, children, isHighlighted }: PoolSlotProps) => (
-  <div
-    data-slot-id={id}
-    className={`relative w-[260px] h-[260px] rounded-2xl flex items-center justify-center transition-all duration-300 border-2 border-dashed ${
-      isHighlighted
-        ? 'bg-clover/15 border-clover border-solid shadow-[0_0_20px_rgba(76,175,80,0.3)] scale-105 z-10'
-        : 'border-gray-200 bg-gray-50/30'
-    }`}
-  >
-    {/* Indicateur visuel au centre du slot vide */}
-    {isHighlighted && !children && (
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-12 h-12 rounded-full bg-clover/20 animate-ping" />
-      </div>
-    )}
-    {children}
-  </div>
-);
+const PoolSlot = ({ id, children, isHighlighted }: PoolSlotProps) => {
+  const { slotMinPx, slotMaxPx } = CONSTANTS.ASSET_REFERENCES.pool;
+  // Slot carré dimensionné sur la hauteur de la rangée centrale (100cqh fourni par le
+  // container-type:size de GuessingPage). Réserve 4rem = 2×gap-6 (2×1.5rem) + pb-4 (1rem)
+  // pour les 3 slots empilés, puis divise par 3. Borné [min, max].
+  const sideLength = `clamp(${slotMinPx}px, calc((100cqh - 4rem) / 3), ${slotMaxPx}px)`;
+  return (
+    <div
+      data-slot-id={id}
+      style={{ width: sideLength, height: sideLength }}
+      className={`relative rounded-2xl flex items-center justify-center transition-all duration-300 border-2 border-dashed ${
+        isHighlighted
+          ? 'bg-clover/15 border-clover border-solid shadow-[0_0_20px_rgba(76,175,80,0.3)] scale-105 z-10'
+          : 'border-gray-200 bg-gray-50/30'
+      }`}
+    >
+      {/* Indicateur visuel au centre du slot vide */}
+      {isHighlighted && !children && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-12 h-12 rounded-full bg-clover/20 animate-ping" />
+        </div>
+      )}
+      {children}
+    </div>
+  );
+};
 
 export const OutsideCardPool = ({
   cards,
@@ -57,7 +66,7 @@ export const OutsideCardPool = ({
   const { selectedCardId, setSelectedCardId, isValidationPending } = useGuessingStore()
 
   return (
-    <div className="flex flex-col gap-6 items-center px-4 pb-4 pt-0 min-w-[280px]">
+    <div className="flex flex-col gap-6 items-center px-4 pb-4 pt-0">
       {cards.map((card, i) => {
         const slotIndex = startIndex + i;
         const slotId = `pool-${slotIndex}`;
