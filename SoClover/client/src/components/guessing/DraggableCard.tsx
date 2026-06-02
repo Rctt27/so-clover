@@ -267,12 +267,20 @@ const DraggableCardImpl = ({
       } ${!canInteract ? 'cursor-default opacity-90' : (isRotating ? 'cursor-grabbing' : 'cursor-grab active:cursor-grabbing')} ${
         isDragTarget ? 'ring-4 ring-amber-400 ring-offset-2 scale-110' : ''
       }`}
+      draggable={false}
       style={{
         width: '100%',
         height: '100%',
         zIndex: isDisplaced ? 150 : (isDragTarget ? 50 : (isDragSource ? 1000 : 'auto')),
         pointerEvents: isDragSource ? 'none' : 'auto',
-      }}
+        // Bloque la sélection de texte et le drag natif d'élément (mots/SVG de la carte)
+        // par CSS plutôt que par preventDefault sur pointerdown — ce dernier tuerait le
+        // click natif requis par le mode clic-clic (tablette). Voir useCardDrag.ts.
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        WebkitUserDrag: 'none',
+        touchAction: 'none',
+      } as React.CSSProperties}
       initial={isDragOverlay ? false : { opacity: 0, scale: 0.8 }}
       animate={{
         opacity: 1,

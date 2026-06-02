@@ -63,6 +63,9 @@ export const GuessingControls = React.memo(({
     <button
       onClick={canMoveToNext ? onNextBoard : onValidate}
       disabled={isValidationPending || (!isBoardFull && !canMoveToNext) || (!canMoveToNext && hasTriedPlacement)}
+      title={!isMyBoard && !canMoveToNext && hasTriedPlacement
+        ? '⚠️ Au moins une carte est dans une position déjà testée et fausse. Déplacez-la ou tournez-la avant de valider.'
+        : undefined}
       className={`px-7 py-2 rounded-full text-white font-bold text-base shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 ${
         canMoveToNext ? 'bg-blue-600 hover:bg-blue-700 shadow-blue/30' :
         isBoardFull ? 'bg-clover hover:bg-clover-dark shadow-clover/30' : 'bg-gray-400'
@@ -141,19 +144,9 @@ export const GuessingControls = React.memo(({
             ⚠️ Au moins une carte est dans une position déjà testée et fausse. Déplacez-la ou tournez-la avant de valider.
           </p>
         )}
-        {/* Tablette : indicateur compact (contour orange + icône ⚠️), rendu UNIQUEMENT quand le
-            warning est actif → ne réserve aucune hauteur, le plateau récupère la place. Le texte
-            complet reste accessible via title/aria-label. */}
-        {!isMyBoard && !canMoveToNext && hasTriedPlacement && (
-          <span
-            className="hidden [@media(pointer:coarse)]:inline-flex items-center justify-center mt-1 h-7 w-7 rounded-full border-2 border-orange-500 text-base"
-            role="alert"
-            title="Au moins une carte est dans une position déjà testée et fausse. Déplacez-la ou tournez-la avant de valider."
-            aria-label="Au moins une carte est dans une position déjà testée et fausse. Déplacez-la ou tournez-la avant de valider."
-          >
-            ⚠️
-          </span>
-        )}
+        {/* Tablette : aucun indicateur d'avertissement au-dessus du bouton (ni réserve de
+            hauteur, ni reflow du plateau). Le contour orange + icône sur la carte concernée
+            suffit ; le message complet s'affiche en infobulle au survol du bouton « Valider ». */}
         {!isBoardGuessed && remainingAttempts > 0 && !isMyBoard && (
           <p className="text-clover-dark font-bold mt-1 text-sm">
             Tentatives restantes : {remainingAttempts}
