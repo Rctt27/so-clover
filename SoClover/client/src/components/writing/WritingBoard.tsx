@@ -36,18 +36,24 @@ export const WritingBoard = () => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen gap-8 py-8 w-full max-w-[1200px] mx-auto">
-      <div className="text-center">
+    <div className="flex flex-col items-center h-[100svh] min-h-[100svh] gap-4 py-4 w-full max-w-[1200px] mx-auto">
+      <div className="text-center shrink-0">
         <h1 className="text-3xl font-bold text-clover-dark mb-2">Phase d'Écriture</h1>
         <p className="text-gray-600">Observez vos 4 cartes et les 8 mots formés par leurs paires</p>
       </div>
 
-      <div className="flex items-center justify-center w-full px-4 overflow-visible">
-        <Board 
-          cards={myBoard.cards} 
-          rotation={myBoard.rotation} 
-          animateEntry={true} 
+      {/* Zone plateau élastique : flex-1 prend la hauteur résiduelle, container-type:size
+          en fait le conteneur de référence pour le sizing height-aware du plateau. */}
+      <div
+        className="flex-1 min-h-0 w-full flex items-center justify-center px-4"
+        style={{ containerType: 'size' }}
+      >
+        <Board
+          cards={myBoard.cards}
+          rotation={myBoard.rotation}
+          animateEntry={true}
           showClueInputs={true}
+          containerSized
           onClueSave={submitClue}
           disabled={myBoard.isSubmitted}
           clues={{
@@ -59,15 +65,19 @@ export const WritingBoard = () => {
         />
       </div>
 
-      <WritingControls />
+      {/* Pied de page à hauteur auto : toute variation (message soumis, erreur de
+          validation) reprend/cède automatiquement de l'espace au plateau. */}
+      <div className="shrink-0 w-full flex flex-col items-center">
+        <WritingControls />
 
-      {myBoard.isSubmitted && (
-        <div className="flex flex-col items-center gap-2 py-4">
-          <p className="text-green-600 font-semibold">Plateau soumis !</p>
-          <p className="text-gray-500 text-sm">En attente des autres joueurs...</p>
-          <SubmissionProgress />
-        </div>
-      )}
+        {myBoard.isSubmitted && (
+          <div className="flex flex-col items-center gap-2 py-4">
+            <p className="text-green-600 font-semibold">Plateau soumis !</p>
+            <p className="text-gray-500 text-sm">En attente des autres joueurs...</p>
+            <SubmissionProgress />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
