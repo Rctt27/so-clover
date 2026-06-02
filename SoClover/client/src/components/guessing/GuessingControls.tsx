@@ -83,8 +83,10 @@ export const GuessingControls = React.memo(({
       <div className="flex flex-col items-center gap-2" style={{ minHeight: '100px' }}>
         {!isMyBoard && (
           <>
-            {/* Desktop (≥1025px) : rotation avec libellé + raccourcis clavier, bouton en dessous. */}
-            <div className="hidden min-[1025px]:flex flex-col items-center gap-3">
+            {/* Desktop / souris (pointer:fine) : rotation avec libellé + raccourcis clavier,
+                bouton en dessous. Variante par défaut (s'applique aussi si la media query
+                n'est pas supportée). */}
+            <div className="flex [@media(pointer:coarse)]:hidden flex-col items-center gap-3">
               <BoardRotationControls
                 rotation={rotation}
                 onRotate={onRotate}
@@ -93,10 +95,12 @@ export const GuessingControls = React.memo(({
               {validateButton}
             </div>
 
-            {/* Tablette (≤1024px) : flèches de rotation de part et d'autre du bouton « Valider »,
-                sans pastille de libellé → une seule rangée plus basse, le plateau récupère la hauteur.
-                enableKeyboard=false : l'instance desktop (toujours montée) porte déjà le listener. */}
-            <div className="flex min-[1025px]:hidden">
+            {/* Tablette / tactile (pointer:coarse) : flèches de rotation de part et d'autre du
+                bouton « Valider », sans pastille de libellé → une seule rangée plus basse, le
+                plateau récupère la hauteur. Détecté par type de pointeur (pas par largeur : une
+                tablette en paysage type Galaxy Tab S9 fait 1280px de large). enableKeyboard=false :
+                l'instance desktop (toujours montée) porte déjà le listener clavier. */}
+            <div className="hidden [@media(pointer:coarse)]:flex">
               <BoardRotationControls
                 rotation={rotation}
                 onRotate={onRotate}
