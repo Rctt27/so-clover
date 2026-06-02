@@ -1,8 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef } from 'react'
 import confetti from 'canvas-confetti'
-import { Volume2, VolumeX } from 'lucide-react'
 import { BoardRotationControls } from '../shared/board/BoardRotationControls'
-import { playSound, toggleMute, isMuted } from '../../core/sounds'
+import { playSound } from '../../core/sounds'
 
 export interface GuessingControlsProps {
   isMyBoard: boolean
@@ -31,14 +30,6 @@ export const GuessingControls = React.memo(({
   onRotate,
   hasTriedPlacement,
 }: GuessingControlsProps) => {
-  // Mute state (synced with localStorage)
-  const [muted, setMuted] = useState(isMuted)
-
-  const handleToggleMute = () => {
-    toggleMute()
-    setMuted(isMuted())
-  }
-
   // Confettis + son correct quand le board est complètement deviné
   const prevIsBoardGuessedRef = useRef(false)
   useEffect(() => {
@@ -127,16 +118,6 @@ export const GuessingControls = React.memo(({
           </p>
         )}
       </div>
-
-      {/* Bouton mute */}
-      <button
-        onClick={handleToggleMute}
-        className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/30 hover:bg-white/50 transition-colors text-gray-700 text-sm"
-        title={muted ? 'Activer le son' : 'Couper le son'}
-      >
-        {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-        <span>{muted ? 'Son coupé' : 'Son activé'}</span>
-      </button>
     </div>
   )
 });

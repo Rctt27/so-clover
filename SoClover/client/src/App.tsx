@@ -14,6 +14,7 @@ import { ScoringPage } from './components/scoring/ScoringPage'
 import { NotificationContainer } from './components/shared/NotificationContainer'
 import { Timer } from './components/shared/Timer'
 import { ConnectionOverlay } from './components/shared/ConnectionOverlay'
+import { SoundToggleButton } from './components/shared/SoundToggleButton'
 
 const WritingBoard = lazy(() => import('./components/writing/WritingBoard').then(m => ({ default: m.WritingBoard })))
 const WaitingForAiBoards = lazy(() => import('./components/writing/WaitingForAiBoards').then(m => ({ default: m.WaitingForAiBoards })))
@@ -98,6 +99,11 @@ function App() {
 
       {/* Connection Status Indicator */}
       <div className="fixed top-4 right-4 flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-md z-50">
+        {/* Bouton son — rond, à gauche de l'icône wifi avec un espace vide entre les deux */}
+        <div className="mr-3">
+          <SoundToggleButton />
+        </div>
+
         {connectionStatus === 'Connected' ? (
           <Wifi size={18} className="text-green-500" />
         ) : (
