@@ -99,6 +99,13 @@
       referenceSize: 1300,  // Canvas 1300×1300px — contenu visuel ~1258px (marge ~21px)
       cardSize: 320,
       cardGap: 4,           // Espacement (px) entre les cartes adjacentes sur le board
+      minRenderedPx: 420,   // Plancher de lisibilité du plateau rendu (sizing height-aware) ; sous ce seuil on réaccepte le scroll
+      maxRenderedPx: 1000,  // Plafond du plateau rendu ; remplace l'ancien maxWidth codé en dur dans Board.tsx
+    },
+    pool: {
+      slotMaxPx: 260,       // Taille max d'un slot de pool (Guessing) — reprend l'ancien w-[260px]/h-[260px]
+      slotMinPx: 150,       // Plancher d'un slot de pool ; sous ce seuil, scroll gracieux dans la rangée centrale
+      dragOverlayPx: 180,   // Taille de repli de l'overlay de carte draggée (extrait de l'inline 180×180 historique)
     },
   },
 
