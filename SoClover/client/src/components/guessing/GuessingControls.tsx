@@ -78,9 +78,10 @@ export const GuessingControls = React.memo(({
   )
 
   return (
-    <div className="flex flex-col items-center gap-3">
-      {/* Espace fixe pour maintenir l'alignement vertical constant */}
-      <div className="flex flex-col items-center gap-2" style={{ minHeight: '100px' }}>
+    <div className="flex flex-col items-center gap-3 [@media(pointer:coarse)]:gap-1">
+      {/* Réserve de hauteur pour un alignement vertical constant (desktop). Sur tablette
+          (pointer:coarse) on libère cette réserve (min-h-0) → un maximum de hauteur rendu au plateau. */}
+      <div className="flex flex-col items-center gap-2 min-h-[100px] [@media(pointer:coarse)]:min-h-0">
         {!isMyBoard && (
           <>
             {/* Desktop / souris (pointer:fine) : rotation avec libellé + raccourcis clavier,
@@ -128,15 +129,30 @@ export const GuessingControls = React.memo(({
         </p>
         {/* Toujours monté (quand on devine un plateau) pour réserver sa hauteur : on ne fait
             que basculer l'opacité → aucun reflow/saut de layout quand le warning apparaît. */}
+        {/* Desktop : phrase complète, toujours montée (bascule d'opacité) pour réserver sa
+            hauteur et éviter tout saut de layout. Masquée sur tablette (display:none → 0 hauteur). */}
         {!isMyBoard && !canMoveToNext && (
           <p
-            className={`text-orange-600 font-semibold mt-1 text-xs transition-opacity duration-200 ${
+            className={`text-orange-600 font-semibold mt-1 text-xs transition-opacity duration-200 [@media(pointer:coarse)]:hidden ${
               hasTriedPlacement ? 'opacity-100' : 'opacity-0'
             }`}
             aria-hidden={!hasTriedPlacement}
           >
             ⚠️ Au moins une carte est dans une position déjà testée et fausse. Déplacez-la ou tournez-la avant de valider.
           </p>
+        )}
+        {/* Tablette : indicateur compact (contour orange + icône ⚠️), rendu UNIQUEMENT quand le
+            warning est actif → ne réserve aucune hauteur, le plateau récupère la place. Le texte
+            complet reste accessible via title/aria-label. */}
+        {!isMyBoard && !canMoveToNext && hasTriedPlacement && (
+          <span
+            className="hidden [@media(pointer:coarse)]:inline-flex items-center justify-center mt-1 h-7 w-7 rounded-full border-2 border-orange-500 text-base"
+            role="alert"
+            title="Au moins une carte est dans une position déjà testée et fausse. Déplacez-la ou tournez-la avant de valider."
+            aria-label="Au moins une carte est dans une position déjà testée et fausse. Déplacez-la ou tournez-la avant de valider."
+          >
+            ⚠️
+          </span>
         )}
         {!isBoardGuessed && remainingAttempts > 0 && !isMyBoard && (
           <p className="text-clover-dark font-bold mt-1 text-sm">
