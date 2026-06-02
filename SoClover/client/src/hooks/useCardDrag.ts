@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { LOGICAL_SLOTS } from '../core/utils'
 import { useGuessingStore } from '../core/store'
+import { isDragActivated } from '../core/dragActivation'
 
 /** Fenêtre post-drop pendant laquelle on continue à supprimer les animations
  *  locales — couvre le SignalR roundtrip + le re-render qui suit. */
@@ -25,7 +26,9 @@ export interface UseCardDragOptions {
 
 // ─── Internal helpers ────────────────────────────────────────────────────────
 
-const ACTIVATION_DISTANCE = 5  // px — minimum movement before drag starts
+// Le seuil d'activation est désormais dépendant du type de pointeur (souris/stylet vs tactile) :
+// voir `core/dragActivation.ts`. Un seuil unique trop bas transformait un micro-jitter tactile en
+// swap accidentel lors d'un clic sur un coin de rotation.
 
 /**
  * Convert screen coordinates to board-local coordinates,
@@ -166,6 +169,7 @@ export function useCardDrag(options: UseCardDragOptions): {
   const sourceSlotRef = useRef<string | null>(null)
   const cardIdRef = useRef<string | null>(null)
   const pointerIdRef = useRef<number | null>(null)
+  const pointerTypeRef = useRef<string>('mouse')  // type de pointeur du drag courant (mouse/pen/touch)
   const startPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
   const boardRotationRef = useRef(boardRotationDeg)
   const onDragEndRef = useRef(onDragEnd)
@@ -210,11 +214,11 @@ export function useCardDrag(options: UseCardDragOptions): {
     const x = e.clientX
     const y = e.clientY
 
-    // Check activation threshold
+    // Check activation threshold (seuil dépendant du type de pointeur)
     if (!activatedRef.current) {
       const dx = x - startPosRef.current.x
       const dy = y - startPosRef.current.y
-      if (Math.hypot(dx, dy) < ACTIVATION_DISTANCE) return
+      if (!isDragActivated(dx, dy, pointerTypeRef.current)) return
 
       // Threshold crossed — begin drag.
       // preventDefault est appelé ICI (et non sur pointerdown) pour qu'un simple tap —
@@ -359,6 +363,7 @@ export function useCardDrag(options: UseCardDragOptions): {
         }
 
         pointerIdRef.current = e.pointerId
+        pointerTypeRef.current = e.pointerType || 'mouse'
         sourceSlotRef.current = slotId
         cardIdRef.current = cardId
         startPosRef.current = { x: e.clientX, y: e.clientY }

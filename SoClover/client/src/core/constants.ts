@@ -63,6 +63,14 @@
         }
       }
     },
+    rotationCorner: {
+      // Taille de chaque zone de rotation de coin, exprimée en FRACTION de la carte (et non en
+      // pixels fixes). Garantit des zones proportionnelles à la carte : sur un plateau tablette
+      // maximisé où la taille des cartes varie, une zone fixe (48px) devenait trop petite (mis-aim
+      // → swap involontaire) ou se recouvrait sur petites cartes. 4×30% laissent une croix centrale
+      // de 40% dédiée au déplacement, sans recouvrement entre coins, quelle que soit la taille.
+      sizeRatio: 0.3,
+    },
     warningOverlay: {
       // outline INSET (box-shadow) → la carte conserve ses dimensions, zéro impact layout.
       // Les cartes sont carrées (aucun coin arrondi) : pas de rayon, l'outline épouse le contour exact.

@@ -257,6 +257,11 @@ const DraggableCardImpl = ({
   //   Les autres joueurs n'ont jamais ce flag set → animation conservée pour eux.
   const shouldAnimateLayout = !isDisplaced && !isDragSource && !isDragOverlay && !isLocalDragInProgress;
 
+  // Taille des zones de rotation de coin, relative à la carte (vs taille fixe en px) — voir
+  // THEME_CONFIG.rotationCorner. Évite mis-aim/recouvrement quand la taille de carte varie (tablette).
+  const cornerSizePercent = `${CONSTANTS.THEME_CONFIG.rotationCorner.sizeRatio * 100}%`;
+  const cornerSizeStyle: React.CSSProperties = { width: cornerSizePercent, height: cornerSizePercent };
+
   return (
     <motion.div
       ref={cardRef}
@@ -325,26 +330,30 @@ const DraggableCardImpl = ({
         />
       </motion.div>
 
-      {/* Zones de rotation aux coins */}
+      {/* Zones de rotation aux coins — taille relative à la carte (cf. THEME_CONFIG.rotationCorner) */}
       {canInteract && !isDragSource && (
         <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 110 }}>
           <div
-            className="absolute top-0 left-0 w-12 h-12 cursor-rotation pointer-events-auto"
+            className="absolute top-0 left-0 cursor-rotation pointer-events-auto"
+            style={cornerSizeStyle}
             onPointerDown={(e) => handleRotationStart(e, 'left')}
             title="Faire pivoter"
           />
           <div
-            className="absolute top-0 right-0 w-12 h-12 cursor-rotation pointer-events-auto"
+            className="absolute top-0 right-0 cursor-rotation pointer-events-auto"
+            style={cornerSizeStyle}
             onPointerDown={(e) => handleRotationStart(e, 'right')}
             title="Faire pivoter"
           />
           <div
-            className="absolute bottom-0 left-0 w-12 h-12 cursor-rotation pointer-events-auto"
+            className="absolute bottom-0 left-0 cursor-rotation pointer-events-auto"
+            style={cornerSizeStyle}
             onPointerDown={(e) => handleRotationStart(e, 'left')}
             title="Faire pivoter"
           />
           <div
-            className="absolute bottom-0 right-0 w-12 h-12 cursor-rotation pointer-events-auto"
+            className="absolute bottom-0 right-0 cursor-rotation pointer-events-auto"
+            style={cornerSizeStyle}
             onPointerDown={(e) => handleRotationStart(e, 'right')}
             title="Faire pivoter"
           />
