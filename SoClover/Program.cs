@@ -540,6 +540,7 @@ app.MapGet("/api/games/{gameId}/state", async (string gameId, string? playerId, 
                 ),
                 correctlyPlacedPositions = response.GuessingState.CorrectlyPlacedPositions.Select(p => p.ToString()).ToList(),
                 remainingAttempts = response.GuessingState.RemainingAttempts,
+                cumulativeBoardRotation = response.GuessingState.CumulativeBoardRotation,
                 currentBoardClues = response.GuessingState.CurrentBoardClues.Select(c => new
                 {
                     direction = c.Direction.ToString(),
@@ -1226,3 +1227,8 @@ record CompleteGameRequest(string PlayerId);
 record LeaveGameRequest(string PlayerId);
 record KickPlayerRequest(string PlayerId, string AdminPlayerId);
 record CreateAIPlayerRequest(string AdminPlayerId, string PlayerName, string? Model, double? Temperature);
+
+// Exposé pour les tests d'intégration (WebApplicationFactory<Program>). Les top-level statements
+// génèrent une classe Program internal ; on la rend publique pour que le SDK de test puisse la
+// référencer comme point d'entrée. Aucun impact runtime.
+public partial class Program { }

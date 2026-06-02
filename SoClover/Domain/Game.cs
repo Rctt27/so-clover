@@ -661,21 +661,27 @@ public sealed class Game
             }
         }
 
-        // Remettre les cartes incorrectes dans OutsideCards
+        // Remettre les cartes incorrectes dans OutsideCards.
+        // Inverser la compensation de rotation du plateau (symétrie avec ReturnGuessingCard) :
+        // les cartes du board sont stockées en repère board-relatif, le pool est en repère absolu.
+        // Sans cette inversion, une carte revenue au pool serait mal orientée et, une fois re-posée,
+        // subirait de nouveau la compensation → double compensation → orientation incohérente.
+        int stepsToInvert = CumulativeBoardRotation / 90;
         foreach (var pos in incorrectPositions)
         {
             var card = GuessedCardPositions[pos];
             if (card != null)
             {
+                var orientedCard = card.Rotate(stepsToInvert);
                 // Trouver le premier slot vide dans le pool
                 int emptySlotIndex = OutsideCards.FindIndex(c => c == null);
                 if (emptySlotIndex != -1)
                 {
-                    OutsideCards[emptySlotIndex] = card;
+                    OutsideCards[emptySlotIndex] = orientedCard;
                 }
                 else
                 {
-                    OutsideCards.Add(card);
+                    OutsideCards.Add(orientedCard);
                 }
                 GuessedCardPositions[pos] = null;
             }
