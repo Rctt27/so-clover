@@ -13,6 +13,7 @@ import { CardData, rotationToDegrees, CardInfoResponse } from '../../types/game'
 import { playSound } from '../../core/sounds'
 import { debugLog } from '../../core/debug'
 import { isPlacementAlreadyTried } from '../../core/isPlacementAlreadyTried'
+import { CONSTANTS } from '../../core/constants'
 
 export const GuessingPage = () => {
   const { playerId } = useGameStore()
@@ -328,6 +329,13 @@ export const GuessingPage = () => {
         if (!draggedCard) return null
 
         const isFromOutside = outsideCards.some((c) => c?.cardId === draggedCard.cardId)
+        // Taille de carte rendue = côté du plateau × (cardSize / referenceSize). Mesuré sur
+        // boardRef (stable pendant un drag). Repli sur la constante si le plateau n'est pas monté.
+        const { cardSize, referenceSize } = CONSTANTS.ASSET_REFERENCES.board
+        const boardWidth = boardRef.current?.getBoundingClientRect().width ?? 0
+        const overlaySize = boardWidth > 0
+          ? boardWidth * (cardSize / referenceSize)
+          : CONSTANTS.ASSET_REFERENCES.pool.dragOverlayPx
         return (
           <div
             className="fixed pointer-events-none z-[1000]"
@@ -335,8 +343,8 @@ export const GuessingPage = () => {
               left: dragState.dragPosition.x,
               top: dragState.dragPosition.y,
               transform: 'translate(-50%, -50%)',
-              width: 180,
-              height: 180,
+              width: overlaySize,
+              height: overlaySize,
             }}
           >
             <DraggableCard
