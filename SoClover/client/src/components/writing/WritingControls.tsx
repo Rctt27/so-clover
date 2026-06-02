@@ -74,12 +74,6 @@ export const WritingControls = () => {
         )}
       </motion.button>
 
-      {!allCluesFilled && !isActuallySubmitted && (
-        <p className="text-xs text-gray-400">
-          Vous devez renseigner un indice pour chaque paire de mots avant de pouvoir soumettre.
-        </p>
-      )}
-
       {allCluesFilled && !allCluesValid && !isActuallySubmitted && (
         <p className="text-xs text-red-500">
           Certains indices ne respectent pas les règles sémantiques — corrigez-les avant de soumettre.
