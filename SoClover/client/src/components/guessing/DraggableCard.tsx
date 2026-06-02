@@ -10,6 +10,7 @@ import { CONSTANTS } from '../../core/constants'
 import { LOGICAL_SLOTS } from '../../core/utils'
 import { draggableCardArePropsEqual } from './draggableCardArePropsEqual'
 import { isPlacementAlreadyTried } from '../../core/isPlacementAlreadyTried'
+import { createRotationClickSuppressor } from '../../core/rotationClickSuppressor'
 
 export interface DraggableCardProps {
   card: CardInfoResponse
@@ -126,6 +127,9 @@ const DraggableCardImpl = ({
   const rotationDirectionRef = useRef<'left' | 'right'>('right')
   const offsetCardIdRef = useRef<string | null>(null)
   const rotationSuppressionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Avale le `click` natif émis après un clic sur un coin de rotation, pour qu'il ne déclenche
+  // pas le `onClick`/clic-clic de la carte (sinon sélection silencieuse → swap involontaire).
+  const clickSuppressorRef = useRef(createRotationClickSuppressor())
 
   // Nettoyage du timer de suppression si la carte est démontée mid-drag
   useEffect(() => {
@@ -142,6 +146,8 @@ const DraggableCardImpl = ({
     e.preventDefault()
     e.stopPropagation()
 
+    // Arme la suppression du `click` natif qui suivra ce pointerdown de coin.
+    clickSuppressorRef.current.arm()
     rotationDirectionRef.current = direction
     e.currentTarget.setPointerCapture(e.pointerId)
 
@@ -262,6 +268,13 @@ const DraggableCardImpl = ({
   const cornerSizePercent = `${CONSTANTS.THEME_CONFIG.rotationCorner.sizeRatio * 100}%`;
   const cornerSizeStyle: React.CSSProperties = { width: cornerSizePercent, height: cornerSizePercent };
 
+  // Filtre le `click` natif : s'il provient d'un coin de rotation tout juste cliqué, on l'avale
+  // (sinon il déclencherait le clic-clic → sélection/swap involontaire). Sinon, clic-clic normal.
+  const handleCardClick = useCallback(() => {
+    if (clickSuppressorRef.current.consume()) return
+    onClick?.()
+  }, [onClick])
+
   return (
     <motion.div
       ref={cardRef}
@@ -302,7 +315,7 @@ const DraggableCardImpl = ({
         ...(isNewlyCorrect ? CONSTANTS.THEME_CONFIG.animations.correctPulse.animate : {}),
       }}
       exit={{ opacity: 0, scale: 0.8 }}
-      onClick={onClick}
+      onClick={handleCardClick}
       whileHover={canInteract && !isDragSource && !isRotating ? { scale: 1.05, zIndex: 100 } : {}}
       whileTap={canInteract && !isDragSource && !isRotating ? { scale: 0.95 } : {}}
       transition={{
