@@ -55,7 +55,7 @@ export const GuessingBoardSection = React.memo(({
       : null
 
   return (
-    <div className="relative">
+    <div className="relative w-full flex justify-center">
       <Board
         ref={boardRef}
         key={currentBoardOwnerId || 'no-board'}
@@ -67,6 +67,7 @@ export const GuessingBoardSection = React.memo(({
         clueExplanations={clueExplanations}
         animateEntry={true}
         showClueInputs={false}
+        containerSized
         disabled={isDraggingDisabled}
         isLocked={isDraggingDisabled}
         correctPositions={correctlyPlacedPositions}
