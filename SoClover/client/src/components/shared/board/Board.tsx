@@ -32,6 +32,10 @@ export interface BoardProps {
   children?: React.ReactNode;
   className?: string;
   animateEntry?: boolean;
+  /** Quand true : le plateau se dimensionne au plus grand carré tenant dans son
+   *  conteneur (largeur ET hauteur) via container query units. Le PARENT doit fournir
+   *  un contexte `container-type: size`. Défaut false → sizing largeur-only historique. */
+  containerSized?: boolean;
   disabled?: boolean;
   isLocked?: boolean;
   correctPositions?: string[];
@@ -62,6 +66,7 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
   children,
   className = '',
   animateEntry = false,
+  containerSized = false,
   disabled = false,
   isLocked = false,
   correctPositions = [],
@@ -159,16 +164,21 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
     });
   };
 
+  const { minRenderedPx, maxRenderedPx } = CONSTANTS.ASSET_REFERENCES.board;
+
+  // Mode container-sized : plus grand carré tenant dans le conteneur (cqw/cqh résolus
+  // contre l'ancêtre `container-type: size` fourni par le parent), borné [min, max].
+  // Mode par défaut : comportement largeur-only historique (inchangé).
+  const sizingStyle: React.CSSProperties = containerSized
+    ? { width: `clamp(${minRenderedPx}px, min(100cqw, 100cqh), ${maxRenderedPx}px)` }
+    : { width: '100%', maxWidth: `${maxRenderedPx}px`, minWidth: 'min(800px, 100vw - 2rem)' };
+
   return (
     <div className="flex justify-center w-full">
       <div
         ref={ref}
         className={`relative w-full aspect-square ${className}`}
-        style={{
-          width: '100%',
-          maxWidth: '1000px',
-          minWidth: 'min(800px, 100vw - 2rem)',
-        }}
+        style={sizingStyle}
       >
         {/* Layer 1: Drop target hit zones - zIndex: 10 */}
         <div className="absolute inset-0" style={{ zIndex: 10 }}>
