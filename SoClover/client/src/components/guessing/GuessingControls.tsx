@@ -57,33 +57,55 @@ export const GuessingControls = React.memo(({
     prevRemainingAttemptsRef.current = remainingAttempts
   }, [remainingAttempts, isBoardGuessed])
 
+  // Bouton « Valider / Plateau suivant » — extrait en const car réutilisé dans les deux
+  // variantes responsive (rendu deux fois dans le DOM, une seule visible via CSS).
+  const validateButton = (
+    <button
+      onClick={canMoveToNext ? onNextBoard : onValidate}
+      disabled={isValidationPending || (!isBoardFull && !canMoveToNext) || (!canMoveToNext && hasTriedPlacement)}
+      className={`px-7 py-2 rounded-full text-white font-bold text-base shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 ${
+        canMoveToNext ? 'bg-blue-600 hover:bg-blue-700 shadow-blue/30' :
+        isBoardFull ? 'bg-clover hover:bg-clover-dark shadow-clover/30' : 'bg-gray-400'
+      }`}
+    >
+      {isValidationPending ? (
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          Validation...
+        </div>
+      ) : canMoveToNext ? 'Plateau suivant' : 'Valider le plateau'}
+    </button>
+  )
+
   return (
     <div className="flex flex-col items-center gap-3">
       {/* Espace fixe pour maintenir l'alignement vertical constant */}
       <div className="flex flex-col items-center gap-2" style={{ minHeight: '100px' }}>
         {!isMyBoard && (
           <>
-            <BoardRotationControls
-              rotation={rotation}
-              onRotate={onRotate}
-              disabled={isValidationPending}
-            />
+            {/* Desktop (≥1025px) : rotation avec libellé + raccourcis clavier, bouton en dessous. */}
+            <div className="hidden min-[1025px]:flex flex-col items-center gap-3">
+              <BoardRotationControls
+                rotation={rotation}
+                onRotate={onRotate}
+                disabled={isValidationPending}
+              />
+              {validateButton}
+            </div>
 
-            <button
-              onClick={canMoveToNext ? onNextBoard : onValidate}
-              disabled={isValidationPending || (!isBoardFull && !canMoveToNext) || (!canMoveToNext && hasTriedPlacement)}
-              className={`px-7 py-2 rounded-full text-white font-bold text-base shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 ${
-                canMoveToNext ? 'bg-blue-600 hover:bg-blue-700 shadow-blue/30' :
-                isBoardFull ? 'bg-clover hover:bg-clover-dark shadow-clover/30' : 'bg-gray-400'
-              }`}
-            >
-              {isValidationPending ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Validation...
-                </div>
-              ) : canMoveToNext ? 'Plateau suivant' : 'Valider le plateau'}
-            </button>
+            {/* Tablette (≤1024px) : flèches de rotation de part et d'autre du bouton « Valider »,
+                sans pastille de libellé → une seule rangée plus basse, le plateau récupère la hauteur.
+                enableKeyboard=false : l'instance desktop (toujours montée) porte déjà le listener. */}
+            <div className="flex min-[1025px]:hidden">
+              <BoardRotationControls
+                rotation={rotation}
+                onRotate={onRotate}
+                disabled={isValidationPending}
+                showLabel={false}
+                enableKeyboard={false}
+                centerSlot={validateButton}
+              />
+            </div>
           </>
         )}
       </div>
