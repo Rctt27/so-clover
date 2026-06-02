@@ -234,7 +234,7 @@ export const GuessingPage = () => {
     dragState.targetSlot?.startsWith('pool-') ? dragState.targetSlot : null
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col h-[100svh]">
       {/* Header Info */}
       <div className="bg-white/30 backdrop-blur-sm shadow-sm p-4 text-center">
         <h1 className="text-2xl font-bold text-gray-800">Phase de Déduction</h1>
@@ -244,7 +244,13 @@ export const GuessingPage = () => {
         </p>
       </div>
 
-      <div className="flex flex-1 items-start justify-center px-8 py-4 gap-8 overflow-hidden">
+      {/* min-h-0 autorise le flex-1 à se compresser ; container-type:size fournit 100cqh
+          aux pools ET à la sous-zone plateau. overflow-hidden retiré : la politique
+          plancher+scroll prend le relais (scroll seulement sous les planchers). */}
+      <div
+        className="flex flex-1 min-h-0 items-center justify-center px-8 py-4 gap-8"
+        style={{ containerType: 'size' }}
+      >
         {/* Pool Gauche */}
         <div className="flex-none">
           <OutsideCardPool
@@ -260,23 +266,31 @@ export const GuessingPage = () => {
         </div>
 
         {/* Board Central */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-8 min-w-0 max-w-[1000px]">
-          <GuessingBoardSection
-            boardRef={boardRef}
-            boardCards={boardCards}
-            boardGuessedCards={boardGuessedCards}
-            clues={clues}
-            clueExplanations={clueExplanations}
-            rotation={safeCumulativeRotation}
-            currentBoardOwnerId={currentBoardOwnerId}
-            isMyBoard={isMyBoard}
-            isValidationPending={isValidationPending}
-            canMoveToNext={canMoveToNext}
-            correctlyPlacedPositions={correctlyPlacedPositions}
-            displacedSlot={displacedSlot}
-            dragState={dragState}
-            createDragHandlers={createDragHandlers}
-          />
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 min-w-0 max-w-[1000px]">
+          {/* Sous-zone plateau : flex-1 prend la hauteur résiduelle de la colonne (= hauteur
+              rangée − contrôles) ; container-type:size en fait le conteneur de référence du
+              plateau → 100cqw = largeur colonne centrale, 100cqh = hauteur sous-zone. */}
+          <div
+            className="flex-1 min-h-0 w-full flex items-center justify-center"
+            style={{ containerType: 'size' }}
+          >
+            <GuessingBoardSection
+              boardRef={boardRef}
+              boardCards={boardCards}
+              boardGuessedCards={boardGuessedCards}
+              clues={clues}
+              clueExplanations={clueExplanations}
+              rotation={safeCumulativeRotation}
+              currentBoardOwnerId={currentBoardOwnerId}
+              isMyBoard={isMyBoard}
+              isValidationPending={isValidationPending}
+              canMoveToNext={canMoveToNext}
+              correctlyPlacedPositions={correctlyPlacedPositions}
+              displacedSlot={displacedSlot}
+              dragState={dragState}
+              createDragHandlers={createDragHandlers}
+            />
+          </div>
 
           <GuessingControls
             isMyBoard={isMyBoard}
