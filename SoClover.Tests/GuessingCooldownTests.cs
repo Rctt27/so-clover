@@ -54,6 +54,40 @@ public class GuessingCooldownTests
     }
 
     [Fact]
+    public async Task System_timeout_on_incomplete_board_starts_cooldown_then_second_timeout_advances()
+    {
+        var clock = new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        var (gameId, repo, sp) = await BuildGuessingGame(clock);
+        using var _ = sp;
+        var moveNext = sp.GetRequiredService<IMoveToNextBoardUseCase>();
+
+        var game = await repo.Get(gameId) ?? throw new Exception();
+        var firstOwner = game.CurrentGuessingBoardOwner;
+        var guessEnds = game.PhaseEndsAtUtc!.Value;
+
+        // 1er timeout système sur board incomplet → cooldown, PAS d'avance.
+        clock.Set(guessEnds.AddSeconds(1));
+        await moveNext.Handle(new MoveToNextBoard.Request(gameId, firstOwner ?? default, InvocationOrigin.System));
+
+        game = await repo.Get(gameId) ?? throw new Exception();
+        Assert.Equal(GamePhase.Guessing, game.Phase);
+        Assert.Equal(firstOwner, game.CurrentGuessingBoardOwner);     // owner inchangé
+        Assert.True(game.GuessingBoardRevealed);                      // cooldown actif
+        Assert.Equal(0, game.CompletedBoardsCount);                   // pas avancé
+        Assert.Equal(clock.UtcNow.AddSeconds(60), game.PhaseEndsAtUtc); // deadline cooldown
+
+        // 2e timeout (fin de cooldown) → avance au board suivant.
+        var cooldownEnds = game.PhaseEndsAtUtc!.Value;
+        clock.Set(cooldownEnds.AddSeconds(1));
+        await moveNext.Handle(new MoveToNextBoard.Request(gameId, firstOwner ?? default, InvocationOrigin.System));
+
+        game = await repo.Get(gameId) ?? throw new Exception();
+        Assert.NotEqual(firstOwner, game.CurrentGuessingBoardOwner);
+        Assert.False(game.GuessingBoardRevealed);                     // reset sur nouveau board
+        Assert.Equal(1, game.CompletedBoardsCount);
+    }
+
+    [Fact]
     public async Task StartGuessingCooldown_sets_flag_and_deadline_and_is_idempotent()
     {
         var clock = new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
