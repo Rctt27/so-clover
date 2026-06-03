@@ -13,6 +13,7 @@ import { CardData, rotationToDegrees, CardInfoResponse } from '../../types/game'
 import { playSound } from '../../core/sounds'
 import { debugLog } from '../../core/debug'
 import { isPlacementAlreadyTried } from '../../core/isPlacementAlreadyTried'
+import { computeRevealedCards } from '../../core/computeRevealedCards'
 import { CONSTANTS } from '../../core/constants'
 
 export const GuessingPage = () => {
@@ -28,6 +29,7 @@ export const GuessingPage = () => {
     remainingAttempts,
     correctlyPlacedPositions,
     failedPlacements,
+    solution,
   } = useGuessingStore(
     (s) => ({
       currentBoardOwnerName: s.currentBoardOwnerName,
@@ -40,6 +42,7 @@ export const GuessingPage = () => {
       remainingAttempts: s.remainingAttempts,
       correctlyPlacedPositions: s.correctlyPlacedPositions,
       failedPlacements: s.failedPlacements,
+      solution: s.solution,
     }),
     shallow,
   )
@@ -76,7 +79,8 @@ export const GuessingPage = () => {
   ].every((c) => c !== null && c !== undefined)
 
   const isBoardGuessed = correctlyPlacedPositions.length === 4
-  const canMoveToNext = isBoardGuessed || (remainingAttempts === 0 && !isValidationPending)
+  const isRevealed = !!solution
+  const canMoveToNext = isBoardGuessed || (remainingAttempts === 0 && !isValidationPending) || isRevealed
 
   const hasTriedPlacement = useMemo(
     () =>
@@ -132,6 +136,11 @@ export const GuessingPage = () => {
       guessedPositions['BottomLeft'] ?? null,
     ],
     [guessedPositions]
+  )
+
+  const revealedCards = useMemo(
+    () => computeRevealedCards(solution, correctlyPlacedPositions),
+    [solution, correctlyPlacedPositions],
   )
 
   const boardCards = useMemo<(CardData | null)[]>(
@@ -342,6 +351,7 @@ export const GuessingPage = () => {
               isValidationPending={isValidationPending}
               canMoveToNext={canMoveToNext}
               correctlyPlacedPositions={correctlyPlacedPositions}
+              revealedCards={revealedCards}
               displacedSlot={displacedSlot}
               dragState={dragState}
               createDragHandlers={createDragHandlers}

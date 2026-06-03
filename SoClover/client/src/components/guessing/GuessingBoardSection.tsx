@@ -20,6 +20,7 @@ export interface GuessingBoardSectionProps {
   isValidationPending: boolean
   canMoveToNext: boolean
   correctlyPlacedPositions: string[]
+  revealedCards: (CardInfoResponse | null)[]
   displacedSlot: string | null
   dragState: DragState
   createDragHandlers: (slotId: string, cardId: string) => { onPointerDown: (e: React.PointerEvent) => void }
@@ -39,6 +40,7 @@ export const GuessingBoardSection = React.memo(({
   isValidationPending,
   canMoveToNext,
   correctlyPlacedPositions,
+  revealedCards,
   displacedSlot,
   dragState,
   createDragHandlers,
@@ -75,6 +77,7 @@ export const GuessingBoardSection = React.memo(({
         disabled={isDraggingDisabled}
         isLocked={isDraggingDisabled}
         correctPositions={correctlyPlacedPositions}
+        revealedCards={revealedCards}
         ownerId={currentBoardOwnerId || undefined}
         highlightedSlot={boardHighlightedSlot}
         dragHandlers={isDraggingDisabled ? undefined : createDragHandlers}
