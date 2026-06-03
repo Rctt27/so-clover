@@ -58,6 +58,15 @@ public class MoveToNextBoardAiTests
         var inGuessing = (await repo.Get(game.Id))!;
         Assert.Equal(1, inGuessing.BoardsToGuess.Count);
 
+        // First System call on an incomplete board → cooldown (GuessingBoardRevealed=true), stays in Guessing.
+        var cooldownResponse = await moveNext.Handle(new MoveToNextBoard.Request(
+            inGuessing.Id,
+            inGuessing.CurrentGuessingBoardOwner!.Value,
+            InvocationOrigin.System));
+        Assert.Equal(GamePhase.Guessing, cooldownResponse.Phase);
+
+        // Second System call → clears cooldown and performs the real advance → Scoring.
+        inGuessing = (await repo.Get(game.Id))!;
         var response = await moveNext.Handle(new MoveToNextBoard.Request(
             inGuessing.Id,
             inGuessing.CurrentGuessingBoardOwner!.Value,

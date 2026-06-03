@@ -59,11 +59,19 @@ public class GuessingTimeoutLastBoardTests
         preGuessing.SubmitAllBoards(clock);
         await startGuessing.Handle(new StartGuessingPhase.Request(gameId, true));
 
-        // Expire the first board via system move
+        // Expire the first board via system move — board is incomplete, so this starts cooldown.
         var state1 = await getState.Handle(new GetGameState.Request(gameId));
         Assert.Equal(GamePhase.Guessing, state1.Phase);
         Assert.NotNull(state1.PhaseEndsAtUtc);
         clock.Set(state1.PhaseEndsAtUtc!.Value.AddSeconds(1));
+        await moveNext.Handle(new MoveToNextBoard.Request(gameId, new PlayerId(state1.AdminPlayerId ?? default), InvocationOrigin.System));
+
+        // 1er timeout → cooldown actif, owner inchangé.
+        var cooldown1 = await repo.Get(gameId) ?? throw new Exception();
+        Assert.True(cooldown1.GuessingBoardRevealed);
+
+        // Fin du cooldown → avance au board suivant.
+        clock.Set(cooldown1.PhaseEndsAtUtc!.Value.AddSeconds(1));
         await moveNext.Handle(new MoveToNextBoard.Request(gameId, new PlayerId(state1.AdminPlayerId ?? default), InvocationOrigin.System));
 
         // Now on the last board — place one card (partial placement)
@@ -76,9 +84,18 @@ public class GuessingTimeoutLastBoardTests
         var placerId = state2.Players.Select(p => p.PlayerId).First(p => p != currentOwner);
         await placeGuessing.Handle(new PlaceGuessingCard.Request(gameId, new PlayerId(placerId), 0, BoardPosition.TopLeft));
 
-        // Expire the last board and trigger system move — expect Scoring
+        // Expire the last board (incomplete) — 1er timeout → cooldown de débrief.
         state2 = await getState.Handle(new GetGameState.Request(gameId));
         clock.Set(state2.PhaseEndsAtUtc!.Value.AddSeconds(1));
+        await moveNext.Handle(new MoveToNextBoard.Request(gameId, new PlayerId(placerId), InvocationOrigin.System));
+
+        // Cooldown actif sur le dernier board.
+        var cooldown2 = await repo.Get(gameId) ?? throw new Exception();
+        Assert.True(cooldown2.GuessingBoardRevealed);
+        Assert.Equal(GamePhase.Guessing, cooldown2.Phase);
+
+        // Fin du cooldown → Scoring.
+        clock.Set(cooldown2.PhaseEndsAtUtc!.Value.AddSeconds(1));
         var response = await moveNext.Handle(new MoveToNextBoard.Request(gameId, new PlayerId(placerId), InvocationOrigin.System));
 
         Assert.Equal(GamePhase.Scoring, response.Phase);

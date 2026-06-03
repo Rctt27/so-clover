@@ -2,7 +2,7 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import { CardAssembler } from '../card/CardAssembler'
 import { ClueInput } from '../card/ClueInput'
-import { CardData } from '../../../types/game'
+import { CardData, CardInfoResponse, rotationToDegrees } from '../../../types/game'
 import { DraggableCard } from '../../guessing/DraggableCard'
 import { CONSTANTS } from '../../../core/constants'
 import { LOGICAL_SLOTS } from '../../../core/utils'
@@ -26,6 +26,9 @@ export interface BoardProps {
     left: string | null;
   };
   guessedCards?: (import('../../../types/game').CardInfoResponse | null)[]; // For DraggableCards in Guessing
+  /** Cartes-solution à révéler (opacité réduite) pendant le cooldown de débrief.
+   *  4 positions [TopLeft, TopRight, BottomRight, BottomLeft] ; null = rien à révéler. */
+  revealedCards?: (CardInfoResponse | null)[];
   displacedSlot?: string | null;
   showClueInputs?: boolean;
   onClueSave?: (position: 'top' | 'right' | 'bottom' | 'left', text: string) => Promise<void>;
@@ -64,6 +67,7 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
   clues,
   clueExplanations,
   guessedCards,
+  revealedCards,
   displacedSlot,
   showClueInputs = false,
   onClueSave,
@@ -233,10 +237,13 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
 
           {/* Cards */}
           {LOGICAL_SLOTS.map((logicalPosName, lIndex) => {
-            const cardData = cards[lIndex];
-            const guessedCard = guessedCards?.[lIndex];
+            const revealCard = revealedCards?.[lIndex];
+            const showReveal = !!revealCard && !correctPositions.includes(logicalPosName);
 
-            if (!cardData && !guessedCard) return null;
+            const cardData = cards[lIndex];
+            const guessedCard = showReveal ? null : guessedCards?.[lIndex];
+
+            if (!cardData && !guessedCard && !showReveal) return null;
 
             const isSlotLocked = isLocked || correctPositions.includes(logicalPosName);
             const isDisplaced = !!(displacedSlot && displacedSlot === logicalPosName);
@@ -248,7 +255,17 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
             return (
               <div key={logicalPosName} style={getSlotStyle(vIndex)}>
                 <div className="w-full h-full pointer-events-auto">
-                  {guessedCard ? (
+                  {showReveal && revealCard ? (
+                    <div
+                      className="w-full h-full pointer-events-none"
+                      style={{ opacity: CONSTANTS.THEME_CONFIG.revealedSolutionOpacity }}
+                    >
+                      <CardAssembler
+                        words={[revealCard.topWord, revealCard.rightWord, revealCard.bottomWord, revealCard.leftWord]}
+                        rotation={rotationToDegrees(revealCard.rotation)}
+                      />
+                    </div>
+                  ) : guessedCard ? (
                     <DraggableCard
                       key={guessedCard.cardId}
                       card={guessedCard}

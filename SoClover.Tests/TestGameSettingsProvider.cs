@@ -28,6 +28,7 @@ public sealed class TestGameSettingsProvider : IGameSettingsProvider
             CluesDurationSeconds   = Clamp(opts.CluesDuration  > 0 ? opts.CluesDuration  : 300),
             GuessDurationSeconds   = Clamp(opts.GuessDuration  > 0 ? opts.GuessDuration  : 300),
             ScoringDurationSeconds = Clamp(opts.ScoringDuration > 0 ? opts.ScoringDuration : 30),
+            GuessingCooldownSeconds = Clamp(opts.GuessingCooldownDuration > 0 ? opts.GuessingCooldownDuration : 60),
             MaxAIPlayersPerGame = opts.MaxAIPlayersPerGame > 0 ? opts.MaxAIPlayersPerGame : 4
         });
     }

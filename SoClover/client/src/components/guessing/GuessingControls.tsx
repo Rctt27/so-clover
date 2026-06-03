@@ -147,7 +147,7 @@ export const GuessingControls = React.memo(({
         {/* Tablette : aucun indicateur d'avertissement au-dessus du bouton (ni réserve de
             hauteur, ni reflow du plateau). Le contour orange + icône sur la carte concernée
             suffit ; le message complet s'affiche en infobulle au survol du bouton « Valider ». */}
-        {!isBoardGuessed && remainingAttempts > 0 && !isMyBoard && (
+        {!isBoardGuessed && remainingAttempts > 0 && !isMyBoard && !canMoveToNext && (
           <p className="text-clover-dark font-bold mt-1 text-sm">
             Tentatives restantes : {remainingAttempts}
           </p>

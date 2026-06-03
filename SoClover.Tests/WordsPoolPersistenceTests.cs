@@ -192,6 +192,11 @@ public class WordsPoolPersistenceTests
         Assert.NotNull(pool);
         var countBefore = pool!.RemainingWordsCount;
 
+        // 1st System call on incomplete board → cooldown, 0 words consumed yet.
+        await moveNext.Handle(new MoveToNextBoard.Request(gameId, adminId, InvocationOrigin.System));
+        Assert.Equal(countBefore, cache.Get(gameId)!.RemainingWordsCount); // no draw yet
+
+        // 2nd System call → clears cooldown, draws 5th card (−4 words).
         await moveNext.Handle(new MoveToNextBoard.Request(gameId, adminId, InvocationOrigin.System));
 
         var poolAfter = cache.Get(gameId);
@@ -239,11 +244,18 @@ public class WordsPoolPersistenceTests
         Assert.Equal(expectedAfterGuessingStart, cache.Get(gameId)!.RemainingWordsCount);
         _output.WriteLine($"After StartGuessingPhase: {expectedAfterGuessingStart} remaining (−{FifthCardWords})");
 
-        // 3 MoveToNextBoard calls consume from the pool (−4 each). The 4th transitions to
+        // 3 real MoveToNextBoard advances consume from the pool (−4 each). The 4th transitions to
         // Scoring with a dummy card and consumes nothing — we stop at 3 to keep assertions crisp.
+        // Each incomplete board now requires two System calls:
+        //   1st call → cooldown (GuessingBoardRevealed=true), 0 words consumed.
+        //   2nd call → clears cooldown, draws 5th card (−4 words).
         var runningCount = expectedAfterGuessingStart;
         for (int i = 0; i < PlayersCount - 1; i++)
         {
+            // 1st call: cooldown — no words drawn yet.
+            await moveNext.Handle(new MoveToNextBoard.Request(gameId, adminId, InvocationOrigin.System));
+            Assert.Equal(runningCount, cache.Get(gameId)!.RemainingWordsCount); // unchanged after cooldown
+            // 2nd call: real advance — draws 5th card.
             await moveNext.Handle(new MoveToNextBoard.Request(gameId, adminId, InvocationOrigin.System));
             runningCount -= FifthCardWords;
             Assert.Equal(runningCount, cache.Get(gameId)!.RemainingWordsCount);
@@ -303,9 +315,16 @@ public class WordsPoolPersistenceTests
         Assert.Equal(expectedAfterGuessingStart, cache.Get(gameId)!.RemainingWordsCount);
         _output.WriteLine($"After StartGuessingPhase: {expectedAfterGuessingStart} remaining");
 
+        // Each incomplete board requires two System calls:
+        //   1st call → cooldown (GuessingBoardRevealed=true), 0 words consumed.
+        //   2nd call → clears cooldown, draws 5th card (−4 words).
         var runningCount = expectedAfterGuessingStart;
         for (int i = 0; i < PlayersCount - 1; i++)
         {
+            // 1st call: cooldown — no words drawn yet.
+            await moveNext.Handle(new MoveToNextBoard.Request(gameId, adminId, InvocationOrigin.System));
+            Assert.Equal(runningCount, cache.Get(gameId)!.RemainingWordsCount); // unchanged after cooldown
+            // 2nd call: real advance — draws 5th card.
             await moveNext.Handle(new MoveToNextBoard.Request(gameId, adminId, InvocationOrigin.System));
             runningCount -= FifthCardWords;
             Assert.Equal(runningCount, cache.Get(gameId)!.RemainingWordsCount);

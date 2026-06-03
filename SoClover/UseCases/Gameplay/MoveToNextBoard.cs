@@ -85,17 +85,24 @@ public static class MoveToNextBoard
             var isBoardComplete = game.CorrectlyPlacedPositions.Count >= 4;
             var noAttemptsLeft = game.RemainingAttempts <= 0;
 
-            if (!isTimeout && !isBoardComplete && !noAttemptsLeft)
+            var cooldownSeconds = Math.Clamp(cfg.GuessingCooldownSeconds > 0 ? cfg.GuessingCooldownSeconds : 60, 1, 1800);
+            var cooldown = TimeSpan.FromSeconds(cooldownSeconds);
+
+            if (!isTimeout && !isBoardComplete && !noAttemptsLeft && !game.GuessingBoardRevealed)
             {
                 Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard BLOCKED: isTimeout={isTimeout}, isBoardComplete={isBoardComplete}, noAttemptsLeft={noAttemptsLeft}, RemainingAttempts={game.RemainingAttempts}");
                 throw new InvalidOperationException("Cannot move to next board while attempts remain and board is not complete.");
             }
 
-            // If we are moving due to time expiration and board is incomplete, record a timeout loss for current board
-            if (isTimeout && game.CurrentGuessingBoardOwner is not null && !isBoardComplete)
+            // Premier timeout sur un board incomplet sans cooldown actif → démarrer le cooldown de débrief
+            if (isTimeout && game.CurrentGuessingBoardOwner is not null && !isBoardComplete && !game.GuessingBoardRevealed)
             {
-                Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard: Recording timeout loss for owner {game.CurrentGuessingBoardOwner.Value}");
+                Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard: Recording timeout loss and starting cooldown for owner {game.CurrentGuessingBoardOwner.Value}");
                 game.RecordTimeoutLoss(now);
+                game.StartGuessingCooldown(now, cooldown);
+                await _repo.Save(game, ct);
+                await _events.Publish(new GuessingCooldownStarted(game.Id), ct);
+                return new Response(game.Phase, game.CurrentGuessingBoardOwner);
             }
 
             // On s'assure que si on est en timeout, on force la transition même si des conditions de plateau bloquent normalement
@@ -164,3 +171,4 @@ public static class MoveToNextBoard
 }
 
 public readonly record struct MovedToNextBoard(GameId GameId, PlayerId? NextBoardOwnerId);
+public readonly record struct GuessingCooldownStarted(GameId GameId);

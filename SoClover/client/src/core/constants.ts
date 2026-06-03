@@ -71,6 +71,9 @@
       // de 40% dédiée au déplacement, sans recouvrement entre coins, quelle que soit la taille.
       sizeRatio: 0.3,
     },
+    // Opacité des cartes-solution révélées (non devinées) pendant le cooldown de débrief,
+    // pour les distinguer des cartes correctement devinées (opacité pleine).
+    revealedSolutionOpacity: 0.45,
     warningOverlay: {
       // outline INSET (box-shadow) → la carte conserve ses dimensions, zéro impact layout.
       // Les cartes sont carrées (aucun coin arrondi) : pas de rayon, l'outline épouse le contour exact.

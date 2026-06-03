@@ -11,6 +11,7 @@ export interface GuessingSlice {
   remainingAttempts: number
   currentBoardClues: ClueInfoResponse[]
   failedPlacements: FailedPlacementInfo[]
+  solution: Record<string, CardInfoResponse | null> | null
 
   // État local (UI)
   selectedSlotId: string | null // Slot sélectionné pour le mode clic-clic (tablette) : 'pool-N' ou slot logique board
@@ -56,6 +57,7 @@ export const createGuessingSlice: StateCreator<GuessingSlice, [["zustand/devtool
   remainingAttempts: 0,
   currentBoardClues: [],
   failedPlacements: [],
+  solution: null,
 
   selectedSlotId: null,
   cumulativeBoardRotation: 0,
@@ -106,6 +108,7 @@ export const createGuessingSlice: StateCreator<GuessingSlice, [["zustand/devtool
     remainingAttempts: 0,
     currentBoardClues: [],
     failedPlacements: [],
+    solution: null,
     selectedSlotId: null,
     cumulativeBoardRotation: 0,
     lastAppliedRotationRevision: 0,

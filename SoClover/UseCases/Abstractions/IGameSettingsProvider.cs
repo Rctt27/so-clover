@@ -6,6 +6,7 @@ public sealed class GameSettingsDto
     public int CluesDurationSeconds { get; init; }
     public int GuessDurationSeconds { get; init; }
     public int ScoringDurationSeconds { get; init; }
+    public int GuessingCooldownSeconds { get; init; }
     public int MaxAIPlayersPerGame { get; init; }
 }
 
