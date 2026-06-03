@@ -70,6 +70,7 @@ export interface GuessingPhaseStateResponse {
   currentBoardClues: ClueInfoResponse[];
   cumulativeBoardRotation: number;
   failedPlacements: FailedPlacementInfo[];
+  solution?: Record<string, CardInfoResponse | null> | null;
 }
 
 export interface ClueInfoResponse {
