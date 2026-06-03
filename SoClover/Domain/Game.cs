@@ -778,6 +778,7 @@ public sealed class Game
             Phase = GamePhase.Scoring;
             CurrentGuessingBoardOwner = null;
             PhaseEndsAtUtc = null;
+            GuessingBoardRevealed = false;
         }
         else
         {
