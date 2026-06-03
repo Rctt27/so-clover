@@ -72,7 +72,7 @@ public static class GetGameState
         [property: JsonPropertyName("cumulativeBoardRotation")] int CumulativeBoardRotation,
         [property: JsonPropertyName("failedPlacements")] IReadOnlyList<FailedPlacementInfo> FailedPlacements,
         // Anti-cheat: populated only once the current Guessing board is resolved
-        // (GuessingBoardRevealed OR RemainingAttempts == 0 OR 4 correct). Null otherwise.
+        // (revealActive gate computed in Handle()). Null otherwise.
         [property: JsonPropertyName("solution")] IReadOnlyDictionary<BoardPosition, CardInfo?>? Solution
     );
 
@@ -80,7 +80,7 @@ public static class GetGameState
         [property: JsonPropertyName("direction")] Direction Direction,
         [property: JsonPropertyName("text")] string Text,
         // Anti-cheat: populated only once the current Guessing board is resolved
-        // (RemainingAttempts == 0 OR 4 correct). Null otherwise. See Handle() for gating.
+        // (revealActive gate computed in Handle()). Null otherwise.
         [property: JsonPropertyName("explanation")] string? Explanation
     );
 

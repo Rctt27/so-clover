@@ -555,6 +555,7 @@ app.MapGet("/api/games/{gameId}/state", async (string gameId, string? playerId, 
                 }).ToList(),
                 solution = response.GuessingState.Solution == null ? null : response.GuessingState.Solution.ToDictionary(
                     kvp => kvp.Key.ToString(),
+                    // (object) cast: unifies the null branch with the anonymous-type branch so ToDictionary infers a single value type.
                     kvp => kvp.Value == null ? null : (object)new
                     {
                         cardId = kvp.Value.CardId,
