@@ -105,13 +105,6 @@ public static class MoveToNextBoard
                 return new Response(game.Phase, game.CurrentGuessingBoardOwner);
             }
 
-            // If we are moving due to time expiration and board is incomplete (cooldown already elapsed), record a timeout loss
-            if (isTimeout && game.CurrentGuessingBoardOwner is not null && !isBoardComplete && game.GuessingBoardRevealed)
-            {
-                Console.WriteLine($"[DEBUG_LOG] MoveToNextBoard: Recording timeout loss (post-cooldown) for owner {game.CurrentGuessingBoardOwner.Value}");
-                game.RecordTimeoutLoss(now);
-            }
-
             // On s'assure que si on est en timeout, on force la transition même si des conditions de plateau bloquent normalement
             if (isTimeout)
             {
