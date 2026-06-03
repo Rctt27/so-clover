@@ -87,6 +87,10 @@ public sealed class Game
     public int CumulativeBoardRotation { get; private set; } = 0;
 
     [JsonInclude]
+    [JsonPropertyName("guessingBoardRevealed")]
+    public bool GuessingBoardRevealed { get; private set; }
+
+    [JsonInclude]
     [JsonPropertyName("revision")]
     public int Revision { get; private set; } = 0;
 
@@ -458,6 +462,7 @@ public sealed class Game
         CorrectlyPlacedPositions = new HashSet<BoardPosition>();
         FailedPlacements = new List<FailedPlacement>();
         CompletedBoardsCount = 0;
+        GuessingBoardRevealed = false;
 
         // Initialize scoring tracking
         _currentBoardStartTime = nowUtc;
@@ -820,6 +825,7 @@ public sealed class Game
             _currentBoardAttempts = 0;
             PhaseEndsAtUtc = nowUtc + perBoardDuration;
             CumulativeBoardRotation = 0; // On réinitialise la rotation pour le nouveau plateau
+            GuessingBoardRevealed = false;
         }
     }
 
@@ -878,6 +884,22 @@ public sealed class Game
 
         BumpRevision();
         CumulativeBoardRotation = rotation;
+    }
+
+    /// <summary>
+    /// Démarre le cooldown de débrief après l'échec d'un board (timeout ou 3 tentatives).
+    /// Révèle la solution (via le gate de GetGameState) et fixe la deadline de cooldown.
+    /// Idempotent : sans effet si le cooldown est déjà actif.
+    /// </summary>
+    public void StartGuessingCooldown(DateTime nowUtc, TimeSpan cooldown)
+    {
+        if (Phase != GamePhase.Guessing)
+            throw new InvalidOperationInPhaseException("Can only start cooldown during Guessing phase.");
+        if (GuessingBoardRevealed) return;
+
+        GuessingBoardRevealed = true;
+        PhaseEndsAtUtc = nowUtc + cooldown;
+        BumpRevision();
     }
 
     private int GetNextAvailableColorIndex()
