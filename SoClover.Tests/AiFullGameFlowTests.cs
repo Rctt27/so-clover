@@ -106,11 +106,20 @@ public class AiFullGameFlowTests
         // 3 humains pour deviner
         Assert.Equal(3, inGuessing.GuessingParticipants.Count);
 
-        // 3) Cycle complet : 4 MoveToNext successifs (chaque board s'épuise sans deviner = timeout)
-        // Pour avancer sans deviner correctement, on appelle moveNext avec Origin=System (skip checks).
-        // NOTE : MoveToNextBoard.Handler accepte Origin=System pour forcer la transition.
+        // 3) Cycle complet : 4 boards à épuiser (timeout = board incomplet).
+        // Chaque board incomplet nécessite deux appels System :
+        //   - 1er appel → cooldown (GuessingBoardRevealed=true), reste en Guessing.
+        //   - 2e appel → avance au board suivant (ou Scoring si dernier board).
         for (int i = 0; i < 4; i++)
         {
+            inGuessing = (await repo.Get(game.Id))!;
+            // 1er appel : déclenche le cooldown.
+            await moveNext.Handle(new MoveToNextBoard.Request(
+                inGuessing.Id,
+                inGuessing.CurrentGuessingBoardOwner!.Value,
+                InvocationOrigin.System));
+            inGuessing = (await repo.Get(game.Id))!;
+            // 2e appel : efface le cooldown et avance réellement.
             await moveNext.Handle(new MoveToNextBoard.Request(
                 inGuessing.Id,
                 inGuessing.CurrentGuessingBoardOwner!.Value,
@@ -159,9 +168,18 @@ public class AiFullGameFlowTests
         Assert.Equal(3, inGuessing.BoardsToGuess.Count); // Alice + 2 AI
         Assert.Single(inGuessing.GuessingParticipants);  // seule Alice devine
 
+        // Chaque board incomplet nécessite deux appels System :
+        //   - 1er appel → cooldown (GuessingBoardRevealed=true), reste en Guessing.
+        //   - 2e appel → efface le cooldown et avance réellement.
         for (int i = 0; i < 3; i++)
         {
             inGuessing = (await repo.Get(game.Id))!;
+            // 1er appel : déclenche le cooldown.
+            await moveNext.Handle(new MoveToNextBoard.Request(
+                inGuessing.Id, inGuessing.CurrentGuessingBoardOwner!.Value,
+                InvocationOrigin.System));
+            inGuessing = (await repo.Get(game.Id))!;
+            // 2e appel : efface le cooldown et avance réellement.
             await moveNext.Handle(new MoveToNextBoard.Request(
                 inGuessing.Id, inGuessing.CurrentGuessingBoardOwner!.Value,
                 InvocationOrigin.System));
