@@ -80,6 +80,7 @@ export const GuessingPage = () => {
 
   const isBoardGuessed = correctlyPlacedPositions.length === 4
   const isRevealed = !!solution
+  // Aussi le gate de gel du plateau : quand true (board deviné, plus de tentatives, ou cooldown de révélation), le drag/clic/rotation sont désactivés.
   const canMoveToNext = isBoardGuessed || (remainingAttempts === 0 && !isValidationPending) || isRevealed
 
   const hasTriedPlacement = useMemo(
