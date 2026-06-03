@@ -113,6 +113,7 @@ public class GuessingCooldownTests
 
             // Index pool de la carte leurre (présente, hors solution) → garantit ≥1 case fausse.
             int decoyIdx = game.OutsideCards.FindIndex(c => c != null && !solutionIds.Contains(c.Card.Id.Value));
+            Assert.True(decoyIdx >= 0, "Test setup: expected at least one non-solution (decoy) card in OutsideCards");
 
             foreach (var pos in emptyPositions)
             {
