@@ -170,4 +170,30 @@ public class GuessingCooldownTests
         game.StartGuessingCooldown(now.AddSeconds(10), TimeSpan.FromSeconds(60));
         Assert.Equal(now.AddSeconds(60), game.PhaseEndsAtUtc);
     }
+
+    [Fact]
+    public async Task GetGameState_exposes_solution_only_after_reveal()
+    {
+        var clock = new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        var (gameId, repo, sp) = await BuildGuessingGame(clock);
+        using var _ = sp;
+        var getState = sp.GetRequiredService<IGetGameStateUseCase>();
+        var moveNext = sp.GetRequiredService<IMoveToNextBoardUseCase>();
+
+        // Guessing actif → solution masquée (anti-triche).
+        var before = await getState.Handle(new GetGameState.Request(gameId));
+        Assert.NotNull(before.GuessingState);
+        Assert.Null(before.GuessingState!.Solution);
+
+        // Timeout → cooldown → solution révélée (4 positions).
+        var game = await repo.Get(gameId) ?? throw new Exception();
+        var owner = game.CurrentGuessingBoardOwner;
+        clock.Set(game.PhaseEndsAtUtc!.Value.AddSeconds(1));
+        await moveNext.Handle(new MoveToNextBoard.Request(gameId, owner ?? default, InvocationOrigin.System));
+
+        var after = await getState.Handle(new GetGameState.Request(gameId));
+        Assert.NotNull(after.GuessingState!.Solution);
+        Assert.Equal(4, after.GuessingState.Solution!.Count);
+        Assert.All(after.GuessingState.Solution.Values, c => Assert.NotNull(c));
+    }
 }

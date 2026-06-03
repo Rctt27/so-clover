@@ -70,7 +70,10 @@ public static class GetGameState
         [property: JsonPropertyName("remainingAttempts")] int RemainingAttempts,
         [property: JsonPropertyName("currentBoardClues")] IReadOnlyList<ClueInfo> CurrentBoardClues,
         [property: JsonPropertyName("cumulativeBoardRotation")] int CumulativeBoardRotation,
-        [property: JsonPropertyName("failedPlacements")] IReadOnlyList<FailedPlacementInfo> FailedPlacements
+        [property: JsonPropertyName("failedPlacements")] IReadOnlyList<FailedPlacementInfo> FailedPlacements,
+        // Anti-cheat: populated only once the current Guessing board is resolved
+        // (GuessingBoardRevealed OR RemainingAttempts == 0 OR 4 correct). Null otherwise.
+        [property: JsonPropertyName("solution")] IReadOnlyDictionary<BoardPosition, CardInfo?>? Solution
     );
 
     public sealed record ClueInfo(
@@ -151,18 +154,17 @@ public static class GetGameState
                     )
                 );
 
+                // Anti-cheat gate: reveal solution and explanations only once the board is resolved.
+                // Covers timeout (GuessingBoardRevealed), exhausted attempts, or perfect score.
+                var revealActive = game.GuessingBoardRevealed
+                    || game.RemainingAttempts == 0
+                    || game.CorrectlyPlacedPositions.Count == 4;
+
                 var clues = new List<ClueInfo>();
                 if (owner != null)
                 {
-                    // Anti-cheat: LLM explanations are exposed only once the current board has been
-                    // fully attempted (success: 4 correct, or failure: 0 remaining attempts). They
-                    // give players the remaining time before "move to next" to read the reasoning
-                    // behind each AI clue. Server-side gate — never trust the client to hide it.
-                    var revealExplanations = game.RemainingAttempts == 0
-                        || game.CorrectlyPlacedPositions.Count == 4;
-
                     string? ExplanationFor(Direction d)
-                        => revealExplanations ? _explanationStore.GetFor(game.Id, owner.Id, d) : null;
+                        => revealActive ? _explanationStore.GetFor(game.Id, owner.Id, d) : null;
 
                     if (owner.Board.TopClue != null)
                         clues.Add(new ClueInfo(Direction.Top, owner.Board.TopClue.Value.Value, ExplanationFor(Direction.Top)));
@@ -172,6 +174,26 @@ public static class GetGameState
                         clues.Add(new ClueInfo(Direction.Bottom, owner.Board.BottomClue.Value.Value, ExplanationFor(Direction.Bottom)));
                     if (owner.Board.LeftClue != null)
                         clues.Add(new ClueInfo(Direction.Left, owner.Board.LeftClue.Value.Value, ExplanationFor(Direction.Left)));
+                }
+
+                IReadOnlyDictionary<BoardPosition, CardInfo?>? solution = null;
+                if (revealActive && owner != null)
+                {
+                    CardInfo? FromOriented(OrientedCard? oc) => oc == null ? null : new CardInfo(
+                        oc.Card.Id.Value.ToString(),
+                        oc.Card.TopWord,
+                        oc.Card.RightWord,
+                        oc.Card.BottomWord,
+                        oc.Card.LeftWord,
+                        oc.Rotation.ToString());
+
+                    solution = new Dictionary<BoardPosition, CardInfo?>
+                    {
+                        [BoardPosition.TopLeft] = FromOriented(owner.Board.TopLeft),
+                        [BoardPosition.TopRight] = FromOriented(owner.Board.TopRight),
+                        [BoardPosition.BottomRight] = FromOriented(owner.Board.BottomRight),
+                        [BoardPosition.BottomLeft] = FromOriented(owner.Board.BottomLeft),
+                    };
                 }
 
                 guessingState = new GuessingPhaseState(
@@ -185,7 +207,8 @@ public static class GetGameState
                     game.CumulativeBoardRotation,
                     game.FailedPlacements
                         .Select(f => new FailedPlacementInfo(f.Position, f.CardId.ToString(), f.Rotation.ToString()))
-                        .ToList()
+                        .ToList(),
+                    solution
                 );
             }
 

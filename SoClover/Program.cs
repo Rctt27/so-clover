@@ -552,7 +552,18 @@ app.MapGet("/api/games/{gameId}/state", async (string gameId, string? playerId, 
                     position = f.Position.ToString(),
                     cardId = f.CardId,
                     rotation = f.Rotation
-                }).ToList()
+                }).ToList(),
+                solution = response.GuessingState.Solution == null ? null : response.GuessingState.Solution.ToDictionary(
+                    kvp => kvp.Key.ToString(),
+                    kvp => kvp.Value == null ? null : (object)new
+                    {
+                        cardId = kvp.Value.CardId,
+                        topWord = kvp.Value.TopWord,
+                        rightWord = kvp.Value.RightWord,
+                        bottomWord = kvp.Value.BottomWord,
+                        leftWord = kvp.Value.LeftWord,
+                        rotation = kvp.Value.Rotation
+                    })
             },
             players = response.Players.Select(p => new
             {
