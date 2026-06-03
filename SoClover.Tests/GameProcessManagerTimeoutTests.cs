@@ -129,6 +129,16 @@ public class GameProcessManagerTimeoutTests
         clock.Set(firstEnds.AddSeconds(1));
 
         PlayerId? firstOwner = game.CurrentGuessingBoardOwner;
+        // 1er timeout → cooldown de débrief (même owner, flag révélé), pas d'avance.
+        await WaitForConditionAsync(async () =>
+        {
+            game = await repo.Get(gameId) ?? throw new Exception();
+            return game.GuessingBoardRevealed;
+        }, TimeSpan.FromSeconds(5));
+        Assert.Equal(firstOwner, game.CurrentGuessingBoardOwner);
+
+        // Fin du cooldown → avance au board suivant.
+        clock.Set(game.PhaseEndsAtUtc!.Value.AddSeconds(1));
         await WaitForConditionAsync(async () =>
         {
             game = await repo.Get(gameId) ?? throw new Exception();
@@ -139,9 +149,21 @@ public class GameProcessManagerTimeoutTests
         Assert.NotEqual(firstOwner, game.CurrentGuessingBoardOwner);
         Assert.NotNull(game.PhaseEndsAtUtc);
 
+        // 2e board : même mécanique — 1er timeout → cooldown, 2e timeout → Scoring.
+        var secondOwner = game.CurrentGuessingBoardOwner;
         var secondEnds = game.PhaseEndsAtUtc!.Value;
         clock.Set(secondEnds.AddSeconds(1));
 
+        // 1er timeout sur le 2e board → cooldown de débrief.
+        await WaitForConditionAsync(async () =>
+        {
+            game = await repo.Get(gameId) ?? throw new Exception();
+            return game.GuessingBoardRevealed;
+        }, TimeSpan.FromSeconds(5));
+        Assert.Equal(secondOwner, game.CurrentGuessingBoardOwner);
+
+        // Fin du cooldown → Scoring.
+        clock.Set(game.PhaseEndsAtUtc!.Value.AddSeconds(1));
         await WaitForConditionAsync(async () =>
         {
             game = await repo.Get(gameId) ?? throw new Exception();
