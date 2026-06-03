@@ -23,12 +23,14 @@ public static class ValidateGuessingBoard
         private readonly IGameRepository _repo;
         private readonly IEventPublisher _events;
         private readonly IClock _clock;
+        private readonly IGameSettingsProvider _settings;
 
-        public Handler(IGameRepository repo, IEventPublisher events, IClock clock)
+        public Handler(IGameRepository repo, IEventPublisher events, IClock clock, IGameSettingsProvider settings)
         {
             _repo = repo;
             _events = events;
             _clock = clock;
+            _settings = settings;
         }
 
         public async Task<Response> Handle(Request request, CancellationToken ct = default)
@@ -47,6 +49,14 @@ public static class ValidateGuessingBoard
                 throw new InvalidOperationException("Board owner cannot participate in guessing their own board.");
 
             var result = game.ValidateGuessingBoard();
+
+            // Échec définitif (plus de tentatives, board non complété) → cooldown de débrief.
+            if (result.ShouldMoveToNext && !result.IsComplete)
+            {
+                var cfg = await _settings.GetAsync(ct);
+                var cooldownSeconds = Math.Clamp(cfg.GuessingCooldownSeconds > 0 ? cfg.GuessingCooldownSeconds : 60, 1, 1800);
+                game.StartGuessingCooldown(_clock.UtcNow, TimeSpan.FromSeconds(cooldownSeconds));
+            }
 
             await _repo.Save(game, ct);
             await _events.Publish(new GuessingBoardValidated(

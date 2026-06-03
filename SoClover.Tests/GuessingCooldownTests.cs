@@ -87,6 +87,68 @@ public class GuessingCooldownTests
         Assert.Equal(1, game.CompletedBoardsCount);
     }
 
+    private static readonly BoardPosition[] AllPositions =
+        { BoardPosition.TopLeft, BoardPosition.TopRight, BoardPosition.BottomRight, BoardPosition.BottomLeft };
+
+    private static async Task ExhaustAttemptsWithDecoy(
+        GameId gameId, IGameRepository repo, IPlaceGuessingCardUseCase place,
+        IValidateGuessingBoardUseCase validate, PlayerId guesser)
+    {
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            var game = await repo.Get(gameId) ?? throw new Exception();
+            if (game.RemainingAttempts == 0) break;
+
+            var owner = game.Players.First(p => p.Id == game.CurrentGuessingBoardOwner);
+            var solutionIds = new HashSet<Guid>
+            {
+                owner.Board.TopLeft!.Card.Id.Value, owner.Board.TopRight!.Card.Id.Value,
+                owner.Board.BottomRight!.Card.Id.Value, owner.Board.BottomLeft!.Card.Id.Value
+            };
+
+            // Cases à remplir (non verrouillées + vides).
+            var emptyPositions = AllPositions
+                .Where(p => !game.CorrectlyPlacedPositions.Contains(p) && game.GuessedCardPositions[p] == null)
+                .ToList();
+
+            // Index pool de la carte leurre (présente, hors solution) → garantit ≥1 case fausse.
+            int decoyIdx = game.OutsideCards.FindIndex(c => c != null && !solutionIds.Contains(c.Card.Id.Value));
+
+            foreach (var pos in emptyPositions)
+            {
+                var current = await repo.Get(gameId) ?? throw new Exception();
+                int idx = pos == emptyPositions[0] && decoyIdx >= 0
+                    ? decoyIdx
+                    : current.OutsideCards.FindIndex(c => c != null);
+                if (idx < 0) continue;
+                await place.Handle(new PlaceGuessingCard.Request(gameId, guesser, idx, pos));
+            }
+
+            await validate.Handle(new ValidateGuessingBoard.Request(gameId, guesser));
+        }
+    }
+
+    [Fact]
+    public async Task Three_failed_attempts_start_cooldown()
+    {
+        var clock = new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        var (gameId, repo, sp) = await BuildGuessingGame(clock);
+        using var _ = sp;
+        var place = sp.GetRequiredService<IPlaceGuessingCardUseCase>();
+        var validate = sp.GetRequiredService<IValidateGuessingBoardUseCase>();
+
+        var game = await repo.Get(gameId) ?? throw new Exception();
+        var guesser = game.Players.First(p => p.Id != game.CurrentGuessingBoardOwner).Id;
+
+        await ExhaustAttemptsWithDecoy(gameId, repo, place, validate, guesser);
+
+        game = await repo.Get(gameId) ?? throw new Exception();
+        Assert.Equal(0, game.RemainingAttempts);
+        Assert.True(game.GuessingBoardRevealed);
+        Assert.Equal(clock.UtcNow.AddSeconds(60), game.PhaseEndsAtUtc);
+        Assert.Equal(GamePhase.Guessing, game.Phase); // pas encore avancé
+    }
+
     [Fact]
     public async Task StartGuessingCooldown_sets_flag_and_deadline_and_is_idempotent()
     {
