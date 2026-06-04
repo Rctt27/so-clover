@@ -50,6 +50,12 @@ public sealed class GameHub : Hub
         _playerConnections[playerId] = Context.ConnectionId;
         _playerGameMap[playerId] = gameId;
         await Groups.AddToGroupAsync(Context.ConnectionId, GroupName(gameId));
+
+        // Réactivation au rejoin : un-mark IsDisconnected si le joueur était marqué
+        // déconnecté (no-op hors WritingClues / si non déconnecté, géré par le use case).
+        using var scope = _scopeFactory.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<IReconnectPlayerUseCase>()
+            .Handle(new ReconnectPlayer.Request(GameId.From(gameId), new PlayerId(pid)));
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)

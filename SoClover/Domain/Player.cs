@@ -39,6 +39,8 @@ public sealed class Player
 
     public void MarkDisconnected() => IsDisconnected = true;
 
+    public void MarkReconnected() => IsDisconnected = false;
+
     public Player(PlayerId id, string name, bool isAdmin = false)
         : this(id, name, isAdmin, isAI: false, aiConfig: null)
     {

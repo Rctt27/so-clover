@@ -284,6 +284,29 @@ public sealed class Game
         );
     }
 
+    /// <summary>
+    /// Réactive un joueur marqué déconnecté quand il rejoint. Idempotent.
+    /// Limité à WritingClues : en aval (Guessing/Scoring) le board est déjà scoré,
+    /// on ne touche pas à l'état pour préserver l'intégrité du résultat.
+    /// Retourne true seulement si une réactivation a effectivement eu lieu.
+    /// </summary>
+    public bool ReconnectPlayer(PlayerId playerId)
+    {
+        var player = RequirePlayer(playerId);
+        if (!player.IsDisconnected)
+            return false;
+        if (Phase != GamePhase.WritingClues)
+            return false;
+
+        BumpRevision();
+        player.MarkReconnected();
+
+        if (_boardResults.TryGetValue(playerId, out var br) && br.IsDisconnected)
+            _boardResults.Remove(playerId);
+
+        return true;
+    }
+
     public async Task<WordsPool> InitializeWordsPoolAsync(IWordDictionary wordDictionary, CancellationToken ct = default)
     {
         if (_wordsPool != null)
