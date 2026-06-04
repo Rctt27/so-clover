@@ -7,6 +7,8 @@ import { useNotifications } from './useNotifications';
 import { useGameStateUpdate } from './useGameStateUpdate';
 import { debugLog } from '../core/debug'
 import { detectRotationGap } from '../core/rotationGapDetector';
+import { recoverConnection } from '../core/connectionRecovery';
+import { shouldReconnectOnForeground } from '../core/foregroundReconnect';
 
 export const useSignalR = () => {
   const gameId = useGameStore(s => s.gameId);
@@ -61,6 +63,16 @@ export const useSignalR = () => {
       }
     });
   }, []);
+
+  const recover = useCallback(() => recoverConnection({
+    getAuth: () => {
+      const { gameId: gid, playerId: pid } = useGameStore.getState();
+      return { gameId: gid, playerId: pid };
+    },
+    invoke: (method, ...args) => signalRClient.invoke(method, ...args),
+    refreshGameState,
+    log: (msg) => debugLog('useSignalR', msg),
+  }), [refreshGameState]);
 
   useEffect(() => {
     debugLog('useSignalR', `useEffect setup (phase="${phase}", gameId="${gameId}")`);
@@ -204,7 +216,7 @@ export const useSignalR = () => {
     const connection = signalRClient.getConnection();
 
     const onReconnecting = () => setConnectionStatus('Reconnecting');
-    const onReconnected = () => setConnectionStatus('Connected');
+    const onReconnected = () => { setConnectionStatus('Connected'); recover(); };
     const onClose = () => setConnectionStatus('Disconnected');
 
     connection.onreconnecting(onReconnecting);
@@ -234,5 +246,29 @@ export const useSignalR = () => {
   // Note: 'phase' intentionnellement absent des deps — géré via phaseRef.
   // Ajouter phase ici recyclerait l'effect à chaque transition → refreshGameState()
   // pendant l'exit animation → re-renders AnimatePresence → safeToRemove périmé → page blanche.
-  }, [gameId, playerId, setConnectionStatus, setIsInitializing, notifyInfo, notifyWarning, refreshGameState, resetAuth, markAiGenerating, setAiClueProgress, clearSubmittedAiGenerating]);
+  }, [gameId, playerId, setConnectionStatus, setIsInitializing, notifyInfo, notifyWarning, refreshGameState, resetAuth, markAiGenerating, setAiClueProgress, clearSubmittedAiGenerating, recover]);
+
+  // Lifecycle navigateur mobile : au retour au 1er plan, si la connexion a été
+  // fermée par le gel de l'onglet (iOS/Android), forcer start() + re-JoinGame.
+  // pageshow couvre la restauration depuis le bfcache iOS.
+  useEffect(() => {
+    const onForeground = async () => {
+      if (!shouldReconnectOnForeground(document.visibilityState === 'visible', signalRClient.state)) {
+        return;
+      }
+      try {
+        debugLog('useSignalR', 'foreground → start() + recover');
+        await signalRClient.start();
+        await recover();
+      } catch (err) {
+        console.error('[useSignalR] foreground reconnect failed', err);
+      }
+    };
+    document.addEventListener('visibilitychange', onForeground);
+    window.addEventListener('pageshow', onForeground);
+    return () => {
+      document.removeEventListener('visibilitychange', onForeground);
+      window.removeEventListener('pageshow', onForeground);
+    };
+  }, [recover]);
 };
