@@ -140,8 +140,13 @@ builder.Services.AddSingleton<SoClover.RealTime.IConnectionTracker, SoClover.Rea
 // Add SignalR (backplane ready, but optional)
 // Note: We keep Redis backplane optional to avoid hard dependency. When you're ready,
 // add Microsoft.AspNetCore.SignalR.StackExchangeRedis package and uncomment the AddStackExchangeRedis line.
-var signalRBuilder = builder.Services.AddSignalR()
-    .AddJsonProtocol(options => 
+var signalRBuilder = builder.Services.AddSignalR(options =>
+    {
+        // Alignés avec la politique client (constants.ts → RECONNECT).
+        options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+        options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+    })
+    .AddJsonProtocol(options =>
     {
         options.PayloadSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.PayloadSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
