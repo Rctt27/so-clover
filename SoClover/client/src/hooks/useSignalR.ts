@@ -71,8 +71,12 @@ export const useSignalR = () => {
     },
     invoke: (method, ...args) => signalRClient.invoke(method, ...args),
     refreshGameState,
+    onUnauthorized: () => {
+      notifyWarning('Votre session de jeu a expiré pendant votre absence.');
+      resetAuth();
+    },
     log: (msg) => debugLog('useSignalR', msg),
-  }), [refreshGameState]);
+  }), [refreshGameState, notifyWarning, resetAuth]);
 
   useEffect(() => {
     debugLog('useSignalR', `useEffect setup (phase="${phase}", gameId="${gameId}")`);

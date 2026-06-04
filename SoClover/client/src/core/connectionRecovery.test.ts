@@ -45,4 +45,36 @@ describe('recoverConnection', () => {
     expect(ok).toBe(false)
     expect(refreshGameState).not.toHaveBeenCalled()
   })
+
+  it('appelle onUnauthorized quand le serveur rejette le rejoin (grâce expirée)', async () => {
+    const invoke = vi.fn().mockRejectedValue(new Error('Unauthorized: player not in game'))
+    const refreshGameState = vi.fn().mockResolvedValue(undefined)
+    const onUnauthorized = vi.fn()
+
+    const ok = await recoverConnection({
+      getAuth: () => ({ gameId: 'GAME-1', playerId: 'PLAYER-1' }),
+      invoke,
+      refreshGameState,
+      onUnauthorized,
+    })
+
+    expect(ok).toBe(false)
+    expect(onUnauthorized).toHaveBeenCalledTimes(1)
+    expect(refreshGameState).not.toHaveBeenCalled()
+  })
+
+  it('n\'appelle pas onUnauthorized pour une erreur réseau ordinaire', async () => {
+    const invoke = vi.fn().mockRejectedValue(new Error('boom'))
+    const onUnauthorized = vi.fn()
+
+    const ok = await recoverConnection({
+      getAuth: () => ({ gameId: 'GAME-1', playerId: 'PLAYER-1' }),
+      invoke,
+      refreshGameState: vi.fn().mockResolvedValue(undefined),
+      onUnauthorized,
+    })
+
+    expect(ok).toBe(false)
+    expect(onUnauthorized).not.toHaveBeenCalled()
+  })
 })
