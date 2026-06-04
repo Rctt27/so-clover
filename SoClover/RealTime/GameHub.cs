@@ -15,8 +15,6 @@ public sealed class GameHub : Hub
     private static readonly ConcurrentDictionary<string, string> _playerGameMap = new(); // playerId -> gameId
     private static readonly ConcurrentDictionary<string, CancellationTokenSource> _disconnectTimers = new();
 
-    private const int GRACE_PERIOD_SECONDS = 15;
-
     public GameHub(IGetGameStateUseCase getState, IServiceScopeFactory scopeFactory)
     {
         _getState = getState;
@@ -54,7 +52,7 @@ public sealed class GameHub : Hub
         await Groups.AddToGroupAsync(Context.ConnectionId, GroupName(gameId));
     }
 
-    public override Task OnDisconnectedAsync(Exception? exception)
+    public override async Task OnDisconnectedAsync(Exception? exception)
     {
         var item = _playerConnections.FirstOrDefault(x => x.Value == Context.ConnectionId);
         if (item.Key != null)
@@ -62,44 +60,60 @@ public sealed class GameHub : Hub
             var playerId = item.Key;
             _playerConnections.TryRemove(playerId, out _);
 
-            // Start grace period timer
             if (_playerGameMap.TryGetValue(playerId, out var gameId))
             {
+                // Durée de grâce déterminée par la phase au moment de la déconnexion
+                // (plus longue en Lobby pour le mobile). Repli : grâce de jeu.
+                int graceSeconds = GracePeriodPolicy.InGameGraceSeconds;
+                try
+                {
+                    var snapshot = await _getState.Handle(
+                        new GetGameState.Request(GameId.From(gameId)), CancellationToken.None);
+                    graceSeconds = GracePeriodPolicy.SecondsForPhase(snapshot.Phase);
+                }
+                catch
+                {
+                    // Partie introuvable / erreur : on garde le repli.
+                }
+
                 var timerCts = new CancellationTokenSource();
                 _disconnectTimers[playerId] = timerCts;
 
-                Console.WriteLine($"[GameHub] Player {playerId} disconnected. Starting {GRACE_PERIOD_SECONDS}s grace period.");
+                Console.WriteLine($"[GameHub] Player {playerId} disconnected. Starting {graceSeconds}s grace period.");
 
                 _ = Task.Run(async () =>
                 {
                     try
                     {
-                        await Task.Delay(TimeSpan.FromSeconds(GRACE_PERIOD_SECONDS), timerCts.Token);
+                        await Task.Delay(TimeSpan.FromSeconds(graceSeconds), timerCts.Token);
 
                         // Grace period expired — player did not reconnect
                         _disconnectTimers.TryRemove(playerId, out _);
                         _playerGameMap.TryRemove(playerId, out _);
-
-                        Console.WriteLine($"[GameHub] Grace period expired for player {playerId}. Removing from game {gameId}.");
 
                         using var scope = _scopeFactory.CreateScope();
                         var repo = scope.ServiceProvider.GetRequiredService<IGameRepository>();
                         var game = await repo.Get(GameId.From(gameId));
                         if (game == null) return;
 
-                        if (game.Phase == GamePhase.Lobby)
+                        var pid = new PlayerId(Guid.Parse(playerId));
+                        var action = DisconnectGraceDecision.Decide(game.Phase, game.IsAdmin(pid));
+
+                        Console.WriteLine($"[GameHub] Grace period expired for player {playerId}. Phase={game.Phase}, action={action}.");
+
+                        switch (action)
                         {
-                            var leaveUseCase = scope.ServiceProvider.GetRequiredService<ILeaveGameUseCase>();
-                            await leaveUseCase.Handle(new LeaveGame.Request(
-                                GameId.From(gameId),
-                                new PlayerId(Guid.Parse(playerId))));
-                        }
-                        else if (game.Phase == GamePhase.WritingClues)
-                        {
-                            var disconnectUseCase = scope.ServiceProvider.GetRequiredService<IDisconnectPlayerUseCase>();
-                            await disconnectUseCase.Handle(new DisconnectPlayer.Request(
-                                GameId.From(gameId),
-                                new PlayerId(Guid.Parse(playerId))));
+                            case GraceAction.LeaveGame:
+                                await scope.ServiceProvider.GetRequiredService<ILeaveGameUseCase>()
+                                    .Handle(new LeaveGame.Request(GameId.From(gameId), pid));
+                                break;
+                            case GraceAction.DisconnectPlayer:
+                                await scope.ServiceProvider.GetRequiredService<IDisconnectPlayerUseCase>()
+                                    .Handle(new DisconnectPlayer.Request(GameId.From(gameId), pid));
+                                break;
+                            case GraceAction.None:
+                            default:
+                                break;
                         }
                     }
                     catch (TaskCanceledException)
@@ -113,7 +127,8 @@ public sealed class GameHub : Hub
                 });
             }
         }
-        return base.OnDisconnectedAsync(exception);
+
+        await base.OnDisconnectedAsync(exception);
     }
 
     private static string GroupName(string gameId) => $"game-{gameId}";
