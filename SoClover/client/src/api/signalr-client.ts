@@ -1,6 +1,7 @@
 ﻿import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 import { CONSTANTS } from '../core/constants';
 import { isDebug, debugLog } from '../core/debug';
+import { nextReconnectDelay } from '../core/reconnectionPolicy';
 
 class SignalRClient {
   private connection: HubConnection | null = null;
@@ -14,7 +15,9 @@ class SignalRClient {
     if (!this.connection) {
       this.connection = new HubConnectionBuilder()
         .withUrl(this.url)
-        .withAutomaticReconnect()
+        .withAutomaticReconnect({ nextRetryDelayInMilliseconds: nextReconnectDelay })
+        .withServerTimeout(CONSTANTS.RECONNECT.serverTimeoutMs)
+        .withKeepAliveInterval(CONSTANTS.RECONNECT.keepAliveMs)
         .configureLogging(isDebug ? LogLevel.Debug : LogLevel.Warning)
         .build();
     }
