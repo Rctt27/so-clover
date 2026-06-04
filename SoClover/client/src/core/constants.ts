@@ -3,6 +3,16 @@
   APP_VERSION: '2.13.0',
   GAME_URL_PREFIX: '/g/',
   SIGNALR_HUB_URL: '/hubs/game',
+  RECONNECT: {
+    // Politique de reconnexion mobile : agressive au début, espacée ensuite.
+    // Délais (ms) indexés par previousRetryCount ; après épuisement → dernier délai répété.
+    delaysMs: [0, 2000, 5000, 10000, 20000, 30000, 60000],
+    // Au-delà de ce temps cumulé sans reconnexion → abandon (null).
+    maxElapsedMs: 5 * 60 * 1000,
+    // Timeouts client alignés avec le keepalive serveur (cf. Program.cs).
+    serverTimeoutMs: 60000,
+    keepAliveMs: 15000,
+  },
   MOUSE_THROTTLE_MS: 30,
   GUESSING_BOARD_ROTATION_THROTTLE_MS: 50,
   GUESSING_CARD_ROTATION_THROTTLE_MS: 50,
