@@ -187,6 +187,12 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
     ? { width: `clamp(min(${minRenderedPx}px, 100cqw), min(100cqw, 100cqh), ${maxRenderedPx}px)` }
     : { width: '100%', maxWidth: `${maxRenderedPx}px`, minWidth: 'min(800px, 100vw - 2rem)' };
 
+  // Garde anti-zoom (Axe 4 mobile) : les cartes portent déjà touch-action:none, mais le fond du
+  // plateau (gaps entre/autour des cartes) laissait le pinch-zoom / double-tap-zoom parasiter une
+  // manipulation. pan-y bloque ces gestes sur le plateau tout en préservant le scroll vertical de
+  // la page (utile quand le plateau atteint son plancher de taille sur petit écran, cf. Axe 3).
+  sizingStyle.touchAction = 'pan-y';
+
   return (
     <div className="flex justify-center w-full">
       <div
