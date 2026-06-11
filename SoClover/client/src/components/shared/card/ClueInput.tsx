@@ -7,6 +7,7 @@ import { useBoardStore } from '../../../core/store'
 import { getClueErrorMessage } from '../../../core/clueValidationMessages'
 import { ClueValidationRejection } from '../../../types/game'
 import { debugLog } from '../../../core/debug'
+import { isCoarsePointer } from '../../../core/coarsePointer'
 import { ClueExplanationTooltip } from './ClueExplanationTooltip'
 
 export type ClueStatus = 'idle' | 'saving' | 'success' | 'error'
@@ -23,7 +24,11 @@ interface ClueInputProps {
 }
 
 export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, disabled, explanation }) => {
-  const [isHovered, setIsHovered] = useState(false)
+  // Visibilité du tooltip d'explication : pilotée par le hover sur desktop, par un
+  // tap (bouton info) sur device tactile où le hover n'existe pas (cf. Axe 5 mobile).
+  const [isTooltipVisible, setIsTooltipVisible] = useState(false)
+  // Le type de pointeur ne change pas à l'exécution → on l'évalue une seule fois.
+  const [isCoarse] = useState(isCoarsePointer)
   const [localValue, setLocalValue] = useState(value)
   const [status, setStatus] = useState<ClueStatus>('idle')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -104,14 +109,26 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
 
   const explanationIsAvailable = !!disabled && !!explanation
 
+  // Tactile : fermer le tooltip ouvert au tap quand on tape en dehors de l'indice.
+  useEffect(() => {
+    if (!isCoarse || !isTooltipVisible) return
+    const handlePointerDown = (e: PointerEvent) => {
+      if (!clueAnchorRef.current?.contains(e.target as Node)) {
+        setIsTooltipVisible(false)
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [isCoarse, isTooltipVisible])
+
   return (
     <div style={getPositionStyle()}>
     <motion.div
       ref={clueAnchorRef}
       animate={status === 'error' ? shakeAnimation : {}}
       className="w-full relative"
-      onMouseEnter={explanationIsAvailable ? () => setIsHovered(true) : undefined}
-      onMouseLeave={explanationIsAvailable ? () => setIsHovered(false) : undefined}
+      onMouseEnter={explanationIsAvailable && !isCoarse ? () => setIsTooltipVisible(true) : undefined}
+      onMouseLeave={explanationIsAvailable && !isCoarse ? () => setIsTooltipVisible(false) : undefined}
     >
       <input
         ref={inputRef}
@@ -132,14 +149,27 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
           borderColor: getBorderColor(),
           fontWeight: theme.clueFontWeight,
           fontSize: theme.clueFontSize,
-          cursor: explanationIsAvailable ? 'help' : undefined,
+          cursor: explanationIsAvailable && !isCoarse ? 'help' : undefined,
         }}
       />
+
+      {/* Tactile : bouton info explicite (hover indisponible). Tap → toggle du tooltip. */}
+      {explanationIsAvailable && isCoarse && (
+        <button
+          type="button"
+          aria-label="Voir l'explication de l'indice"
+          aria-expanded={isTooltipVisible}
+          onClick={() => setIsTooltipVisible((v) => !v)}
+          className="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center rounded-full bg-blue-500 text-white text-xs font-bold shadow-md leading-none"
+        >
+          i
+        </button>
+      )}
 
       {explanationIsAvailable && (
         <ClueExplanationTooltip
           explanation={explanation as string}
-          visible={isHovered}
+          visible={isTooltipVisible}
           anchorRef={clueAnchorRef}
         />
       )}
