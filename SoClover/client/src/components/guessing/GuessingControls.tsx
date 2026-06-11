@@ -66,7 +66,7 @@ export const GuessingControls = React.memo(({
       title={!isMyBoard && !canMoveToNext && hasTriedPlacement
         ? '⚠️ Au moins une carte est dans une position déjà testée et fausse. Déplacez-la ou tournez-la avant de valider.'
         : undefined}
-      className={`px-7 py-2 rounded-full text-white font-bold text-base shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 ${
+      className={`px-7 py-2 [@media(pointer:coarse)]:py-3 rounded-full text-white font-bold text-base shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 ${
         canMoveToNext ? 'bg-blue-600 hover:bg-blue-700 shadow-blue/30' :
         isBoardFull ? 'bg-clover hover:bg-clover-dark shadow-clover/30' : 'bg-gray-400'
       }`}
