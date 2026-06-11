@@ -6,8 +6,28 @@
 
 @layer base {
   body {
-    @apply m-0 min-w-[320px] min-h-screen bg-clover-light text-gray-900 antialiased;
+    /* min-h-svh (et non 100vh) : sur iOS la barre d'adresse dynamique fait déborder
+       100vh. svh = « small viewport height » (barre visible) → jamais d'overflow. */
+    @apply m-0 min-w-[320px] min-h-svh bg-clover-light text-gray-900 antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer utilities {
+  /* Safe-area insets (notch / Dynamic Island / barre home iOS). Combinés à un
+     plancher de 1rem (= p-4 / top-4) pour conserver l'espacement desktop quand
+     les insets valent 0. Nécessite viewport-fit=cover dans la meta viewport. */
+  .p-safe {
+    padding-top: max(1rem, env(safe-area-inset-top));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    padding-left: max(1rem, env(safe-area-inset-left));
+  }
+  .inset-safe-top {
+    top: max(1rem, env(safe-area-inset-top));
+  }
+  .inset-safe-right {
+    right: max(1rem, env(safe-area-inset-right));
   }
 }
 

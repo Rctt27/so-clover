@@ -10,7 +10,7 @@ export const WaitingForAiBoards = () => {
   }, [fetchGameState])
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen gap-6 py-8 w-full max-w-[800px] mx-auto">
+    <div className="flex flex-col items-center justify-center min-h-svh gap-6 py-8 w-full max-w-[800px] mx-auto">
       <div className="text-center">
         <h1 className="text-3xl font-bold text-clover-dark mb-2">En attente des Boards de l'IA…</h1>
         <p className="text-gray-600">

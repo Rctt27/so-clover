@@ -31,7 +31,7 @@ const phaseVariants = {
 const phaseTransition = { duration: PHASE_TRANSITION_MS / 1000 }
 
 const PhaseLoader = () => (
-  <div className="flex flex-col items-center justify-center min-h-screen">
+  <div className="flex flex-col items-center justify-center min-h-svh">
     <Loader2 className="w-10 h-10 text-clover animate-spin" />
   </div>
 )
@@ -93,12 +93,12 @@ function App() {
   // ────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-clover-light flex flex-col p-4">
+    <div className="min-h-svh bg-clover-light flex flex-col p-safe">
       {/* Notification System */}
       <NotificationContainer />
 
       {/* Connection Status Indicator */}
-      <div className="fixed top-4 right-4 flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-md z-50">
+      <div className="fixed inset-safe-top inset-safe-right flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-md z-50">
         {/* Bouton son — rond, à gauche de l'icône wifi avec un espace vide entre les deux */}
         <div className="mr-3">
           <SoundToggleButton />

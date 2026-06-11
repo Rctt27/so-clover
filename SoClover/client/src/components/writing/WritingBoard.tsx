@@ -27,7 +27,7 @@ export const WritingBoard = () => {
 
   if (!myBoard || loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+      <div className="flex flex-col items-center justify-center min-h-svh gap-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-clover"></div>
         <p className="text-gray-500">Chargement de votre plateau...</p>
         <p className="text-xs text-gray-400">Phase: {phase} | ID: {playerId}</p>
