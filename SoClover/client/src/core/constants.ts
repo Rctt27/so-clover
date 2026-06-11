@@ -80,6 +80,12 @@
       // → swap involontaire) ou se recouvrait sur petites cartes. 4×30% laissent une croix centrale
       // de 40% dédiée au déplacement, sans recouvrement entre coins, quelle que soit la taille.
       sizeRatio: 0.3,
+      // Ratio agrandi sous pointeur tactile (pointer:coarse). Sur une carte ~100-120px en
+      // portrait, 30% donne ~30-36px (sous le seuil 44px des cibles tactiles). 40% porte la
+      // zone à ~44px sur cartes moyennes ; la croix centrale de déplacement (clic-clic) reste
+      // à 20% (1 - 2×0.4). Appliqué via media-query CSS (cf. .rotation-corner-zone, index.css),
+      // pas de détection JS — le type de pointeur ne change pas à l'exécution.
+      sizeRatioCoarse: 0.4,
     },
     // Opacité des cartes-solution révélées (non devinées) pendant le cooldown de débrief,
     // pour les distinguer des cartes correctement devinées (opacité pleine).

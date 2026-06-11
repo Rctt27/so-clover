@@ -265,8 +265,12 @@ const DraggableCardImpl = ({
 
   // Taille des zones de rotation de coin, relative à la carte (vs taille fixe en px) — voir
   // THEME_CONFIG.rotationCorner. Évite mis-aim/recouvrement quand la taille de carte varie (tablette).
-  const cornerSizePercent = `${CONSTANTS.THEME_CONFIG.rotationCorner.sizeRatio * 100}%`;
-  const cornerSizeStyle: React.CSSProperties = { width: cornerSizePercent, height: cornerSizePercent };
+  // Deux ratios injectés en variables CSS : la valeur tactile (coarse) prend le relais via
+  // media-query dans .rotation-corner-zone (index.css) → cibles ≥44px au doigt sans détection JS.
+  const cornerSizeVars = {
+    '--rotation-corner-size': `${CONSTANTS.THEME_CONFIG.rotationCorner.sizeRatio * 100}%`,
+    '--rotation-corner-size-coarse': `${CONSTANTS.THEME_CONFIG.rotationCorner.sizeRatioCoarse * 100}%`,
+  } as React.CSSProperties;
 
   // Filtre le `click` natif : s'il provient d'un coin de rotation tout juste cliqué, on l'avale
   // (sinon il déclencherait le clic-clic → sélection/swap involontaire). Sinon, clic-clic normal.
@@ -343,30 +347,27 @@ const DraggableCardImpl = ({
         />
       </motion.div>
 
-      {/* Zones de rotation aux coins — taille relative à la carte (cf. THEME_CONFIG.rotationCorner) */}
+      {/* Zones de rotation aux coins — taille relative à la carte (cf. THEME_CONFIG.rotationCorner).
+          .rotation-corner-zone lit la var CSS injectée et bascule sur la valeur tactile sous coarse. */}
       {canInteract && !isDragSource && (
-        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 110 }}>
+        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 110, ...cornerSizeVars }}>
           <div
-            className="absolute top-0 left-0 cursor-rotation pointer-events-auto"
-            style={cornerSizeStyle}
+            className="rotation-corner-zone absolute top-0 left-0 cursor-rotation pointer-events-auto"
             onPointerDown={(e) => handleRotationStart(e, 'left')}
             title="Faire pivoter"
           />
           <div
-            className="absolute top-0 right-0 cursor-rotation pointer-events-auto"
-            style={cornerSizeStyle}
+            className="rotation-corner-zone absolute top-0 right-0 cursor-rotation pointer-events-auto"
             onPointerDown={(e) => handleRotationStart(e, 'right')}
             title="Faire pivoter"
           />
           <div
-            className="absolute bottom-0 left-0 cursor-rotation pointer-events-auto"
-            style={cornerSizeStyle}
+            className="rotation-corner-zone absolute bottom-0 left-0 cursor-rotation pointer-events-auto"
             onPointerDown={(e) => handleRotationStart(e, 'left')}
             title="Faire pivoter"
           />
           <div
-            className="absolute bottom-0 right-0 cursor-rotation pointer-events-auto"
-            style={cornerSizeStyle}
+            className="rotation-corner-zone absolute bottom-0 right-0 cursor-rotation pointer-events-auto"
             onPointerDown={(e) => handleRotationStart(e, 'right')}
             title="Faire pivoter"
           />
