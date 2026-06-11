@@ -63,6 +63,23 @@ describe('recoverConnection', () => {
     expect(refreshGameState).not.toHaveBeenCalled()
   })
 
+  it('appelle onUnauthorized quand la partie a été supprimée pendant la grâce', async () => {
+    // Le serveur mappe GameNotFound → HubException("Unauthorized: game no longer exists")
+    // pour que le client purge l'identité périmée plutôt que de rester sur un écran mort.
+    const invoke = vi.fn().mockRejectedValue(new Error('Unauthorized: game no longer exists'))
+    const onUnauthorized = vi.fn()
+
+    const ok = await recoverConnection({
+      getAuth: () => ({ gameId: 'GAME-1', playerId: 'PLAYER-1' }),
+      invoke,
+      refreshGameState: vi.fn().mockResolvedValue(undefined),
+      onUnauthorized,
+    })
+
+    expect(ok).toBe(false)
+    expect(onUnauthorized).toHaveBeenCalledTimes(1)
+  })
+
   it('n\'appelle pas onUnauthorized pour une erreur réseau ordinaire', async () => {
     const invoke = vi.fn().mockRejectedValue(new Error('boom'))
     const onUnauthorized = vi.fn()
