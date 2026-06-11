@@ -136,6 +136,7 @@ builder.Services.AddTransient<IKickPlayerUseCase, KickPlayer.Handler>();
 builder.Services.AddTransient<ICreateAIPlayerUseCase, CreateAIPlayer.Handler>();
 builder.Services.AddTransient<IDisconnectPlayerUseCase, DisconnectPlayer.Handler>();
 builder.Services.AddTransient<IReconnectPlayerUseCase, ReconnectPlayer.Handler>();
+builder.Services.AddSingleton<SoClover.RealTime.PlayerConnectionRegistry>();
 builder.Services.AddSingleton<SoClover.RealTime.IConnectionTracker, SoClover.RealTime.SignalRConnectionTracker>();
 
 // Add SignalR (backplane ready, but optional)

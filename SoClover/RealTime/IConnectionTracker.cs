@@ -12,10 +12,14 @@ public interface IConnectionTracker
 }
 
 /// <summary>
-/// Production implementation — delegates to GameHub's static connection map.
+/// Production implementation — delegates to the shared <see cref="PlayerConnectionRegistry"/>.
 /// </summary>
 public sealed class SignalRConnectionTracker : IConnectionTracker
 {
+    private readonly PlayerConnectionRegistry _registry;
+
+    public SignalRConnectionTracker(PlayerConnectionRegistry registry) => _registry = registry;
+
     public bool IsPlayerConnected(PlayerId playerId) =>
-        GameHub.IsPlayerConnected(playerId);
+        _registry.IsConnected(playerId.Value.ToString());
 }
