@@ -16,6 +16,7 @@ import { MouseBatcher } from './MouseBatcher';
 import { EMITTER_CONFIG } from '../constants';
 import type { NormalizedPosition } from '../types';
 import { debugLog } from '../../../core/debug';
+import { isCoarsePointer } from '../../../core/coarsePointer';
 
 /**
  * Hook d'émission du mouse tracking local
@@ -65,7 +66,8 @@ export function useLocalCursorEmitter(
 
     const board = boardRef.current;
 
-    const handleMouseMove = (e: MouseEvent) => {
+    // PointerEvent étend MouseEvent → un seul corps de traitement pour les deux.
+    const capturePosition = (e: MouseEvent) => {
       const rect = board.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
@@ -83,12 +85,28 @@ export function useLocalCursorEmitter(
       }
     };
 
+    // Sur device tactile, `mousemove` ne part jamais : on écoute aussi `pointermove`
+    // (le doigt émet alors le curseur distant). Pour éviter le double comptage sur les
+    // devices hybrides (tactile + souris, qui matchent aussi pointer:coarse), on ne
+    // traite ici que les pointeurs non-souris ; la souris reste gérée par mousemove.
+    const coarse = isCoarsePointer();
+    const handlePointerMove = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') return;
+      capturePosition(e);
+    };
+
     // Écouter sur le document pour ne pas perdre le curseur hors du board
-    document.addEventListener('mousemove', handleMouseMove, { passive: true });
+    document.addEventListener('mousemove', capturePosition, { passive: true });
+    if (coarse) {
+      document.addEventListener('pointermove', handlePointerMove, { passive: true });
+    }
 
     return () => {
       debugLog('MouseTracking', 'Deactivating emitter');
-      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mousemove', capturePosition);
+      if (coarse) {
+        document.removeEventListener('pointermove', handlePointerMove);
+      }
       batcherRef.current?.destroy();
       samplerRef.current?.reset();
     };
