@@ -80,6 +80,17 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
     if (e.key === 'Enter') inputRef.current?.blur()
   }
 
+  // Tactile : à l'ouverture du clavier virtuel (phase Writing), recadrer l'indice focus
+  // au centre pour qu'il ne reste pas masqué par le clavier en layout 100svh. On laisse
+  // le clavier s'animer avant de scroller. Le focus n'arrive qu'en édition (input non
+  // disabled) → naturellement limité à la phase d'écriture.
+  const handleFocus = () => {
+    if (!isCoarse) return
+    window.setTimeout(() => {
+      clueAnchorRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }, 300)
+  }
+
   const getPositionStyle = () => {
     const { topPct, leftPct, rotation } = boardGeo.cluePositions[position]
     return {
@@ -137,8 +148,14 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
         onChange={(e) => setLocalValue(e.target.value)}
         onBlur={handleSave}
         onKeyDown={handleKeyDown}
+        onFocus={handleFocus}
         disabled={disabled || status === 'saving'}
         maxLength={20}
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+        inputMode="text"
+        enterKeyHint="done"
         placeholder={position.charAt(0).toUpperCase() + position.slice(1) + ' clue'}
         aria-invalid={hasValidationError ? "true" : undefined}
         aria-describedby={hasValidationError && firstError ? errorMessageId : undefined}
