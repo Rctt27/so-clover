@@ -29,6 +29,20 @@
   .inset-safe-right {
     right: max(1rem, env(safe-area-inset-right));
   }
+
+  /* Masqué par défaut ; affiché (en flex) uniquement sur appareil TACTILE en PORTRAIT.
+     Sert à inciter au paysage sur la phase Guessing, dont le layout 3-colonnes
+     (pool | plateau | pool) ne tient pas en portrait étroit. Gating sur pointer:coarse
+     pour ne jamais l'afficher sur un desktop en fenêtre étroite. Une seule règle
+     display active à la fois → pas de conflit de spécificité avec les classes Tailwind. */
+  .hide-unless-portrait-touch {
+    display: none;
+  }
+  @media (orientation: portrait) and (pointer: coarse) {
+    .hide-unless-portrait-touch {
+      display: flex;
+    }
+  }
 }
 
 .mogra-regular {

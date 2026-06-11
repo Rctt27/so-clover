@@ -9,6 +9,7 @@ import { OutsideCardPool } from './OutsideCardPool'
 import { DraggableCard } from './DraggableCard'
 import { GuessingBoardSection } from './GuessingBoardSection'
 import { GuessingControls } from './GuessingControls'
+import { LandscapePrompt } from './LandscapePrompt'
 import { CardData, rotationToDegrees, CardInfoResponse } from '../../types/game'
 import { playSound } from '../../core/sounds'
 import { debugLog } from '../../core/debug'
@@ -298,6 +299,10 @@ export const GuessingPage = () => {
 
   return (
     <div className="flex flex-col h-[calc(100svh-2rem)]">
+      {/* Incitation au paysage sur mobile portrait : le layout 3-colonnes ci-dessous
+          ne tient pas en portrait étroit (cf. Axe 3). Auto-masqué hors portrait tactile. */}
+      <LandscapePrompt />
+
       {/* Header Info — titre + sous-titre sur une seule ligne pour gagner de la hauteur
           (utile sur les viewports courts type tablette). */}
       <div className="bg-white/30 backdrop-blur-sm shadow-sm py-2 px-4 flex items-baseline justify-center gap-3 flex-wrap">
