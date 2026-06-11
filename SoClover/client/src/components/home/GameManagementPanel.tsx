@@ -79,9 +79,19 @@ export const GameManagementPanel: React.FC = () => {
             id="gameIdInput"
             value={gameIdInput}
             onChange={(e) => setGameIdInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !isNameEmpty && gameIdInput.trim().length > 0 && !isLoading) {
+                handleJoinGame();
+              }
+            }}
             placeholder="Collez l'ID pour rejoindre"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-clover focus:border-transparent outline-none transition-all"
             autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            inputMode="text"
+            enterKeyHint="go"
           />
         </div>
 
