@@ -178,9 +178,13 @@ export const Board = React.memo(React.forwardRef<HTMLDivElement, BoardProps>(({
 
   // Mode container-sized : plus grand carré tenant dans le conteneur (cqw/cqh résolus
   // contre l'ancêtre `container-type: size` fourni par le parent), borné [min, max].
+  // Plancher dépendant de la largeur dispo : `min(minRenderedPx, 100cqw)` — sur les
+  // petits écrans (< 420px de large, ex. iPhone SE 375px) le plancher s'abaisse à la
+  // largeur du conteneur au lieu de forcer 420px → plus de débordement/scroll horizontal.
+  // Sur desktop (conteneur large) le plancher reste minRenderedPx : comportement inchangé.
   // Mode par défaut : comportement largeur-only historique (inchangé).
   const sizingStyle: React.CSSProperties = containerSized
-    ? { width: `clamp(${minRenderedPx}px, min(100cqw, 100cqh), ${maxRenderedPx}px)` }
+    ? { width: `clamp(min(${minRenderedPx}px, 100cqw), min(100cqw, 100cqh), ${maxRenderedPx}px)` }
     : { width: '100%', maxWidth: `${maxRenderedPx}px`, minWidth: 'min(800px, 100vw - 2rem)' };
 
   return (

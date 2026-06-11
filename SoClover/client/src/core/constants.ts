@@ -120,7 +120,7 @@
       referenceSize: 1300,  // Canvas 1300×1300px — contenu visuel ~1258px (marge ~21px)
       cardSize: 320,
       cardGap: 4,           // Espacement (px) entre les cartes adjacentes sur le board
-      minRenderedPx: 420,   // Plancher de lisibilité du plateau rendu (sizing height-aware) ; sous ce seuil on réaccepte le scroll
+      minRenderedPx: 420,   // Plancher de lisibilité PRÉFÉRÉ du plateau (sizing height-aware) ; borné par la largeur du conteneur via min(minRenderedPx, 100cqw) dans Board.tsx → jamais de débordement horizontal sur écran < 420px (mobile)
       maxRenderedPx: 1000,  // Plafond du plateau rendu ; remplace l'ancien maxWidth codé en dur dans Board.tsx
     },
     pool: {
