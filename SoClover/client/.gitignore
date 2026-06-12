@@ -1,0 +1,5 @@
+# Artefacts Playwright (harnais e2e mobile)
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
