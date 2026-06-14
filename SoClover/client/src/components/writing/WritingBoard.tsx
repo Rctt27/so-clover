@@ -4,6 +4,7 @@ import { useBoardStore, useGameStore } from '../../core/store'
 import { useGameActions } from '../../hooks/useGameActions'
 import { WritingControls } from './WritingControls'
 import { SubmissionProgress } from './SubmissionProgress'
+import { LandscapePrompt } from '../guessing/LandscapePrompt'
 
 export const WritingBoard = () => {
   const myBoard = useBoardStore(s => s.myBoard)
@@ -36,10 +37,15 @@ export const WritingBoard = () => {
   }
 
   return (
-    <div className="flex flex-col items-center h-[calc(100svh-2rem)] gap-4 py-4 w-full max-w-[1200px] mx-auto">
-      <div className="text-center shrink-0">
-        <h1 className="text-2xl sm:text-3xl font-bold text-clover-dark mb-2">Phase d'Écriture</h1>
-        <p className="text-gray-600">Observez vos 4 cartes et les 8 mots formés par leurs paires</p>
+    <div className="writing-compact-landscape flex flex-col items-center h-[calc(100svh-2rem)] gap-4 py-4 w-full max-w-[1200px] mx-auto">
+      {/* Incitation au paysage sur mobile portrait : en portrait étroit les indices
+          dé-pivotés ne tiennent pas. La saisie se fait en paysage (cf. Axe 6 / Task 3).
+          Auto-masqué hors portrait tactile via `.hide-unless-portrait-touch`. */}
+      <LandscapePrompt description="La saisie des indices se fait en mode paysage pour afficher le plateau et les champs lisiblement." />
+
+      <div className="writing-header text-center shrink-0">
+        <h1 className="writing-title text-2xl sm:text-3xl font-bold text-clover-dark mb-2">Phase d'Écriture</h1>
+        <p className="writing-subtitle text-gray-600">Observez vos 4 cartes et les 8 mots formés par leurs paires</p>
       </div>
 
       {/* Zone plateau élastique : flex-1 prend la hauteur résiduelle, container-type:size

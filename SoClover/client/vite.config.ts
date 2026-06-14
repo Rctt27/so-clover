@@ -18,6 +18,10 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // Cadrer vitest sur les tests unitaires de `src/`. Les specs Playwright (`e2e/*.spec.ts`)
+    // ont leur propre runner (`npm run test:e2e`) et ne doivent pas être collectées ici —
+    // sinon `test()` de @playwright/test échoue (« did not expect test() to be called here »).
+    include: ['src/**/*.test.{ts,tsx}'],
   },
   server: {
     proxy: {

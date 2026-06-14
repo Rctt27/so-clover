@@ -52,6 +52,18 @@
   @media (orientation: portrait) {
     :root { --app-chip-clearance: calc(3.75rem + env(safe-area-inset-top, 0px)); }
   }
+
+  /* Phase Écriture en paysage tactile court (mobile tenu à l'horizontale) : compacter
+     l'en-tête et les contrôles pour que le plateau, les 4 champs et le bouton
+     « Soumettre » tiennent sans scroll. Gating identique à l'en-tête Déduction (Task 6)
+     → ne touche jamais le desktop (pointer:fine) ni les tablettes hautes. */
+  @media (orientation: landscape) and (pointer: coarse) and (max-height: 480px) {
+    .writing-compact-landscape { padding-top: 0.25rem; padding-bottom: 0.25rem; gap: 0.5rem; }
+    .writing-compact-landscape .writing-title { font-size: 1.25rem; line-height: 1.75rem; margin-bottom: 0; }
+    .writing-compact-landscape .writing-subtitle { display: none; }
+    .writing-compact-landscape .writing-controls { margin-top: 0.5rem; gap: 0.5rem; }
+    .writing-compact-landscape .writing-controls button { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  }
 }
 
 .mogra-regular {

@@ -38,7 +38,7 @@ export const WritingControls = () => {
   const isActuallySubmitted = myBoard.isSubmitted
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full max-w-md mx-auto mt-8">
+    <div className="writing-controls flex flex-col items-center gap-6 w-full max-w-md mx-auto mt-8">
       <BoardRotationControls
         rotation={myBoard.rotation || 0}
         onRotate={handleRotate}

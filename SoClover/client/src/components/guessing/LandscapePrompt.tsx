@@ -1,17 +1,29 @@
 import { RotateCw, Smartphone } from 'lucide-react'
 
+/** Justificatif par défaut (phase Déduction). Surchargé en phase Écriture. */
+const DEFAULT_DESCRIPTION =
+  'La phase de déduction se joue en mode paysage pour afficher le plateau et les cartes côte à côte.'
+
+interface LandscapePromptProps {
+  /** Justificatif affiché sous le titre. Par phase : la Déduction garde le défaut,
+   *  l'Écriture explique que la saisie des indices se fait en paysage. */
+  description?: string
+}
+
 /**
- * Overlay « tournez votre appareil » affiché en phase Guessing sur les appareils
- * tactiles en portrait. Le layout 3-colonnes (pool | plateau | pool) ne tient pas
- * en portrait étroit → on incite au paysage plutôt que d'empiler verticalement
- * (décision PRD Mobile_Compatibility/00_Overview.md, Axe 3).
+ * Overlay « tournez votre appareil » affiché sur les appareils tactiles en portrait.
+ * Partagé par les phases Déduction (layout 3-colonnes) ET Écriture (indices dé-pivotés
+ * lisibles en paysage) : ces deux layouts ne tiennent pas en portrait étroit → on
+ * incite au paysage plutôt que d'empiler verticalement (décision PRD
+ * Mobile_Compatibility/00_Overview.md, Axe 3 ; généralisation 2026-06-12).
  *
  * La visibilité est pilotée par la seule classe CSS `hide-unless-portrait-touch`
  * (média-query `(orientation: portrait) and (pointer: coarse)` dans index.css) :
  * aucun JS d'orientation, bascule instantanée à la rotation. Le jeu reste monté
- * sous l'overlay (connexion/state préservés), simplement masqué visuellement.
+ * sous l'overlay (connexion/state préservés), simplement masqué visuellement. Le
+ * titre « Tournez votre appareil » reste constant (point d'ancrage des tests e2e).
  */
-export const LandscapePrompt = () => {
+export const LandscapePrompt = ({ description = DEFAULT_DESCRIPTION }: LandscapePromptProps) => {
   return (
     <div className="hide-unless-portrait-touch fixed inset-0 z-[100] flex-col items-center justify-center gap-6 bg-clover-light px-8 text-center">
       <div className="relative">
@@ -22,10 +34,7 @@ export const LandscapePrompt = () => {
         />
       </div>
       <h2 className="text-2xl font-bold text-clover-dark">Tournez votre appareil</h2>
-      <p className="max-w-xs text-gray-600">
-        La phase de déduction se joue en mode paysage pour afficher le plateau et
-        les cartes côte à côte.
-      </p>
+      <p className="max-w-xs text-gray-600">{description}</p>
     </div>
   )
 }

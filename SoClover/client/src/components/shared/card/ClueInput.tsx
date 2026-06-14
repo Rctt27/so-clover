@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CONSTANTS } from '../../../core/constants'
-import { computeBoardGeometry } from '../../../core/boardGeometry'
+import { computeBoardGeometry, getCluePlacement } from '../../../core/boardGeometry'
 import { useClueValidation } from '../../../hooks/useClueValidation'
 import { useBoardStore } from '../../../core/store'
 import { getClueErrorMessage } from '../../../core/clueValidationMessages'
@@ -92,12 +92,14 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
   }
 
   const getPositionStyle = () => {
-    const { topPct, leftPct, rotation } = boardGeo.cluePositions[position]
+    // Sous pointeur tactile : champ dé-pivoté (texte horizontal) et élargi pour ne
+    // plus tronquer les mots longs (cf. getCluePlacement). Desktop : inchangé.
+    const { topPct, leftPct, rotation, widthPct } = getCluePlacement(boardGeo, position, isCoarse)
     return {
       position: 'absolute' as const,
       top: `${topPct}%`,
       left: `${leftPct}%`,
-      width: `${boardGeo.clueInputWidthPct}%`,
+      width: `${widthPct}%`,
       transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
       zIndex: 100,
     }
@@ -133,7 +135,7 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
   }, [isCoarse, isTooltipVisible])
 
   return (
-    <div style={getPositionStyle()}>
+    <div data-clue-wrapper style={getPositionStyle()}>
     <motion.div
       ref={clueAnchorRef}
       animate={status === 'error' ? shakeAnimation : {}}
