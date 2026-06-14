@@ -305,7 +305,7 @@ export const GuessingPage = () => {
 
       {/* Header Info — titre + sous-titre sur une seule ligne pour gagner de la hauteur
           (utile sur les viewports courts type tablette). */}
-      <div className="bg-white/30 backdrop-blur-sm shadow-sm py-2 px-4 flex items-baseline justify-center gap-3 flex-wrap">
+      <div data-testid="guessing-header" className="bg-white/30 backdrop-blur-sm shadow-sm py-2 px-4 flex items-baseline justify-center gap-3 flex-wrap">
         <h1 className="text-2xl font-bold text-gray-800">Phase de Déduction</h1>
         <p className="text-gray-600">
           Plateau de{' '}
@@ -317,7 +317,7 @@ export const GuessingPage = () => {
           aux pools ET à la sous-zone plateau. overflow-hidden retiré : la politique
           plancher+scroll prend le relais (scroll seulement sous les planchers). */}
       <div
-        className="flex flex-1 min-h-0 min-w-0 items-center justify-center px-8 py-4 gap-8 overflow-x-auto"
+        className="flex flex-1 min-h-0 min-w-0 items-start justify-center px-8 py-4 gap-8 overflow-x-auto"
         style={{ containerType: 'size' }}
       >
         {/* Pool Gauche */}
@@ -337,7 +337,7 @@ export const GuessingPage = () => {
         </div>
 
         {/* Board Central */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 min-w-0 max-w-[1000px] self-stretch">
+        <div data-testid="guessing-board" className="flex-1 flex flex-col items-center justify-center gap-4 min-w-0 min-h-0 max-h-full max-w-[1000px] self-stretch overflow-hidden">
           {/* Sous-zone plateau : flex-1 prend la hauteur résiduelle de la colonne (= hauteur
               rangée − contrôles) ; container-type:size en fait le conteneur de référence du
               plateau → 100cqw = largeur colonne centrale, 100cqh = hauteur sous-zone. */}
@@ -382,7 +382,7 @@ export const GuessingPage = () => {
         </div>
 
         {/* Pool Droit */}
-        <div className="flex-none">
+        <div className="guessing-pool-right flex-none">
           <OutsideCardPool
             cards={poolRight}
             startIndex={3}
