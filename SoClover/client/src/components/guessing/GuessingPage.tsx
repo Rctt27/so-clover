@@ -317,7 +317,7 @@ export const GuessingPage = () => {
           aux pools ET à la sous-zone plateau. overflow-hidden retiré : la politique
           plancher+scroll prend le relais (scroll seulement sous les planchers). */}
       <div
-        className="flex flex-1 min-h-0 items-center justify-center px-8 py-4 gap-8"
+        className="flex flex-1 min-h-0 min-w-0 items-center justify-center px-8 py-4 gap-8 overflow-x-auto"
         style={{ containerType: 'size' }}
       >
         {/* Pool Gauche */}

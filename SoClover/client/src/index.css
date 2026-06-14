@@ -11,6 +11,11 @@
     @apply m-0 min-w-[320px] min-h-svh bg-clover-light text-gray-900 antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
+
+  /* Garde-fou : aucune phase ne doit provoquer de scroll horizontal du document.
+     Le board de déduction en fenêtre étroite (desktop) déborde sinon latéralement —
+     le débordement est confiné à la zone de jeu (overflow-x-auto local) plutôt qu'au body. */
+  html, body { overflow-x: hidden; }
 }
 
 @layer utilities {
