@@ -98,7 +98,7 @@ function App() {
       <NotificationContainer />
 
       {/* Connection Status Indicator */}
-      <div className="fixed inset-safe-top inset-safe-right flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-md z-50">
+      <div data-testid="connection-chip" className="fixed inset-safe-top inset-safe-right flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-md z-50">
         {/* Bouton son — rond, à gauche de l'icône wifi avec un espace vide entre les deux */}
         <div className="mr-3">
           <SoundToggleButton />
@@ -132,7 +132,7 @@ function App() {
         )}
       </AnimatePresence>
 
-      <main className="flex-1 flex flex-col items-center justify-center w-full">
+      <main className="flex-1 flex flex-col items-center justify-center w-full pt-[var(--app-chip-clearance)]">
         <AnimatePresence mode="wait">
           {phase === 'Initial' && (
             <motion.div

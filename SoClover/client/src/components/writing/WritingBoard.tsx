@@ -38,7 +38,7 @@ export const WritingBoard = () => {
   return (
     <div className="flex flex-col items-center h-[calc(100svh-2rem)] gap-4 py-4 w-full max-w-[1200px] mx-auto">
       <div className="text-center shrink-0">
-        <h1 className="text-3xl font-bold text-clover-dark mb-2">Phase d'Écriture</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-clover-dark mb-2">Phase d'Écriture</h1>
         <p className="text-gray-600">Observez vos 4 cartes et les 8 mots formés par leurs paires</p>
       </div>
 
