@@ -186,7 +186,7 @@ public sealed class Game
     public void AddPlayer(Player player)
     {
         if (Phase != GamePhase.Lobby)
-            throw new InvalidOperationInPhaseException("Cannot join after game start.");
+            throw new InvalidOperationInPhaseException("Impossible de rejoindre : la partie a déjà commencé.");
         BumpRevision();
 
         // Attribuer une couleur de curseur au joueur

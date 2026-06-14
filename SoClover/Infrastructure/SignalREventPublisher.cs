@@ -96,7 +96,7 @@ public sealed class SignalREventPublisher : IEventPublisher
                             .SendAsync("ServerNotification", new
                             {
                                 type = "info",
-                                message = $"<strong>{player.Name}</strong> submitted a board",
+                                message = $"<strong>{player.Name}</strong> a soumis un plateau",
                                 senderId = boardSub.PlayerId.Value.ToString()
                             }, ct);
                     }
