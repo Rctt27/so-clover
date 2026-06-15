@@ -43,7 +43,8 @@ export const WritingBoard = () => {
           Auto-masqué hors portrait tactile via `.hide-unless-portrait-touch`. */}
       <LandscapePrompt description="La saisie des indices se fait en mode paysage pour afficher le plateau et les champs lisiblement." />
 
-      <div className="writing-header text-center shrink-0">
+      {/* Header masqué sur mobile (tactile) pour rendre la hauteur au plateau. */}
+      <div className="writing-header hide-on-coarse text-center shrink-0">
         <h1 className="writing-title text-2xl sm:text-3xl font-bold text-clover-dark mb-2">Phase d'Écriture</h1>
         <p className="writing-subtitle text-gray-600">Observez vos 4 cartes et les 8 mots formés par leurs paires</p>
       </div>
