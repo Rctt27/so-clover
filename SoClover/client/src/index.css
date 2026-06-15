@@ -63,17 +63,77 @@
      plateau. Gating commun → ne touche jamais le desktop (pointer:fine) ni les tablettes
      hautes. Le pool droit de la Déduction est en plus dégagé du chip de connexion fixe
      (haut-droite), que la clearance portrait-only de Task 2 ne couvre pas en paysage. */
+  /* Décale le pool droit sous le chip de connexion ET le bouton « Valider » fixe (tous
+     deux ancrés haut-droite, sur tout tactile en paysage) → ses 2 cartes s'empilent sous
+     le CTA (colonne droite : chip + CTA + 2 cartes). N'affecte ni le board ni le pool
+     gauche. Hors max-height pour couvrir aussi les tablettes paysage. */
+  @media (orientation: landscape) and (pointer: coarse) {
+    .guessing-pool-right { padding-top: calc(7.5rem + env(safe-area-inset-top, 0px)); }
+
+    /* Board height-bound en paysage mobile : la seule façon d'agrandir un plateau CARRÉ est de
+       lui rendre de la hauteur (la largeur n'est jamais le facteur limitant ici). On annule le
+       plancher vertical p-safe de l'App (1rem haut/bas) et on remplit toute la hauteur svh :
+       en Déduction l'en-tête est masqué (hide-on-coarse) et le chip de connexion est en
+       position:fixed (insensible à cette marge négative) → aucun chevauchement. Gain mesuré :
+       board 338→382px, cartes 83→94px (+13 %, plafond physique sur viewport 390px de haut). */
+    .guessing-fill-landscape {
+      height: 100svh;
+      margin-top: calc(-1 * max(1rem, env(safe-area-inset-top, 0px)));
+      margin-bottom: calc(-1 * max(1rem, env(safe-area-inset-bottom, 0px)));
+    }
+  }
+
   @media (orientation: landscape) and (pointer: coarse) and (max-height: 480px) {
     .writing-compact-landscape { padding-top: 0.25rem; padding-bottom: 0.25rem; gap: 0.5rem; }
-    .writing-compact-landscape .writing-title { font-size: 1.25rem; line-height: 1.75rem; margin-bottom: 0; }
-    .writing-compact-landscape .writing-subtitle { display: none; }
     .writing-compact-landscape .writing-controls { margin-top: 0.5rem; gap: 0.5rem; }
     .writing-compact-landscape .writing-controls button { padding-top: 0.5rem; padding-bottom: 0.5rem; }
 
-    [data-testid="guessing-header"] { padding-top: 0.25rem; padding-bottom: 0.25rem; }
-    /* Décale le pool droit sous la hauteur du chip (~58px) → sa carte haute n'est plus
-       recouverte par le chip de connexion fixe. N'affecte ni le board ni le pool gauche. */
-    .guessing-pool-right { padding-top: calc(3.75rem + env(safe-area-inset-top, 0px)); }
+    /* Resserre les espacements des pools en paysage mobile (les slots sont dimensionnés
+       en JS à la taille des cartes du board → cf. OutsideCardPool / GuessingPage). */
+    .guessing-pool { gap: 0.5rem; padding-left: 0.5rem; padding-right: 0.5rem; padding-bottom: 0.5rem; }
+  }
+
+  /* Visibilité par type de pointeur (mobile/tactile vs desktop/souris). Mobile : on
+     masque les en-têtes de phase et les contrôles in-flow (rotation/soumission) au profit
+     du HUD fixe haut-droite. Une seule règle display active à la fois → pas de conflit de
+     spécificité avec les classes Tailwind. */
+  .coarse-only { display: none; }
+  @media (pointer: coarse) {
+    .hide-on-coarse { display: none !important; }
+    .coarse-only { display: block; }
+  }
+
+  /* CTA principal de phase sur tactile (« Soumettre » en Écriture, « Valider / Plateau
+     suivant » en Déduction) : le board height-bound occupe toute la hauteur et pousse/
+     clippe les contrôles in-flow → le CTA est ancré en position fixe sous le chip de
+     connexion (haut-droite). Sur desktop, le bouton in-flow sous le plateau reste seul.
+     Les deux phases ne coexistent jamais (AnimatePresence mode=wait) → même ancrage. */
+  .mobile-fixed-cta { display: none; }
+  @media (pointer: coarse) {
+    .mobile-fixed-cta {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      position: fixed;
+      top: calc(max(1rem, env(safe-area-inset-top, 0px)) + 3rem);
+      right: max(1rem, env(safe-area-inset-right, 0px));
+      z-index: 50;
+    }
+  }
+
+  /* Dimensions MOBILE-FIRST du HUD (coarse). On ne réplique pas les dimensions desktop :
+     un mobile est petit et tenu près des yeux → le chip de connexion (informatif :
+     wifi + timer) est nettement réduit, et les boutons de rotation gardent une cible
+     tactile confortable (~44px) mais plus compacte que le desktop. */
+  @media (pointer: coarse) {
+    /* Icône wifi/wifi-off uniquement (enfant direct du chip) — pas l'icône son, qui est
+       dans un <button> imbriqué et doit rester une cible tactile lisible. */
+    [data-testid="connection-chip"] > svg { width: 15px; height: 15px; }
+    .timer-text { font-size: 0.72rem; }
+
+    /* Icônes des flèches de rotation : un cran plus petites que le desktop (24px),
+       la cible tactile restant assurée par le padding du bouton (p-2.5 ≈ 44px). */
+    .rotation-ctrl-btn svg { width: 20px; height: 20px; }
   }
 }
 
@@ -84,6 +144,20 @@
 @layer components {
   .card-word {
     @apply text-zinc-800 uppercase tracking-wide leading-none whitespace-nowrap;
+  }
+
+  /* Mobile (coarse) : police des mots RELATIVE À LA CARTE (cqw). La règle est posée sur
+     `.card-word` (DESCENDANT), pas sur `.card-font-root` : une longueur `cqw` se résout
+     contre le conteneur ANCÊTRE le plus proche, jamais contre l'élément qui la porte. Posée
+     sur `.card-font-root` (qui déclare container-type), elle remontait au container:size du
+     board (≈800px) → toujours plafonnée à 20px (mots disproportionnés). Posée sur `.card-word`,
+     `cqw` se résout enfin contre `.card-font-root` (container-type: inline-size = largeur de
+     LA carte) → la police suit la carte. Ratio ~12.5% + plafond 15px : sur mobile l'écran est
+     petit mais tenu près des yeux → des mots plus compacts que le desktop restent lisibles.
+     Borné [10px, 15px]. `!important` pour primer le `text-[1em]` (hérité du fontSize inline
+     desktop posé par CardAnimation). */
+  @media (pointer: coarse) {
+    .card-word { font-size: clamp(10px, 12.5cqw, 15px) !important; }
   }
 
   /* Zone de rotation de coin d'une carte. Taille = var injectée par DraggableCard
