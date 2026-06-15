@@ -78,6 +78,7 @@ dist/
 # AI tooling (local config, not project artifacts)
 .claude/
 .serena/
+.playwright-mcp/
 
 # Superpowers plans & generated docs
 docs/superpowers/
