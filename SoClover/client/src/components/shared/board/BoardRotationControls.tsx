@@ -37,11 +37,11 @@ export const BoardRotationControls = ({
   }, [onRotate, disabled, enableKeyboard])
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="rotation-controls flex items-center gap-4 [@media(pointer:coarse)]:gap-2">
       <button
         onClick={() => onRotate('left')}
         disabled={disabled}
-        className={`p-3 rounded-full bg-white shadow-md transition-colors border border-gray-200 focus:outline-none focus:ring-2 focus:ring-clover ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+        className={`rotation-ctrl-btn p-3 [@media(pointer:coarse)]:p-2.5 rounded-full bg-white shadow-md transition-colors border border-gray-200 focus:outline-none focus:ring-2 focus:ring-clover ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
         title="Tourner à gauche (←)"
         aria-label="Tourner le plateau à gauche"
       >
@@ -62,7 +62,7 @@ export const BoardRotationControls = ({
       <button
         onClick={() => onRotate('right')}
         disabled={disabled}
-        className={`p-3 rounded-full bg-white shadow-md transition-colors border border-gray-200 focus:outline-none focus:ring-2 focus:ring-clover ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+        className={`rotation-ctrl-btn p-3 [@media(pointer:coarse)]:p-2.5 rounded-full bg-white shadow-md transition-colors border border-gray-200 focus:outline-none focus:ring-2 focus:ring-clover ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
         title="Tourner à droite (→)"
         aria-label="Tourner le plateau à droite"
       >

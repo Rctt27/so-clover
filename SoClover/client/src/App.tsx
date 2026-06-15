@@ -15,6 +15,7 @@ import { NotificationContainer } from './components/shared/NotificationContainer
 import { Timer } from './components/shared/Timer'
 import { ConnectionOverlay } from './components/shared/ConnectionOverlay'
 import { SoundToggleButton } from './components/shared/SoundToggleButton'
+import { MOBILE_BOARD_CONTROLS_SLOT_ID } from './components/shared/MobileBoardControlsPortal'
 
 const WritingBoard = lazy(() => import('./components/writing/WritingBoard').then(m => ({ default: m.WritingBoard })))
 const WaitingForAiBoards = lazy(() => import('./components/writing/WaitingForAiBoards').then(m => ({ default: m.WaitingForAiBoards })))
@@ -97,24 +98,32 @@ function App() {
       {/* Notification System */}
       <NotificationContainer />
 
-      {/* Connection Status Indicator */}
-      <div data-testid="connection-chip" className="fixed inset-safe-top inset-safe-right flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-md z-50">
-        {/* Bouton son — rond, à gauche de l'icône wifi avec un espace vide entre les deux */}
-        <div className="mr-3">
-          <SoundToggleButton />
+      {/* Cluster HUD fixe haut-droite : à GAUCHE le slot de contrôles de plateau (rotation,
+          projetée par les phases sur mobile via MobileBoardControlsPortal), à DROITE le chip
+          de connexion (son / wifi / timer). Sur desktop le slot reste vide. */}
+      <div className="fixed inset-safe-top inset-safe-right flex items-center gap-2 z-50">
+        <div id={MOBILE_BOARD_CONTROLS_SLOT_ID} className="flex items-center" />
+
+        <div data-testid="connection-chip" className="flex items-center gap-2 [@media(pointer:coarse)]:gap-1 bg-white px-3 py-1.5 [@media(pointer:coarse)]:px-2 [@media(pointer:coarse)]:py-1 rounded-full shadow-md">
+          {/* Bouton son — rond, à gauche de l'icône wifi avec un espace vide entre les deux.
+              Sur mobile (coarse) l'espace est resserré : le chip est informatif et l'utilisateur
+              est proche de l'écran → pas besoin des marges aérées du desktop. */}
+          <div className="mr-3 [@media(pointer:coarse)]:mr-1">
+            <SoundToggleButton />
+          </div>
+
+          {connectionStatus === 'Connected' ? (
+            <Wifi size={18} className="text-green-500" />
+          ) : (
+            <WifiOff size={18} className="text-red-500" />
+          )}
+
+          {connectionStatus === 'Connected' && hasDeadline ? (
+            <Timer />
+          ) : (
+            <span className="text-sm font-medium text-gray-700">{connectionStatus}</span>
+          )}
         </div>
-
-        {connectionStatus === 'Connected' ? (
-          <Wifi size={18} className="text-green-500" />
-        ) : (
-          <WifiOff size={18} className="text-red-500" />
-        )}
-
-        {connectionStatus === 'Connected' && hasDeadline ? (
-          <Timer />
-        ) : (
-          <span className="text-sm font-medium text-gray-700">{connectionStatus}</span>
-        )}
       </div>
 
       {/* Global Loader - Only during initial lobby load */}

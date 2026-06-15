@@ -59,7 +59,7 @@ export const Timer = () => {
 
   return (
     <span
-      className={`text-sm font-bold font-mono transition-colors duration-300 ${
+      className={`timer-text text-sm font-bold font-mono transition-colors duration-300 ${
         isWarning ? 'text-red-500 animate-pulse' : 'text-gray-700'
       }`}
     >
