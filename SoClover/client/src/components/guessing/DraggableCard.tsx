@@ -386,7 +386,7 @@ const DraggableCardImpl = ({
           <motion.img
             src={correctIcon}
             alt="Correct"
-            className="w-16 h-16 drop-shadow-md"
+            className="w-16 h-16 [@media(pointer:coarse)]:w-10 [@media(pointer:coarse)]:h-10 drop-shadow-md"
             animate={{
               scale: [1, 1.2, 1],
             }}
