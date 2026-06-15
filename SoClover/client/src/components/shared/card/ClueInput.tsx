@@ -92,14 +92,19 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
   }
 
   const getPositionStyle = () => {
-    // Sous pointeur tactile : champ dé-pivoté (texte horizontal) et élargi pour ne
-    // plus tronquer les mots longs (cf. getCluePlacement). Desktop : inchangé.
-    const { topPct, leftPct, rotation, widthPct } = getCluePlacement(boardGeo, position, isCoarse)
+    // Indice pivoté le long de sa pétale (rotation corrélée au sens du plateau),
+    // identique desktop et mobile (cf. getCluePlacement).
+    const { topPct, leftPct, rotation, widthPct } = getCluePlacement(boardGeo, position)
+    // Mobile (tactile) : on élargit le champ le long de sa pétale (l'indice est pivoté → la
+    // largeur s'étend dans le sens de la pétale, qui est généreuse). Le board mobile est plus
+    // petit que le desktop → à largeur identique le champ devient vite à l'étroit pour saisir
+    // un indice. Le facteur 1.5 rend de l'espace de frappe sans empiéter sur le cœur du trèfle.
+    const widthFactor = isCoarse ? 1.5 : 1
     return {
       position: 'absolute' as const,
       top: `${topPct}%`,
       left: `${leftPct}%`,
-      width: `${widthPct}%`,
+      width: `${widthPct * widthFactor}%`,
       transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
       zIndex: 100,
     }
@@ -135,7 +140,7 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
   }, [isCoarse, isTooltipVisible])
 
   return (
-    <div data-clue-wrapper style={getPositionStyle()}>
+    <div data-clue-wrapper data-clue-position={position} style={getPositionStyle()}>
     <motion.div
       ref={clueAnchorRef}
       animate={status === 'error' ? shakeAnimation : {}}

@@ -43,44 +43,18 @@ describe('computeBoardGeometry', () => {
     // 270px input width / 1300 reference = 20.77%
     expect(geo.clueInputWidthPct).toBeCloseTo((270 / 1300) * 100, 1)
   })
-
-  it('exposes a wider clue input width for coarse pointers (mobile)', () => {
-    // Sur device tactile, les champs non pivotés doivent être plus larges pour
-    // afficher les mots longs (« Bibliothèque ») sans troncature.
-    expect(geo.clueInputWidthPctCoarse).toBeGreaterThan(geo.clueInputWidthPct)
-  })
 })
 
 describe('getCluePlacement', () => {
   const geo = computeBoardGeometry({ referenceSize: 1300, cardSize: 320, cardGap: 4 })
 
-  it('keeps petal rotation and base width on a fine pointer (desktop)', () => {
+  it('always keeps petal rotation and base width (desktop and mobile alike)', () => {
     for (const position of ['top', 'right', 'bottom', 'left'] as const) {
-      const placement = getCluePlacement(geo, position, false)
+      const placement = getCluePlacement(geo, position)
       expect(placement.rotation).toBe(geo.cluePositions[position].rotation)
       expect(placement.widthPct).toBeCloseTo(geo.clueInputWidthPct, 5)
       expect(placement.topPct).toBeCloseTo(geo.cluePositions[position].topPct, 5)
       expect(placement.leftPct).toBeCloseTo(geo.cluePositions[position].leftPct, 5)
-    }
-  })
-
-  it('neutralises rotation and widens every field under a coarse pointer (mobile)', () => {
-    for (const position of ['top', 'right', 'bottom', 'left'] as const) {
-      const placement = getCluePlacement(geo, position, true)
-      expect(placement.rotation).toBe(0)
-      expect(placement.widthPct).toBeCloseTo(geo.clueInputWidthPctCoarse, 5)
-      // Positions (centres de pétales) inchangées : seuls rotation et largeur varient.
-      expect(placement.topPct).toBeCloseTo(geo.cluePositions[position].topPct, 5)
-      expect(placement.leftPct).toBeCloseTo(geo.cluePositions[position].leftPct, 5)
-    }
-  })
-
-  it('keeps the widened coarse fields within the board bounds (no overflow)', () => {
-    // Centrés via translate(-50%), les champs latéraux ne doivent pas déborder [0,100].
-    for (const position of ['top', 'right', 'bottom', 'left'] as const) {
-      const { leftPct, widthPct } = getCluePlacement(geo, position, true)
-      expect(leftPct - widthPct / 2).toBeGreaterThanOrEqual(0)
-      expect(leftPct + widthPct / 2).toBeLessThanOrEqual(100)
     }
   })
 })
