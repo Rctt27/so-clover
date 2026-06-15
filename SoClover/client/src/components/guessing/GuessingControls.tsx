@@ -1,7 +1,10 @@
 import React, { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import confetti from 'canvas-confetti'
 import { BoardRotationControls } from '../shared/board/BoardRotationControls'
+import { MobileBoardControlsPortal } from '../shared/MobileBoardControlsPortal'
 import { playSound } from '../../core/sounds'
+import { CONSTANTS } from '../../core/constants'
 
 export interface GuessingControlsProps {
   isMyBoard: boolean
@@ -57,19 +60,28 @@ export const GuessingControls = React.memo(({
     prevRemainingAttemptsRef.current = remainingAttempts
   }, [remainingAttempts, isBoardGuessed])
 
-  // Bouton « Valider / Plateau suivant » — extrait en const car réutilisé dans les deux
-  // variantes responsive (rendu deux fois dans le DOM, une seule visible via CSS).
+  // Logique commune au bouton « Valider / Plateau suivant », partagée par la variante
+  // desktop (libellés longs, grand) et la variante mobile compacte (un seul mot).
+  const validateAction = canMoveToNext ? onNextBoard : onValidate
+  const validateDisabled =
+    isValidationPending || (!isBoardFull && !canMoveToNext) || (!canMoveToNext && hasTriedPlacement)
+  const validateTitle =
+    !isMyBoard && !canMoveToNext && hasTriedPlacement
+      ? '⚠️ Au moins une carte est dans une position déjà testée et fausse. Déplacez-la ou tournez-la avant de valider.'
+      : undefined
+  const validateColor = canMoveToNext
+    ? 'bg-blue-600 hover:bg-blue-700 shadow-blue/30'
+    : isBoardFull
+      ? 'bg-clover hover:bg-clover-dark shadow-clover/30'
+      : 'bg-gray-400'
+
+  // Desktop : rendu deux fois dans le DOM (variantes responsive), une seule visible via CSS.
   const validateButton = (
     <button
-      onClick={canMoveToNext ? onNextBoard : onValidate}
-      disabled={isValidationPending || (!isBoardFull && !canMoveToNext) || (!canMoveToNext && hasTriedPlacement)}
-      title={!isMyBoard && !canMoveToNext && hasTriedPlacement
-        ? '⚠️ Au moins une carte est dans une position déjà testée et fausse. Déplacez-la ou tournez-la avant de valider.'
-        : undefined}
-      className={`px-7 py-2 [@media(pointer:coarse)]:py-3 rounded-full text-white font-bold text-base shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 ${
-        canMoveToNext ? 'bg-blue-600 hover:bg-blue-700 shadow-blue/30' :
-        isBoardFull ? 'bg-clover hover:bg-clover-dark shadow-clover/30' : 'bg-gray-400'
-      }`}
+      onClick={validateAction}
+      disabled={validateDisabled}
+      title={validateTitle}
+      className={`px-7 py-2 [@media(pointer:coarse)]:py-3 rounded-full text-white font-bold text-base shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 ${validateColor}`}
     >
       {isValidationPending ? (
         <div className="flex items-center gap-2">
@@ -77,6 +89,20 @@ export const GuessingControls = React.memo(({
           Validation...
         </div>
       ) : canMoveToNext ? 'Plateau suivant' : 'Valider le plateau'}
+    </button>
+  )
+
+  // Mobile (HUD fixe sous le chip) : compact, libellé réduit à un mot.
+  const mobileValidateButton = (
+    <button
+      onClick={validateAction}
+      disabled={validateDisabled}
+      title={validateTitle}
+      className={`px-4 py-2 rounded-full text-white font-bold text-sm shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${validateColor}`}
+    >
+      {isValidationPending ? (
+        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+      ) : canMoveToNext ? 'Suivant' : 'Valider'}
     </button>
   )
 
@@ -99,26 +125,47 @@ export const GuessingControls = React.memo(({
               {validateButton}
             </div>
 
-            {/* Tablette / tactile (pointer:coarse) : flèches de rotation de part et d'autre du
-                bouton « Valider », sans pastille de libellé → une seule rangée plus basse, le
-                plateau récupère la hauteur. Détecté par type de pointeur (pas par largeur : une
-                tablette en paysage type Galaxy Tab S9 fait 1280px de large). enableKeyboard=false :
-                l'instance desktop (toujours montée) porte déjà le listener clavier. */}
-            <div className="hidden [@media(pointer:coarse)]:flex">
-              <BoardRotationControls
-                rotation={rotation}
-                onRotate={onRotate}
-                disabled={isValidationPending}
-                showLabel={false}
-                enableKeyboard={false}
-                centerSlot={validateButton}
-              />
-            </div>
+            {/* Tablette / tactile (pointer:coarse) : la rotation est déplacée dans le HUD
+                haut (à gauche du chip timer), et le bouton « Valider » est ancré en position
+                fixe sous le chip — sinon il est clippé par le board height-bound + overflow
+                de la colonne centrale. Porté vers <body> pour échapper aux transforms
+                d'ancêtres (wrapper de phase animé Framer) qui briseraient un position:fixed. */}
+            <MobileBoardControlsPortal>
+              <div className="coarse-only">
+                <BoardRotationControls
+                  rotation={rotation}
+                  onRotate={onRotate}
+                  disabled={isValidationPending}
+                  showLabel={false}
+                  enableKeyboard={false}
+                />
+              </div>
+            </MobileBoardControlsPortal>
+
+            {createPortal(
+              <div className="mobile-fixed-cta">
+                {mobileValidateButton}
+                {/* Compteur compact « restantes/total » à droite du bouton (caché une fois
+                    le plateau résolu, où le bouton devient « Plateau suivant »). */}
+                {!canMoveToNext && (
+                  <span className="bg-white/80 px-2 py-1 rounded-full text-sm font-bold text-gray-700 shadow-sm whitespace-nowrap">
+                    {remainingAttempts}/{CONSTANTS.GUESSING_TOTAL_ATTEMPTS}
+                  </span>
+                )}
+              </div>,
+              document.body,
+            )}
           </>
         )}
       </div>
 
-      <div className="text-center text-gray-700 bg-white/20 px-3 py-1.5 rounded-lg backdrop-blur-md border border-white/30 max-w-sm">
+      {/* Mobile (tactile) : la bulle n'est conservée que lorsqu'elle porte un message
+          significatif (Bravo / Dommage). Le reste du temps elle est soit vide, soit purement
+          instructionnelle (« Vous ne pouvez pas manipuler votre propre plateau »), et se
+          superpose visuellement au board → masquée sur coarse. Desktop : toujours affichée. */}
+      <div className={`text-center text-gray-700 bg-white/20 px-3 py-1.5 rounded-lg backdrop-blur-md border border-white/30 max-w-sm ${
+        !isBoardGuessed && !(remainingAttempts === 0 && !isMyBoard) ? '[@media(pointer:coarse)]:hidden' : ''
+      }`}>
         <p className="text-sm italic">
           {isBoardGuessed ? (
             <span className="text-clover-dark font-bold text-lg">Bravo ! Plateau complété !</span>
@@ -147,8 +194,11 @@ export const GuessingControls = React.memo(({
         {/* Tablette : aucun indicateur d'avertissement au-dessus du bouton (ni réserve de
             hauteur, ni reflow du plateau). Le contour orange + icône sur la carte concernée
             suffit ; le message complet s'affiche en infobulle au survol du bouton « Valider ». */}
+        {/* Mobile (tactile) : masqué — le compteur « restantes/total » est déjà dans le HUD
+            fixe (à droite du bouton « Valider »). Ce doublon restait visible sous le board et
+            se superposait lors de la rotation. Desktop : conservé. */}
         {!isBoardGuessed && remainingAttempts > 0 && !isMyBoard && !canMoveToNext && (
-          <p className="text-clover-dark font-bold mt-1 text-sm">
+          <p className="text-clover-dark font-bold mt-1 text-sm [@media(pointer:coarse)]:hidden">
             Tentatives restantes : {remainingAttempts}
           </p>
         )}

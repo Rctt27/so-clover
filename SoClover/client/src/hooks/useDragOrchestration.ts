@@ -13,7 +13,7 @@ const BOARD_POSITIONS = new Set<string>(LOGICAL_SLOTS)
 /**
  * Parse a slot string and determine if it belongs to the board or the pool.
  * Board slots: 'TopLeft' | 'TopRight' | 'BottomRight' | 'BottomLeft'
- * Pool slots: 'pool-0' … 'pool-5'
+ * Pool slots: 'pool-0' … 'pool-4' (5 cartes : 3 à gauche, 2 à droite)
  */
 function isPoolSlot(slot: string): boolean {
   return slot.startsWith('pool-')

@@ -7,6 +7,9 @@ import { CONSTANTS } from '../../core/constants'
 export interface OutsideCardPoolProps {
   cards: (CardInfoResponse | null)[]
   startIndex: number
+  /** Taille (px) imposée à chaque slot, pour la parité avec les cartes du board (mobile).
+   *  null/undefined → dimensionnement par défaut (clamp height-aware, desktop). */
+  cardSizePx?: number | null
   disabled?: boolean
   displacedSlot?: string | null
   /** Currently highlighted slot id (from dragState.targetSlot) */
@@ -29,20 +32,24 @@ interface PoolSlotProps {
   children: React.ReactNode;
   isHighlighted: boolean;
   onClick?: () => void;
+  cardSizePx?: number | null;
 }
 
-const PoolSlot = ({ id, children, isHighlighted, onClick }: PoolSlotProps) => {
+const PoolSlot = ({ id, children, isHighlighted, onClick, cardSizePx }: PoolSlotProps) => {
   const { slotMinPx, slotMaxPx } = CONSTANTS.ASSET_REFERENCES.pool;
-  // Slot carré dimensionné sur la hauteur de la rangée centrale (100cqh fourni par le
-  // container-type:size de GuessingPage). Réserve 4rem = 2×gap-6 (2×1.5rem) + pb-4 (1rem)
-  // pour les 3 slots empilés, puis divise par 3. Borné [min, max].
-  const sideLength = `clamp(${slotMinPx}px, calc((100cqh - 4rem) / 3), ${slotMaxPx}px)`;
+  // Mobile : taille imposée = taille d'une carte du board (parité, mesurée en JS).
+  // Desktop : slot carré dimensionné sur la hauteur de la rangée centrale (100cqh fourni
+  // par le container-type:size de GuessingPage). Réserve 4rem = 2×gap-6 (2×1.5rem) + pb-4
+  // (1rem) pour les 3 slots empilés, puis divise par 3. Borné [min, max].
+  const sideLength = cardSizePx != null && cardSizePx > 0
+    ? `${cardSizePx}px`
+    : `clamp(${slotMinPx}px, calc((100cqh - 4rem) / 3), ${slotMaxPx}px)`;
   return (
     <div
       data-slot-id={id}
       onClick={onClick}
       style={{ width: sideLength, height: sideLength }}
-      className={`relative rounded-2xl flex items-center justify-center transition-all duration-300 border-2 border-dashed ${
+      className={`guessing-pool-slot relative rounded-2xl flex items-center justify-center transition-all duration-300 border-2 border-dashed ${
         isHighlighted
           ? 'bg-clover/15 border-clover border-solid shadow-[0_0_20px_rgba(76,175,80,0.3)] scale-105 z-10'
           : 'border-gray-200 bg-gray-50/30'
@@ -62,6 +69,7 @@ const PoolSlot = ({ id, children, isHighlighted, onClick }: PoolSlotProps) => {
 export const OutsideCardPool = ({
   cards,
   startIndex,
+  cardSizePx,
   disabled = false,
   displacedSlot,
   highlightedSlot,
@@ -74,7 +82,7 @@ export const OutsideCardPool = ({
   const { isValidationPending } = useGuessingStore()
 
   return (
-    <div className="flex flex-col gap-6 items-center px-4 pb-4 pt-0">
+    <div className="guessing-pool flex flex-col gap-6 items-center px-4 pb-4 pt-0 [@media(pointer:coarse)]:h-full [@media(pointer:coarse)]:justify-end">
       {cards.map((card, i) => {
         const slotIndex = startIndex + i;
         const slotId = `pool-${slotIndex}`;
@@ -88,6 +96,7 @@ export const OutsideCardPool = ({
             id={slotId}
             isHighlighted={isHighlighted}
             onClick={canInteract && onSlotClick ? () => onSlotClick(slotId) : undefined}
+            cardSizePx={cardSizePx}
           >
             {card && (
               <DraggableCard

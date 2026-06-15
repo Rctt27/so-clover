@@ -16,6 +16,9 @@
   MOUSE_THROTTLE_MS: 30,
   GUESSING_BOARD_ROTATION_THROTTLE_MS: 50,
   GUESSING_CARD_ROTATION_THROTTLE_MS: 50,
+  // Nombre total de tentatives par plateau (miroir de Domain/Game.cs:RemainingAttempts=3).
+  // Sert de dénominateur au compteur « tentatives restantes / total » de la Déduction.
+  GUESSING_TOTAL_ATTEMPTS: 3,
   TIMER_SOUND_WARNING_SECONDS: 5,
   STORAGE_KEYS: {
     PLAYER_ID: 'so_clover_player_id',

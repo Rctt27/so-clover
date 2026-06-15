@@ -1,5 +1,6 @@
-import { useEffect, useRef, useMemo, useCallback } from 'react'
+import { useEffect, useRef, useMemo, useCallback, useState } from 'react'
 import { useGameStore, useGuessingStore } from '../../core/store'
+import { isCoarsePointer } from '../../core/coarsePointer'
 import { shallow } from 'zustand/shallow'
 import { useGameActions } from '../../hooks/useGameActions'
 import { useNotifications } from '../../hooks/useNotifications'
@@ -63,6 +64,12 @@ export const GuessingPage = () => {
   const boardRef = useRef<HTMLDivElement>(null)
   const notifiedBoardId = useRef<string | null>(null)
 
+  // Le type de pointeur ne change pas à l'exécution → évalué une seule fois.
+  const [isCoarse] = useState(isCoarsePointer)
+  // Taille (px) d'une carte posée sur le board, mesurée sur mobile pour que les slots du
+  // pool aient la MÊME dimension (parité avec le desktop). null = non mesuré (desktop).
+  const [boardCardPx, setBoardCardPx] = useState<number | null>(null)
+
   // ─── Derived state ──────────────────────────────────────────────────────────
 
   const isMyBoard = currentBoardOwnerId === playerId
@@ -125,8 +132,10 @@ export const GuessingPage = () => {
     () => [poolMapping[0], poolMapping[1], poolMapping[2]],
     [poolMapping]
   )
+  // 5 cartes au total (4 + leurre) → 5 slots : 3 à gauche, 2 à droite. Le 6e slot
+  // (pool-5) n'est jamais peuplé → retiré (sinon une 3e case vide s'affiche à droite).
   const poolRight = useMemo(
-    () => [poolMapping[3], poolMapping[4], poolMapping[5]],
+    () => [poolMapping[3], poolMapping[4]],
     [poolMapping]
   )
 
@@ -195,14 +204,35 @@ export const GuessingPage = () => {
     fetchGameState()
   }, [fetchGameState])
 
+  // Parité pool ↔ board (mobile) : mesure le côté rendu du plateau → taille d'une carte
+  // (cardSize/referenceSize) → dimensionne les slots du pool à l'identique des cartes
+  // posées. ResizeObserver pour suivre rotation d'écran / resize. Re-déclenché quand le
+  // board (re)monte après le chargement. Desktop : non mesuré (les pools gardent leur clamp).
   useEffect(() => {
-    if (isMyBoard && currentBoardOwnerId && notifiedBoardId.current !== currentBoardOwnerId) {
+    if (!isCoarse) return
+    const el = boardRef.current
+    if (!el) return
+    const { cardSize, referenceSize } = CONSTANTS.ASSET_REFERENCES.board
+    const update = () => {
+      const w = el.getBoundingClientRect().width
+      if (w > 0) setBoardCardPx(w * (cardSize / referenceSize))
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [isCoarse, loading, currentBoardOwnerId])
+
+  useEffect(() => {
+    // Mobile (tactile) : pas de toast « C'est votre plateau » — il se superpose au board en
+    // paysage (espace vertical compté) et fait doublon avec le contexte visuel. Desktop : conservé.
+    if (isMyBoard && !isCoarse && currentBoardOwnerId && notifiedBoardId.current !== currentBoardOwnerId) {
       notifyTopCenter("C'est votre plateau ! Observez les autres joueurs.", { duration: 10000 })
       notifiedBoardId.current = currentBoardOwnerId
     } else if (!isMyBoard) {
       notifiedBoardId.current = null
     }
-  }, [isMyBoard, currentBoardOwnerId, notifyTopCenter])
+  }, [isMyBoard, isCoarse, currentBoardOwnerId, notifyTopCenter])
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
 
@@ -298,14 +328,15 @@ export const GuessingPage = () => {
     dragState.targetSlot?.startsWith('pool-') ? dragState.targetSlot : null
 
   return (
-    <div className="flex flex-col h-[calc(100svh-2rem)]">
+    <div className="guessing-fill-landscape flex flex-col h-[calc(100svh-2rem)]">
       {/* Incitation au paysage sur mobile portrait : le layout 3-colonnes ci-dessous
           ne tient pas en portrait étroit (cf. Axe 3). Auto-masqué hors portrait tactile. */}
       <LandscapePrompt />
 
       {/* Header Info — titre + sous-titre sur une seule ligne pour gagner de la hauteur
-          (utile sur les viewports courts type tablette). */}
-      <div data-testid="guessing-header" className="bg-white/30 backdrop-blur-sm shadow-sm py-2 px-4 flex items-baseline justify-center gap-3 flex-wrap">
+          (utile sur les viewports courts type tablette). Masqué sur mobile (tactile) pour
+          rendre la hauteur au plateau. */}
+      <div data-testid="guessing-header" className="hide-on-coarse bg-white/30 backdrop-blur-sm shadow-sm py-2 px-4 flex items-baseline justify-center gap-3 flex-wrap">
         <h1 className="text-2xl font-bold text-gray-800">Phase de Déduction</h1>
         <p className="text-gray-600">
           Plateau de{' '}
@@ -317,14 +348,17 @@ export const GuessingPage = () => {
           aux pools ET à la sous-zone plateau. overflow-hidden retiré : la politique
           plancher+scroll prend le relais (scroll seulement sous les planchers). */}
       <div
-        className="flex flex-1 min-h-0 min-w-0 items-start justify-center px-8 py-4 gap-8 overflow-x-auto"
+        className="flex flex-1 min-h-0 min-w-0 items-start justify-center px-8 py-4 gap-8 overflow-x-auto [@media(pointer:coarse)]:px-2 [@media(pointer:coarse)]:py-0.5 [@media(pointer:coarse)]:gap-2 [@media(pointer:coarse)]:overflow-visible"
         style={{ containerType: 'size' }}
       >
-        {/* Pool Gauche */}
-        <div className="flex-none">
+        {/* Pool Gauche — self-stretch sur tactile : le wrapper prend toute la hauteur de la
+            rangée pour que la pool (h-full + justify-end) aligne ses cartes par le bas, sur la
+            même grille que la pool droite. */}
+        <div className="flex-none [@media(pointer:coarse)]:self-stretch">
           <OutsideCardPool
             cards={poolLeft}
             startIndex={0}
+            cardSizePx={boardCardPx}
             disabled={isMyBoard || canMoveToNext}
             displacedSlot={displacedSlot}
             highlightedSlot={poolHighlightedSlot}
@@ -337,7 +371,7 @@ export const GuessingPage = () => {
         </div>
 
         {/* Board Central */}
-        <div data-testid="guessing-board" className="flex-1 flex flex-col items-center justify-center gap-4 min-w-0 min-h-0 max-h-full max-w-[1000px] self-stretch overflow-hidden">
+        <div data-testid="guessing-board" className="flex-1 flex flex-col items-center justify-center gap-4 [@media(pointer:coarse)]:gap-1 min-w-0 min-h-0 max-h-full max-w-[1000px] self-stretch overflow-hidden [@media(pointer:coarse)]:overflow-visible">
           {/* Sous-zone plateau : flex-1 prend la hauteur résiduelle de la colonne (= hauteur
               rangée − contrôles) ; container-type:size en fait le conteneur de référence du
               plateau → 100cqw = largeur colonne centrale, 100cqh = hauteur sous-zone. */}
@@ -381,11 +415,15 @@ export const GuessingPage = () => {
           />
         </div>
 
-        {/* Pool Droit */}
-        <div className="guessing-pool-right flex-none">
+        {/* Pool Droit — self-stretch sur tactile (cf. pool gauche). Le padding-top de
+            `guessing-pool-right` (dégagement chip + CTA fixes) reste la borne haute ; avec
+            l'alignement par le bas, ses cartes coïncident avec les rangées basses de la pool
+            gauche → grille commune. */}
+        <div className="guessing-pool-right flex-none [@media(pointer:coarse)]:self-stretch">
           <OutsideCardPool
             cards={poolRight}
             startIndex={3}
+            cardSizePx={boardCardPx}
             disabled={isMyBoard || canMoveToNext}
             displacedSlot={displacedSlot}
             highlightedSlot={poolHighlightedSlot}
