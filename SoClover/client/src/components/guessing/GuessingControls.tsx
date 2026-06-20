@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
+import { BodyPortal } from '../shared/BodyPortal'
 import confetti from 'canvas-confetti'
 import { BoardRotationControls } from '../shared/board/BoardRotationControls'
 import { MobileBoardControlsPortal } from '../shared/MobileBoardControlsPortal'
@@ -142,7 +142,7 @@ export const GuessingControls = React.memo(({
               </div>
             </MobileBoardControlsPortal>
 
-            {createPortal(
+            <BodyPortal>
               <div className="mobile-fixed-cta">
                 {mobileValidateButton}
                 {/* Compteur compact « restantes/total » à droite du bouton (caché une fois
@@ -152,9 +152,8 @@ export const GuessingControls = React.memo(({
                     {remainingAttempts}/{CONSTANTS.GUESSING_TOTAL_ATTEMPTS}
                   </span>
                 )}
-              </div>,
-              document.body,
-            )}
+              </div>
+            </BodyPortal>
           </>
         )}
       </div>

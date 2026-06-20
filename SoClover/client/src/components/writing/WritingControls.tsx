@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { createPortal } from 'react-dom'
+import { BodyPortal } from '../shared/BodyPortal'
 import { motion } from 'framer-motion'
 import { useBoardStore } from '../../core/store'
 import { useGameActions } from '../../hooks/useGameActions'
@@ -88,7 +88,7 @@ export const WritingControls = () => {
           connexion. Porté vers <body> pour échapper aux transforms d'ancêtres (wrapper
           de phase animé Framer) qui briseraient un position:fixed. Visibilité/position
           gérées en CSS (`.writing-submit-mobile`, pointer:coarse uniquement). */}
-      {createPortal(
+      <BodyPortal>
         <button
           type="button"
           onClick={handleSubmit}
@@ -102,9 +102,8 @@ export const WritingControls = () => {
           }`}
         >
           {mobileSubmitLabel}
-        </button>,
-        document.body,
-      )}
+        </button>
+      </BodyPortal>
 
       <motion.button
         whileHover={canSubmit && !isSubmitting && !isActuallySubmitted ? { scale: 1.02 } : {}}
