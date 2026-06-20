@@ -9,6 +9,15 @@ import { debugLog } from '../core/debug'
 import { detectRotationGap } from '../core/rotationGapDetector';
 import { recoverConnection } from '../core/connectionRecovery';
 import { shouldReconnectOnForeground } from '../core/foregroundReconnect';
+import type {
+  GameStateUpdatedEvent,
+  ServerNotificationEvent,
+  PlayerJoinedEvent,
+  PlayerKickedEvent,
+  BoardRotationUpdatedEvent,
+  AiClueGenerationRequestedEvent,
+  AiClueProgressUpdateEvent,
+} from '../types/signalrEvents';
 
 export const useSignalR = () => {
   const gameId = useGameStore(s => s.gameId);
@@ -103,7 +112,7 @@ export const useSignalR = () => {
       }
     };
 
-    const handleStateUpdated = (data: any) => {
+    const handleStateUpdated = (data: GameStateUpdatedEvent) => {
       debugLog('useSignalR', `GameStateUpdated reçu — phase="${data?.phase}", eventType="${data?.eventData?.eventType ?? data?.eventType ?? '?'}", hasGameState=${!!data?.gameState}`);
 
       // Si le message contient le state complet, on l'utilise directement pour éviter un fetch
@@ -114,26 +123,12 @@ export const useSignalR = () => {
         return;
       }
 
-      // Fallback: On rafraîchit l'état via API si nécessaire
-      const guessingEvents = [
-        'CardRotated',
-        'GuessingCardPlaced',
-        'GuessingCardsSwapped',
-        'GuessingCardReturned',
-        'GuessingCardRotated',
-        'OutsidePoolCardsSwapped'
-      ];
-
-      if (data && (guessingEvents.includes(data.eventType) || guessingEvents.includes(data.eventData?.eventType))) {
-        debugLog('useSignalR', '→ guessing event, refreshGameState()');
-        refreshGameState();
-      } else {
-        debugLog('useSignalR', '→ fallback refreshGameState()');
-        refreshGameState();
-      }
+      // Pas de state embarqué → on resynchronise via API (GET /state).
+      debugLog('useSignalR', '→ pas de gameState embarqué, refreshGameState()');
+      refreshGameState();
     };
 
-    const handleServerNotification = (data: any) => {
+    const handleServerNotification = (data: ServerNotificationEvent) => {
       if (!data) return;
 
       const { type, message, senderId } = data;
@@ -145,13 +140,13 @@ export const useSignalR = () => {
       }
 
       if (type === 'warning') {
-        notifyWarning(message);
+        notifyWarning(message ?? '');
       } else {
-        notifyInfo(message);
+        notifyInfo(message ?? '');
       }
     };
 
-    const handlePlayerJoined = (data: any) => {
+    const handlePlayerJoined = (data: PlayerJoinedEvent) => {
       if (!data || !data.playerName) return;
 
       // Évite de se notifier soi-même
@@ -168,14 +163,14 @@ export const useSignalR = () => {
       resetAuth();
     };
 
-    const handlePlayerKicked = (data: any) => {
+    const handlePlayerKicked = (data: PlayerKickedEvent) => {
       if (data?.kickedPlayerId === playerId) {
         notifyWarning("Vous avez ete retire de la partie par l'admin.");
         resetAuth();
       }
     };
 
-    const handleBoardRotationUpdated = (data: any) => {
+    const handleBoardRotationUpdated = (data: BoardRotationUpdatedEvent) => {
       if (!data || typeof data.cumulativeRotation !== 'number' || typeof data.revision !== 'number') {
         return;
       }
@@ -188,15 +183,15 @@ export const useSignalR = () => {
       useGuessingStore.getState().applyServerRotation(data.cumulativeRotation, data.revision);
     };
 
-    const handleGuessingBoardValidated = (_data: any) => {
+    const handleGuessingBoardValidated = (_data: unknown) => {
       // Handled by GameStateUpdated
     };
 
-    const handleAiClueGenerationRequested = (data: any) => {
+    const handleAiClueGenerationRequested = (data: AiClueGenerationRequestedEvent) => {
       if (data?.playerId) markAiGenerating(data.playerId);
     };
 
-    const handleAiClueProgressUpdate = (data: any) => {
+    const handleAiClueProgressUpdate = (data: AiClueProgressUpdateEvent) => {
       if (!data?.playerId) return;
       const r = data.retriesByDirection ?? {};
       setAiClueProgress(data.playerId, data.cluesSubmitted ?? 0, {
