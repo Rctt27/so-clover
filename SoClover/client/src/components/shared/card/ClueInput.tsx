@@ -7,7 +7,7 @@ import { useBoardStore } from '../../../core/store'
 import { getClueErrorMessage } from '../../../core/clueValidationMessages'
 import { ClueValidationRejection } from '../../../types/game'
 import { debugLog } from '../../../core/debug'
-import { isCoarsePointer } from '../../../core/coarsePointer'
+import { useCoarsePointer } from '../../../hooks/useCoarsePointer'
 import { ClueExplanationTooltip } from './ClueExplanationTooltip'
 
 export type ClueStatus = 'idle' | 'saving' | 'success' | 'error'
@@ -27,8 +27,7 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
   // Visibilité du tooltip d'explication : pilotée par le hover sur desktop, par un
   // tap (bouton info) sur device tactile où le hover n'existe pas (cf. Axe 5 mobile).
   const [isTooltipVisible, setIsTooltipVisible] = useState(false)
-  // Le type de pointeur ne change pas à l'exécution → on l'évalue une seule fois.
-  const [isCoarse] = useState(isCoarsePointer)
+  const isCoarse = useCoarsePointer()
   const [localValue, setLocalValue] = useState(value)
   const [status, setStatus] = useState<ClueStatus>('idle')
   const inputRef = useRef<HTMLInputElement>(null)

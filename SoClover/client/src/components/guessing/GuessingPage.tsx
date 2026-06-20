@@ -1,9 +1,9 @@
 import { useEffect, useRef, useMemo, useCallback, useState } from 'react'
 import { useGameStore, useGuessingStore } from '../../core/store'
-import { isCoarsePointer } from '../../core/coarsePointer'
 import { shallow } from 'zustand/shallow'
 import { useGameActions } from '../../hooks/useGameActions'
 import { useNotifications } from '../../hooks/useNotifications'
+import { useCoarsePointer } from '../../hooks/useCoarsePointer'
 import { useCardDrag } from '../../hooks/useCardDrag'
 import { useDragOrchestration } from '../../hooks/useDragOrchestration'
 import { OutsideCardPool } from './OutsideCardPool'
@@ -64,8 +64,7 @@ export const GuessingPage = () => {
   const boardRef = useRef<HTMLDivElement>(null)
   const notifiedBoardId = useRef<string | null>(null)
 
-  // Le type de pointeur ne change pas à l'exécution → évalué une seule fois.
-  const [isCoarse] = useState(isCoarsePointer)
+  const isCoarse = useCoarsePointer()
   // Taille (px) d'une carte posée sur le board, mesurée sur mobile pour que les slots du
   // pool aient la MÊME dimension (parité avec le desktop). null = non mesuré (desktop).
   const [boardCardPx, setBoardCardPx] = useState<number | null>(null)

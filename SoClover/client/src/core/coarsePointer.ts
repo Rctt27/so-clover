@@ -10,7 +10,13 @@
  */
 export const COARSE_POINTER_QUERY = '(pointer: coarse)'
 
-type MatchMedia = (query: string) => { matches: boolean }
+type MediaQueryListLike = {
+  matches: boolean
+  addEventListener?: (type: 'change', listener: () => void) => void
+  removeEventListener?: (type: 'change', listener: () => void) => void
+}
+
+type MatchMedia = (query: string) => MediaQueryListLike
 
 /**
  * Cœur pur et testable : évalue la média-query coarse-pointer via la fonction
@@ -32,4 +38,22 @@ export function isCoarsePointer(): boolean {
     return false
   }
   return evaluateCoarsePointer(window.matchMedia?.bind(window))
+}
+
+/**
+ * S'abonne aux changements de type de pointeur via la fonction `matchMedia` fournie.
+ * Renvoie une fonction de désabonnement. Cœur pur de `useCoarsePointer` (testable hors
+ * React / hors DOM). No-op sûr si `matchMedia` est absent ou si le MediaQueryList
+ * n'expose pas `addEventListener` (vieux Safari).
+ */
+export function subscribeCoarsePointer(
+  matchMedia: MatchMedia | undefined,
+  onChange: () => void,
+): () => void {
+  if (typeof matchMedia !== 'function') {
+    return () => {}
+  }
+  const mql = matchMedia(COARSE_POINTER_QUERY)
+  mql.addEventListener?.('change', onChange)
+  return () => mql.removeEventListener?.('change', onChange)
 }
