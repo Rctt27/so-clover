@@ -48,7 +48,7 @@ export const useSignalR = () => {
       const state = await gameApi.getGameState(gameId);
 
       if (!state) {
-        console.error('[useSignalR] Fetched state is null or undefined');
+        debugLog('useSignalR', 'Fetched state is null or undefined');
         return;
       }
 
