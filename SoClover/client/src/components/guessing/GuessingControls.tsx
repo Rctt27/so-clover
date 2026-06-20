@@ -5,6 +5,7 @@ import { BoardRotationControls } from '../shared/board/BoardRotationControls'
 import { MobileBoardControlsPortal } from '../shared/MobileBoardControlsPortal'
 import { playSound } from '../../core/sounds'
 import { CONSTANTS } from '../../core/constants'
+import { getGuessingValidateLabel } from '../../core/phaseCtaLabels'
 
 export interface GuessingControlsProps {
   isMyBoard: boolean
@@ -88,7 +89,7 @@ export const GuessingControls = React.memo(({
           <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
           Validation...
         </div>
-      ) : canMoveToNext ? 'Plateau suivant' : 'Valider le plateau'}
+      ) : getGuessingValidateLabel(canMoveToNext, false)}
     </button>
   )
 
@@ -102,7 +103,7 @@ export const GuessingControls = React.memo(({
     >
       {isValidationPending ? (
         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-      ) : canMoveToNext ? 'Suivant' : 'Valider'}
+      ) : getGuessingValidateLabel(canMoveToNext, true)}
     </button>
   )
 

@@ -6,6 +6,7 @@ import { useGameActions } from '../../hooks/useGameActions'
 import { BoardRotationControls } from '../shared/board/BoardRotationControls'
 import { MobileBoardControlsPortal } from '../shared/MobileBoardControlsPortal'
 import { playSound } from '../../core/sounds'
+import { getWritingSubmitLabel } from '../../core/phaseCtaLabels'
 
 export const WritingControls = () => {
   const { myBoard, updateMyBoardRotation, clueValidity } = useBoardStore()
@@ -44,19 +45,15 @@ export const WritingControls = () => {
   const isActuallySubmitted = myBoard.isSubmitted
   const submitDisabled = !canSubmit || isSubmitting || isActuallySubmitted
 
-  // Libellé court pour le CTA mobile fixe (sous le chip) ; le bouton desktop garde
-  // les libellés longs.
-  const mobileSubmitLabel = isSubmitting
-    ? 'Soumission…'
-    : isActuallySubmitted
-      ? 'Soumis ✓'
-      : canSubmit
-        ? 'Soumettre'
-        : anyChecking
-          ? 'Vérification…'
-          : allCluesFilled
-            ? 'Corrigez'
-            : 'Indices manquants'
+  // Libellés du CTA, factorisés (variante compacte mobile vs longue desktop).
+  const submitState = {
+    isSubmitting,
+    isSubmitted: isActuallySubmitted,
+    canSubmit,
+    anyChecking,
+    allCluesFilled,
+  }
+  const mobileSubmitLabel = getWritingSubmitLabel(submitState, true)
 
   return (
     <div className="writing-controls flex flex-col items-center gap-6 w-full max-w-md mx-auto mt-8">
@@ -127,10 +124,8 @@ export const WritingControls = () => {
             </svg>
             Soumission...
           </span>
-        ) : isActuallySubmitted ? (
-          'Plateau Soumis ✓'
         ) : (
-          canSubmit ? 'Soumettre le plateau' : anyChecking ? 'Vérification…' : allCluesFilled ? 'Corrigez les indices' : 'Saisissez les 4 indices'
+          getWritingSubmitLabel(submitState, false)
         )}
       </motion.button>
 
