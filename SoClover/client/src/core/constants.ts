@@ -1,6 +1,6 @@
 ﻿export const CONSTANTS = {
   // À mettre à jour à chaque release de version (cf. CLAUDE.md § Versioning)
-  APP_VERSION: '2.13.0',
+  APP_VERSION: '2.14.0',
   GAME_URL_PREFIX: '/g/',
   SIGNALR_HUB_URL: '/hubs/game',
   RECONNECT: {
