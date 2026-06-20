@@ -39,6 +39,8 @@ résolue en v2.12.0). Avant de taguer, vérifier impérativement :
    Le `<commit-court>` est le hash du commit de release (`git rev-parse --short HEAD`), la date est celle du jour.
    Si le jalon est structurant (réécriture, nouvelle brique majeure), l'ajouter aussi à la phrase de résumé
    « Jalons structurants » de la section Versioning ci-dessus.
+   **Gotcha shell** : pour des release notes / contenu CHANGELOG contenant des backticks ou du code, écrire dans un
+   fichier temporaire et le passer par fichier plutôt qu'en argument shell inline (évite l'interprétation des backticks).
 4. Créer le tag annoté et la release : `git tag -a vX.Y.Z -m "..."` puis `gh release create vX.Y.Z`.
 
 ## Commands
@@ -145,6 +147,8 @@ Key test files:
 
 Tests use `TestClock` for time control and `InMemoryGameRepository` for isolation.
 
+- **Avant de passer à la suite** : après chaque tâche/commit, lancer toute la suite de tests et vérifier un build propre (`dotnet test`, et côté front `npm run lint && npm run build && npm run test`).
+
 ## Configuration
 
 **Règle directrice — qui met quoi** (pattern .NET idiomatique multi-couches) :
@@ -184,6 +188,11 @@ SignalR hub at `/hubs/game`.
 - Zustand for state management with separate slices.
 - Logs frontend verbeux : utiliser `debugLog(source, message)` de `core/debug.ts` — jamais `console.log` directement.
 - Zustand DevTools activés uniquement si `isDebug` (conditionnel sur `VITE_DEBUG_MODE`).
+
+### Git & hygiène des fichiers
+
+- **Casse sensible** : les chemins et identifiants Git sont sensibles à la casse sur ce projet (utiliser `AI`, pas `Ai`). Attention à l'insensibilité à la casse de Windows lors du staging / renommage.
+- **Fichiers redondants / résiduels** : l'action par défaut est la **suppression** — ne pas les stager ni les corriger sauf demande explicite.
 
 ### Frontend – Son & Mute
 
