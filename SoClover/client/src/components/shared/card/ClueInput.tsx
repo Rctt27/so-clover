@@ -165,7 +165,7 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
         placeholder={position.charAt(0).toUpperCase() + position.slice(1) + ' clue'}
         aria-invalid={hasValidationError ? "true" : undefined}
         aria-describedby={hasValidationError && firstError ? errorMessageId : undefined}
-        className={`w-full px-3 py-2 rounded-lg text-center shadow-lg transition-colors duration-300 outline-none border-2 ${theme.clueFontClass}`}
+        className={`clue-word w-full px-3 py-2 rounded-lg text-center shadow-lg transition-colors duration-300 outline-none border-2 ${theme.clueFontClass}`}
         style={{
           backgroundColor: theme.clueBgColor,
           color: theme.clueTextColor,

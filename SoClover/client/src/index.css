@@ -160,6 +160,16 @@
     .card-word { font-size: clamp(10px, 12.5cqw, 15px) !important; }
   }
 
+  /* PWA installée (standalone) en paysage tactile : Safari ne mange plus ~25 % de hauteur
+     (barre d'URL + onglets absents, barre de statut masquée en paysage) → on dispose de la
+     place pour agrandir mots et indices. On ne relève les plafonds QUE sous
+     (display-mode: standalone) : en Safari classique (chrome visible) les tailles restent
+     inchangées → aucun risque d'overflow. Valeurs à affiner sur device réel. */
+  @media (display-mode: standalone) and (orientation: landscape) and (pointer: coarse) {
+    .card-word { font-size: clamp(12px, 14cqw, 19px) !important; }
+    .clue-word { font-size: clamp(13px, 3.4vh, 20px) !important; }
+  }
+
   /* Zone de rotation de coin d'une carte. Taille = var injectée par DraggableCard
      (ratio relatif à la carte). Sous pointeur tactile (pointer:coarse) on passe au
      ratio agrandi pour atteindre ~44px de cible (cf. THEME_CONFIG.rotationCorner). */
