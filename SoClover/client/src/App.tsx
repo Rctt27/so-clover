@@ -15,6 +15,7 @@ import { NotificationContainer } from './components/shared/NotificationContainer
 import { Timer } from './components/shared/Timer'
 import { ConnectionOverlay } from './components/shared/ConnectionOverlay'
 import { SoundToggleButton } from './components/shared/SoundToggleButton'
+import { AddToHomeScreenHint } from './components/shared/AddToHomeScreenHint'
 import { MOBILE_BOARD_CONTROLS_SLOT_ID } from './components/shared/MobileBoardControlsPortal'
 
 const WritingBoard = lazy(() => import('./components/writing/WritingBoard').then(m => ({ default: m.WritingBoard })))
@@ -97,6 +98,9 @@ function App() {
     <div className="min-h-svh bg-clover-light flex flex-col p-safe">
       {/* Notification System */}
       <NotificationContainer />
+
+      {/* Hint d'installation iOS (plein écran) — uniquement sur l'accueil, jamais en jeu */}
+      {phase === 'Initial' && <AddToHomeScreenHint />}
 
       {/* Cluster HUD fixe haut-droite : à GAUCHE le slot de contrôles de plateau (rotation,
           projetée par les phases sur mobile via MobileBoardControlsPortal), à DROITE le chip
