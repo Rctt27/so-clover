@@ -1,1 +1,3 @@
-{}
+{
+  "validate": { "next": "Tabuleiro seguinte", "next_compact": "Seguinte", "validate": "Validar o tabuleiro", "validate_compact": "Validar" }
+}

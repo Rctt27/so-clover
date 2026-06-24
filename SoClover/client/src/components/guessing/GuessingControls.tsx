@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { BodyPortal } from '../shared/BodyPortal'
 import confetti from 'canvas-confetti'
 import { BoardRotationControls } from '../shared/board/BoardRotationControls'
@@ -34,6 +35,8 @@ export const GuessingControls = React.memo(({
   onRotate,
   hasTriedPlacement,
 }: GuessingControlsProps) => {
+  const { t } = useTranslation('guessing')
+
   // Confettis + son correct quand le board est complètement deviné
   const prevIsBoardGuessedRef = useRef(false)
   useEffect(() => {
@@ -89,7 +92,7 @@ export const GuessingControls = React.memo(({
           <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
           Validation...
         </div>
-      ) : getGuessingValidateLabel(canMoveToNext, false)}
+      ) : getGuessingValidateLabel(canMoveToNext, false, t)}
     </button>
   )
 
@@ -103,7 +106,7 @@ export const GuessingControls = React.memo(({
     >
       {isValidationPending ? (
         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-      ) : getGuessingValidateLabel(canMoveToNext, true)}
+      ) : getGuessingValidateLabel(canMoveToNext, true, t)}
     </button>
   )
 

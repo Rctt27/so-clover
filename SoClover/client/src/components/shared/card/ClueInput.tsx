@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { CONSTANTS } from '../../../core/constants'
 import { computeBoardGeometry, getCluePlacement } from '../../../core/boardGeometry'
 import { useClueValidation } from '../../../hooks/useClueValidation'
@@ -24,6 +25,7 @@ interface ClueInputProps {
 }
 
 export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, disabled, explanation }) => {
+  const { t } = useTranslation('writing')
   // Visibilité du tooltip d'explication : pilotée par le hover sur desktop, par un
   // tap (bouton info) sur device tactile où le hover n'existe pas (cf. Axe 5 mobile).
   const [isTooltipVisible, setIsTooltipVisible] = useState(false)
@@ -162,7 +164,7 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
         spellCheck={false}
         inputMode="text"
         enterKeyHint="done"
-        placeholder={position.charAt(0).toUpperCase() + position.slice(1) + ' clue'}
+        placeholder={t('cluePlaceholder', { direction: position.charAt(0).toUpperCase() + position.slice(1) })}
         aria-invalid={hasValidationError ? "true" : undefined}
         aria-describedby={hasValidationError && firstError ? errorMessageId : undefined}
         className={`clue-word w-full px-3 py-2 rounded-lg text-center shadow-lg transition-colors duration-300 outline-none border-2 ${theme.clueFontClass}`}
@@ -180,7 +182,7 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
       {explanationIsAvailable && isCoarse && (
         <button
           type="button"
-          aria-label="Voir l'explication de l'indice"
+          aria-label={t('clueExplanationAria')}
           aria-expanded={isTooltipVisible}
           onClick={() => setIsTooltipVisible((v) => !v)}
           className="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center rounded-full bg-blue-500 text-white text-xs font-bold shadow-md leading-none"
@@ -217,7 +219,7 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
             role="alert"
             className="absolute top-full mt-1 left-1/2 -translate-x-1/2 text-xs text-red-600 bg-white/90 px-2 py-1 rounded shadow-md whitespace-nowrap"
           >
-            {getClueErrorMessage(firstError)}
+            {getClueErrorMessage(firstError, t)}
           </motion.div>
         )}
       </AnimatePresence>

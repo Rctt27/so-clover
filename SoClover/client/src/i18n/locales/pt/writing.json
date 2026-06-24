@@ -1,1 +1,34 @@
-{}
+{
+  "loadingBoard": "A carregar o teu tabuleiro…",
+  "phaseTitle": "Fase de Escrita",
+  "phaseSubtitle": "Observa as tuas 4 cartas e as 8 palavras formadas pelos seus pares",
+  "boardSubmitted": "Tabuleiro submetido!",
+  "waitingOthers": "A aguardar pelos outros jogadores…",
+  "landscapeHint": "A escrita das pistas faz-se em modo paisagem para mostrar o tabuleiro e os campos de forma legível.",
+  "semanticInvalid": "Algumas pistas não respeitam as regras semânticas — corrige-as antes de submeter.",
+  "cluePlaceholder": "Pista {{direction}}",
+  "clueExplanationAria": "Ver a explicação da pista",
+  "submit": {
+    "submitting": "A submeter…", "submitting_compact": "A submeter…",
+    "submitted": "Tabuleiro Submetido ✓", "submitted_compact": "Submetido ✓",
+    "ready": "Submeter o tabuleiro", "ready_compact": "Submeter",
+    "checking": "A verificar…",
+    "fix": "Corrige as pistas", "fix_compact": "Corrige",
+    "missing": "Introduz as 4 pistas", "missing_compact": "Pistas em falta"
+  },
+  "clueError": {
+    "exactMatch": "A tua pista repete a palavra «{{word}}» do teu tabuleiro",
+    "similarStem": "A tua pista está demasiado próxima da palavra «{{word}}» do teu tabuleiro"
+  },
+  "progress": {
+    "aiSubmitted": "tabuleiros IA submetidos",
+    "playersSubmitted": "jogadores submeteram o seu tabuleiro",
+    "generating": "A gerar…",
+    "clues": "Pistas {{submitted}}/4",
+    "retriesTitle": "Pistas rejeitadas por direção (Top/Right/Bottom/Left)"
+  },
+  "waitingAi": {
+    "title": "A aguardar pelos tabuleiros da IA…",
+    "subtitle": "Os jogadores IA estão a escrever as suas pistas. A fase de dedução começará automaticamente."
+  }
+}

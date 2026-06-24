@@ -1,1 +1,3 @@
-{}
+{
+  "validate": { "next": "Next board", "next_compact": "Next", "validate": "Validate the board", "validate_compact": "Validate" }
+}

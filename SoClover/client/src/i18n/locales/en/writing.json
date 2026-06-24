@@ -1,1 +1,34 @@
-{}
+{
+  "loadingBoard": "Loading your board…",
+  "phaseTitle": "Writing Phase",
+  "phaseSubtitle": "Look at your 4 cards and the 8 words formed by their pairs",
+  "boardSubmitted": "Board submitted!",
+  "waitingOthers": "Waiting for the other players…",
+  "landscapeHint": "Clue writing is done in landscape mode so the board and fields stay readable.",
+  "semanticInvalid": "Some clues break the semantic rules — fix them before submitting.",
+  "cluePlaceholder": "{{direction}} clue",
+  "clueExplanationAria": "See the clue explanation",
+  "submit": {
+    "submitting": "Submitting…", "submitting_compact": "Submitting…",
+    "submitted": "Board Submitted ✓", "submitted_compact": "Submitted ✓",
+    "ready": "Submit the board", "ready_compact": "Submit",
+    "checking": "Checking…",
+    "fix": "Fix the clues", "fix_compact": "Fix",
+    "missing": "Enter the 4 clues", "missing_compact": "Missing clues"
+  },
+  "clueError": {
+    "exactMatch": "Your clue reuses the word “{{word}}” from your board",
+    "similarStem": "Your clue is too close to the word “{{word}}” on your board"
+  },
+  "progress": {
+    "aiSubmitted": "AI boards submitted",
+    "playersSubmitted": "players have submitted their board",
+    "generating": "Generating…",
+    "clues": "Clues {{submitted}}/4",
+    "retriesTitle": "Clues rejected per direction (Top/Right/Bottom/Left)"
+  },
+  "waitingAi": {
+    "title": "Waiting for the AI boards…",
+    "subtitle": "The AI players are writing their clues. The guessing phase will start automatically."
+  }
+}

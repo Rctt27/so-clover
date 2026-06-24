@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useBoardStore, useGameStore } from '../../core/store'
 import type { BoardData } from '../../types/game'
 
@@ -14,6 +15,7 @@ const countSubmittedClues = (board: BoardData | undefined): number => {
 }
 
 export const SubmissionProgress = ({ aiOnly = false }: SubmissionProgressProps) => {
+  const { t } = useTranslation('writing')
   const myBoard = useBoardStore(s => s.myBoard)
   const otherBoards = useBoardStore(s => s.otherBoards)
   const allPlayers = useGameStore(s => s.players)
@@ -33,7 +35,7 @@ export const SubmissionProgress = ({ aiOnly = false }: SubmissionProgressProps) 
   return (
     <div className="flex flex-col items-center gap-2">
       <p className="text-sm text-gray-600 font-medium">
-        {submittedCount}/{totalCount} {aiOnly ? 'plateaux IA soumis' : 'joueurs ont soumis leur plateau'}
+        {submittedCount}/{totalCount} {aiOnly ? t('progress.aiSubmitted') : t('progress.playersSubmitted')}
       </p>
       <div className="flex gap-2">
         {players.map((player) => {
@@ -44,7 +46,7 @@ export const SubmissionProgress = ({ aiOnly = false }: SubmissionProgressProps) 
           return (
             <div
               key={player.playerId}
-              title={isGenerating ? 'En cours de génération...' : undefined}
+              title={isGenerating ? t('progress.generating') : undefined}
               className={`w-3 h-3 rounded-full transition-colors duration-500 ${
                 isSubmitted
                   ? 'bg-green-500'
@@ -70,9 +72,9 @@ export const SubmissionProgress = ({ aiOnly = false }: SubmissionProgressProps) 
             return (
               <li key={player.playerId} className="flex items-center gap-2 font-mono">
                 <span className="font-medium text-gray-600">{player.name}</span>
-                <span>Clues {submitted}/4</span>
+                <span>{t('progress.clues', { submitted })}</span>
                 <span className="text-gray-400">·</span>
-                <span title="Indices rejetés par direction (Top/Right/Bottom/Left)">
+                <span title={t('progress.retriesTitle')}>
                   ↻ T:{retries.top} R:{retries.right} B:{retries.bottom} L:{retries.left}
                 </span>
               </li>

@@ -1,1 +1,3 @@
-{}
+{
+  "validate": { "next": "Plateau suivant", "next_compact": "Suivant", "validate": "Valider le plateau", "validate_compact": "Valider" }
+}

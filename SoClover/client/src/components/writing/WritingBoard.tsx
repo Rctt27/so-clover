@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Board } from '../shared/board/Board'
 import { useBoardStore, useGameStore } from '../../core/store'
 import { useGameActions } from '../../hooks/useGameActions'
@@ -7,6 +8,7 @@ import { SubmissionProgress } from './SubmissionProgress'
 import { LandscapePrompt } from '../guessing/LandscapePrompt'
 
 export const WritingBoard = () => {
+  const { t } = useTranslation('writing')
   const myBoard = useBoardStore(s => s.myBoard)
   const resetBoards = useBoardStore(s => s.resetBoards)
   const playerId = useGameStore(s => s.playerId)
@@ -30,7 +32,7 @@ export const WritingBoard = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-svh gap-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-clover"></div>
-        <p className="text-gray-500">Chargement de votre plateau...</p>
+        <p className="text-gray-500">{t('loadingBoard')}</p>
         <p className="text-xs text-gray-400">Phase: {phase} | ID: {playerId}</p>
       </div>
     )
@@ -41,12 +43,12 @@ export const WritingBoard = () => {
       {/* Incitation au paysage sur mobile portrait : en portrait étroit les indices
           dé-pivotés ne tiennent pas. La saisie se fait en paysage (cf. Axe 6 / Task 3).
           Auto-masqué hors portrait tactile via `.hide-unless-portrait-touch`. */}
-      <LandscapePrompt description="La saisie des indices se fait en mode paysage pour afficher le plateau et les champs lisiblement." />
+      <LandscapePrompt description={t('landscapeHint')} />
 
       {/* Header masqué sur mobile (tactile) pour rendre la hauteur au plateau. */}
       <div className="writing-header hide-on-coarse text-center shrink-0">
-        <h1 className="writing-title text-2xl sm:text-3xl font-bold text-clover-dark mb-2">Phase d'Écriture</h1>
-        <p className="writing-subtitle text-gray-600">Observez vos 4 cartes et les 8 mots formés par leurs paires</p>
+        <h1 className="writing-title text-2xl sm:text-3xl font-bold text-clover-dark mb-2">{t('phaseTitle')}</h1>
+        <p className="writing-subtitle text-gray-600">{t('phaseSubtitle')}</p>
       </div>
 
       {/* Zone plateau élastique : flex-1 prend la hauteur résiduelle, container-type:size
@@ -79,8 +81,8 @@ export const WritingBoard = () => {
 
         {myBoard.isSubmitted && (
           <div className="flex flex-col items-center gap-2 py-4">
-            <p className="text-green-600 font-semibold">Plateau soumis !</p>
-            <p className="text-gray-500 text-sm">En attente des autres joueurs...</p>
+            <p className="text-green-600 font-semibold">{t('boardSubmitted')}</p>
+            <p className="text-gray-500 text-sm">{t('waitingOthers')}</p>
             <SubmissionProgress />
           </div>
         )}

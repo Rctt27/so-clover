@@ -1,1 +1,34 @@
-{}
+{
+  "loadingBoard": "Chargement de votre plateau...",
+  "phaseTitle": "Phase d'Écriture",
+  "phaseSubtitle": "Observez vos 4 cartes et les 8 mots formés par leurs paires",
+  "boardSubmitted": "Plateau soumis !",
+  "waitingOthers": "En attente des autres joueurs...",
+  "landscapeHint": "La saisie des indices se fait en mode paysage pour afficher le plateau et les champs lisiblement.",
+  "semanticInvalid": "Certains indices ne respectent pas les règles sémantiques — corrigez-les avant de soumettre.",
+  "cluePlaceholder": "Indice {{direction}}",
+  "clueExplanationAria": "Voir l'explication de l'indice",
+  "submit": {
+    "submitting": "Soumission...", "submitting_compact": "Soumission…",
+    "submitted": "Plateau Soumis ✓", "submitted_compact": "Soumis ✓",
+    "ready": "Soumettre le plateau", "ready_compact": "Soumettre",
+    "checking": "Vérification…",
+    "fix": "Corrigez les indices", "fix_compact": "Corrigez",
+    "missing": "Saisissez les 4 indices", "missing_compact": "Indices manquants"
+  },
+  "clueError": {
+    "exactMatch": "Votre indice reprend le mot « {{word}} » de votre plateau",
+    "similarStem": "Votre indice est trop proche du mot « {{word}} » de votre plateau"
+  },
+  "progress": {
+    "aiSubmitted": "plateaux IA soumis",
+    "playersSubmitted": "joueurs ont soumis leur plateau",
+    "generating": "En cours de génération...",
+    "clues": "Indices {{submitted}}/4",
+    "retriesTitle": "Indices rejetés par direction (Top/Right/Bottom/Left)"
+  },
+  "waitingAi": {
+    "title": "En attente des Boards de l'IA…",
+    "subtitle": "Les joueurs IA rédigent leurs indices. La phase de déduction démarrera automatiquement."
+  }
+}

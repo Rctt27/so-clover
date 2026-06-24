@@ -1,11 +1,9 @@
-﻿import { ClueValidationError } from './clueValidation'
+import type { TFunction } from 'i18next'
+import { ClueValidationError } from './clueValidation'
 
-export const getClueErrorMessage = (error: ClueValidationError): string => {
-    switch (error.rule) {
-        case 'ExactMatch':
-            return `Votre indice reprend le mot « ${error.cardWord} » de votre plateau`
-        case 'SimilarStem':
-            return `Votre indice est trop proche du mot « ${error.cardWord} » de votre plateau`
-    }
+export const getClueErrorMessage = (error: ClueValidationError, t: TFunction<'writing'>): string => {
+  switch (error.rule) {
+    case 'ExactMatch': return t('clueError.exactMatch', { word: error.cardWord })
+    case 'SimilarStem': return t('clueError.similarStem', { word: error.cardWord })
+  }
 }
-
