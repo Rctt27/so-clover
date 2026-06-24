@@ -1,10 +1,12 @@
 ﻿import React from 'react';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { PlayerSetupPanel } from './PlayerSetupPanel';
 import { GameManagementPanel } from './GameManagementPanel';
 import { CONSTANTS } from '../../core/constants';
 
 export const HomeScreen: React.FC = () => {
+  const { t } = useTranslation('home');
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -17,7 +19,7 @@ export const HomeScreen: React.FC = () => {
           🍀 So Clover!
         </h1>
         <p className="text-gray-600 font-medium">
-          Prêt à faire fleurir vos indices ?
+          {t('tagline')}
         </p>
       </header>
 
@@ -27,7 +29,7 @@ export const HomeScreen: React.FC = () => {
       </main>
 
       <footer className="mt-12 text-gray-400 text-sm">
-        SoClover Browser Game &copy; 2026 &mdash; v{CONSTANTS.APP_VERSION}
+        {t('footer', { version: CONSTANTS.APP_VERSION })}
       </footer>
     </motion.div>
   );

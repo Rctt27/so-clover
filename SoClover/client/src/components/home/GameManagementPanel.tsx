@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Gamepad2, LogIn, Loader2 } from 'lucide-react';
 import { useGameStore } from '../../core/store';
 import { gameApi, JoinGameResponse } from '../../api/game-api';
@@ -7,6 +8,7 @@ import i18n from '../../i18n';
 import { localeToDictionaryKey } from '../../core/dictionaryDefaults';
 
 export const GameManagementPanel: React.FC = () => {
+  const { t } = useTranslation('home');
   const { playerName, setGameId, setPlayerId, setIsGameAdmin, setPhase, setPlayers } = useGameStore();
   const [gameIdInput, setGameIdInput] = useState(() => readGameCodeFromUrl() ?? '');
   const [isLoading, setIsLoading] = useState(false);
@@ -28,7 +30,7 @@ export const GameManagementPanel: React.FC = () => {
       setPlayers([{ playerId: response.playerId, name: playerName!, cursorColorIndex: 0, isAI: false }]);
       // On laisse useSignalR gérer le refreshGameState une fois connecté
     } catch (err: any) {
-      setError(err.message || 'Erreur lors de la création de la partie');
+      setError(err.message || t('manage.createError'));
     } finally {
       setIsLoading(false);
     }
@@ -44,7 +46,7 @@ export const GameManagementPanel: React.FC = () => {
       if ('isConflict' in result && result.isConflict) {
         setIsLoading(false);
         const confirmed = window.confirm(
-          `Un joueur nomme "${playerName}" existe deja dans cette partie. Voulez-vous le remplacer ?`
+          t('manage.replaceConfirm', { name: playerName })
         );
         if (confirmed) {
           await handleJoinGame(true);
@@ -59,7 +61,7 @@ export const GameManagementPanel: React.FC = () => {
       setPhase('Lobby');
       // On laisse useSignalR gérer le rafraîchissement complet des joueurs via le serveur
     } catch (err: any) {
-      setError(err.message || 'Erreur lors de la connexion à la partie');
+      setError(err.message || t('manage.joinError'));
     } finally {
       setIsLoading(false);
     }
@@ -69,12 +71,12 @@ export const GameManagementPanel: React.FC = () => {
 
   return (
     <section className="bg-white rounded-xl shadow-md p-6 w-full max-w-md">
-      <h2 className="text-xl font-bold mb-4 text-gray-800">Gestion de la Partie</h2>
+      <h2 className="text-xl font-bold mb-4 text-gray-800">{t('manage.title')}</h2>
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <label htmlFor="gameIdInput" className="text-sm font-medium text-gray-700">
-            ID de la Partie (optionnel)
+            {t('manage.gameIdLabel')}
           </label>
           <input
             type="text"
@@ -86,7 +88,7 @@ export const GameManagementPanel: React.FC = () => {
                 handleJoinGame();
               }
             }}
-            placeholder="Collez l'ID pour rejoindre"
+            placeholder={t('manage.gameIdPlaceholder')}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-clover focus:border-transparent outline-none transition-all"
             autoComplete="off"
             autoCapitalize="off"
@@ -117,12 +119,12 @@ export const GameManagementPanel: React.FC = () => {
           ) : (
             <Gamepad2 size={20} />
           )}
-          {isLoading ? 'Traitement...' : isJoining ? 'Rejoindre la Partie' : 'Créer une Partie'}
+          {isLoading ? t('manage.processing') : isJoining ? t('manage.join') : t('manage.create')}
         </button>
 
         {isNameEmpty && (
           <p className="text-xs text-center text-gray-500 italic">
-            Veuillez entrer votre nom pour commencer
+            {t('manage.enterNameHint')}
           </p>
         )}
       </div>

@@ -1,1 +1,17 @@
-{}
+{
+  "tagline": "Ready to make your clues bloom?",
+  "footer": "SoClover Browser Game © 2026 — v{{version}}",
+  "setup": { "title": "Player Setup", "nameLabel": "Your Name", "namePlaceholder": "Enter your nickname", "playingAs": "👤 Playing as:" },
+  "manage": {
+    "title": "Game Management",
+    "gameIdLabel": "Game ID (optional)",
+    "gameIdPlaceholder": "Paste the ID to join",
+    "processing": "Processing…",
+    "join": "Join Game",
+    "create": "Create Game",
+    "enterNameHint": "Please enter your name to start",
+    "createError": "Error while creating the game",
+    "joinError": "Error while joining the game",
+    "replaceConfirm": "A player named \"{{name}}\" already exists in this game. Do you want to replace them?"
+  }
+}

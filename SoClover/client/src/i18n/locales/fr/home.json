@@ -1,1 +1,17 @@
-{}
+{
+  "tagline": "Prêt à faire fleurir vos indices ?",
+  "footer": "SoClover Browser Game © 2026 — v{{version}}",
+  "setup": { "title": "Configuration du Joueur", "nameLabel": "Votre Nom", "namePlaceholder": "Entrez votre pseudo", "playingAs": "👤 Joue en tant que :" },
+  "manage": {
+    "title": "Gestion de la Partie",
+    "gameIdLabel": "ID de la Partie (optionnel)",
+    "gameIdPlaceholder": "Collez l'ID pour rejoindre",
+    "processing": "Traitement...",
+    "join": "Rejoindre la Partie",
+    "create": "Créer une Partie",
+    "enterNameHint": "Veuillez entrer votre nom pour commencer",
+    "createError": "Erreur lors de la création de la partie",
+    "joinError": "Erreur lors de la connexion à la partie",
+    "replaceConfirm": "Un joueur nommé \"{{name}}\" existe déjà dans cette partie. Voulez-vous le remplacer ?"
+  }
+}

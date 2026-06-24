@@ -1,1 +1,17 @@
-{}
+{
+  "tagline": "Pronto para fazer florescer as tuas pistas?",
+  "footer": "SoClover Browser Game © 2026 — v{{version}}",
+  "setup": { "title": "Configuração do Jogador", "nameLabel": "O Teu Nome", "namePlaceholder": "Introduz a tua alcunha", "playingAs": "👤 A jogar como:" },
+  "manage": {
+    "title": "Gestão do Jogo",
+    "gameIdLabel": "ID do Jogo (opcional)",
+    "gameIdPlaceholder": "Cola o ID para entrar",
+    "processing": "A processar…",
+    "join": "Entrar no Jogo",
+    "create": "Criar Jogo",
+    "enterNameHint": "Introduz o teu nome para começar",
+    "createError": "Erro ao criar o jogo",
+    "joinError": "Erro ao entrar no jogo",
+    "replaceConfirm": "Já existe um jogador chamado \"{{name}}\" neste jogo. Queres substituí-lo?"
+  }
+}
