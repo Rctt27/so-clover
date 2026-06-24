@@ -1,1 +1,25 @@
-{}
+{
+  "loading": "Loading scores…",
+  "loadError": "Could not load the scores",
+  "endError": "Could not end the game",
+  "endConfirm": "Are you sure you want to end the game? All players will be sent back to the home screen.",
+  "title": "Game Over!",
+  "subtitle": "Here are the game results.",
+  "ranking": "Ranking",
+  "noneGuessed": "No board was guessed correctly.",
+  "colRank": "Rank",
+  "colPlayer": "Player",
+  "colAttempts": "Attempts",
+  "colDuration": "Duration",
+  "colStatus": "Status",
+  "you": "You",
+  "guessed": "✓ Guessed",
+  "failedTitle": "Boards not guessed",
+  "disconnected": "Disconnected",
+  "attempts_one": "{{count}} attempt",
+  "attempts_other": "{{count}} attempts",
+  "ending": "Closing…",
+  "endGame": "End game",
+  "durationShort": "{{seconds}}s",
+  "durationLong": "{{minutes}}m {{seconds}}s"
+}

@@ -1,1 +1,25 @@
-{}
+{
+  "loading": "Chargement des scores...",
+  "loadError": "Impossible de charger les scores",
+  "endError": "Impossible de terminer la partie",
+  "endConfirm": "Êtes-vous sûr de vouloir terminer la partie ? Tous les joueurs seront redirigés vers l'accueil.",
+  "title": "Partie Terminée !",
+  "subtitle": "Voici les résultats de la partie.",
+  "ranking": "Classement",
+  "noneGuessed": "Aucun plateau n'a été deviné correctement.",
+  "colRank": "Rang",
+  "colPlayer": "Joueur",
+  "colAttempts": "Essais",
+  "colDuration": "Durée",
+  "colStatus": "Statut",
+  "you": "Vous",
+  "guessed": "✓ Deviné",
+  "failedTitle": "Plateaux non devinés",
+  "disconnected": "Déconnecté",
+  "attempts_one": "{{count}} essai",
+  "attempts_other": "{{count}} essais",
+  "ending": "Fermeture...",
+  "endGame": "Terminer la partie",
+  "durationShort": "{{seconds}}s",
+  "durationLong": "{{minutes}}m {{seconds}}s"
+}

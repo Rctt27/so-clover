@@ -1,1 +1,25 @@
-{}
+{
+  "loading": "A carregar as pontuações…",
+  "loadError": "Não foi possível carregar as pontuações",
+  "endError": "Não foi possível terminar o jogo",
+  "endConfirm": "Tens a certeza de que queres terminar o jogo? Todos os jogadores serão reencaminhados para o início.",
+  "title": "Jogo Terminado!",
+  "subtitle": "Aqui estão os resultados do jogo.",
+  "ranking": "Classificação",
+  "noneGuessed": "Nenhum tabuleiro foi adivinhado corretamente.",
+  "colRank": "Posição",
+  "colPlayer": "Jogador",
+  "colAttempts": "Tentativas",
+  "colDuration": "Duração",
+  "colStatus": "Estado",
+  "you": "Tu",
+  "guessed": "✓ Adivinhado",
+  "failedTitle": "Tabuleiros não adivinhados",
+  "disconnected": "Desligado",
+  "attempts_one": "{{count}} tentativa",
+  "attempts_other": "{{count}} tentativas",
+  "ending": "A fechar…",
+  "endGame": "Terminar o jogo",
+  "durationShort": "{{seconds}}s",
+  "durationLong": "{{minutes}}m {{seconds}}s"
+}

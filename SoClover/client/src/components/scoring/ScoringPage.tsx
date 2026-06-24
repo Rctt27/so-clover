@@ -1,18 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useGameStore } from '../../core/store';
 import { gameApi } from '../../api/game-api';
 import { GameScoringResponse, ScoringBoardResponse } from '../../types/game';
 import { Trophy, Users, XCircle, Clock, Target, LogOut } from 'lucide-react';
 import { debugLog } from '../../core/debug';
 
-const formatDuration = (seconds: number): string => {
-  if (seconds < 60) {
-    return `${seconds}s`;
-  }
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}m ${remainingSeconds}s`;
+const formatDuration = (seconds: number, t: TFunction<'scoring'>): string => {
+  if (seconds < 60) return t('durationShort', { seconds });
+  return t('durationLong', { minutes: Math.floor(seconds / 60), seconds: seconds % 60 });
 };
 
 const RankBadge: React.FC<{ rank: number }> = ({ rank }) => {
@@ -27,6 +25,7 @@ const RankBadge: React.FC<{ rank: number }> = ({ rank }) => {
 };
 
 export const ScoringPage: React.FC = () => {
+  const { t } = useTranslation('scoring');
   const gameId = useGameStore(s => s.gameId);
   const playerId = useGameStore(s => s.playerId);
   const isGameAdmin = useGameStore(s => s.isGameAdmin);
@@ -57,14 +56,14 @@ export const ScoringPage: React.FC = () => {
         setError(null);
       } catch (err) {
         console.error('Erreur lors du chargement des scores:', err);
-        setError('Impossible de charger les scores');
+        setError(t('loadError'));
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchScoring();
-  }, [gameId, phase]);
+  }, [gameId, phase, t]);
 
   // Note: La redirection quand la partie est terminée (GameDeleted) est gérée
   // automatiquement par useSignalR qui appelle resetAuth() sur l'événement GameDeleted
@@ -72,9 +71,7 @@ export const ScoringPage: React.FC = () => {
   const handleEndGame = async () => {
     if (!gameId || !playerId) return;
 
-    const confirmed = window.confirm(
-      'Êtes-vous sûr de vouloir terminer la partie ? Tous les joueurs seront redirigés vers l\'accueil.'
-    );
+    const confirmed = window.confirm(t('endConfirm'));
 
     if (!confirmed) return;
 
@@ -86,7 +83,7 @@ export const ScoringPage: React.FC = () => {
       resetAuth();
     } catch (err) {
       console.error('Erreur lors de la fin de partie:', err);
-      setError('Impossible de terminer la partie');
+      setError(t('endError'));
       setIsEndingGame(false);
     }
   };
@@ -95,7 +92,7 @@ export const ScoringPage: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-clover"></div>
-        <p className="mt-4 text-slate-500">Chargement des scores...</p>
+        <p className="mt-4 text-slate-500">{t('loading')}</p>
       </div>
     );
   }
@@ -112,8 +109,8 @@ export const ScoringPage: React.FC = () => {
         className="text-center"
       >
         <Trophy className="w-20 h-20 text-yellow-500 mx-auto mb-4" />
-        <h1 className="text-4xl font-black text-clover-dark mb-2">Partie Terminée !</h1>
-        <p className="text-slate-500">Voici les résultats de la partie.</p>
+        <h1 className="text-4xl font-black text-clover-dark mb-2">{t('title')}</h1>
+        <p className="text-slate-500">{t('subtitle')}</p>
       </motion.div>
 
       {/* Message d'erreur */}
@@ -132,32 +129,32 @@ export const ScoringPage: React.FC = () => {
       >
         <div className="flex items-center gap-3 mb-6">
           <Trophy className="text-yellow-500 w-6 h-6" />
-          <h2 className="text-xl font-bold text-slate-800">Classement</h2>
+          <h2 className="text-xl font-bold text-slate-800">{t('ranking')}</h2>
         </div>
 
         {successfulBoards.length === 0 ? (
           <div className="text-center py-8 text-slate-500">
             <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>Aucun plateau n'a été deviné correctement.</p>
+            <p>{t('noneGuessed')}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-200">
-                  <th className="text-left py-3 px-4 text-slate-600 font-semibold">Rang</th>
-                  <th className="text-left py-3 px-4 text-slate-600 font-semibold">Joueur</th>
+                  <th className="text-left py-3 px-4 text-slate-600 font-semibold">{t('colRank')}</th>
+                  <th className="text-left py-3 px-4 text-slate-600 font-semibold">{t('colPlayer')}</th>
                   <th className="text-center py-3 px-4 text-slate-600 font-semibold">
                     <span className="flex items-center justify-center gap-1">
-                      <Target className="w-4 h-4" /> Essais
+                      <Target className="w-4 h-4" /> {t('colAttempts')}
                     </span>
                   </th>
                   <th className="text-center py-3 px-4 text-slate-600 font-semibold">
                     <span className="flex items-center justify-center gap-1">
-                      <Clock className="w-4 h-4" /> Durée
+                      <Clock className="w-4 h-4" /> {t('colDuration')}
                     </span>
                   </th>
-                  <th className="text-center py-3 px-4 text-slate-600 font-semibold">Statut</th>
+                  <th className="text-center py-3 px-4 text-slate-600 font-semibold">{t('colStatus')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -180,7 +177,7 @@ export const ScoringPage: React.FC = () => {
                         {result.playerName}
                         {result.playerId === playerId && (
                           <span className="ml-2 text-xs bg-clover/20 text-clover-dark px-2 py-0.5 rounded-full">
-                            Vous
+                            {t('you')}
                           </span>
                         )}
                       </span>
@@ -189,11 +186,11 @@ export const ScoringPage: React.FC = () => {
                       {result.attempts}
                     </td>
                     <td className="py-4 px-4 text-center text-slate-600">
-                      {formatDuration(result.durationSeconds)}
+                      {formatDuration(result.durationSeconds, t)}
                     </td>
                     <td className="py-4 px-4 text-center">
                       <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
-                        ✓ Deviné
+                        {t('guessed')}
                       </span>
                     </td>
                   </tr>
@@ -214,7 +211,7 @@ export const ScoringPage: React.FC = () => {
         >
           <div className="flex items-center gap-3 mb-6">
             <XCircle className="text-red-400 w-6 h-6" />
-            <h2 className="text-xl font-bold text-slate-800">Plateaux non devinés</h2>
+            <h2 className="text-xl font-bold text-slate-800">{t('failedTitle')}</h2>
           </div>
 
           <ul className="space-y-3">
@@ -239,18 +236,18 @@ export const ScoringPage: React.FC = () => {
                     {result.playerName}
                     {result.isDisconnected && (
                       <span className="ml-2 text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
-                        Deconnecte
+                        {t('disconnected')}
                       </span>
                     )}
                     {result.playerId === playerId && (
                       <span className="ml-2 text-xs bg-red-200 text-red-700 px-2 py-0.5 rounded-full">
-                        Vous
+                        {t('you')}
                       </span>
                     )}
                   </span>
                 </div>
                 <div className="text-sm text-slate-500">
-                  {result.attempts} essai{result.attempts > 1 ? 's' : ''} • {formatDuration(result.durationSeconds)}
+                  {t('attempts', { count: result.attempts })} • {formatDuration(result.durationSeconds, t)}
                 </div>
               </li>
             ))}
@@ -271,7 +268,7 @@ export const ScoringPage: React.FC = () => {
             className="flex items-center justify-center gap-2 px-8 py-3 bg-red-500 text-white rounded-full font-bold shadow-lg shadow-red-500/30 hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <LogOut className="w-5 h-5" />
-            {isEndingGame ? 'Fermeture...' : 'Terminer la partie'}
+            {isEndingGame ? t('ending') : t('endGame')}
           </button>
         </motion.div>
       )}
