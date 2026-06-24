@@ -1,0 +1,46 @@
+{
+  "appName": "So Clover!",
+  "connection": {
+    "connected": "Conectado",
+    "disconnected": "Desconectado",
+    "reconnecting": "A reconectar"
+  },
+  "overlay": {
+    "lostReconnecting": "Ligação perdida. A reconectar…",
+    "lost": "Ligação perdida",
+    "refresh": "Atualizar a página"
+  },
+  "sound": { "unmute": "Ativar o som", "mute": "Desativar o som" },
+  "notification": { "close": "Fechar notificação" },
+  "rotate": {
+    "leftTitle": "Rodar para a esquerda (←)",
+    "leftAria": "Rodar o tabuleiro para a esquerda",
+    "rightTitle": "Rodar para a direita (→)",
+    "rightAria": "Rodar o tabuleiro para a direita"
+  },
+  "a2hs": {
+    "body": "Para ecrã inteiro real: toca em <0>Partilhar</0> e depois em <1>«Adicionar ao ecrã principal»</1>.",
+    "dismiss": "Ocultar a dica de instalação"
+  },
+  "init": "A preparar o jogo…",
+  "devPhase": "Fase: {{phase}}",
+  "devWip": "Esta fase está em desenvolvimento.",
+  "devGame": "Jogo: {{gameId}}",
+  "devRole": "Função: {{role}}",
+  "notify": {
+    "loadStateFailed": "Não foi possível carregar o estado do jogo.",
+    "boardSubmitted": "Tabuleiro submetido com sucesso!",
+    "boardSubmitFailed": "Falha ao submeter o tabuleiro.",
+    "placeCardFailed": "Não foi possível colocar a carta.",
+    "swapCardsFailed": "Não foi possível trocar as cartas.",
+    "swapPoolFailed": "Não foi possível trocar as cartas na reserva.",
+    "returnCardFailed": "Não foi possível remover a carta do tabuleiro.",
+    "allCorrect": "Perfeito! Todas as cartas estão bem colocadas.",
+    "someCorrect": "{{correct}} cartas corretas. {{remaining}} tentativas restantes.",
+    "validateFailed": "Falha na validação.",
+    "nextBoardFailed": "Não foi possível passar ao tabuleiro seguinte.",
+    "sessionExpired": "A tua sessão de jogo expirou enquanto estavas ausente.",
+    "kicked": "Foste removido do jogo pelo administrador.",
+    "playerJoined": "<strong>{{name}}</strong> entrou no jogo"
+  }
+}

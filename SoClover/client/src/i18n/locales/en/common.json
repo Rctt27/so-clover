@@ -1,0 +1,46 @@
+{
+  "appName": "So Clover!",
+  "connection": {
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "reconnecting": "Reconnecting"
+  },
+  "overlay": {
+    "lostReconnecting": "Connection lost. Reconnecting…",
+    "lost": "Connection lost",
+    "refresh": "Refresh the page"
+  },
+  "sound": { "unmute": "Turn sound on", "mute": "Turn sound off" },
+  "notification": { "close": "Dismiss notification" },
+  "rotate": {
+    "leftTitle": "Rotate left (←)",
+    "leftAria": "Rotate the board left",
+    "rightTitle": "Rotate right (→)",
+    "rightAria": "Rotate the board right"
+  },
+  "a2hs": {
+    "body": "For true full screen: tap <0>Share</0> then <1>“Add to Home Screen”</1>.",
+    "dismiss": "Hide the install tip"
+  },
+  "init": "Setting up the game…",
+  "devPhase": "Phase: {{phase}}",
+  "devWip": "This phase is under construction.",
+  "devGame": "Game: {{gameId}}",
+  "devRole": "Role: {{role}}",
+  "notify": {
+    "loadStateFailed": "Could not load the game state.",
+    "boardSubmitted": "Board submitted successfully!",
+    "boardSubmitFailed": "Failed to submit the board.",
+    "placeCardFailed": "Could not place the card.",
+    "swapCardsFailed": "Could not swap the cards.",
+    "swapPoolFailed": "Could not swap the cards in the pool.",
+    "returnCardFailed": "Could not remove the card from the board.",
+    "allCorrect": "Perfect! All cards are correctly placed.",
+    "someCorrect": "{{correct}} correct cards. {{remaining}} attempts left.",
+    "validateFailed": "Validation failed.",
+    "nextBoardFailed": "Could not move to the next board.",
+    "sessionExpired": "Your game session expired while you were away.",
+    "kicked": "You were removed from the game by the admin.",
+    "playerJoined": "<strong>{{name}}</strong> joined the game"
+  }
+}

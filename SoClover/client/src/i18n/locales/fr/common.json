@@ -1,0 +1,46 @@
+{
+  "appName": "So Clover!",
+  "connection": {
+    "connected": "Connecté",
+    "disconnected": "Déconnecté",
+    "reconnecting": "Reconnexion"
+  },
+  "overlay": {
+    "lostReconnecting": "Connexion perdue. Reconnexion en cours...",
+    "lost": "Connexion perdue",
+    "refresh": "Rafraîchir la page"
+  },
+  "sound": { "unmute": "Activer le son", "mute": "Couper le son" },
+  "notification": { "close": "Fermer la notification" },
+  "rotate": {
+    "leftTitle": "Tourner à gauche (←)",
+    "leftAria": "Tourner le plateau à gauche",
+    "rightTitle": "Tourner à droite (→)",
+    "rightAria": "Tourner le plateau à droite"
+  },
+  "a2hs": {
+    "body": "Pour un vrai plein écran : appuie sur <0>Partager</0> puis <1>« Ajouter à l'écran d'accueil »</1>.",
+    "dismiss": "Masquer le conseil d'installation"
+  },
+  "init": "Initialisation de la partie...",
+  "devPhase": "Phase : {{phase}}",
+  "devWip": "Cette phase est en cours de développement.",
+  "devGame": "Partie : {{gameId}}",
+  "devRole": "Rôle : {{role}}",
+  "notify": {
+    "loadStateFailed": "Impossible de charger l'état de la partie.",
+    "boardSubmitted": "Plateau soumis avec succès !",
+    "boardSubmitFailed": "Échec de la soumission du plateau.",
+    "placeCardFailed": "Impossible de placer la carte.",
+    "swapCardsFailed": "Impossible d'échanger les cartes.",
+    "swapPoolFailed": "Impossible d'échanger les cartes dans le pool.",
+    "returnCardFailed": "Impossible de retirer la carte du plateau.",
+    "allCorrect": "Parfait ! Toutes les cartes sont bien placées.",
+    "someCorrect": "{{correct}} cartes correctes. {{remaining}} tentatives restantes.",
+    "validateFailed": "Échec de la validation.",
+    "nextBoardFailed": "Impossible de passer au plateau suivant.",
+    "sessionExpired": "Votre session de jeu a expiré pendant votre absence.",
+    "kicked": "Vous avez été retiré de la partie par l'admin.",
+    "playerJoined": "<strong>{{name}}</strong> a rejoint la partie"
+  }
+}
