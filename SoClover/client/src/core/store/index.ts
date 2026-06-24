@@ -6,6 +6,8 @@ import { createBoardSlice, BoardSlice } from './boardSlice'
 import { createGuessingSlice, GuessingSlice } from './guessingSlice'
 import { createAppConfigSlice, AppConfigSlice } from './appConfigSlice'
 import { isDebug } from '../debug'
+import i18n from '../../i18n'
+import { localeToDictionaryKey } from '../dictionaryDefaults'
 
 export interface AiClueRetries {
   top: number
@@ -74,7 +76,7 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
   aiGeneratingPlayerIds: [],
   aiClueProgress: {},
   settings: {
-    language: 'Français_OFF',
+    language: localeToDictionaryKey(i18n.language),
     cluesDurationSeconds: 300,
     guessDurationSeconds: 300,
     semanticClueCheckEnabled: true,
@@ -137,7 +139,7 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
     phase: 'Initial',
     phaseEndsAtUtc: null,
     settings: {
-      language: 'Français_OFF',
+      language: localeToDictionaryKey(i18n.language),
       cluesDurationSeconds: 300,
       guessDurationSeconds: 300,
       semanticClueCheckEnabled: true,

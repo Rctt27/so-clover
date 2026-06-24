@@ -3,6 +3,8 @@ import { Gamepad2, LogIn, Loader2 } from 'lucide-react';
 import { useGameStore } from '../../core/store';
 import { gameApi, JoinGameResponse } from '../../api/game-api';
 import { readGameCodeFromUrl } from '../../core/gameUrl';
+import i18n from '../../i18n';
+import { localeToDictionaryKey } from '../../core/dictionaryDefaults';
 
 export const GameManagementPanel: React.FC = () => {
   const { playerName, setGameId, setPlayerId, setIsGameAdmin, setPhase, setPlayers } = useGameStore();
@@ -17,7 +19,7 @@ export const GameManagementPanel: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await gameApi.createGame(playerName!);
+      const response = await gameApi.createGame(playerName!, localeToDictionaryKey(i18n.language));
       setGameId(response.gameId);
       setPlayerId(response.playerId);
       setIsGameAdmin(true);
