@@ -1,8 +1,5 @@
 import { RotateCw, Smartphone } from 'lucide-react'
-
-/** Justificatif par défaut (phase Déduction). Surchargé en phase Écriture. */
-const DEFAULT_DESCRIPTION =
-  'La phase de déduction se joue en mode paysage pour afficher le plateau et les cartes côte à côte.'
+import { useTranslation } from 'react-i18next'
 
 interface LandscapePromptProps {
   /** Justificatif affiché sous le titre. Par phase : la Déduction garde le défaut,
@@ -23,7 +20,9 @@ interface LandscapePromptProps {
  * sous l'overlay (connexion/state préservés), simplement masqué visuellement. Le
  * titre « Tournez votre appareil » reste constant (point d'ancrage des tests e2e).
  */
-export const LandscapePrompt = ({ description = DEFAULT_DESCRIPTION }: LandscapePromptProps) => {
+export const LandscapePrompt = ({ description }: LandscapePromptProps) => {
+  const { t } = useTranslation('guessing')
+  const desc = description ?? t('landscapeDefault')
   return (
     <div className="hide-unless-portrait-touch fixed inset-0 z-[100] flex-col items-center justify-center gap-6 bg-clover-light px-8 text-center">
       <div className="relative">
@@ -33,8 +32,8 @@ export const LandscapePrompt = ({ description = DEFAULT_DESCRIPTION }: Landscape
           className="absolute -right-4 -top-2 text-clover animate-pulse"
         />
       </div>
-      <h2 className="text-2xl font-bold text-clover-dark">Tournez votre appareil</h2>
-      <p className="max-w-xs text-gray-600">{description}</p>
+      <h2 className="text-2xl font-bold text-clover-dark">{t('rotateDevice')}</h2>
+      <p className="max-w-xs text-gray-600">{desc}</p>
     </div>
   )
 }

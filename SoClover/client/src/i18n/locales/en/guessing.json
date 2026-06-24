@@ -1,3 +1,14 @@
 {
-  "validate": { "next": "Next board", "next_compact": "Next", "validate": "Validate the board", "validate_compact": "Validate" }
+  "validate": { "next": "Next board", "next_compact": "Next", "validate": "Validate the board", "validate_compact": "Validate" },
+  "validating": "Validating…",
+  "triedPlacementWarning": "⚠️ At least one card is in a position already tried and wrong. Move or rotate it before validating.",
+  "boardComplete": "Well done! Board completed!",
+  "noAttemptsLeft": "Too bad! No attempts left for this board.",
+  "ownBoard": "You cannot move cards on your own board.",
+  "remainingAttempts": "Attempts left: {{count}}",
+  "landscapeDefault": "The guessing phase is played in landscape mode to show the board and cards side by side.",
+  "rotateDevice": "Rotate your device",
+  "phaseTitle": "Guessing Phase",
+  "boardOf": "Board of",
+  "preparingBoard": "Preparing the board…"
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useMemo, useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useGameStore, useGuessingStore } from '../../core/store'
 import { shallow } from 'zustand/shallow'
 import { useGameActions } from '../../hooks/useGameActions'
@@ -20,6 +21,7 @@ import { CONSTANTS } from '../../core/constants'
 import i18n from '../../i18n'
 
 export const GuessingPage = () => {
+  const { t } = useTranslation('guessing')
   const { playerId } = useGameStore()
   const {
     currentBoardOwnerName,
@@ -318,7 +320,7 @@ export const GuessingPage = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-svh gap-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-clover"></div>
-        <p className="text-gray-500 text-lg">Préparation du plateau...</p>
+        <p className="text-gray-500 text-lg">{t('preparingBoard')}</p>
       </div>
     )
   }
@@ -337,9 +339,9 @@ export const GuessingPage = () => {
           (utile sur les viewports courts type tablette). Masqué sur mobile (tactile) pour
           rendre la hauteur au plateau. */}
       <div data-testid="guessing-header" className="hide-on-coarse bg-white/30 backdrop-blur-sm shadow-sm py-2 px-4 flex items-baseline justify-center gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold text-gray-800">Phase de Déduction</h1>
+        <h1 className="text-2xl font-bold text-gray-800">{t('phaseTitle')}</h1>
         <p className="text-gray-600">
-          Plateau de{' '}
+          {t('boardOf')}{' '}
           <span className="font-bold text-clover-dark">{currentBoardOwnerName}</span>
         </p>
       </div>

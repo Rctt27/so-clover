@@ -1,3 +1,14 @@
 {
-  "validate": { "next": "Plateau suivant", "next_compact": "Suivant", "validate": "Valider le plateau", "validate_compact": "Valider" }
+  "validate": { "next": "Plateau suivant", "next_compact": "Suivant", "validate": "Valider le plateau", "validate_compact": "Valider" },
+  "validating": "Validation...",
+  "triedPlacementWarning": "⚠️ Au moins une carte est dans une position déjà testée et fausse. Déplacez-la ou tournez-la avant de valider.",
+  "boardComplete": "Bravo ! Plateau complété !",
+  "noAttemptsLeft": "Dommage ! Plus de tentatives pour ce plateau.",
+  "ownBoard": "Vous ne pouvez pas manipuler votre propre plateau.",
+  "remainingAttempts": "Tentatives restantes : {{count}}",
+  "landscapeDefault": "La phase de déduction se joue en mode paysage pour afficher le plateau et les cartes côte à côte.",
+  "rotateDevice": "Tournez votre appareil",
+  "phaseTitle": "Phase de Déduction",
+  "boardOf": "Plateau de",
+  "preparingBoard": "Préparation du plateau..."
 }

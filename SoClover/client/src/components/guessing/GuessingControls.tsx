@@ -71,7 +71,7 @@ export const GuessingControls = React.memo(({
     isValidationPending || (!isBoardFull && !canMoveToNext) || (!canMoveToNext && hasTriedPlacement)
   const validateTitle =
     !isMyBoard && !canMoveToNext && hasTriedPlacement
-      ? '⚠️ Au moins une carte est dans une position déjà testée et fausse. Déplacez-la ou tournez-la avant de valider.'
+      ? t('triedPlacementWarning')
       : undefined
   const validateColor = canMoveToNext
     ? 'bg-blue-600 hover:bg-blue-700 shadow-blue/30'
@@ -90,7 +90,7 @@ export const GuessingControls = React.memo(({
       {isValidationPending ? (
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          Validation...
+          {t('validating')}
         </div>
       ) : getGuessingValidateLabel(canMoveToNext, false, t)}
     </button>
@@ -171,12 +171,12 @@ export const GuessingControls = React.memo(({
       }`}>
         <p className="text-sm italic">
           {isBoardGuessed ? (
-            <span className="text-clover-dark font-bold text-lg">Bravo ! Plateau complété !</span>
+            <span className="text-clover-dark font-bold text-lg">{t('boardComplete')}</span>
           ) : remainingAttempts === 0 && !isMyBoard ? (
-            <span className="text-red-600 font-bold">Dommage ! Plus de tentatives pour ce plateau.</span>
+            <span className="text-red-600 font-bold">{t('noAttemptsLeft')}</span>
           ) : (
             <>
-              {isMyBoard && ' Vous ne pouvez pas manipuler votre propre plateau.'}
+              {isMyBoard && ' ' + t('ownBoard')}
             </>
           )}
         </p>
@@ -191,7 +191,7 @@ export const GuessingControls = React.memo(({
             }`}
             aria-hidden={!hasTriedPlacement}
           >
-            ⚠️ Au moins une carte est dans une position déjà testée et fausse. Déplacez-la ou tournez-la avant de valider.
+            {t('triedPlacementWarning')}
           </p>
         )}
         {/* Tablette : aucun indicateur d'avertissement au-dessus du bouton (ni réserve de
@@ -202,7 +202,7 @@ export const GuessingControls = React.memo(({
             se superposait lors de la rotation. Desktop : conservé. */}
         {!isBoardGuessed && remainingAttempts > 0 && !isMyBoard && !canMoveToNext && (
           <p className="text-clover-dark font-bold mt-1 text-sm [@media(pointer:coarse)]:hidden">
-            Tentatives restantes : {remainingAttempts}
+            {t('remainingAttempts', { count: remainingAttempts })}
           </p>
         )}
       </div>

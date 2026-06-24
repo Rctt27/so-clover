@@ -1,3 +1,14 @@
 {
-  "validate": { "next": "Tabuleiro seguinte", "next_compact": "Seguinte", "validate": "Validar o tabuleiro", "validate_compact": "Validar" }
+  "validate": { "next": "Tabuleiro seguinte", "next_compact": "Seguinte", "validate": "Validar o tabuleiro", "validate_compact": "Validar" },
+  "validating": "A validar…",
+  "triedPlacementWarning": "⚠️ Pelo menos uma carta está numa posição já testada e errada. Move-a ou roda-a antes de validar.",
+  "boardComplete": "Bravo! Tabuleiro completo!",
+  "noAttemptsLeft": "Que pena! Sem tentativas para este tabuleiro.",
+  "ownBoard": "Não podes mexer no teu próprio tabuleiro.",
+  "remainingAttempts": "Tentativas restantes: {{count}}",
+  "landscapeDefault": "A fase de dedução joga-se em modo paisagem para mostrar o tabuleiro e as cartas lado a lado.",
+  "rotateDevice": "Roda o teu dispositivo",
+  "phaseTitle": "Fase de Dedução",
+  "boardOf": "Tabuleiro de",
+  "preparingBoard": "A preparar o tabuleiro…"
 }
