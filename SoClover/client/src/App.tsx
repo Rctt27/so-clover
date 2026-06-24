@@ -4,6 +4,7 @@ import { debugLog } from './core/debug'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Wifi, WifiOff, Loader2 } from 'lucide-react'
 import { useSignalR } from './hooks/useSignalR'
+import type { ConnectionStatus } from './types/game'
 import { useGameSounds } from './hooks/useGameSounds'
 import { useTimeoutSafetyPolling } from './hooks/useTimeoutSafetyPolling'
 import { useWritingCluesPhaseMusic } from './hooks/useWritingCluesPhaseMusic'
@@ -46,6 +47,12 @@ function App() {
   useWritingCluesPhaseMusic();
   const { t } = useTranslation('common')
   const connectionStatus = useGameStore(s => s.connectionStatus);
+  const connectionLabels: Record<ConnectionStatus, string> = {
+    Connected: t('connection.connected'),
+    Disconnected: t('connection.disconnected'),
+    Connecting: t('connection.connecting'),
+    Reconnecting: t('connection.reconnecting'),
+  };
   const phase = useGameStore(s => s.phase);
   const gameId = useGameStore(s => s.gameId);
   const isInitializing = useGameStore(s => s.isInitializing);
@@ -127,7 +134,7 @@ function App() {
           {connectionStatus === 'Connected' && hasDeadline ? (
             <Timer />
           ) : (
-            <span className="text-sm font-medium text-gray-700">{t(`connection.${connectionStatus.toLowerCase() as 'connected' | 'disconnected' | 'reconnecting'}`)}</span>
+            <span className="text-sm font-medium text-gray-700">{connectionLabels[connectionStatus]}</span>
           )}
         </div>
       </div>

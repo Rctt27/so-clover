@@ -2,6 +2,7 @@
   "appName": "So Clover!",
   "connection": {
     "connected": "Connected",
+    "connecting": "Connecting",
     "disconnected": "Disconnected",
     "reconnecting": "Reconnecting"
   },
