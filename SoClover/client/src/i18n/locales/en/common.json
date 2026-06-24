@@ -41,6 +41,7 @@
     "nextBoardFailed": "Could not move to the next board.",
     "sessionExpired": "Your game session expired while you were away.",
     "kicked": "You were removed from the game by the admin.",
-    "playerJoined": "<strong>{{name}}</strong> joined the game"
+    "playerJoined": "<strong>{{name}}</strong> joined the game",
+    "yourBoardToast": "This is your board! Watch the other players."
   }
 }

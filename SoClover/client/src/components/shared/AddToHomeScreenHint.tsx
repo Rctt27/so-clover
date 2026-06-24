@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Trans, useTranslation } from 'react-i18next'
 import { Share, X } from 'lucide-react'
 import { shouldShowA2HSHint, dismissA2HSHint } from '../../core/pwa'
 
@@ -12,6 +13,7 @@ import { shouldShowA2HSHint, dismissA2HSHint } from '../../core/pwa'
  * dismiss ne doit pas se ré-afficher. Le rejet est persisté (localStorage) via dismissA2HSHint.
  */
 export const AddToHomeScreenHint: React.FC = () => {
+  const { t } = useTranslation('common')
   const [visible, setVisible] = useState<boolean>(() => shouldShowA2HSHint())
 
   const handleDismiss = () => {
@@ -31,13 +33,16 @@ export const AddToHomeScreenHint: React.FC = () => {
         >
           <Share className="mt-0.5 h-5 w-5 shrink-0 text-clover-dark" aria-hidden="true" />
           <p className="flex-1 text-sm leading-snug text-gray-700">
-            Pour un vrai plein écran : appuie sur <span className="font-semibold">Partager</span>{' '}
-            puis <span className="font-semibold">« Ajouter à l'écran d'accueil »</span>.
+            <Trans
+              t={t}
+              i18nKey="a2hs.body"
+              components={[<span className="font-semibold" />, <span className="font-semibold" />]}
+            />
           </p>
           <button
             type="button"
             onClick={handleDismiss}
-            aria-label="Masquer le conseil d'installation"
+            aria-label={t('a2hs.dismiss')}
             className="-mr-1 -mt-1 shrink-0 p-1 text-gray-400 hover:text-gray-600"
           >
             <X className="h-4 w-4" />

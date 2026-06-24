@@ -41,6 +41,7 @@
     "nextBoardFailed": "Não foi possível passar ao tabuleiro seguinte.",
     "sessionExpired": "A tua sessão de jogo expirou enquanto estavas ausente.",
     "kicked": "Foste removido do jogo pelo administrador.",
-    "playerJoined": "<strong>{{name}}</strong> entrou no jogo"
+    "playerJoined": "<strong>{{name}}</strong> entrou no jogo",
+    "yourBoardToast": "Este é o teu tabuleiro! Observa os outros jogadores."
   }
 }

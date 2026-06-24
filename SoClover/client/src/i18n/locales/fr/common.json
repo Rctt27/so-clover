@@ -41,6 +41,7 @@
     "nextBoardFailed": "Impossible de passer au plateau suivant.",
     "sessionExpired": "Votre session de jeu a expiré pendant votre absence.",
     "kicked": "Vous avez été retiré de la partie par l'admin.",
-    "playerJoined": "<strong>{{name}}</strong> a rejoint la partie"
+    "playerJoined": "<strong>{{name}}</strong> a rejoint la partie",
+    "yourBoardToast": "C'est votre plateau ! Observez les autres joueurs."
   }
 }

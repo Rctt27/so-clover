@@ -6,6 +6,7 @@ import { gameApi } from '../api/game-api';
 import { useNotifications } from './useNotifications';
 import { useGameStateUpdate } from './useGameStateUpdate';
 import { debugLog } from '../core/debug'
+import i18n from '../i18n'
 import { detectRotationGap } from '../core/rotationGapDetector';
 import { recoverConnection } from '../core/connectionRecovery';
 import { shouldReconnectOnForeground } from '../core/foregroundReconnect';
@@ -81,7 +82,7 @@ export const useSignalR = () => {
     invoke: (method, ...args) => signalRClient.invoke(method, ...args),
     refreshGameState,
     onUnauthorized: () => {
-      notifyWarning('Votre session de jeu a expiré pendant votre absence.');
+      notifyWarning(i18n.t('common:notify.sessionExpired'));
       resetAuth();
     },
     log: (msg) => debugLog('useSignalR', msg),
@@ -154,7 +155,7 @@ export const useSignalR = () => {
 
       // Notification uniquement durant la phase Lobby (via ref pour ne pas mettre phase dans les deps)
       if (phaseRef.current === 'Lobby') {
-        notifyInfo(`<strong>${data.playerName}</strong> a rejoint la partie`);
+        notifyInfo(i18n.t('common:notify.playerJoined', { name: data.playerName }));
       }
     };
 
@@ -165,7 +166,7 @@ export const useSignalR = () => {
 
     const handlePlayerKicked = (data: PlayerKickedEvent) => {
       if (data?.kickedPlayerId === playerId) {
-        notifyWarning("Vous avez ete retire de la partie par l'admin.");
+        notifyWarning(i18n.t('common:notify.kicked'));
         resetAuth();
       }
     };

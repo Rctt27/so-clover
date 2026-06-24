@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Volume2, VolumeX } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { toggleMute, isMuted } from '../../core/sounds'
 
 /**
@@ -9,6 +10,7 @@ import { toggleMute, isMuted } from '../../core/sounds'
  * Synchronisé avec localStorage via l'évènement `so-clover-mute-changed`.
  */
 export const SoundToggleButton = () => {
+  const { t } = useTranslation('common')
   const [muted, setMuted] = useState(isMuted)
 
   useEffect(() => {
@@ -33,8 +35,8 @@ export const SoundToggleButton = () => {
           ? 'text-red-500 hover:bg-red-50'
           : 'text-gray-700 hover:bg-gray-100'
       }`}
-      title={muted ? 'Activer le son' : 'Couper le son'}
-      aria-label={muted ? 'Activer le son' : 'Couper le son'}
+      title={muted ? t('sound.unmute') : t('sound.mute')}
+      aria-label={muted ? t('sound.unmute') : t('sound.mute')}
     >
       {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
     </button>

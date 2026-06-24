@@ -17,6 +17,7 @@ import { debugLog } from '../../core/debug'
 import { isPlacementAlreadyTried } from '../../core/isPlacementAlreadyTried'
 import { computeRevealedCards } from '../../core/computeRevealedCards'
 import { CONSTANTS } from '../../core/constants'
+import i18n from '../../i18n'
 
 export const GuessingPage = () => {
   const { playerId } = useGameStore()
@@ -226,7 +227,7 @@ export const GuessingPage = () => {
     // Mobile (tactile) : pas de toast « C'est votre plateau » — il se superpose au board en
     // paysage (espace vertical compté) et fait doublon avec le contexte visuel. Desktop : conservé.
     if (isMyBoard && !isCoarse && currentBoardOwnerId && notifiedBoardId.current !== currentBoardOwnerId) {
-      notifyTopCenter("C'est votre plateau ! Observez les autres joueurs.", { duration: 10000 })
+      notifyTopCenter(i18n.t('common:notify.yourBoardToast'), { duration: 10000 })
       notifiedBoardId.current = currentBoardOwnerId
     } else if (!isMyBoard) {
       notifiedBoardId.current = null

@@ -3,6 +3,7 @@ import { useGameStore, useBoardStore, useGuessingStore } from '../core/store'
 import { gameApi } from '../api/game-api'
 import { useNotifications } from './useNotifications'
 import { useGameStateUpdate } from './useGameStateUpdate'
+import i18n from '../i18n'
 
 export const useGameActions = () => {
   const { gameId, playerId } = useGameStore()
@@ -22,7 +23,7 @@ export const useGameActions = () => {
       return gameState
     } catch (error) {
       console.error('[useGameActions] Failed to fetch game state:', error)
-      notifyError('Impossible de charger l\'état de la partie.')
+      notifyError(i18n.t('common:notify.loadStateFailed'))
     } finally {
       if (showLoading) setLoading(false)
     }
@@ -48,10 +49,10 @@ export const useGameActions = () => {
     try {
       await gameApi.submitBoard(gameId, playerId)
       setMyBoardSubmitted(true)
-      notifySuccess('Plateau soumis avec succès !')
+      notifySuccess(i18n.t('common:notify.boardSubmitted'))
     } catch (error) {
       console.error('[useGameActions] Failed to submit board:', error)
-      notifyError('Échec de la soumission du plateau.')
+      notifyError(i18n.t('common:notify.boardSubmitFailed'))
       throw error
     }
   }
@@ -62,7 +63,7 @@ export const useGameActions = () => {
       await gameApi.placeGuessingCard(gameId, playerId, outsideCardIndex, position)
     } catch (error) {
       console.error('[useGameActions] Failed to place guessing card:', error)
-      notifyError('Impossible de placer la carte.')
+      notifyError(i18n.t('common:notify.placeCardFailed'))
     }
   }
 
@@ -72,7 +73,7 @@ export const useGameActions = () => {
       await gameApi.swapGuessingCards(gameId, playerId, position1, position2)
     } catch (error) {
       console.error('[useGameActions] Failed to swap guessing cards:', error)
-      notifyError('Impossible d\'échanger les cartes.')
+      notifyError(i18n.t('common:notify.swapCardsFailed'))
     }
   }
 
@@ -82,7 +83,7 @@ export const useGameActions = () => {
       await gameApi.swapOutsidePoolCards(gameId, playerId, index1, index2)
     } catch (error) {
       console.error('[useGameActions] Failed to swap pool cards:', error)
-      notifyError('Impossible d\'échanger les cartes dans le pool.')
+      notifyError(i18n.t('common:notify.swapPoolFailed'))
     }
   }
 
@@ -92,7 +93,7 @@ export const useGameActions = () => {
       await gameApi.returnGuessingCard(gameId, playerId, position)
     } catch (error) {
       console.error('[useGameActions] Failed to return card to pool:', error)
-      notifyError('Impossible de retirer la carte du plateau.')
+      notifyError(i18n.t('common:notify.returnCardFailed'))
     }
   }
 
@@ -105,16 +106,16 @@ export const useGameActions = () => {
       setValidationResults(results)
       
       if (results.isComplete) {
-        notifySuccess('Parfait ! Toutes les cartes sont bien placées.')
+        notifySuccess(i18n.t('common:notify.allCorrect'))
       } else {
-        notifyInfo(`${results.correctPositions.length} cartes correctes. ${results.remainingAttempts} tentatives restantes.`)
+        notifyInfo(i18n.t('common:notify.someCorrect', { correct: results.correctPositions.length, remaining: results.remainingAttempts }))
       }
       
       // On rafraîchit l'état pour mettre à jour correctlyPlacedPositions et remainingAttempts
       await fetchGameState(false)
     } catch (error) {
       console.error('[useGameActions] Failed to validate board:', error)
-      notifyError('Échec de la validation.')
+      notifyError(i18n.t('common:notify.validateFailed'))
     } finally {
       setIsValidationPending(false)
     }
@@ -144,7 +145,7 @@ export const useGameActions = () => {
       await fetchGameState(false)
     } catch (error) {
       console.error('[useGameActions] Failed to move to next board:', error)
-      notifyError('Impossible de passer au plateau suivant.')
+      notifyError(i18n.t('common:notify.nextBoardFailed'))
     } finally {
       setLoading(false)
     }

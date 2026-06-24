@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface BoardRotationControlsProps {
   rotation: number
@@ -22,6 +23,7 @@ export const BoardRotationControls = ({
   centerSlot,
   enableKeyboard = true
 }: BoardRotationControlsProps) => {
+  const { t } = useTranslation('common')
   const normalizedRotation = ((rotation % 360) + 360) % 360
 
   useEffect(() => {
@@ -42,8 +44,8 @@ export const BoardRotationControls = ({
         onClick={() => onRotate('left')}
         disabled={disabled}
         className={`rotation-ctrl-btn p-3 [@media(pointer:coarse)]:p-2.5 rounded-full bg-white shadow-md transition-colors border border-gray-200 focus:outline-none focus:ring-2 focus:ring-clover ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
-        title="Tourner à gauche (←)"
-        aria-label="Tourner le plateau à gauche"
+        title={t('rotate.leftTitle')}
+        aria-label={t('rotate.leftAria')}
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -63,8 +65,8 @@ export const BoardRotationControls = ({
         onClick={() => onRotate('right')}
         disabled={disabled}
         className={`rotation-ctrl-btn p-3 [@media(pointer:coarse)]:p-2.5 rounded-full bg-white shadow-md transition-colors border border-gray-200 focus:outline-none focus:ring-2 focus:ring-clover ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
-        title="Tourner à droite (→)"
-        aria-label="Tourner le plateau à droite"
+        title={t('rotate.rightTitle')}
+        aria-label={t('rotate.rightAria')}
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />

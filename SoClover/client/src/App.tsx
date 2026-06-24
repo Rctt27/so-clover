@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { debugLog } from './core/debug'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Wifi, WifiOff, Loader2 } from 'lucide-react'
@@ -43,6 +44,7 @@ function App() {
   useGameSounds();
   useTimeoutSafetyPolling();
   useWritingCluesPhaseMusic();
+  const { t } = useTranslation('common')
   const connectionStatus = useGameStore(s => s.connectionStatus);
   const phase = useGameStore(s => s.phase);
   const gameId = useGameStore(s => s.gameId);
@@ -125,7 +127,7 @@ function App() {
           {connectionStatus === 'Connected' && hasDeadline ? (
             <Timer />
           ) : (
-            <span className="text-sm font-medium text-gray-700">{connectionStatus}</span>
+            <span className="text-sm font-medium text-gray-700">{t(`connection.${connectionStatus.toLowerCase() as 'connected' | 'disconnected' | 'reconnecting'}`)}</span>
           )}
         </div>
       </div>
@@ -140,7 +142,7 @@ function App() {
             className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center"
           >
             <Loader2 className="w-12 h-12 text-clover animate-spin mb-4" />
-            <p className="text-lg font-bold text-clover-dark">Initialisation de la partie...</p>
+            <p className="text-lg font-bold text-clover-dark">{t('init')}</p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -220,11 +222,11 @@ function App() {
 
         {phase !== 'Initial' && phase !== 'Lobby' && phase !== 'WritingClues' && phase !== 'Guessing' && phase !== 'Scoring' && (
           <div className="text-center bg-white p-8 rounded-3xl shadow-xl border border-slate-100 max-w-lg">
-            <h2 className="text-2xl font-bold text-clover-dark mb-4">Phase : {phase}</h2>
-            <p className="text-gray-600 mb-6">Cette phase est en cours de développement.</p>
+            <h2 className="text-2xl font-bold text-clover-dark mb-4">{t('devPhase', { phase })}</h2>
+            <p className="text-gray-600 mb-6">{t('devWip')}</p>
             <div className="p-3 bg-slate-50 rounded-xl text-xs text-slate-500 font-mono flex flex-col gap-1">
-              <div>Partie : {gameId}</div>
-              <div>Rôle : {role}</div>
+              <div>{t('devGame', { gameId })}</div>
+              <div>{t('devRole', { role })}</div>
             </div>
           </div>
         )}

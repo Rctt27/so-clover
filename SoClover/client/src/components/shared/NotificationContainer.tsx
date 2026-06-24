@@ -1,11 +1,13 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNotifications } from '../../hooks/useNotifications'
 import type { Notification } from '../../core/store/notificationSlice'
 
 const NotificationItem = ({ notification }: { notification: Notification }) => {
   const { dismiss } = useNotifications()
+  const { t } = useTranslation('common')
 
   useEffect(() => {
     if (notification.duration) {
@@ -72,7 +74,7 @@ const NotificationItem = ({ notification }: { notification: Notification }) => {
             opacity-80 hover:opacity-100 transition-opacity
             flex-shrink-0
           "
-          aria-label="Fermer la notification"
+          aria-label={t('notification.close')}
         >
           <X size={20} />
         </button>
