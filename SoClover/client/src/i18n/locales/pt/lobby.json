@@ -1,1 +1,33 @@
-{}
+{
+  "codeLabel": "Código do jogo",
+  "minPlayers": "São precisos pelo menos 2 jogadores para iniciar o jogo.",
+  "cancel": "Cancelar jogo",
+  "start": "🚀 Iniciar jogo",
+  "leave": "Sair do jogo",
+  "cancelConfirm": "Tens a certeza de que queres cancelar este jogo?",
+  "leaveConfirm": "Tens a certeza de que queres sair do jogo?",
+  "startError": "Não é possível iniciar: {{players}} parecem desligados. Remove-os antes de continuar.",
+  "settings": {
+    "title": "Configuração do jogo",
+    "dictionary": "Dicionário (Idioma)",
+    "cluesDuration": "Tempo de escrita (seg): {{seconds}}s",
+    "guessDuration": "Tempo de dedução (seg): {{seconds}}s",
+    "adminOnly": "Só o administrador pode alterar estas definições.",
+    "semanticLabel": "Verificação semântica das pistas",
+    "semanticDisabled": "Disponível apenas com os dicionários Francês e Inglês",
+    "guessAiLabel": "Adivinhar apenas os tabuleiros da IA",
+    "guessAiDisabled": "Disponível apenas se houver pelo menos um jogador IA no jogo"
+  },
+  "players": {
+    "title": "Jogadores",
+    "you": "(Tu)",
+    "aiBadge": "IA",
+    "creatorBadge": "Criador",
+    "kickTitle": "Remover {{name}}",
+    "kickConfirm": "Remover {{name}} do jogo?",
+    "addAiError": "Erro ao adicionar",
+    "adding": "A adicionar…",
+    "addAi": "+ Adicionar um jogador IA",
+    "addAiDisabled": "Funcionalidade atualmente desativada em produção"
+  }
+}

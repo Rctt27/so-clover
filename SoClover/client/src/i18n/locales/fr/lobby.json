@@ -1,1 +1,33 @@
-{}
+{
+  "codeLabel": "Code de partie",
+  "minPlayers": "Il faut au moins 2 joueurs pour lancer la partie.",
+  "cancel": "Annuler la partie",
+  "start": "🚀 Lancer la partie",
+  "leave": "Quitter la partie",
+  "cancelConfirm": "Êtes-vous sûr de vouloir annuler cette partie ?",
+  "leaveConfirm": "Êtes-vous sûr de vouloir quitter la partie ?",
+  "startError": "Impossible de lancer : {{players}} semblent déconnectés. Retirez-les avant de continuer.",
+  "settings": {
+    "title": "Configuration de la partie",
+    "dictionary": "Dictionnaire (Langue)",
+    "cluesDuration": "Temps de rédaction (sec) : {{seconds}}s",
+    "guessDuration": "Temps de déduction (sec) : {{seconds}}s",
+    "adminOnly": "Seul l'administrateur peut modifier ces paramètres.",
+    "semanticLabel": "Contrôle sémantique des indices",
+    "semanticDisabled": "Disponible uniquement avec les dictionnaires Français et Anglais",
+    "guessAiLabel": "Deviner uniquement les plateaux IA",
+    "guessAiDisabled": "Disponible uniquement si au moins un joueur IA est dans la partie"
+  },
+  "players": {
+    "title": "Joueurs",
+    "you": "(Vous)",
+    "aiBadge": "IA",
+    "creatorBadge": "Créateur",
+    "kickTitle": "Retirer {{name}}",
+    "kickConfirm": "Retirer {{name}} de la partie ?",
+    "addAiError": "Erreur lors de l'ajout",
+    "adding": "Ajout en cours...",
+    "addAi": "+ Ajouter un joueur IA",
+    "addAiDisabled": "Fonctionnalité actuellement désactivée en production"
+  }
+}

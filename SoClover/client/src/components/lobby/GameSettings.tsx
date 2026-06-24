@@ -1,15 +1,11 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../../core/store';
 import { gameApi } from '../../api/game-api';
-import {
-  LOBBY_SEMANTIC_TOGGLE_LABEL,
-  LOBBY_SEMANTIC_TOGGLE_TOOLTIP_DISABLED,
-  LOBBY_GUESS_AI_BOARD_ONLY_LABEL,
-  LOBBY_GUESS_AI_BOARD_ONLY_TOOLTIP_DISABLED,
-} from '../../core/clueValidationMessages';
 import { supportsSemanticCheck } from '../../core/clueValidation';
 
 export const GameSettings: React.FC = () => {
+  const { t } = useTranslation('lobby');
   const { gameId, playerId, isGameAdmin, settings, setSettings, players } = useGameStore();
   const [dictionaries, setDictionaries] = useState<{ key: string, name: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -17,7 +13,7 @@ export const GameSettings: React.FC = () => {
   // État local pour les sliders pour une réactivité immédiate de l'UI
   const [localCluesDuration, setLocalCluesDuration] = useState(settings.cluesDurationSeconds);
   const [localGuessDuration, setLocalGuessDuration] = useState(settings.guessDurationSeconds);
-  
+
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const semanticSupported = supportsSemanticCheck(settings.language)
@@ -74,7 +70,7 @@ export const GameSettings: React.FC = () => {
     if (!isGameAdmin) return;
 
     const { name, value } = e.target;
-    
+
     if (name === 'language') {
       const newSettings = {
         language: value,
@@ -132,11 +128,11 @@ export const GameSettings: React.FC = () => {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-6">
-      <h3 className="font-semibold text-slate-700 border-b border-slate-100 pb-3">Configuration de la partie</h3>
-      
+      <h3 className="font-semibold text-slate-700 border-b border-slate-100 pb-3">{t('settings.title')}</h3>
+
       <div className="space-y-4">
         <div>
-          <label htmlFor="language" className="block text-sm font-medium text-slate-600 mb-1">Dictionnaire (Langue)</label>
+          <label htmlFor="language" className="block text-sm font-medium text-slate-600 mb-1">{t('settings.dictionary')}</label>
           <select
             id="language"
             name="language"
@@ -153,7 +149,7 @@ export const GameSettings: React.FC = () => {
 
         <div>
           <label htmlFor="cluesDurationSeconds" className="block text-sm font-medium text-slate-600 mb-1">
-            Temps de rédaction (sec) : {localCluesDuration}s
+            {t('settings.cluesDuration', { seconds: localCluesDuration })}
           </label>
           <input
             type="range"
@@ -171,7 +167,7 @@ export const GameSettings: React.FC = () => {
 
         <div>
           <label htmlFor="guessDurationSeconds" className="block text-sm font-medium text-slate-600 mb-1">
-            Temps de déduction (sec) : {localGuessDuration}s
+            {t('settings.guessDuration', { seconds: localGuessDuration })}
           </label>
           <input
             type="range"
@@ -190,7 +186,7 @@ export const GameSettings: React.FC = () => {
         <div>
           <label
             className="flex items-center gap-2 text-sm font-medium text-slate-600"
-            title={!semanticSupported ? LOBBY_SEMANTIC_TOGGLE_TOOLTIP_DISABLED : undefined}
+            title={!semanticSupported ? t('settings.semanticDisabled') : undefined}
           >
             <input
               type="checkbox"
@@ -200,12 +196,12 @@ export const GameSettings: React.FC = () => {
               className="accent-emerald-500 disabled:opacity-50"
             />
             <span className={!semanticSupported ? 'text-slate-400' : undefined}>
-              {LOBBY_SEMANTIC_TOGGLE_LABEL}
+              {t('settings.semanticLabel')}
             </span>
           </label>
           {!semanticSupported && (
             <p className="text-xs text-slate-400 italic mt-1">
-              {LOBBY_SEMANTIC_TOGGLE_TOOLTIP_DISABLED}
+              {t('settings.semanticDisabled')}
             </p>
           )}
         </div>
@@ -213,7 +209,7 @@ export const GameSettings: React.FC = () => {
         <div>
           <label
             className="flex items-center gap-2 text-sm font-medium text-slate-600"
-            title={!hasAIPlayer ? LOBBY_GUESS_AI_BOARD_ONLY_TOOLTIP_DISABLED : undefined}
+            title={!hasAIPlayer ? t('settings.guessAiDisabled') : undefined}
           >
             <input
               type="checkbox"
@@ -223,12 +219,12 @@ export const GameSettings: React.FC = () => {
               className="accent-emerald-500 disabled:opacity-50"
             />
             <span className={!hasAIPlayer ? 'text-slate-400' : undefined}>
-              {LOBBY_GUESS_AI_BOARD_ONLY_LABEL}
+              {t('settings.guessAiLabel')}
             </span>
           </label>
           {!hasAIPlayer && (
             <p className="text-xs text-slate-400 italic mt-1">
-              {LOBBY_GUESS_AI_BOARD_ONLY_TOOLTIP_DISABLED}
+              {t('settings.guessAiDisabled')}
             </p>
           )}
         </div>
@@ -236,7 +232,7 @@ export const GameSettings: React.FC = () => {
 
       {!isGameAdmin && (
         <p className="text-xs text-slate-400 italic">
-          Seul l'administrateur peut modifier ces paramètres.
+          {t('settings.adminOnly')}
         </p>
       )}
     </div>

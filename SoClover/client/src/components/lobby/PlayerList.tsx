@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useGameStore, useAppConfigStore } from '../../core/store';
 import { gameApi } from '../../api/game-api';
 
 export const PlayerList: React.FC = () => {
+  const { t } = useTranslation('lobby');
   const { players, playerId, isGameAdmin, adminPlayerId, gameId } = useGameStore();
   const [kickingPlayerId, setKickingPlayerId] = useState<string | null>(null);
   const [addingAI, setAddingAI] = useState(false);
@@ -28,7 +30,7 @@ export const PlayerList: React.FC = () => {
   const handleKick = async (targetPlayerId: string, targetName: string) => {
     if (!gameId || !playerId) return;
 
-    const confirmed = window.confirm(`Retirer ${targetName} de la partie ?`);
+    const confirmed = window.confirm(t('players.kickConfirm', { name: targetName }));
     if (!confirmed) return;
 
     setKickingPlayerId(targetPlayerId);
@@ -48,7 +50,7 @@ export const PlayerList: React.FC = () => {
     try {
       await gameApi.addAIPlayer(gameId, playerId, nextAIPlayerName());
     } catch (err) {
-      setAddAIError(err instanceof Error ? err.message : 'Erreur lors de l\'ajout');
+      setAddAIError(err instanceof Error ? err.message : t('players.addAiError'));
     } finally {
       setAddingAI(false);
     }
@@ -57,7 +59,7 @@ export const PlayerList: React.FC = () => {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
-        <h3 className="font-semibold text-slate-700">Joueurs</h3>
+        <h3 className="font-semibold text-slate-700">{t('players.title')}</h3>
         <span className="bg-slate-200 text-slate-600 text-xs font-bold px-2 py-1 rounded-full">
           {players.length}
         </span>
@@ -75,17 +77,17 @@ export const PlayerList: React.FC = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-900 truncate">
-                  {player.name} {isMe && <span className="text-slate-400 font-normal text-xs ml-1">(Vous)</span>}
+                  {player.name} {isMe && <span className="text-slate-400 font-normal text-xs ml-1">{t('players.you')}</span>}
                 </p>
               </div>
               {player.isAI && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-800">
-                  IA
+                  {t('players.aiBadge')}
                 </span>
               )}
               {isAdmin && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
-                  Createur
+                  {t('players.creatorBadge')}
                 </span>
               )}
               {canKick && (
@@ -93,7 +95,7 @@ export const PlayerList: React.FC = () => {
                   onClick={() => handleKick(player.playerId, player.name)}
                   disabled={kickingPlayerId === player.playerId}
                   className="p-1 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
-                  title={`Retirer ${player.name}`}
+                  title={t('players.kickTitle', { name: player.name })}
                 >
                   <X size={16} />
                 </button>
@@ -110,10 +112,10 @@ export const PlayerList: React.FC = () => {
           <button
             onClick={handleAddAIPlayer}
             disabled={addingAI || aiPlayersEnabled !== true}
-            title={aiPlayersEnabled === false ? 'Fonctionnalité actuellement désactivée en production' : undefined}
+            title={aiPlayersEnabled === false ? t('players.addAiDisabled') : undefined}
             className="w-full text-sm font-medium text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded-lg py-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {addingAI ? 'Ajout en cours...' : '+ Ajouter un joueur IA'}
+            {addingAI ? t('players.adding') : t('players.addAi')}
           </button>
         </div>
       )}

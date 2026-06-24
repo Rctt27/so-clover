@@ -1,1 +1,33 @@
-{}
+{
+  "codeLabel": "Game code",
+  "minPlayers": "You need at least 2 players to start the game.",
+  "cancel": "Cancel game",
+  "start": "🚀 Start game",
+  "leave": "Leave game",
+  "cancelConfirm": "Are you sure you want to cancel this game?",
+  "leaveConfirm": "Are you sure you want to leave the game?",
+  "startError": "Cannot start: {{players}} appear disconnected. Remove them before continuing.",
+  "settings": {
+    "title": "Game settings",
+    "dictionary": "Dictionary (Language)",
+    "cluesDuration": "Writing time (sec): {{seconds}}s",
+    "guessDuration": "Guessing time (sec): {{seconds}}s",
+    "adminOnly": "Only the admin can change these settings.",
+    "semanticLabel": "Semantic clue check",
+    "semanticDisabled": "Available only with the French and English dictionaries",
+    "guessAiLabel": "Guess AI boards only",
+    "guessAiDisabled": "Available only if at least one AI player is in the game"
+  },
+  "players": {
+    "title": "Players",
+    "you": "(You)",
+    "aiBadge": "AI",
+    "creatorBadge": "Creator",
+    "kickTitle": "Remove {{name}}",
+    "kickConfirm": "Remove {{name}} from the game?",
+    "addAiError": "Error while adding",
+    "adding": "Adding…",
+    "addAi": "+ Add an AI player",
+    "addAiDisabled": "Feature currently disabled in production"
+  }
+}

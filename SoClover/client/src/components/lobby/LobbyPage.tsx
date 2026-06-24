@@ -1,10 +1,12 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../../core/store';
 import { PlayerList } from './PlayerList';
 import { GameSettings } from './GameSettings';
 import { gameApi } from '../../api/game-api';
 
 export const LobbyPage: React.FC = () => {
+  const { t } = useTranslation('lobby');
   const { gameId, playerId, isGameAdmin, players, resetAuth, setSettings } = useGameStore();
   const canStart = players.length >= 2;
   const [loading, setLoading] = useState(false);
@@ -40,9 +42,7 @@ export const LobbyPage: React.FC = () => {
     try {
       const result = await gameApi.startGame(gameId);
       if (result.disconnectedPlayers && result.disconnectedPlayers.length > 0) {
-        setStartError(
-          `Impossible de lancer : ${result.disconnectedPlayers.join(', ')} semblent deconnectes. Retirez-les avant de continuer.`
-        );
+        setStartError(t('startError', { players: result.disconnectedPlayers.join(', ') }));
         setLoading(false);
         return;
       }
@@ -55,7 +55,7 @@ export const LobbyPage: React.FC = () => {
 
   const handleCancelGame = async () => {
     if (!gameId || !isGameAdmin) return;
-    if (!window.confirm('Êtes-vous sûr de vouloir annuler cette partie ?')) return;
+    if (!window.confirm(t('cancelConfirm'))) return;
 
     setLoading(true);
     try {
@@ -68,8 +68,8 @@ export const LobbyPage: React.FC = () => {
   };
 
   const handleLeaveGame = async () => {
-    if (!window.confirm('Êtes-vous sûr de vouloir quitter la partie ?')) return;
-    
+    if (!window.confirm(t('leaveConfirm'))) return;
+
     if (gameId && playerId) {
       try {
         await gameApi.leaveGame(gameId, playerId);
@@ -93,9 +93,9 @@ export const LobbyPage: React.FC = () => {
       <header className="mb-8 text-center">
         <h1 className="text-4xl font-black text-emerald-600 mb-2">SO CLOVER!</h1>
         <div className="inline-flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-full border border-slate-200">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Code de partie</span>
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('codeLabel')}</span>
           <code className="text-emerald-700 font-mono font-bold">{gameId}</code>
-          <button 
+          <button
             onClick={copyToClipboard}
             className={`ml-2 p-1 rounded transition-colors ${copied ? 'bg-emerald-500 text-white' : 'hover:bg-slate-200 text-slate-400'}`}
           >
@@ -108,10 +108,10 @@ export const LobbyPage: React.FC = () => {
         <div className="md:col-span-1">
           <PlayerList />
         </div>
-        
+
         <div className="md:col-span-2 space-y-6">
           <GameSettings />
-          
+
           {startError && (
             <div className="bg-amber-50 text-amber-700 p-3 rounded-lg text-sm border border-amber-200">
               {startError}
@@ -119,7 +119,7 @@ export const LobbyPage: React.FC = () => {
           )}
           {isGameAdmin && !canStart && (
             <p className="text-xs text-slate-400 text-right">
-              Il faut au moins 2 joueurs pour lancer la partie.
+              {t('minPlayers')}
             </p>
           )}
 
@@ -131,7 +131,7 @@ export const LobbyPage: React.FC = () => {
                   disabled={loading}
                   className="px-6 py-3 rounded-xl font-bold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-50"
                 >
-                  Annuler la partie
+                  {t('cancel')}
                 </button>
                 <button
                   onClick={handleStartGame}
@@ -139,7 +139,7 @@ export const LobbyPage: React.FC = () => {
                   className="px-8 py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {loading && <span className="animate-spin">⏳</span>}
-                  🚀 Lancer la partie
+                  {t('start')}
                 </button>
               </>
             ) : (
@@ -147,7 +147,7 @@ export const LobbyPage: React.FC = () => {
                 onClick={handleLeaveGame}
                 className="px-6 py-3 rounded-xl font-bold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all"
               >
-                Quitter la partie
+                {t('leave')}
               </button>
             )}
           </div>
