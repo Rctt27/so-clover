@@ -108,7 +108,7 @@ Ton mot-indice doit donc à la fois (a) évoquer le plus fortement possible les 
 
 ## Règles absolues pour CHAQUE indice
 
-1. UN SEUL mot, en français, entre 1 et 18 caractères.
+1. UN SEUL mot, en français, entre 1 et 14 caractères.
 2. Ne doit PAS être identique à, contenir, ou être contenu dans n'importe quel mot du board ci-dessus.
 3. Ne doit PAS partager une racine évidente avec un mot du board (ex. "tabl" pour "table", "chat" pour "chats").
 4. Le champ `explanation` est une chaîne de **1 à 2 phrases en français** dans laquelle tu décris **le raisonnement qui t'a amené à choisir ce mot-indice pour cette direction**. Tu dois y expliciter en quoi ton mot évoque le **premier** mot de la direction ET en quoi il évoque le **second** — pas seulement l'un des deux. Nomme, quand c'est possible, le type de relation utilisé (catégorie, lieu, fonction, expression figée, etc.). Pas de paraphrase tautologique du type « ce mot évoque X et Y ».
@@ -135,7 +135,7 @@ Réponds UNIQUEMENT avec ce JSON, en n'incluant QUE les directions listées plus
   "clues": [
     {
       "direction": "<Top|Right|Bottom|Left>",
-      "clueWord": "<mot français, 1 à 18 caractères>",
+      "clueWord": "<mot français, 1 à 14 caractères>",
       "explanation": "<1 à 2 phrases : raisonnement liant ton mot aux DEUX mots de la direction>"
     }
   ]

@@ -38,7 +38,7 @@ Les **2 mots Cible** sont exclusivement ceux indiqués dans « À résoudre » c
 - **Anti-leurres** — ton candidat n'évoque aucun mot du board hors des 2 mots Cible, ni aussi fort qu'eux. Si oui, rejette-le.
 - **Équidistance + règle du minimum** — évalue séparément la force du lien vers chaque mot Cible (fort / moyen / faible). La qualité de l'indice est celle de son lien le plus faible : un (fort, faible) est globalement faible. Préfère TOUJOURS un (moyen, moyen) équilibré à un (fort, faible). Un quasi-synonyme d'un des deux mots est mauvais.
 - **Test du devineur** — imagine qu'on ne te donne que ton mot-indice : tu dois pouvoir retrouver les DEUX mots Cible, pas seulement un.
-- **Contrat formel** — 1 seul mot français, 1 à 18 caractères, qui n'est pas identique/contenu/contenant un mot du board et ne partage pas de racine évidente.
+- **Contrat formel** — 1 seul mot français, 1 à 14 caractères, qui n'est pas identique/contenu/contenant un mot du board et ne partage pas de racine évidente.
 
 Note sur les exemplaires prototypiques : quand un mot Cible est abstrait ou englobant (« animal », « outil », « véhicule »), un mot-indice qui en est un exemplaire emblématique l'évoque légitimement et fortement (« tortue » évoque pleinement « animal »). Ne le rejette pas au seul motif qu'il est plus spécifique.
 
@@ -60,7 +60,7 @@ Réponds UNIQUEMENT avec ce JSON :
 ```json
 {
   "direction": "<Top|Right|Bottom|Left>",
-  "clueWord": "<mot français, 1 à 18 caractères>",
+  "clueWord": "<mot français, 1 à 14 caractères>",
   "explanation": "<1 à 2 phrases : raisonnement liant ton mot aux DEUX mots de la direction, sans mentionner d'autre mot du board>"
 }
 ```

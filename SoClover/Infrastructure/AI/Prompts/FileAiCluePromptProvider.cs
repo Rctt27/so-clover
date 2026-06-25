@@ -46,7 +46,7 @@ public abstract class FileAiCluePromptProvider : IAiCluePromptProvider
         "type": "object",
         "properties": {
           "direction": { "type": "string", "enum": ["Top", "Right", "Bottom", "Left"] },
-          "clueWord": { "type": "string", "minLength": 1, "maxLength": 32 },
+          "clueWord": { "type": "string", "minLength": 1, "maxLength": 14 },
           "explanation": { "type": "string", "minLength": 1 }
         },
         "required": ["direction", "clueWord", "explanation"],
@@ -67,7 +67,7 @@ public abstract class FileAiCluePromptProvider : IAiCluePromptProvider
   "type": "object",
   "properties": {
     "direction": { "type": "string", "enum": ["Top", "Right", "Bottom", "Left"] },
-    "clueWord": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "clueWord": { "type": "string", "minLength": 1, "maxLength": 14 },
     "explanation": { "type": "string", "minLength": 1 }
   },
   "required": ["direction", "clueWord", "explanation"],

@@ -105,7 +105,7 @@ Your clue word must therefore both (a) evoke the 2 target words as strongly as p
 
 ## Absolute rules for the clue
 
-1. ONE SINGLE word, in English, between 1 and 18 characters.
+1. ONE SINGLE word, in English, between 1 and 14 characters.
 2. Must NOT be identical to, contain, or be contained in any word on the board above.
 3. Must NOT share an obvious root with a board word (e.g. "tabl" for "table", "cat" for "cats").
 4. The `explanation` field is a string of **1 to 2 sentences in English** in which you describe **the reasoning that led you to choose this clue word for this direction**. You must make explicit in it how your word evokes the **first** word of the direction AND how it evokes the **second** — not just one of the two. Name, where possible, the type of relation used (category, place, function, set phrase, etc.). No tautological paraphrase of the type "this word evokes X and Y".
@@ -130,7 +130,7 @@ Answer ONLY with this JSON:
 ```json
 {
   "direction": "<Top|Right|Bottom|Left>",
-  "clueWord": "<English word, 1 to 18 characters>",
+  "clueWord": "<English word, 1 to 14 characters>",
   "explanation": "<1 to 2 sentences: reasoning linking your word to BOTH words of the direction>"
 }
 ```

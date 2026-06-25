@@ -105,7 +105,7 @@ Ton mot-indice doit donc à la fois (a) évoquer le plus fortement possible les 
 
 ## Règles absolues pour l'indice
 
-1. UN SEUL mot, en français, entre 1 et 18 caractères.
+1. UN SEUL mot, en français, entre 1 et 14 caractères.
 2. Ne doit PAS être identique à, contenir, ou être contenu dans n'importe quel mot du board ci-dessus.
 3. Ne doit PAS partager une racine évidente avec un mot du board (ex. "tabl" pour "table", "chat" pour "chats").
 4. Le champ `explanation` est une chaîne de **1 à 2 phrases en français** dans laquelle tu décris **le raisonnement qui t'a amené à choisir ce mot-indice pour cette direction**. Tu dois y expliciter en quoi ton mot évoque le **premier** mot de la direction ET en quoi il évoque le **second** — pas seulement l'un des deux. Nomme, quand c'est possible, le type de relation utilisé (catégorie, lieu, fonction, expression figée, etc.). Pas de paraphrase tautologique du type « ce mot évoque X et Y ».
@@ -130,7 +130,7 @@ Réponds UNIQUEMENT avec ce JSON :
 ```json
 {
   "direction": "<Top|Right|Bottom|Left>",
-  "clueWord": "<mot français, 1 à 18 caractères>",
+  "clueWord": "<mot français, 1 à 14 caractères>",
   "explanation": "<1 à 2 phrases : raisonnement liant ton mot aux DEUX mots de la direction>"
 }
 ```
@@ -230,7 +230,7 @@ Ta réflexion utile se résume à ces vérifications, et à rien d'autre :
 - **Anti-leurres** — ton candidat n'évoque AUCUN mot du board absent du couple Cible (étape 0 + étape 6a du USER).
 - **Équidistance + règle du minimum** — lien d'intensité comparable sur les deux mots Cible ; un (fort, faible) est rejeté au profit d'un (moyen, moyen).
 - **Test du devineur** — ton mot seul suffit à retrouver les DEUX mots Cible, pas seulement un.
-- **Contrat formel** — 1 mot français de 1 à 18 caractères, qui ne contient pas et n'est pas contenu dans un mot du board, sans racine évidente partagée.
+- **Contrat formel** — 1 mot français de 1 à 14 caractères, qui ne contient pas et n'est pas contenu dans un mot du board, sans racine évidente partagée.
 
 ## Budget de réflexion
 

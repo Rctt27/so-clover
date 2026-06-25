@@ -38,7 +38,7 @@ The **2 target words** are exclusively those indicated in "To solve" above. The 
 - **Anti-decoys** — your candidate evokes no board word outside the 2 target words, nor as strongly as them. If it does, reject it.
 - **Equidistance + minimum rule** — evaluate separately the link strength toward each target word (strong / medium / weak). The clue's quality equals its weakest link: a (strong, weak) is overall weak. ALWAYS prefer a balanced (medium, medium) over a (strong, weak). A near-synonym of one of the two words is bad.
 - **Guesser test** — imagine you are given only your clue word: you must be able to recover BOTH target words, not just one.
-- **Formal contract** — ONE single English word, 1 to 18 characters, not identical to / contained in / containing a board word, sharing no obvious root.
+- **Formal contract** — ONE single English word, 1 to 14 characters, not identical to / contained in / containing a board word, sharing no obvious root.
 
 Note on prototypical exemplars: when a target word is abstract or encompassing ("animal", "tool", "vehicle"), a clue word that is an emblematic exemplar of it legitimately and strongly evokes it ("turtle" fully evokes "animal"). Do not reject it merely because it is more specific.
 
@@ -60,7 +60,7 @@ Answer ONLY with this JSON:
 ```json
 {
   "direction": "<Top|Right|Bottom|Left>",
-  "clueWord": "<English word, 1 to 18 characters>",
+  "clueWord": "<English word, 1 to 14 characters>",
   "explanation": "<1 to 2 sentences: reasoning linking your word to BOTH words of the direction, without mentioning any other board word>"
 }
 ```
