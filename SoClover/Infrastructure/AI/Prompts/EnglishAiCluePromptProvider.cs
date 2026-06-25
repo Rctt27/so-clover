@@ -8,7 +8,8 @@ public sealed class EnglishAiCluePromptProvider : FileAiCluePromptProvider
         RetryDirectionFormat: "Direction {0}:",
         RetryAttemptFormat: "  - \"{0}\" rejected ({1})",
         RejectionRuleWithDirectionFormat: "{0} with the word \"{1}\" (direction {2})",
-        RejectionRuleFormat: "{0} with the word \"{1}\"");
+        RejectionRuleFormat: "{0} with the word \"{1}\"",
+        TooLongFormat: "clue too long (max {0} characters)");
 
     public EnglishAiCluePromptProvider()
         : this(

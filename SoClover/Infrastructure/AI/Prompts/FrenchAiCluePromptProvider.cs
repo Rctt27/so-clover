@@ -8,7 +8,8 @@ public sealed class FrenchAiCluePromptProvider : FileAiCluePromptProvider
         RetryDirectionFormat: "Direction {0} :",
         RetryAttemptFormat: "  - \"{0}\" rejeté ({1})",
         RejectionRuleWithDirectionFormat: "{0} avec le mot \"{1}\" (direction {2})",
-        RejectionRuleFormat: "{0} avec le mot \"{1}\"");
+        RejectionRuleFormat: "{0} avec le mot \"{1}\"",
+        TooLongFormat: "indice trop long (max {0} caractères)");
 
     public FrenchAiCluePromptProvider()
         : this(

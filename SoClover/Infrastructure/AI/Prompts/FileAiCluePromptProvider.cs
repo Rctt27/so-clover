@@ -15,7 +15,8 @@ public sealed record AiCluePromptLabels(
     string RetryDirectionFormat,            // {0}=direction
     string RetryAttemptFormat,              // {0}=clueText {1}=rejectionReason
     string RejectionRuleWithDirectionFormat, // {0}=rule {1}=cardWord {2}=direction
-    string RejectionRuleFormat);            // {0}=rule {1}=cardWord
+    string RejectionRuleFormat,             // {0}=rule {1}=cardWord
+    string TooLongFormat);                  // {0}=maxLength
 
 /// <summary>
 /// Language-agnostic So Clover board-clues prompt provider. The only language-specific inputs are
@@ -175,9 +176,11 @@ public abstract class FileAiCluePromptProvider : IAiCluePromptProvider
     public string FormatRejectionReason(ClueValidationResult result)
     {
         return string.Join("; ", result.Errors.Select(e =>
-            e.ConflictingDirection is { } d
-                ? string.Format(_labels.RejectionRuleWithDirectionFormat, e.Rule, e.CardWord, d)
-                : string.Format(_labels.RejectionRuleFormat, e.Rule, e.CardWord)));
+            e.Rule == ClueValidationRule.TooLong
+                ? string.Format(_labels.TooLongFormat, e.MaxLength)
+                : e.ConflictingDirection is { } d
+                    ? string.Format(_labels.RejectionRuleWithDirectionFormat, e.Rule, e.CardWord, d)
+                    : string.Format(_labels.RejectionRuleFormat, e.Rule, e.CardWord)));
     }
 
     private static void ValidateContext(BoardCluesPromptContext ctx)
