@@ -20,6 +20,7 @@ export type JoinGameResult = JoinGameResponse | JoinGameConflictResponse;
 
 export interface PublicConfigResponse {
   aiPlayersEnabled: boolean;
+  clueMaxLength: number;
 }
 
 export const gameApi = {
