@@ -170,9 +170,13 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
         placeholder={t('cluePlaceholder')}
         aria-invalid={hasValidationError ? "true" : undefined}
         aria-describedby={hasValidationError && firstError ? errorMessageId : undefined}
-        className={`clue-word w-full px-3 py-2 text-center transition-colors duration-300 outline-none ${theme.clueFontClass}`}
+        className={`clue-word w-full px-1 py-2 text-center transition-colors duration-300 outline-none ${theme.clueFontClass}`}
         style={{
           color: theme.clueTextColor,
+          // Redesign : pas de remplissage — le champ se fond dans la pétale, seul le
+          // souligné d'état le matérialise. Sans ça, le background natif blanc de
+          // l'<input> réapparaît (boîte blanche).
+          backgroundColor: 'transparent',
           borderBottom: `${theme.clueUnderlineWidth} solid ${getUnderlineColor()}`,
           fontWeight: theme.clueFontWeight,
           fontSize: theme.clueFontSize,
