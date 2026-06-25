@@ -53,7 +53,10 @@
      jamais les en-têtes de phase EN PORTRAIT. En paysage le chip est haut-droite (hors
      titre centré) et la hauteur est précieuse pour le board → dégagement nul (le
      chevauchement chip↔pool en paysage est traité séparément côté Déduction). */
-  :root { --app-chip-clearance: 0px; }
+  :root {
+    --app-chip-clearance: 0px;
+    --clue-underline-color: #9aa5b1; /* Gris souligné au repos + placeholder clue */
+  }
   @media (orientation: portrait) {
     :root { --app-chip-clearance: calc(3.75rem + env(safe-area-inset-top, 0px)); }
   }

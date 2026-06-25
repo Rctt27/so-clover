@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { CONSTANTS } from '../../../core/constants'
 import { computeBoardGeometry, getCluePlacement } from '../../../core/boardGeometry'
 import { useClueValidation } from '../../../hooks/useClueValidation'
-import { useBoardStore } from '../../../core/store'
+import { useBoardStore, useAppConfigStore } from '../../../core/store'
 import { getClueErrorMessage } from '../../../core/clueValidationMessages'
 import { ClueValidationRejection } from '../../../types/game'
 import { debugLog } from '../../../core/debug'
@@ -40,6 +40,7 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
   const { validateImmediately } = useClueValidation(position, localValue, !disabled)
   const validity = useBoardStore((s) => s.clueValidity[position])
 
+  const clueMaxLength = useAppConfigStore((s) => s.clueMaxLength)
   const boardGeo = computeBoardGeometry(CONSTANTS.ASSET_REFERENCES.board)
   const theme = CONSTANTS.THEME_CONFIG
 
@@ -113,12 +114,13 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
 
   const hasValidationError = !validity.isValid && localValue.trim().length > 0
 
-  const getBorderColor = () => {
+  const getUnderlineColor = () => {
     if (status === 'saving') return theme.clueBorderColorSaving
     if (status === 'error' || hasValidationError) return theme.clueBorderColorError
     const isDirty = localValue.trim() !== value.trim()
     if (isDirty && status === 'idle') return theme.clueBorderColorSaving
-    return theme.clueBorderColor
+    if (status === 'success') return theme.clueBorderColor
+    return theme.clueUnderlineColor
   }
 
   const shakeAnimation = { x: [0, -10, 10, -10, 10, 0], transition: { duration: 0.4 } }
@@ -158,20 +160,19 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
         onKeyDown={handleKeyDown}
         onFocus={handleFocus}
         disabled={disabled || status === 'saving'}
-        maxLength={20}
+        maxLength={clueMaxLength ?? undefined}
         autoCapitalize="off"
         autoCorrect="off"
         spellCheck={false}
         inputMode="text"
         enterKeyHint="done"
-        placeholder={t('cluePlaceholder', { direction: position.charAt(0).toUpperCase() + position.slice(1) })}
+        placeholder={t('cluePlaceholder')}
         aria-invalid={hasValidationError ? "true" : undefined}
         aria-describedby={hasValidationError && firstError ? errorMessageId : undefined}
-        className={`clue-word w-full px-3 py-2 rounded-lg text-center shadow-lg transition-colors duration-300 outline-none border-2 ${theme.clueFontClass}`}
+        className={`clue-word w-full px-3 py-2 text-center transition-colors duration-300 outline-none ${theme.clueFontClass}`}
         style={{
-          backgroundColor: theme.clueBgColor,
           color: theme.clueTextColor,
-          borderColor: getBorderColor(),
+          borderBottom: `${theme.clueUnderlineWidth} solid ${getUnderlineColor()}`,
           fontWeight: theme.clueFontWeight,
           fontSize: theme.clueFontSize,
           cursor: explanationIsAvailable && !isCoarse ? 'help' : undefined,
