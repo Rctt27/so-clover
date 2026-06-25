@@ -700,7 +700,8 @@ app.MapPost("/api/games/{gameId}/clues", async (string gameId, SetClueRequest? r
                 {
                     rule = e.Rule.ToString(),
                     cardWord = e.CardWord,
-                    conflictingDirection = e.ConflictingDirection?.ToString()
+                    conflictingDirection = e.ConflictingDirection?.ToString(),
+                    maxLength = e.MaxLength
                 }).ToArray()
             });
         }
@@ -1217,7 +1218,7 @@ app.MapGet("/api/dictionaries", (IWebHostEnvironment env) =>
 });
 
 app.MapGet("/api/config", (Microsoft.Extensions.Options.IOptions<AIPlayersOptions> aiOpts) =>
-    Results.Ok(new { aiPlayersEnabled = aiOpts.Value.Enabled }))
+    Results.Ok(new { aiPlayersEnabled = aiOpts.Value.Enabled, clueMaxLength = Game.MaxClueLength }))
     .WithName("GetPublicConfig");
 
 app.MapGet("/health", () => Results.Ok());
