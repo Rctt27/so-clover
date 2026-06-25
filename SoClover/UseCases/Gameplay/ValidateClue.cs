@@ -30,7 +30,7 @@ public static class ValidateClue
                          ?? throw new PlayerNotFoundException(request.PlayerId);
             var validator = _validatorFactory.GetFor(game.Language, game.SemanticClueCheckEnabled);
 
-            // Guard: ClueText.Create will throw on empty/long — we handle empty as "valid" to avoid 400 on blank input
+            // Empty/blank input is treated as "valid" (no clue yet) to avoid a 400 on a cleared field.
             if (string.IsNullOrWhiteSpace(request.ClueText))
                 return new Response(ClueValidationResult.Valid());
 

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using SoClover.Domain;
+using SoClover.Domain.Validation;
 using SoClover.Infrastructure;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Errors;
@@ -129,7 +130,7 @@ public class BreakingGameTests
     }
 
     [Fact]
-    public async Task SetClue_with_text_too_long_throws_InvalidClueException()
+    public async Task SetClue_with_text_too_long_returns_TooLong_rejection()
     {
         var sp = BuildProvider();
         var create = sp.GetRequiredService<ICreateGameUseCase>();
@@ -140,9 +141,30 @@ public class BreakingGameTests
         var adminId = createResponse.CreatorPlayerId;
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
 
-        var longText = new string('a', 33);
-        await Assert.ThrowsAsync<InvalidClueException>(async () =>
-            await setClue.Handle(new SetClue.Request(gameId, adminId, Direction.Top, longText)));
+        var longText = new string('a', Game.MaxClueLength + 1);
+        var resp = await setClue.Handle(new SetClue.Request(gameId, adminId, Direction.Top, longText));
+
+        Assert.False(resp.Validation.IsValid);
+        Assert.Contains(resp.Validation.Errors, e => e.Rule == ClueValidationRule.TooLong);
+        Assert.Contains(resp.Validation.Errors, e => e.MaxLength == Game.MaxClueLength);
+    }
+
+    [Fact]
+    public async Task SetClue_at_max_length_is_accepted()
+    {
+        var sp = BuildProvider();
+        var create = sp.GetRequiredService<ICreateGameUseCase>();
+        var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
+        var setClue = sp.GetRequiredService<ISetClueUseCase>();
+        var createResponse = await create.Handle(new CreateGame.Request("Admin"));
+        var gameId = createResponse.GameId;
+        var adminId = createResponse.CreatorPlayerId;
+        await startWriting.Handle(new StartWritingPhase.Request(gameId));
+
+        var maxText = new string('z', Game.MaxClueLength);
+        var resp = await setClue.Handle(new SetClue.Request(gameId, adminId, Direction.Top, maxText));
+
+        Assert.True(resp.Validation.IsValid);
     }
 
     [Fact]

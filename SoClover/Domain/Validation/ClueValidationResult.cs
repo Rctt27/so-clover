@@ -3,13 +3,15 @@
 public enum ClueValidationRule
 {
     ExactMatch,
-    SimilarStem
+    SimilarStem,
+    TooLong
 }
 
 public sealed record ClueValidationError(
     ClueValidationRule Rule,
     string CardWord,
-    Direction? ConflictingDirection);
+    Direction? ConflictingDirection,
+    int? MaxLength = null);
 
 public sealed record ClueValidationResult(
     bool IsValid,

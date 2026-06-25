@@ -43,6 +43,9 @@ public sealed class Game
     [JsonPropertyName("guessAiBoardOnly")]
     public bool GuessAiBoardOnly { get; private set; }
 
+    /// <summary>Longueur maximale d'un mot-indice. SOURCE DE VÉRITÉ UNIQUE — exposée au front via /api/config.</summary>
+    public const int MaxClueLength = 14;
+
     private const int CURSOR_COLORS_COUNT = 10;
     private readonly Dictionary<PlayerId, Player> _players = new();
     private WordsPool? _wordsPool;
@@ -433,6 +436,15 @@ public sealed class Game
         BumpRevision();
 
         var player = RequirePlayer(playerId);
+
+        var trimmed = (clueText ?? string.Empty).Trim();
+        if (trimmed.Length > MaxClueLength)
+        {
+            player.Board.ClearClue(direction);
+            return ClueValidationResult.Invalid(
+                new ClueValidationError(ClueValidationRule.TooLong, string.Empty, null, MaxClueLength));
+        }
+
         var parsed = ClueText.Create(clueText);
         var result = validator.Validate(parsed.Value, direction, player.Board);
 

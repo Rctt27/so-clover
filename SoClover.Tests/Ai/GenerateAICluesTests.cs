@@ -502,10 +502,9 @@ public class GenerateAICluesTests
     }
 
     /// <summary>
-    /// Pick any board card word that is >= 3 chars and <= 32 chars so that
+    /// Pick any board card word that is >= 3 chars and <= Game.MaxClueLength so that
     /// (a) FrenchOffClueValidator actually evaluates it (skips < 3 chars), and
-    /// (b) ClueText.Create accepts it as a clue (rejects > 32 chars).
-    /// Submitting it as a clue triggers an ExactMatch rejection.
+    /// (b) submitting it as a clue passes the length guard and triggers an ExactMatch rejection.
     /// </summary>
     private static string PickConflictWord(CloverBoard board)
     {
@@ -515,9 +514,9 @@ public class GenerateAICluesTests
             if (oc is null) continue;
             foreach (var w in new[] { oc.Card.TopWord, oc.Card.RightWord, oc.Card.BottomWord, oc.Card.LeftWord })
             {
-                if (w.Length >= 3 && w.Length <= 32) return w;
+                if (w.Length >= 3 && w.Length <= Game.MaxClueLength) return w;
             }
         }
-        throw new InvalidOperationException("No board word in [3..32] range — dictionary anomaly?");
+        throw new InvalidOperationException($"No board word in [3..{Game.MaxClueLength}] range — dictionary anomaly?");
     }
 }

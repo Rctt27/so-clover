@@ -36,8 +36,6 @@ public readonly record struct ClueText
         var value = (input ?? string.Empty).Trim();
         if (value.Length == 0)
             throw new InvalidClueException("Clue cannot be empty.");
-        if (value.Length > 32)
-            throw new InvalidClueException("Clue cannot exceed 32 characters.");
         return new ClueText(value);
     }
 
