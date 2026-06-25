@@ -55,7 +55,7 @@
      chevauchement chip↔pool en paysage est traité séparément côté Déduction). */
   :root {
     --app-chip-clearance: 0px;
-    --clue-underline-color: #9aa5b1; /* Gris souligné au repos + placeholder clue */
+    --clue-underline-color: #4f5b66; /* Gris souligné au repos + placeholder clue (assombri pour visibilité sur la pétale verte) */
   }
   @media (orientation: portrait) {
     :root { --app-chip-clearance: calc(3.75rem + env(safe-area-inset-top, 0px)); }
@@ -146,7 +146,7 @@
 
 .clue-word::placeholder {
   color: var(--clue-underline-color);
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 @layer components {
