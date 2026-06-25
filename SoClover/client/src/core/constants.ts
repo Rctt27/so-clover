@@ -39,10 +39,10 @@
     cardTextShadow: '0 0 1px rgba(0,0,0,0.05)',
     clueFontClass: 'mogra-regular',
     clueFontWeight: '600',
-    clueFontSize: 'clamp(11px, 7cqi, 22px)', // 7cqi fait tenir ~15 car. Mogra (large) dans le champ élargi (420px réf.) tout en restant lisible
+    clueFontSize: 'clamp(11px, 7.5cqi, 22px)', // 7.5cqi : ~14 car. Mogra dans le champ (400px réf.), texte légèrement agrandi
     clueTextColor: '#2c3e50',
-    clueUnderlineColor: 'var(--clue-underline-color)', // Gris du placeholder + souligné au repos (défini dans index.css :root)
-    clueUnderlineWidth: '2px',
+    clueUnderlineColor: '#34404d', // Souligné au repos : gris foncé crisp (découplé du placeholder gris --clue-placeholder-color)
+    clueUnderlineWidth: '1px',
     clueUnderlineColorSuccess: '#4CAF50', // Vert Trèfle (souligné « validé », transitoire)
     clueUnderlineColorSaving: '#2196F3', // Bleu (souligné « sauvegarde / non-sauvé »)
     clueUnderlineColorError: '#F44336', // Rouge (souligné « erreur »)

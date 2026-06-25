@@ -26,7 +26,7 @@ export type CluePlacement = CluePosition & { widthPct: number }
 
 const PETAL_PENETRATION_DEPTH = 253
 const PETAL_CENTER_RATIO = 0.45
-const CLUE_INPUT_WIDTH_PX = 420
+const CLUE_INPUT_WIDTH_PX = 400
 
 export function computeBoardGeometry({ referenceSize, cardSize }: BoardGeometryInput): BoardGeometry {
   const center = referenceSize / 2

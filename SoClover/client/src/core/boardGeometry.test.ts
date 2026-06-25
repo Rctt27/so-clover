@@ -40,8 +40,8 @@ describe('computeBoardGeometry', () => {
   })
 
   it('provides clue input width as percentage', () => {
-    // 420px input width / 1300 reference = 32.31% (élargi pour faire tenir 14 car.)
-    expect(geo.clueInputWidthPct).toBeCloseTo((420 / 1300) * 100, 1)
+    // 400px input width / 1300 reference = 30.77% (champ d'indice ~14 car.)
+    expect(geo.clueInputWidthPct).toBeCloseTo((400 / 1300) * 100, 1)
   })
 })
 
