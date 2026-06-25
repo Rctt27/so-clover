@@ -54,7 +54,6 @@ Home
 Stage
 Hearing
 Ladle
-Laundry Detergent
 Castle
 Candy
 Plastic
@@ -158,7 +157,6 @@ Antique
 Bulletin
 String
 Blood
-Magnifying Glass
 Sword
 Grease
 Wish
@@ -179,7 +177,6 @@ Instrument
 Limit
 Pirate
 Ghost
-Hot-Water Bottle
 Soldier
 Big
 Deal
