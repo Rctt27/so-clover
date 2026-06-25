@@ -116,11 +116,11 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
   const hasValidationError = !validity.isValid && localValue.trim().length > 0
 
   const getUnderlineColor = () => {
-    if (status === 'saving') return theme.clueBorderColorSaving
-    if (status === 'error' || hasValidationError) return theme.clueBorderColorError
+    if (status === 'saving') return theme.clueUnderlineColorSaving
+    if (status === 'error' || hasValidationError) return theme.clueUnderlineColorError
     const isDirty = localValue.trim() !== value.trim()
-    if (isDirty && status === 'idle') return theme.clueBorderColorSaving
-    if (status === 'success') return theme.clueBorderColor
+    if (isDirty && status === 'idle') return theme.clueUnderlineColorSaving
+    if (status === 'success') return theme.clueUnderlineColorSuccess
     return theme.clueUnderlineColor
   }
 

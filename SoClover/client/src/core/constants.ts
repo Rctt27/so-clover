@@ -43,9 +43,9 @@
     clueTextColor: '#2c3e50',
     clueUnderlineColor: 'var(--clue-underline-color)', // Gris du placeholder + souligné au repos (défini dans index.css :root)
     clueUnderlineWidth: '2px',
-    clueBorderColor: '#4CAF50', // Vert Trèfle (souligné « validé », transitoire)
-    clueBorderColorSaving: '#2196F3', // Bleu (souligné « sauvegarde / non-sauvé »)
-    clueBorderColorError: '#F44336', // Rouge (souligné « erreur »)
+    clueUnderlineColorSuccess: '#4CAF50', // Vert Trèfle (souligné « validé », transitoire)
+    clueUnderlineColorSaving: '#2196F3', // Bleu (souligné « sauvegarde / non-sauvé »)
+    clueUnderlineColorError: '#F44336', // Rouge (souligné « erreur »)
     animations: {
       board: {
         initial: { opacity: 0, scale: 0.9 },
