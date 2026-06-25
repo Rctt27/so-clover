@@ -144,6 +144,11 @@
   font-family: "Mogra", system-ui;
 }
 
+.clue-word::placeholder {
+  color: var(--clue-underline-color);
+  opacity: 0.85;
+}
+
 @layer components {
   .card-word {
     @apply text-zinc-800 uppercase tracking-wide leading-none whitespace-nowrap;
@@ -170,7 +175,6 @@
      inchangées → aucun risque d'overflow. Valeurs à affiner sur device réel. */
   @media (display-mode: standalone) and (orientation: landscape) and (pointer: coarse) {
     .card-word { font-size: clamp(12px, 14cqw, 19px) !important; }
-    .clue-word { font-size: clamp(13px, 3.4vh, 20px) !important; }
   }
 
   /* Zone de rotation de coin d'une carte. Taille = var injectée par DraggableCard

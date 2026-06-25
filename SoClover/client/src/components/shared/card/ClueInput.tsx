@@ -109,6 +109,7 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
       width: `${widthPct * widthFactor}%`,
       transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
       zIndex: 100,
+      containerType: 'inline-size' as const,
     }
   }
 

@@ -39,7 +39,7 @@
     cardTextShadow: '0 0 1px rgba(0,0,0,0.05)',
     clueFontClass: 'mogra-regular',
     clueFontWeight: '600',
-    clueFontSize: '0.95rem',
+    clueFontSize: 'clamp(11px, 10cqi, 22px)', // 10cqi ≈ un mot de 14 car. Mogra remplit ~88 % de la largeur de l'input ; à calibrer (Step 5)
     clueTextColor: '#2c3e50',
     clueUnderlineColor: 'var(--clue-underline-color)', // Gris du placeholder + souligné au repos (défini dans index.css :root)
     clueUnderlineWidth: '2px',
