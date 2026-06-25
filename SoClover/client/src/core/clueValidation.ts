@@ -1,9 +1,10 @@
-﻿export type ClueValidationRule = 'ExactMatch' | 'SimilarStem'
+﻿export type ClueValidationRule = 'ExactMatch' | 'SimilarStem' | 'TooLong'
 
 export interface ClueValidationError {
     rule: ClueValidationRule
     cardWord: string
     conflictingDirection?: 'Top' | 'Right' | 'Bottom' | 'Left' | null
+    maxLength?: number
 }
 
 export interface ClueValidationResult {

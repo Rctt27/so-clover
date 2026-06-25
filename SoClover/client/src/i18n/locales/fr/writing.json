@@ -6,7 +6,7 @@
   "waitingOthers": "En attente des autres joueurs...",
   "landscapeHint": "La saisie des indices se fait en mode paysage pour afficher le plateau et les champs lisiblement.",
   "semanticInvalid": "Certains indices ne respectent pas les règles sémantiques — corrigez-les avant de soumettre.",
-  "cluePlaceholder": "Indice {{direction}}",
+  "cluePlaceholder": "Écrire indice ici",
   "clueExplanationAria": "Voir l'explication de l'indice",
   "submit": {
     "submitting": "Soumission...", "submitting_compact": "Soumission…",
@@ -18,7 +18,8 @@
   },
   "clueError": {
     "exactMatch": "Votre indice reprend le mot « {{word}} » de votre plateau",
-    "similarStem": "Votre indice est trop proche du mot « {{word}} » de votre plateau"
+    "similarStem": "Votre indice est trop proche du mot « {{word}} » de votre plateau",
+    "tooLong": "Indice trop long (max {{max}} caractères)"
   },
   "progress": {
     "aiSubmitted": "plateaux IA soumis",

@@ -6,7 +6,7 @@
   "waitingOthers": "A aguardar pelos outros jogadores…",
   "landscapeHint": "A escrita das pistas faz-se em modo paisagem para mostrar o tabuleiro e os campos de forma legível.",
   "semanticInvalid": "Algumas pistas não respeitam as regras semânticas — corrige-as antes de submeter.",
-  "cluePlaceholder": "Pista {{direction}}",
+  "cluePlaceholder": "Escrever pista aqui",
   "clueExplanationAria": "Ver a explicação da pista",
   "submit": {
     "submitting": "A submeter…", "submitting_compact": "A submeter…",
@@ -18,7 +18,8 @@
   },
   "clueError": {
     "exactMatch": "A tua pista repete a palavra «{{word}}» do teu tabuleiro",
-    "similarStem": "A tua pista está demasiado próxima da palavra «{{word}}» do teu tabuleiro"
+    "similarStem": "A tua pista está demasiado próxima da palavra «{{word}}» do teu tabuleiro",
+    "tooLong": "Pista demasiado longa (máx {{max}} caracteres)"
   },
   "progress": {
     "aiSubmitted": "tabuleiros IA submetidos",

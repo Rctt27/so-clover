@@ -6,7 +6,7 @@
   "waitingOthers": "Waiting for the other players…",
   "landscapeHint": "Clue writing is done in landscape mode so the board and fields stay readable.",
   "semanticInvalid": "Some clues break the semantic rules — fix them before submitting.",
-  "cluePlaceholder": "{{direction}} clue",
+  "cluePlaceholder": "Write clue here",
   "clueExplanationAria": "See the clue explanation",
   "submit": {
     "submitting": "Submitting…", "submitting_compact": "Submitting…",
@@ -18,7 +18,8 @@
   },
   "clueError": {
     "exactMatch": "Your clue reuses the word “{{word}}” from your board",
-    "similarStem": "Your clue is too close to the word “{{word}}” on your board"
+    "similarStem": "Your clue is too close to the word “{{word}}” on your board",
+    "tooLong": "Clue too long (max {{max}} characters)"
   },
   "progress": {
     "aiSubmitted": "AI boards submitted",
