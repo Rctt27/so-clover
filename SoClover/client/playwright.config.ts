@@ -19,13 +19,20 @@ export default defineConfig({
   projects: [
     {
       name: 'mobile-portrait',
-      // browserName chromium : on n'installe que Chromium (test:e2e:install). L'émulation
-      // iPhone 13 (viewport 390×844 + hasTouch + isMobile → pointer:coarse) reste valide.
+      testIgnore: /desktop-.*\.spec\.ts/,
       use: { ...devices['iPhone 13'], browserName: 'chromium' }, // 390×844, hasTouch, isMobile
     },
     {
       name: 'mobile-landscape',
+      testIgnore: /desktop-.*\.spec\.ts/,
       use: { ...devices['iPhone 13 landscape'], browserName: 'chromium' }, // 844×390
+    },
+    {
+      // Laptop / souris : pointer:fine, maxTouchPoints:0, paysage 1280×720.
+      // Exerce la disposition UNIFIÉE (ex-mobile) désormais appliquée sur desktop.
+      name: 'desktop',
+      testMatch: /desktop-.*\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] }, // 1280×720, pointer:fine
     },
   ],
 })
