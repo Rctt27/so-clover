@@ -56,7 +56,7 @@ export const WritingControls = () => {
   const mobileSubmitLabel = getWritingSubmitLabel(submitState, true, t)
 
   return (
-    <div className="writing-controls flex flex-col items-center gap-6 w-full max-w-md mx-auto mt-8">
+    <div className="writing-controls flex flex-col items-center gap-6 w-full max-w-md mx-auto">
       {/* HUD : rotation projetée dans le HUD haut, à gauche du chip timer.
           Seule instance — keyboard activé (ignore les keyevents quand un input/textarea est focused). */}
       <SlotPortal slotId={MOBILE_BOARD_CONTROLS_SLOT_ID}>

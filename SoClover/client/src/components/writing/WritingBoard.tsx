@@ -39,7 +39,7 @@ export const WritingBoard = () => {
   }
 
   return (
-    <div className="writing-compact-landscape flex flex-col items-center h-[calc(100svh-2rem)] gap-4 py-4 w-full max-w-[1200px] mx-auto">
+    <div className="writing-compact-landscape flex flex-col items-center h-[calc(100svh-2rem)] gap-1 w-full max-w-[1200px] mx-auto">
       {/* Incitation au paysage sur mobile portrait : en portrait étroit les indices
           dé-pivotés ne tiennent pas. La saisie se fait en paysage (cf. Axe 6 / Task 3).
           Auto-masqué hors portrait tactile via `.hide-unless-portrait-touch`. */}
