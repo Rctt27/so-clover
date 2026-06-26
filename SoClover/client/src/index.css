@@ -100,11 +100,6 @@
      masque les en-têtes de phase et les contrôles in-flow (rotation/soumission) au profit
      du HUD fixe haut-droite. Une seule règle display active à la fois → pas de conflit de
      spécificité avec les classes Tailwind. */
-  /* Disposition unifiée : en-têtes de phase et contrôles in-flow desktop retirés,
-     contrôles HUD affichés — sur TOUT appareil (plus seulement tactile). Ces classes
-     seront supprimées quand le JSX qui les porte aura disparu (cf. cleanup). */
-  .hide-on-coarse { display: none !important; }
-  .coarse-only { display: block; }
 
   /* CTA principal de phase sur tactile (« Soumettre » en Écriture, « Valider / Plateau
      suivant » en Déduction) : le board height-bound occupe toute la hauteur et pousse/
