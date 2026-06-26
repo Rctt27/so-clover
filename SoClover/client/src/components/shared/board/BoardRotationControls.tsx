@@ -39,7 +39,7 @@ export const BoardRotationControls = ({
   }, [onRotate, disabled, enableKeyboard])
 
   return (
-    <div className="rotation-controls flex items-center gap-4 [@media(pointer:coarse)]:gap-2">
+    <div className="rotation-controls flex items-center gap-2">
       <button
         onClick={() => onRotate('left')}
         disabled={disabled}

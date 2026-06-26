@@ -96,15 +96,14 @@
     .guessing-pool { gap: 0.5rem; padding-left: 0.5rem; padding-right: 0.5rem; padding-bottom: 0.5rem; }
   }
 
-  /* CTA principal de phase ancré en position fixe (haut-droite) sur TOUT appareil. */
+  /* CTA principal de phase (« Soumettre » / « Valider ») : projeté dans le slot bas du
+     cluster HUD (cf. App.tsx). Le positionnement (haut-droite, 16px sous la ligne
+     rotation/chip) est géré par le flex du cluster — il ne reste ici que la disposition
+     interne du CTA (bouton + compteur). */
   .mobile-fixed-cta {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    position: fixed;
-    top: calc(max(1rem, env(safe-area-inset-top, 0px)) + 3rem);
-    right: max(1rem, env(safe-area-inset-right, 0px));
-    z-index: 50;
   }
 
   /* Dimensions MOBILE-FIRST du HUD (coarse). On ne réplique pas les dimensions desktop :

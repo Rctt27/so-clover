@@ -18,7 +18,7 @@ import { Timer } from './components/shared/Timer'
 import { ConnectionOverlay } from './components/shared/ConnectionOverlay'
 import { SoundToggleButton } from './components/shared/SoundToggleButton'
 import { AddToHomeScreenHint } from './components/shared/AddToHomeScreenHint'
-import { MOBILE_BOARD_CONTROLS_SLOT_ID } from './components/shared/MobileBoardControlsPortal'
+import { MOBILE_BOARD_CONTROLS_SLOT_ID, PHASE_CTA_SLOT_ID } from './components/shared/SlotPortal'
 
 const WritingBoard = lazy(() => import('./components/writing/WritingBoard').then(m => ({ default: m.WritingBoard })))
 const WaitingForAiBoards = lazy(() => import('./components/writing/WaitingForAiBoards').then(m => ({ default: m.WaitingForAiBoards })))
@@ -111,32 +111,43 @@ function App() {
       {/* Hint d'installation iOS (plein écran) — uniquement sur l'accueil, jamais en jeu */}
       {phase === 'Initial' && <AddToHomeScreenHint />}
 
-      {/* Cluster HUD fixe haut-droite : à GAUCHE le slot de contrôles de plateau (rotation,
-          projetée par les phases sur mobile via MobileBoardControlsPortal), à DROITE le chip
-          de connexion (son / wifi / timer). Sur desktop le slot reste vide. */}
-      <div className="fixed inset-safe-top inset-safe-right flex items-center gap-2 z-50">
-        <div id={MOBILE_BOARD_CONTROLS_SLOT_ID} className="flex items-center" />
+      {/* Cluster HUD fixe haut-droite, en COLONNE (écarts contrôlés par le flex, sans
+          hauteur codée en dur) :
+          • Ligne 1 (`flex items-center gap-2`) : à GAUCHE le slot des contrôles de plateau
+            (rotation, projetée par les phases via SlotPortal), à DROITE le chip de connexion
+            (son / wifi / timer). Écart intra-ligne = 8px (gap-2).
+          • Ligne 2 : le slot du CTA de phase (« Soumettre » / « Valider »), projeté par les
+            phases. `empty:hidden` le retire du flux hors Écriture/Déduction — sinon le gap-4
+            du cluster réserverait un espace mort sous le chip. Écart ligne→CTA = 16px (gap-4).
+          Le cluster étant `position: fixed` (sibling de <main>, hors transforms Framer), le
+          CTA n'a plus besoin de position:fixed propre. */}
+      <div className="fixed inset-safe-top inset-safe-right flex flex-col items-end gap-4 z-50">
+        <div className="flex items-center gap-2">
+          <div id={MOBILE_BOARD_CONTROLS_SLOT_ID} className="flex items-center" />
 
-        <div data-testid="connection-chip" className="flex items-center gap-2 [@media(pointer:coarse)]:gap-1 bg-white px-3 py-1.5 [@media(pointer:coarse)]:px-2 [@media(pointer:coarse)]:py-1 rounded-full shadow-md">
-          {/* Bouton son — rond, à gauche de l'icône wifi avec un espace vide entre les deux.
-              Sur mobile (coarse) l'espace est resserré : le chip est informatif et l'utilisateur
-              est proche de l'écran → pas besoin des marges aérées du desktop. */}
-          <div className="mr-3 [@media(pointer:coarse)]:mr-1">
-            <SoundToggleButton />
+          <div data-testid="connection-chip" className="flex items-center gap-2 [@media(pointer:coarse)]:gap-1 bg-white px-3 py-1.5 [@media(pointer:coarse)]:px-2 [@media(pointer:coarse)]:py-1 rounded-full shadow-md">
+            {/* Bouton son — rond, à gauche de l'icône wifi avec un espace vide entre les deux.
+                Sur mobile (coarse) l'espace est resserré : le chip est informatif et l'utilisateur
+                est proche de l'écran → pas besoin des marges aérées du desktop. */}
+            <div className="mr-3 [@media(pointer:coarse)]:mr-1">
+              <SoundToggleButton />
+            </div>
+
+            {connectionStatus === 'Connected' ? (
+              <Wifi size={18} className="text-green-500" />
+            ) : (
+              <WifiOff size={18} className="text-red-500" />
+            )}
+
+            {connectionStatus === 'Connected' && hasDeadline ? (
+              <Timer />
+            ) : (
+              <span className="text-sm font-medium text-gray-700">{connectionLabels[connectionStatus]}</span>
+            )}
           </div>
-
-          {connectionStatus === 'Connected' ? (
-            <Wifi size={18} className="text-green-500" />
-          ) : (
-            <WifiOff size={18} className="text-red-500" />
-          )}
-
-          {connectionStatus === 'Connected' && hasDeadline ? (
-            <Timer />
-          ) : (
-            <span className="text-sm font-medium text-gray-700">{connectionLabels[connectionStatus]}</span>
-          )}
         </div>
+
+        <div id={PHASE_CTA_SLOT_ID} className="empty:hidden" />
       </div>
 
       {/* Global Loader - Only during initial lobby load */}

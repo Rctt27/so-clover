@@ -1,10 +1,9 @@
 import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BodyPortal } from '../shared/BodyPortal'
 import { useBoardStore } from '../../core/store'
 import { useGameActions } from '../../hooks/useGameActions'
 import { BoardRotationControls } from '../shared/board/BoardRotationControls'
-import { MobileBoardControlsPortal } from '../shared/MobileBoardControlsPortal'
+import { SlotPortal, MOBILE_BOARD_CONTROLS_SLOT_ID, PHASE_CTA_SLOT_ID } from '../shared/SlotPortal'
 import { playSound } from '../../core/sounds'
 import { getWritingSubmitLabel } from '../../core/phaseCtaLabels'
 
@@ -60,7 +59,7 @@ export const WritingControls = () => {
     <div className="writing-controls flex flex-col items-center gap-6 w-full max-w-md mx-auto mt-8">
       {/* HUD : rotation projetée dans le HUD haut, à gauche du chip timer.
           Seule instance — keyboard activé (ignore les keyevents quand un input/textarea est focused). */}
-      <MobileBoardControlsPortal>
+      <SlotPortal slotId={MOBILE_BOARD_CONTROLS_SLOT_ID}>
         <div>
           <BoardRotationControls
             rotation={myBoard.rotation || 0}
@@ -69,13 +68,11 @@ export const WritingControls = () => {
             showLabel={false}
           />
         </div>
-      </MobileBoardControlsPortal>
+      </SlotPortal>
 
-      {/* CTA mobile (tactile) : « Soumettre » ancré en position fixe sous le chip de
-          connexion. Porté vers <body> pour échapper aux transforms d'ancêtres (wrapper
-          de phase animé Framer) qui briseraient un position:fixed. Visibilité/position
-          gérées en CSS (`.writing-submit-mobile`, pointer:coarse uniquement). */}
-      <BodyPortal>
+      {/* CTA « Soumettre » : projeté dans le slot bas du cluster HUD (cf. App.tsx), 16px
+          sous la ligne rotation/chip. Le cluster est fixe → positionnement géré par son flex. */}
+      <SlotPortal slotId={PHASE_CTA_SLOT_ID}>
         <button
           type="button"
           onClick={handleSubmit}
@@ -90,7 +87,7 @@ export const WritingControls = () => {
         >
           {mobileSubmitLabel}
         </button>
-      </BodyPortal>
+      </SlotPortal>
 
       {allCluesFilled && !allCluesValid && !isActuallySubmitted && (
         <p className="text-xs text-red-500">

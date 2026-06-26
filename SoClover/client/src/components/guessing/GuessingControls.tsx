@@ -1,9 +1,8 @@
 import React, { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BodyPortal } from '../shared/BodyPortal'
 import confetti from 'canvas-confetti'
 import { BoardRotationControls } from '../shared/board/BoardRotationControls'
-import { MobileBoardControlsPortal } from '../shared/MobileBoardControlsPortal'
+import { SlotPortal, MOBILE_BOARD_CONTROLS_SLOT_ID, PHASE_CTA_SLOT_ID } from '../shared/SlotPortal'
 import { playSound } from '../../core/sounds'
 import { CONSTANTS } from '../../core/constants'
 import { getGuessingValidateLabel } from '../../core/phaseCtaLabels'
@@ -102,7 +101,7 @@ export const GuessingControls = React.memo(({
           <>
             {/* Rotation dans le HUD haut (slot #mobile-board-controls-slot, toujours monté).
                 enableKeyboard défaut true → raccourcis fléchés sur desktop ; sans effet tactile. */}
-            <MobileBoardControlsPortal>
+            <SlotPortal slotId={MOBILE_BOARD_CONTROLS_SLOT_ID}>
               <div>
                 <BoardRotationControls
                   rotation={rotation}
@@ -111,9 +110,9 @@ export const GuessingControls = React.memo(({
                   showLabel={false}
                 />
               </div>
-            </MobileBoardControlsPortal>
+            </SlotPortal>
 
-            <BodyPortal>
+            <SlotPortal slotId={PHASE_CTA_SLOT_ID}>
               <div className="mobile-fixed-cta">
                 {mobileValidateButton}
                 {/* Compteur compact « restantes/total » à droite du bouton (caché une fois
@@ -124,7 +123,7 @@ export const GuessingControls = React.memo(({
                   </span>
                 )}
               </div>
-            </BodyPortal>
+            </SlotPortal>
           </>
         )}
       </div>
