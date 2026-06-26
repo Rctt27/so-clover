@@ -24,7 +24,6 @@ export const GuessingPage = () => {
   const { t } = useTranslation('guessing')
   const { playerId } = useGameStore()
   const {
-    currentBoardOwnerName,
     currentBoardOwnerId,
     outsideCards,
     guessedPositions,
@@ -37,7 +36,6 @@ export const GuessingPage = () => {
     solution,
   } = useGuessingStore(
     (s) => ({
-      currentBoardOwnerName: s.currentBoardOwnerName,
       currentBoardOwnerId: s.currentBoardOwnerId,
       outsideCards: s.outsideCards,
       guessedPositions: s.guessedPositions,
@@ -206,12 +204,11 @@ export const GuessingPage = () => {
     fetchGameState()
   }, [fetchGameState])
 
-  // Parité pool ↔ board (mobile) : mesure le côté rendu du plateau → taille d'une carte
+  // Parité pool ↔ board : mesure le côté rendu du plateau → taille d'une carte
   // (cardSize/referenceSize) → dimensionne les slots du pool à l'identique des cartes
   // posées. ResizeObserver pour suivre rotation d'écran / resize. Re-déclenché quand le
-  // board (re)monte après le chargement. Desktop : non mesuré (les pools gardent leur clamp).
+  // board (re)monte après le chargement. Actif sur tous les appareils (laptop inclus).
   useEffect(() => {
-    if (!isCoarse) return
     const el = boardRef.current
     if (!el) return
     const { cardSize, referenceSize } = CONSTANTS.ASSET_REFERENCES.board
@@ -223,7 +220,7 @@ export const GuessingPage = () => {
     const ro = new ResizeObserver(update)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [isCoarse, loading, currentBoardOwnerId])
+  }, [loading, currentBoardOwnerId])
 
   useEffect(() => {
     // Mobile (tactile) : pas de toast « C'est votre plateau » — il se superpose au board en
@@ -316,7 +313,7 @@ export const GuessingPage = () => {
 
   // ─── Loading state ──────────────────────────────────────────────────────────
 
-  if (loading && !currentBoardOwnerName) {
+  if (loading && !currentBoardOwnerId) {
     return (
       <div className="flex flex-col items-center justify-center min-h-svh gap-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-clover"></div>
@@ -335,28 +332,17 @@ export const GuessingPage = () => {
           ne tient pas en portrait étroit (cf. Axe 3). Auto-masqué hors portrait tactile. */}
       <LandscapePrompt />
 
-      {/* Header Info — titre + sous-titre sur une seule ligne pour gagner de la hauteur
-          (utile sur les viewports courts type tablette). Masqué sur mobile (tactile) pour
-          rendre la hauteur au plateau. */}
-      <div data-testid="guessing-header" className="hide-on-coarse bg-white/30 backdrop-blur-sm shadow-sm py-2 px-4 flex items-baseline justify-center gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold text-gray-800">{t('phaseTitle')}</h1>
-        <p className="text-gray-600">
-          {t('boardOf')}{' '}
-          <span className="font-bold text-clover-dark">{currentBoardOwnerName}</span>
-        </p>
-      </div>
-
       {/* min-h-0 autorise le flex-1 à se compresser ; container-type:size fournit 100cqh
           aux pools ET à la sous-zone plateau. overflow-hidden retiré : la politique
           plancher+scroll prend le relais (scroll seulement sous les planchers). */}
       <div
-        className="flex flex-1 min-h-0 min-w-0 items-start justify-center px-8 py-4 gap-8 overflow-x-auto [@media(pointer:coarse)]:px-2 [@media(pointer:coarse)]:py-0.5 [@media(pointer:coarse)]:gap-2 [@media(pointer:coarse)]:overflow-visible"
+        className="flex flex-1 min-h-0 min-w-0 items-start justify-center px-2 py-0.5 gap-2 overflow-visible"
         style={{ containerType: 'size' }}
       >
         {/* Pool Gauche — self-stretch sur tactile : le wrapper prend toute la hauteur de la
             rangée pour que la pool (h-full + justify-end) aligne ses cartes par le bas, sur la
             même grille que la pool droite. */}
-        <div className="flex-none [@media(pointer:coarse)]:self-stretch">
+        <div className="flex-none self-stretch">
           <OutsideCardPool
             cards={poolLeft}
             startIndex={0}
@@ -373,7 +359,7 @@ export const GuessingPage = () => {
         </div>
 
         {/* Board Central */}
-        <div data-testid="guessing-board" className="flex-1 flex flex-col items-center justify-center gap-4 [@media(pointer:coarse)]:gap-1 min-w-0 min-h-0 max-h-full max-w-[1000px] self-stretch overflow-hidden [@media(pointer:coarse)]:overflow-visible">
+        <div data-testid="guessing-board" className="flex-1 flex flex-col items-center justify-center gap-1 min-w-0 min-h-0 max-h-full max-w-[1000px] self-stretch overflow-visible">
           {/* Sous-zone plateau : flex-1 prend la hauteur résiduelle de la colonne (= hauteur
               rangée − contrôles) ; container-type:size en fait le conteneur de référence du
               plateau → 100cqw = largeur colonne centrale, 100cqh = hauteur sous-zone. */}
@@ -421,7 +407,7 @@ export const GuessingPage = () => {
             `guessing-pool-right` (dégagement chip + CTA fixes) reste la borne haute ; avec
             l'alignement par le bas, ses cartes coïncident avec les rangées basses de la pool
             gauche → grille commune. */}
-        <div className="guessing-pool-right flex-none [@media(pointer:coarse)]:self-stretch">
+        <div className="guessing-pool-right flex-none self-stretch">
           <OutsideCardPool
             cards={poolRight}
             startIndex={3}
