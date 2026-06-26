@@ -45,12 +45,6 @@ export const WritingBoard = () => {
           Auto-masqué hors portrait tactile via `.hide-unless-portrait-touch`. */}
       <LandscapePrompt description={t('landscapeHint')} />
 
-      {/* Header masqué sur mobile (tactile) pour rendre la hauteur au plateau. */}
-      <div className="writing-header hide-on-coarse text-center shrink-0">
-        <h1 className="writing-title text-2xl sm:text-3xl font-bold text-clover-dark mb-2">{t('phaseTitle')}</h1>
-        <p className="writing-subtitle text-gray-600">{t('phaseSubtitle')}</p>
-      </div>
-
       {/* Zone plateau élastique : flex-1 prend la hauteur résiduelle, container-type:size
           en fait le conteneur de référence pour le sizing height-aware du plateau. */}
       <div
