@@ -61,11 +61,11 @@
     :root { --app-chip-clearance: calc(3.75rem + env(safe-area-inset-top, 0px)); }
   }
 
-  /* Phase Écriture ET Déduction en paysage tactile court (mobile tenu à l'horizontale) :
-     compacter l'en-tête (et, en Écriture, les contrôles) pour rendre la hauteur au
-     plateau. Gating commun → ne touche jamais le desktop (pointer:fine) ni les tablettes
-     hautes. Le pool droit de la Déduction est en plus dégagé du chip de connexion fixe
-     (haut-droite), que la clearance portrait-only de Task 2 ne couvre pas en paysage. */
+  /* Phase Écriture ET Déduction en paysage : compacter l'en-tête (et, en Écriture, les
+     contrôles) pour rendre la hauteur au plateau. La disposition est unifiée sur tout
+     appareil (mobile, tablette, desktop). Le pool droit de la Déduction est en plus
+     dégagé du chip de connexion fixe (haut-droite), que la clearance portrait-only de
+     Task 2 ne couvre pas en paysage. */
   /* Décale le pool droit sous le chip de connexion ET le bouton « Valider » fixe (tous
      deux ancrés haut-droite, sur tout tactile en paysage) → ses 2 cartes s'empilent sous
      le CTA (colonne droite : chip + CTA + 2 cartes). N'affecte ni le board ni le pool
@@ -76,7 +76,7 @@
     /* Board height-bound en paysage mobile : la seule façon d'agrandir un plateau CARRÉ est de
        lui rendre de la hauteur (la largeur n'est jamais le facteur limitant ici). On annule le
        plancher vertical p-safe de l'App (1rem haut/bas) et on remplit toute la hauteur svh :
-       en Déduction l'en-tête est masqué (hide-on-coarse) et le chip de connexion est en
+       en Déduction l'en-tête de phase est retiré et le chip de connexion est en
        position:fixed (insensible à cette marge négative) → aucun chevauchement. Gain mesuré :
        board 338→382px, cartes 83→94px (+13 %, plafond physique sur viewport 390px de haut). */
     .guessing-fill-landscape {
@@ -96,16 +96,6 @@
     .guessing-pool { gap: 0.5rem; padding-left: 0.5rem; padding-right: 0.5rem; padding-bottom: 0.5rem; }
   }
 
-  /* Visibilité par type de pointeur (mobile/tactile vs desktop/souris). Mobile : on
-     masque les en-têtes de phase et les contrôles in-flow (rotation/soumission) au profit
-     du HUD fixe haut-droite. Une seule règle display active à la fois → pas de conflit de
-     spécificité avec les classes Tailwind. */
-
-  /* CTA principal de phase sur tactile (« Soumettre » en Écriture, « Valider / Plateau
-     suivant » en Déduction) : le board height-bound occupe toute la hauteur et pousse/
-     clippe les contrôles in-flow → le CTA est ancré en position fixe sous le chip de
-     connexion (haut-droite). Sur desktop, le bouton in-flow sous le plateau reste seul.
-     Les deux phases ne coexistent jamais (AnimatePresence mode=wait) → même ancrage. */
   /* CTA principal de phase ancré en position fixe (haut-droite) sur TOUT appareil. */
   .mobile-fixed-cta {
     display: flex;
