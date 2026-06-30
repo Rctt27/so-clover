@@ -233,6 +233,18 @@ export const GuessingPage = () => {
     }
   }, [isMyBoard, isCoarse, currentBoardOwnerId, notifyTopCenter])
 
+  // Auto-désélection : une carte sélectionnée (clic-clic) mais non déplacée est relâchée
+  // après GUESSING_SELECTION_TIMEOUT_MS. Le timer est réarmé à chaque changement de sélection
+  // et nettoyé au démontage → pas de swap surprise sur une sélection oubliée.
+  useEffect(() => {
+    if (!selectedSlotId) return
+    const timer = setTimeout(
+      () => setSelectedSlotId(null),
+      CONSTANTS.GUESSING_SELECTION_TIMEOUT_MS,
+    )
+    return () => clearTimeout(timer)
+  }, [selectedSlotId, setSelectedSlotId])
+
   // ─── Handlers ───────────────────────────────────────────────────────────────
 
   const handleRotateBoard = useCallback((direction: 'left' | 'right') => {

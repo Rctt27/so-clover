@@ -19,6 +19,9 @@
   // Nombre total de tentatives par plateau (miroir de Domain/Game.cs:RemainingAttempts=3).
   // Sert de dénominateur au compteur « tentatives restantes / total » de la Déduction.
   GUESSING_TOTAL_ATTEMPTS: 3,
+  // Mode clic-clic : une carte sélectionnée mais non déplacée est auto-désélectionnée
+  // après ce délai, pour éviter qu'une sélection oubliée déclenche un swap surprise plus tard.
+  GUESSING_SELECTION_TIMEOUT_MS: 5000,
   TIMER_SOUND_WARNING_SECONDS: 5,
   STORAGE_KEYS: {
     PLAYER_ID: 'so_clover_player_id',
