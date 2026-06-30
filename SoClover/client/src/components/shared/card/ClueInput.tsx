@@ -10,6 +10,7 @@ import { ClueValidationRejection } from '../../../types/game'
 import { debugLog } from '../../../core/debug'
 import { useCoarsePointer } from '../../../hooks/useCoarsePointer'
 import { ClueExplanationTooltip } from './ClueExplanationTooltip'
+import { shouldAutoPersistClue } from './shouldAutoPersistClue'
 
 export type ClueStatus = 'idle' | 'saving' | 'success' | 'error'
 
@@ -49,6 +50,34 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
       setLocalValue(value)
     }
   }, [value])
+
+  // Auto-persistance de l'indice sans attendre le blur : dès que la validation sémantique
+  // serveur (debouncée dans useClueValidation) confirme l'indice courant, on l'enregistre.
+  // Ainsi le bouton « Soumettre le plateau » s'active dynamiquement une fois les 4 indices
+  // enregistrés — le joueur n'a plus à faire un clic « ailleurs » pour quitter le champ.
+  //
+  // On ne déclenche QUE sur la transition isChecking true→false (l'instant où la validation
+  // du `localValue` courant aboutit). C'est la garantie anti-race : `validity` reflète alors
+  // le texte courant, jamais une valeur périmée d'un keystroke précédent. On ne passe pas par
+  // le statut 'saving' (qui désactiverait l'input et couperait la frappe / fermerait le clavier
+  // virtuel sur mobile) : la validation serveur a déjà confirmé l'indice.
+  const prevCheckingRef = useRef(validity.isChecking)
+  useEffect(() => {
+    const settled = prevCheckingRef.current && !validity.isChecking
+    prevCheckingRef.current = validity.isChecking
+    if (!settled) return
+    if (!shouldAutoPersistClue({
+      localValue,
+      savedValue: value,
+      isValid: validity.isValid,
+      isChecking: validity.isChecking,
+      disabled: !!disabled,
+    })) return
+    onSave(localValue.trim()).catch((error) => {
+      // Échec réseau : laissé au blur (handleSave) qui retentera et affichera l'erreur.
+      debugLog('ClueInput', 'Auto-persist failed', error)
+    })
+  }, [validity.isChecking, validity.isValid, localValue, value, disabled, onSave])
 
   const handleSave = async () => {
     const trimmed = localValue.trim()
