@@ -80,6 +80,7 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env.dev up -d
 ```
 - `compose.yaml` est la base prod-ready. `compose.dev.yaml` est un override qui injecte `DOTNET_ENVIRONMENT=Development` et `LLM__BASEURL=http://host.docker.internal:1234/v1` pour parler à LM Studio sur l'hôte.
 - Les secrets (PostgreSQL, `LLM__APIKEY`) viennent de `SoClover/.env` ou `.env.dev` (jamais committés).
+- Afin de faciliter le build en local: déclencher directement .\local_build.ps1
 
 ### Développement local (full-stack)
 ```bash
@@ -188,6 +189,7 @@ SignalR hub at `/hubs/game`.
 - Zustand for state management with separate slices.
 - Logs frontend verbeux : utiliser `debugLog(source, message)` de `core/debug.ts` — jamais `console.log` directement.
 - Zustand DevTools activés uniquement si `isDebug` (conditionnel sur `VITE_DEBUG_MODE`).
+- Lors d'une phase d'implémentation de plan, toujours livrer en plusieurs commits atomiques plutôt qu'un unique gros commit. Toujours implémenter en TDD.
 
 ### Git & hygiène des fichiers
 
