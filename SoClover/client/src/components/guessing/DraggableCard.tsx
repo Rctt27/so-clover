@@ -199,6 +199,11 @@ const DraggableCardImpl = ({
 
       setIsRotating(false)
 
+      // Ré-arme la suppression à l'instant du pointerup : le `click` synthétique suit de
+      // quelques ms. Sans ce ré-armement, une rotation maintenue >windowMs (300 ms) ferait
+      // expirer la fenêtre armée au pointerdown → le click fuirait en sélection (cf. cause n°2).
+      clickSuppressorRef.current.arm()
+
       // Maintient le flag de suppression durant le roundtrip serveur, puis libère
       // pour rétablir les animations sur les events SignalR ultérieurs.
       if (rotationSuppressionTimerRef.current !== null) {
@@ -274,8 +279,14 @@ const DraggableCardImpl = ({
 
   // Filtre le `click` natif : s'il provient d'un coin de rotation tout juste cliqué, on l'avale
   // (sinon il déclencherait le clic-clic → sélection/swap involontaire). Sinon, clic-clic normal.
-  const handleCardClick = useCallback(() => {
-    if (clickSuppressorRef.current.consume()) return
+  const handleCardClick = useCallback((e: React.MouseEvent) => {
+    if (clickSuppressorRef.current.consume()) {
+      // Stoppe la propagation : sinon le `click` consommé remonterait vers un handler
+      // ancêtre (ex. le wrapper `PoolSlot` du pool) et déclencherait quand même la
+      // sélection. Le suppresseur doit être autoritaire quel que soit l'imbriquement DOM.
+      e.stopPropagation()
+      return
+    }
     onClick?.()
   }, [onClick])
 

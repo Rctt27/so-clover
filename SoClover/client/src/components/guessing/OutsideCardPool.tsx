@@ -95,7 +95,10 @@ export const OutsideCardPool = ({
             key={slotId}
             id={slotId}
             isHighlighted={isHighlighted}
-            onClick={canInteract && onSlotClick ? () => onSlotClick(slotId) : undefined}
+            // Slot vide uniquement : sert de cible de dépôt en mode clic-clic. Quand une carte
+            // est présente, c'est le `onClick` du DraggableCard (gardé par le suppresseur de
+            // rotation) qui pilote la sélection — sinon un clic de coin fuirait ici en sélection.
+            onClick={canInteract && onSlotClick && !card ? () => onSlotClick(slotId) : undefined}
             cardSizePx={cardSizePx}
           >
             {card && (
@@ -108,6 +111,7 @@ export const OutsideCardPool = ({
                 isSelected={selectedSlotId === slotId}
                 isDisplaced={isDisplaced}
                 isDragSource={dragSourceCardId === card.cardId && dragSourceSlot === slotId}
+                onClick={canInteract && onSlotClick ? () => onSlotClick(slotId) : undefined}
                 onPointerDown={
                   dragHandlers && canInteract
                     ? dragHandlers(slotId, card.cardId).onPointerDown
