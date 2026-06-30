@@ -13,7 +13,7 @@ Le projet suit **SemVer** (`vMAJOR.MINOR.PATCH`), avec des tags Git annotés et 
 - **MINOR** : nouvelle feature notable.
 - **PATCH** : correctifs / durcissements sans nouvelle feature.
 
-**Version courante : `2.18.0`.**
+**Version courante : `2.18.1`.**
 
 Jalons structurants : réécriture du front en React/TypeScript (v2.0), temps réel SignalR (v1.3), persistance PostgreSQL (v1.2), joueurs IA (v2.5), support du dictionnaire Anglais (v2.6), validation sémantique des indices étendue à l'Anglais (v2.7), code de partie lisible 4-mots exposé dans l'URL `/g/<code>` (v2.10), compatibilité mobile/tactile (v2.14), PWA installable plein écran iPhone (v2.15), régionalisation i18n EN/FR/PT (v2.16), UI unifiée single-layout laptop/mobile (v2.18). Historique complet des tags : voir [`CHANGELOG.md`](CHANGELOG.md).
 
