@@ -6,7 +6,7 @@ Application full-stack : backend **ASP.NET Core 9.0**, frontend **React 18 / Typ
 
 > Projet *fan game* à but non commercial. Tous droits sur le jeu original « So Clover! » appartiennent à leurs auteurs et éditeurs respectifs.
 
-**Version courante : `2.14.0`** — voir [`CHANGELOG.md`](CHANGELOG.md) pour l'historique complet.
+**Version courante : `2.18.1`** — voir [`CHANGELOG.md`](CHANGELOG.md) pour l'historique complet.
 
 ## Fonctionnalités
 
