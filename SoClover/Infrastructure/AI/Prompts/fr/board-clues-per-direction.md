@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 5
 language: fr
 description: Prompt pour générer UN mot-indice pour UNE direction donnée — So Clover FR PerDirection.
 ---
@@ -13,7 +13,7 @@ Garde en tête en permanence un joueur humain qui verra UNIQUEMENT tes mots-indi
 Tu ne dois jamais « deviner » comment raisonner ni inventer ta propre méthode. Tu appliques STRICTEMENT, étape par étape, la procédure de raisonnement décrite plus bas (section « Procédure de raisonnement obligatoire »). Cette procédure reproduit la manière dont le cerveau humain associe deux mots ; la suivre est ce qui rend tes indices devinables.
 
 Tu réponds TOUJOURS en français.
-Tu réponds UNIQUEMENT au format JSON strict décrit, sans aucun texte additionnel.
+Tu réponds UNIQUEMENT au format JSON strict décrit, sans aucun texte additionnel. Tu n'as PAS de phase de réflexion séparée ni de brouillon : ta réponse commence directement par le caractère `{`. Le JSON EST ton raisonnement — ses champs `candidates` et `explanation` sont l'unique endroit où il s'exprime.
 
 # USER
 Le board est composé de 4 cartes disposées en une grille carrée (2x2). Chaque carte porte 4 mots, un par face (Top, Right, Bottom, Left). Voici la disposition complète du board :
@@ -34,18 +34,18 @@ Tous les mots du board (interdits — un mot-indice ne doit pas être identique,
 Pour la direction à résoudre, tu exécutes les 7 étapes ci-dessous (0 à 6), dans l'ordre, sans en sauter aucune. Ces étapes décrivent comment un cerveau humain relie deux mots : ne les abrège pas, c'est ce travail qui produit un bon indice.
 
 ### Étape 0 — Verrouiller les 2 mots Cible (étape de cadrage, à ne JAMAIS sauter)
-Avant tout raisonnement, recopie depuis « À résoudre » le couple exact de cette direction, sous la forme : `Cible = [mot1, mot2]`. Ces deux mots, et eux seuls, sont autorisés dans tout ton raisonnement pour cette direction.
-Déclare-toi ensuite explicitement : **tous les autres mots du board sont des ADVERSAIRES**. Ils ne sont pas neutres : leur fonction dans le jeu est de te piéger en t'attirant vers un lien sémantiquement commode mais illégal. À partir de cette ligne, tu traites tout mot du board absent de `Cible` comme interdit au même titre qu'un mot que tu n'aurais pas le droit de prononcer — même s'il offre un raisonnement parfait.
+La `Cible` de cette direction est le couple exact indiqué dans « À résoudre » : `Cible = [mot1, mot2]`. Ces deux mots, et eux seuls, sont autorisés dans tout ton raisonnement pour cette direction.
+**Tous les autres mots du board sont des ADVERSAIRES.** Ils ne sont pas neutres : leur fonction dans le jeu est de te piéger en t'attirant vers un lien sémantiquement commode mais illégal. À partir de cette ligne, tu traites tout mot du board absent de `Cible` comme interdit au même titre qu'un mot que tu n'aurais pas le droit de prononcer — même s'il offre un raisonnement parfait.
 Règle de discipline pour les étapes 1 à 6 : tu n'as le droit d'étaler des associations, de chercher des intersections et de construire des candidats QUE pour les deux mots de `Cible`. Si, en cours de raisonnement, tu remarques qu'un de tes mots-pont ou une de tes associations correspond à un mot du board qui n'est pas dans `Cible`, c'est un signal d'alarme : tu es en train de raisonner sur un adversaire. Stoppe immédiatement ce candidat.
 
 ### Étape 1 — Étaler les associations de chaque mot (activation)
-Prends le mot 1 seul. Génère mentalement une liste large de 8 à 12 concepts que ce mot active spontanément chez un francophone moyen (objets, lieux, actions, propriétés, contextes). Fais de même pour le mot 2, séparément. Ne cherche pas encore de lien : tu ne fais qu'étaler deux nuages d'associations.
+Prends le mot 1 seul. Repère la liste large de 8 à 12 concepts que ce mot active spontanément chez un francophone moyen (objets, lieux, actions, propriétés, contextes). Fais de même pour le mot 2, séparément. Ne cherche pas encore de lien : tu ne fais qu'étaler deux nuages d'associations.
 
 ### Étape 2 — Chercher les intersections
 Compare les deux listes de l'étape 1. Repère tout concept qui apparaît dans les deux, ou tout concept de l'une qui est proche d'un concept de l'autre. Ces points d'intersection sont tes premiers candidats naturels. Un indice né d'une vraie intersection est presque toujours plus devinable qu'un indice trouvé « en forçant ».
 
 ### Étape 3 — Parcourir la checklist des relations sémantiques
-Que l'étape 2 ait donné des résultats ou non, parcours OBLIGATOIREMENT cette liste de 10 types de relations et teste, pour chacune, si elle relie les deux mots. Pour chaque relation qui fonctionne, note le mot-pont correspondant :
+Que l'étape 2 ait donné des résultats ou non, parcours OBLIGATOIREMENT cette liste de 12 types de relations et teste, pour chacune, si elle relie les deux mots. Pour chaque relation qui fonctionne, note le mot-pont correspondant :
 1. **Catégorie commune** — les deux mots sont des membres d'un même ensemble (ex. *rose* et *tulipe* → « fleur »).
 2. **Tout / partie** — l'un est une partie de l'autre, ou les deux sont des parties d'un même tout (ex. *volant* et *moteur* → « voiture »).
 3. **Fonction / usage** — les deux servent à la même action ou au même but (ex. *couteau* et *fourchette* → « manger »).
@@ -56,11 +56,13 @@ Que l'étape 2 ait donné des résultats ou non, parcours OBLIGATOIREMENT cette 
 8. **Séquence / temporalité** — l'un suit l'autre dans un processus ou un cycle (ex. *graine* et *fruit* → « pousser »).
 9. **Co-occurrence culturelle** — les deux « vont ensemble » par convention ou habitude culturelle (ex. *mariage* et *bague*).
 10. **Exemplaire / instance prototypique** — un cas concret et emblématique qui appartient à la catégorie de l'un des mots tout en possédant la propriété ou l'élément désigné par l'autre (ex. *carapace* et *animal* → « tortue » ; *rayures* et *animal* → « zèbre »).
+11. **Polysémie / double sens** — un même mot-indice possède deux sens distincts, l'un fortement lié au mot 1, l'autre fortement lié au mot 2 (ex. *tribunal* et *fruit* → « avocat »). Cette relation est précieuse sur les arêtes où aucun pont sémantique direct n'existe. Condition stricte : les DEUX sens doivent être courants pour un francophone moyen — si l'un des sens est rare, technique ou régional, le devineur ne le verra jamais, rejette le candidat. L'équidistance s'évalue alors sens par sens : chaque sens doit être un lien au moins moyen vers son mot Cible.
+12. **Concept défini par la combinaison (spécialisation croisée)** — un mot qui désigne une version de l'un spécialisée pour l'autre, ou dont la définition même contient les deux mots (ex. *médecin* et *enfant* → « pédiatre » ; *vêtement* et *pluie* → « imperméable »). Attention : ce mot n'apparaît souvent dans AUCUN des deux nuages d'associations de l'étape 1 — on ne le trouve pas par association spontanée, mais par construction. Pose-toi explicitement les deux questions : « existe-t-il un [mot1] spécialisé pour [mot2] ? » et « existe-t-il un [mot2] propre à [mot1] ? ». Quand il existe, ce type de candidat est souvent le plus fort de tous : sa définition pointe vers les DEUX mots à la fois.
 
 ### Étape 4 — Passe « langue et jeu de mots » (distincte du sens)
-Indépendamment du sens, vérifie le SIGNIFIANT des deux mots : existe-t-il une expression figée, un mot composé, un mot-valise, une locution courante qui contient ou évoque les deux mots ? (ex. *pomme* + *terre* → « pomme de terre » ; *fer* + *cheval* → « fer à cheval »). Cette passe est un registre à part : ne la mélange pas avec les relations de l'étape 3, mais ne l'oublie jamais.
+Indépendamment du sens, vérifie le SIGNIFIANT des deux mots : existe-t-il une expression figée, un mot composé, un mot-valise, une locution courante qui contient ou évoque les deux mots ? (ex. *pomme* + *terre* → « pomme de terre » ; *fer* + *cheval* → « fer à cheval »). Attention : l'expression trouvée est un PONT, jamais l'indice lui-même. Le mot-indice tiré de cette passe doit être UN mot unique qui évoque l'expression sans contenir aucun mot du board (ex. pour *pomme* + *terre* via « pomme de terre » → « frite »). Cette passe est un registre à part : ne la mélange pas avec les relations de l'étape 3, mais ne l'oublie jamais.
 
-### Étape 5 — Scène mentale (vérification générative)
+### Étape 5 — Scène concrète (vérification générative)
 Pour les 3 à 5 meilleurs candidats issus des étapes 2 à 4, construis une courte situation concrète et quotidienne où le mot-indice ET les deux mots Cible coexistent naturellement. Si tu n'arrives pas à imaginer une telle scène sans effort, le candidat est trop faible : écarte-le.
 
 ### Étape 6 — Contrôle anti-adversaires, puis scoring et sélection
@@ -73,7 +75,7 @@ Cette étape se fait en deux temps, dans cet ordre.
 
 **6b — Scoring et sélection.** Uniquement parmi les candidats SURVIVANTS de 6a, applique la procédure de sélection ci-dessous (« Évaluation de la force d'un lien » + « Règle du minimum » + « Test du devineur »). Tu retiens UN seul mot-indice.
 
-Tu ne fais apparaître AUCUNE de ces étapes dans ta réponse JSON : elles constituent ton raisonnement interne. Seuls le `clueWord` final et l'`explanation` figurent dans le JSON.
+Tu n'as PAS de phase de réflexion séparée : le JSON EST ton raisonnement. La procédure ci-dessus débouche directement sur ses trois champs, dans cet ordre : `candidates` (les survivants du contrôle 6a, chacun annoté de la force de ses deux liens), puis l'`explanation` du candidat retenu, puis le `clueWord` final. Rien d'autre n'est produit — aucun texte, aucune note, aucune étape rédigée avant ou autour du JSON.
 
 ## Évaluation de la force d'un lien
 
@@ -101,14 +103,14 @@ Pour la direction, les **2 mots Cible** sont *exclusivement* ceux indiqués dans
 
 Le piège le plus dangereux n'est PAS un mot adversaire sans rapport : c'est un mot adversaire qui offre un lien sémantique excellent. Plus le raisonnement vers un mot non-cible est beau, plus le piège est efficace. La qualité d'un raisonnement ne légitime jamais sa cible : un raisonnement parfait construit sur un mot absent de `Cible` est une faute totale, à rejeter aussi fermement qu'une hallucination. Ne te laisse pas séduire par l'élégance d'un lien : vérifie d'abord QUE LE MOT EST UNE CIBLE, et seulement ensuite si le lien est bon.
 
-Ton mot-indice doit donc à la fois (a) évoquer le plus fortement possible les 2 mots Cible ET (b) éviter d'évoquer sémantiquement n'importe lequel des 14 adversaires. Avant de valider un candidat, balaye mentalement les 14 adversaires : si ton candidat évoque l'un d'eux aussi fort (ou plus fort) qu'un des 2 mots Cible, REJETTE ce candidat et reprends à l'étape 3 — sinon le board devient indevinable, car le devineur sera attiré vers le mauvais mot.
+Ton mot-indice doit donc à la fois (a) évoquer le plus fortement possible les 2 mots Cible ET (b) éviter d'évoquer sémantiquement n'importe lequel des 14 adversaires. Avant de valider un candidat, balaye les 14 adversaires : si ton candidat évoque l'un d'eux aussi fort (ou plus fort) qu'un des 2 mots Cible, REJETTE ce candidat et reprends à l'étape 3 — sinon le board devient indevinable, car le devineur sera attiré vers le mauvais mot.
 
 ## Règles absolues pour l'indice
 
 1. UN SEUL mot, en français, entre 1 et 14 caractères.
 2. Ne doit PAS être identique à, contenir, ou être contenu dans n'importe quel mot du board ci-dessus.
 3. Ne doit PAS partager une racine évidente avec un mot du board (ex. "tabl" pour "table", "chat" pour "chats").
-4. Le champ `explanation` est une chaîne de **1 à 2 phrases en français** dans laquelle tu décris **le raisonnement qui t'a amené à choisir ce mot-indice pour cette direction**. Tu dois y expliciter en quoi ton mot évoque le **premier** mot de la direction ET en quoi il évoque le **second** — pas seulement l'un des deux. Nomme, quand c'est possible, le type de relation utilisé (catégorie, lieu, fonction, expression figée, etc.). Pas de paraphrase tautologique du type « ce mot évoque X et Y ».
+4. Le champ `explanation` est une chaîne de **1 à 2 phrases en français** dans laquelle tu décris **le raisonnement qui t'a amené à choisir ce mot-indice pour cette direction**. Tu dois y expliciter en quoi ton mot évoque le **premier** mot de la direction ET en quoi il évoque le **second** — pas seulement l'un des deux. Nomme, quand c'est possible, le type de relation utilisé (catégorie, lieu, fonction, expression figée, etc.). Pas de paraphrase tautologique du type « ce mot évoque X et Y ». Ce champ PRÉCÈDE `clueWord` dans le JSON : rédige d'abord le raisonnement du double lien, le mot final en découle — jamais l'inverse.
 5. **Règle du minimum (la plus importante)** — La qualité d'un mot-indice est égale à la qualité de son **lien le plus faible**. Un candidat évalué (fort, faible) est globalement **faible**. Préfère TOUJOURS un candidat évalué (moyen, moyen) à un candidat évalué (fort, faible). Si aucun candidat dans tes 3 à 5 propositions ne présente deux liens au moins **moyens**, choisis le moins mauvais compromis et écris-le honnêtement dans l'explication (sans inventer de lien) — ne hallucine jamais une connexion pour combler un lien faible.
 6. **Pas de mots parasites dans l'explication** — Conséquence pratique de la section Anti-leurres sur le champ `explanation` : tu peux mentionner UNIQUEMENT les 2 mots Cible de la direction courante (entre guillemets). Tu n'as PAS LE DROIT de mentionner un autre mot du board comme support de raisonnement, même comme analogie ou pont conceptuel. Si tu te surprends à écrire dans ton explication un mot qui figure dans la liste de tous les mots du board autre que les 2 mots Cible de la direction courante, REJETTE le candidat et recommence — c'est le signe que tu raisonnes sur le mauvais couple.
 
@@ -126,12 +128,16 @@ Leur présence signale quasi systématiquement un lien faible ou halluciné. Si 
 
 {{retryFeedback}}
 
-Réponds UNIQUEMENT avec ce JSON :
+Réponds UNIQUEMENT avec ce JSON — ta réponse commence directement par le caractère `{` et se termine par `}`. L'ordre des champs est IMPOSÉ :
+1. `candidates` — les mots candidats qui ont survécu au contrôle anti-adversaires de l'étape 6a (idéalement 3 à 5 ; chaque mot doit respecter les Règles absolues 1 à 3). Chaque candidat est ÉCRIT AVEC son annotation de force : `"Mot (force du lien vers mot1, force du lien vers mot2)"`, chaque force étant `fort`, `moyen` ou `faible` selon l'échelle « Évaluation de la force d'un lien ». C'est cette annotation écrite qui exécute la règle du minimum — évalue chaque lien honnêtement, dans le sens du devineur (en lisant ce candidat seul, retrouve-t-on ce mot Cible ?).
+2. `explanation` — le raisonnement du double lien pour le candidat que tu retiens. C'est cette justification qui doit déterminer le mot final, pas l'inverse.
+3. `clueWord` — le mot retenu, SANS son annotation. Il doit OBLIGATOIREMENT être l'un des `candidates`, et précisément celui dont le lien LE PLUS FAIBLE est le plus fort (règle du minimum appliquée à tes propres annotations : un (moyen, moyen) bat un (fort, faible)).
 ```json
 {
   "direction": "<Top|Right|Bottom|Left>",
-  "clueWord": "<mot français, 1 à 14 caractères>",
-  "explanation": "<1 à 2 phrases : raisonnement liant ton mot aux DEUX mots de la direction>"
+  "candidates": ["<Mot1 (fort|moyen|faible, fort|moyen|faible)>", "<Mot2 (…)>", "<Mot3 (…)>"],
+  "explanation": "<1 à 2 phrases : raisonnement liant ton mot aux DEUX mots de la direction>",
+  "clueWord": "<mot français, 1 à 14 caractères, présent dans candidates>"
 }
 ```
 
@@ -140,20 +146,21 @@ Réponds UNIQUEMENT avec ce JSON :
 > Les mots utilisés dans les exemples ci-dessous (rivage, sable, perle, etc.) sont choisis volontairement HORS de tout board réel. Ils illustrent UNIQUEMENT la forme attendue et le type de raisonnement. N'utilise JAMAIS ces mots-indices dans ta réponse : ton board contient d'autres mots, et tes indices doivent venir exclusivement des mots de TON board.
 
 ### Exemple A — procédure déroulée (à titre pédagogique)
-> Cet exemple détaille les étapes pour aider un modèle non-reasoning à converger. **En mode reasoning, ne reproduis PAS ce format dans ta phase de pensée** — voir la section REASONING. Le format « Étape 1 : … Étape 2 : … » est un anti-format en reasoning.
+> Cet exemple montre comment la procédure débouche sur le JSON. Les puces « Étape … » ci-dessous sont une illustration pédagogique, pas un format de sortie : seul le JSON final est émis.
 
 Direction fictive, mots Cible « sable » et « plage ».
 - Étape 1 : *sable* active → grain, désert, château, mer, dune, sablier, chaud, pied nu… ; *plage* active → mer, soleil, parasol, vacances, vague, serviette, galet…
 - Étape 2 : intersection nette autour de « mer » et du bord de mer.
 - Étape 3 : relation 4 (lieu/contexte partagé) → le bord de mer ; relation 6 (propriété) peu utile ici.
 - Candidats : *rivage*, *littoral*, *côte*.
-- Étape 5/6 : *rivage* tient une scène mentale immédiate, lien fort sur les deux mots, équidistant.
+- Étape 5/6 : *rivage* tient une scène concrète immédiate, lien fort sur les deux mots, équidistant.
 - JSON final :
 ```json
 {
   "direction": "Top",
-  "clueWord": "Rivage",
-  "explanation": "Relation de lieu : le rivage est la bande où le \"sable\" rencontre l'eau, et c'est aussi le lieu même d'une \"plage\"."
+  "candidates": ["Rivage (fort, fort)", "Littoral (moyen, fort)", "Côte (moyen, fort)"],
+  "explanation": "Relation de lieu : le rivage est la bande où le \"sable\" rencontre l'eau, et c'est aussi le lieu même d'une \"plage\".",
+  "clueWord": "Rivage"
 }
 ```
 
@@ -161,8 +168,9 @@ Direction fictive, mots Cible « sable » et « plage ».
 ```json
 {
   "direction": "Top",
-  "clueWord": "Rivage",
-  "explanation": "Relation de lieu : le rivage est la bande de \"sable\" en bord de mer, et c'est l'endroit où l'on installe une \"plage\"."
+  "candidates": ["Rivage (fort, fort)", "Littoral (moyen, fort)", "Côte (moyen, fort)"],
+  "explanation": "Relation de lieu : le rivage est la bande de \"sable\" en bord de mer, et c'est l'endroit où l'on installe une \"plage\".",
+  "clueWord": "Rivage"
 }
 ```
 Bon car le lien est immédiat et de force comparable sur les deux mots.
@@ -171,18 +179,20 @@ Bon car le lien est immédiat et de force comparable sur les deux mots.
 ```json
 {
   "direction": "Top",
-  "clueWord": "Filament",
-  "explanation": "Une \"perle\" est enfilée sur un filament pour former un collier ; une \"ficelle\" est elle aussi un long filament fin servant à lier."
+  "candidates": ["Collier (fort, faible)", "Filament (moyen, moyen)", "Nouer (faible, moyen)"],
+  "explanation": "Une \"perle\" est enfilée sur un filament pour former un collier ; une \"ficelle\" est elle aussi un long filament fin servant à lier.",
+  "clueWord": "Filament"
 }
 ```
-Bon car les deux liens sont au moins moyens et ÉQUILIBRÉS. Un (moyen, moyen) équilibré est toujours préférable à un (fort, faible).
+Bon car les deux liens sont au moins moyens et ÉQUILIBRÉS. Note que « Collier » (fort, faible) n'a PAS été retenu malgré son lien fort : son lien le plus faible est inférieur à celui de « Filament » (moyen, moyen). C'est exactement la règle du minimum, lue directement dans les annotations.
 
 ### Exemple D — mauvais indice : hallucination de lien
 ```json
 {
   "direction": "Top",
-  "clueWord": "Rythme",
-  "explanation": "Un tambour produit un rythme régulier ; la laine polaire crée une sensation de bien-être rythmique."
+  "candidates": ["Rythme (fort, faible)", "Percussion (fort, faible)"],
+  "explanation": "Un tambour produit un rythme régulier ; la laine polaire crée une sensation de bien-être rythmique.",
+  "clueWord": "Rythme"
 }
 ```
 À éviter : le lien « rythme » ↔ « laine » n'existe pas. L'explication invente un lien (« bien-être rythmique ») pour combler un vide. Erreur type : lien faible camouflé par une formulation interdite.
@@ -191,8 +201,9 @@ Bon car les deux liens sont au moins moyens et ÉQUILIBRÉS. Un (moyen, moyen) �
 ```json
 {
   "direction": "Top",
-  "clueWord": "Fortune",
-  "explanation": "Le capital est une richesse accumulée ; la nature sauvage peut symboliser une richesse inexploitée."
+  "candidates": ["Fortune (fort, faible)", "Richesse (fort, faible)"],
+  "explanation": "Le capital est une richesse accumulée ; la nature sauvage peut symboliser une richesse inexploitée.",
+  "clueWord": "Fortune"
 }
 ```
 À éviter : « Fortune » est fort sur « capital » mais faible et ésotérique sur « sauvage ». L'indice ne pointe en pratique que vers une moitié de l'arête. Erreur type : non-respect de l'équidistance et de la règle du minimum.
@@ -202,49 +213,27 @@ Direction fictive dont les Cible verrouillées à l'étape 0 sont « Salle » et
 ```json
 {
   "direction": "Top",
-  "clueWord": "Hôpital",
-  "explanation": "Un hôpital emploie un \"infirmier\", et il contient de nombreuses \"salles\"."
+  "candidates": ["Hôpital (fort, fort)", "Clinique (fort, moyen)"],
+  "explanation": "Un hôpital emploie un \"infirmier\", et il contient de nombreuses \"salles\".",
+  "clueWord": "Hôpital"
 }
 ```
 À éviter ABSOLUMENT, et c'est le piège le plus sournois : le raisonnement est impeccable, le lien « hôpital » ↔ « infirmier » est fort et évident. Mais « infirmier » n'est PAS dans `Cible` — c'est un adversaire. Le candidat aurait dû être éliminé dès l'étape 6a, au test de cible, sans même être noté. Erreur type : se laisser séduire par la qualité d'un lien vers un mot non-cible. La règle est sans appel : avant de juger si un lien est bon, vérifie que le mot est une cible.
 
-# REASONING
-> Cette section n'est active que lorsque le mode reasoning est activé. Elle REMPLACE le contrat « tu appliques STRICTEMENT, étape par étape, la procédure » énoncé dans le SYSTEM : la « Procédure de raisonnement obligatoire » du bloc USER devient un **index mental**, plus une checklist à dérouler.
-
-Tu disposes d'une phase de réflexion native, et tu maîtrises déjà la méthodologie ci-dessus comme un expert francophone du jeu. Tranche vite : tu ne rédiges pas d'analyse, tu ne déroules pas la procédure.
-
-## Formats INTERDITS dans ta phase de pensée
-
-Ces formats consomment ton budget de tokens sans améliorer la qualité de l'indice. Si tu te surprends à les produire, arrête-toi et tranche :
-
-1. **Étaler 8 à 12 associations par mot Cible** (étape 1 du USER). Tu identifies en silence les associations les plus saillantes, sans les lister.
-2. **Parcourir explicitement la liste numérotée des 10 relations sémantiques** (étape 3 du USER). Tu reconnais celle qui s'applique ; tu ne la cherches pas en passant chaque relation en revue.
-3. **Construire et scorer 3 à 5 candidats** avec leur évaluation (fort, moyen, faible) sur les deux mots (étapes 5 et 6b du USER). Tu retiens UN candidat. Un second n'apparaît que pour valider que le premier est meilleur, en deux lignes maximum.
-4. **Reproduire le format de l'Exemple A** (« Étape 1 : … Étape 2 : … Étape 3 : … »). Cet exemple est pédagogique pour le mode non-reasoning ; en reasoning, c'est un anti-format.
-5. **Recopier les listes du USER** (les 10 relations, les 14 mots adversaires, les formulations interdites). Tu les as déjà en mémoire — les répéter ne sert à rien.
-
-## Les quatre seuls contrôles à effectuer
-
-Ta réflexion utile se résume à ces vérifications, et à rien d'autre :
-
-- **Anti-leurres** — ton candidat n'évoque AUCUN mot du board absent du couple Cible (étape 0 + étape 6a du USER).
-- **Équidistance + règle du minimum** — lien d'intensité comparable sur les deux mots Cible ; un (fort, faible) est rejeté au profit d'un (moyen, moyen).
-- **Test du devineur** — ton mot seul suffit à retrouver les DEUX mots Cible, pas seulement un.
-- **Contrat formel** — 1 mot français de 1 à 14 caractères, qui ne contient pas et n'est pas contenu dans un mot du board, sans racine évidente partagée.
-
-## Budget de réflexion
-
-Cap indicatif : **300 à 500 tokens de pensée par direction**. Si tu approches ou dépasses ce cap, c'est que tu déroules au lieu de trancher — ferme la réflexion et émets immédiatement le JSON avec ton meilleur candidat courant, même imparfait. Un indice (moyen, moyen) livré dans le budget vaut toujours mieux qu'un indice (fort, fort) jamais livré.
-
-Une fois la direction tranchée, tu ne reviens pas en arrière.
-
-## Sortie
-
-Ta réponse finale visible ne contient QUE le JSON strict décrit dans la section USER, sans aucun texte avant ni après.
+# NOTES
+> Section ignorée par `FilePromptLoader` (seules SYSTEM / USER / REASONING / RETRY_FEEDBACK sont chargées) — documentation mainteneur uniquement.
+>
+> Ce fichier ne contient volontairement PAS de section `# REASONING` : en FR, `FrenchAiCluePromptProvider` injecte le path du fichier dédié `board-clues-per-direction.reasoning.md`, chargé à la place de celui-ci quand `Llm.ReasoningEnabled=true` (cf. `FileAiCluePromptProvider.BuildSingleDirectionCluePrompt`). Une section `# REASONING` ici serait du code mort. La voie legacy « appendre # REASONING au SYSTEM » ne concerne que les langues dont le path reasoning est `null`.
+>
+> v3 : (a) `explanation` précède `clueWord` dans le JSON demandé — la justification du double lien sert de chain-of-thought au modèle non-reasoning avant qu'il s'engage sur le mot ; (b) champ `candidates` en tête — scratchpad structuré rendant la comparaison de candidats réellement exécutée (le backend l'ignore au parse : `System.Text.Json` saute les propriétés inconnues, l'ordre des champs est indifférent) ; (c) relation 11 « polysémie / double sens » ajoutée à la checklist de l'étape 3. Coût : +30 à 60 tokens de sortie par appel pour `candidates`.
+>
+> v4 (« v3.1 » — le frontmatter `version:` étant parsé en entier, 3.1 n'est pas représentable) : purge du vocabulaire « espace mental » qui poussait les modèles hybrides (gemma) à ouvrir leur canal `reasoning_content` malgré `reasoningEnabled=false` — « verrouille mentalement / Ne l'écris nulle part / raisonnement interne / conclusions » décrivait littéralement l'architecture thinking+content. Recadrage inverse : « le JSON EST ton raisonnement », étape 0 déclarative, consigne « ta réponse commence directement par `{` ». Fond inchangé (scratchpad, polysémie, ordre des champs). NB : la vraie cause du reasoning résiduel était le toggle « enable thinking » par modèle dans LM Studio (appliqué au chargement) — pas le prompt.
+>
+> v5 (suite au cas « Hôpital » pour Chirurgien+Enfant, sondé sur 3 runs : le pont compositionnel « Pédiatre » n'était généré que 2/3 et retenu 1/3) : (a) relation 12 « concept défini par la combinaison » — l'opération compositionnelle (« un [mot1] spécialisé pour [mot2] ? ») est introuvable par intersection de nuages associatifs, elle doit être prescrite ; (b) `candidates` annotés `"Mot (force, force)"` — le scoring de la règle du minimum devient écrit et exécuté au lieu d'auto-proclamé, et `clueWord` = argmax du lien le plus faible. Les annotations sont dans les strings du tableau : le backend ignore toujours le champ au parse.
 
 # RETRY_FEEDBACK
 Ta tentative précédente a été rejetée. Voici l'historique pour cette direction (la plus récente d'abord) :
 
 {{rejectedAttemptsByDirection}}
 
-Propose un mot DIFFÉRENT qui respecte toutes les règles. Reprends la procédure de raisonnement à l'étape 3 : si tes tentatives précédentes ont échoué, c'est probablement que tu as exploré un seul type de relation — parcours les 10 relations ET la passe « langue et jeu de mots » pour ouvrir d'autres pistes. Sois vigilant à ce que ton explication ne pointe pas vers un ou plusieurs mots parasites du board.
+Propose un mot DIFFÉRENT qui respecte toutes les règles. Reprends la procédure de raisonnement à l'étape 3 : si tes tentatives précédentes ont échoué, c'est probablement que tu as exploré un seul type de relation — parcours les 12 relations ET la passe « langue et jeu de mots » pour ouvrir d'autres pistes. Sois vigilant à ce que ton explication ne pointe pas vers un ou plusieurs mots parasites du board.
