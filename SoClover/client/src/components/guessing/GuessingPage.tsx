@@ -351,9 +351,9 @@ export const GuessingPage = () => {
         className="flex flex-1 min-h-0 min-w-0 items-start justify-center px-2 py-0.5 gap-2 overflow-visible"
         style={{ containerType: 'size' }}
       >
-        {/* Pool Gauche — self-stretch sur tactile : le wrapper prend toute la hauteur de la
-            rangée pour que la pool (h-full + justify-end) aligne ses cartes par le bas, sur la
-            même grille que la pool droite. */}
+        {/* Pool Gauche — self-stretch : le wrapper prend toute la hauteur de la rangée pour
+            que la pool (h-full + justify-center) centre verticalement ses cartes sur le board
+            (lui aussi centré dans la colonne centrale). */}
         <div className="flex-none self-stretch">
           <OutsideCardPool
             cards={poolLeft}
@@ -415,10 +415,10 @@ export const GuessingPage = () => {
           />
         </div>
 
-        {/* Pool Droit — self-stretch sur tactile (cf. pool gauche). Le padding-top de
-            `guessing-pool-right` (dégagement chip + CTA fixes) reste la borne haute ; avec
-            l'alignement par le bas, ses cartes coïncident avec les rangées basses de la pool
-            gauche → grille commune. */}
+        {/* Pool Droit — self-stretch (cf. pool gauche). Centré verticalement comme le pool
+            gauche → symétrie sur laptop. Sur tactile uniquement, `guessing-pool-right` ajoute
+            un padding-top pour dégager le chip + CTA fixes (haut-droite) que le board
+            height-bound ferait chevaucher. */}
         <div className="guessing-pool-right flex-none self-stretch">
           <OutsideCardPool
             cards={poolRight}

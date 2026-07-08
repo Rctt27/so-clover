@@ -70,9 +70,16 @@
      deux ancrés haut-droite, sur tout tactile en paysage) → ses 2 cartes s'empilent sous
      le CTA (colonne droite : chip + CTA + 2 cartes). N'affecte ni le board ni le pool
      gauche. Hors max-height pour couvrir aussi les tablettes paysage. */
-  @media (orientation: landscape) {
+  /* Dégagement du chip + CTA fixes (haut-droite) : nécessaire UNIQUEMENT sur tactile
+     (mobile/tablette) où, le board remplissant toute la hauteur, le pool droit centré
+     viendrait sous le CTA. Sur laptop (non-coarse) le board est plafonné (slack vertical)
+     et le HUD reste dans son coin → pas de chevauchement, et on laisse le pool droit se
+     centrer symétriquement au pool gauche (cf. justify-center, OutsideCardPool). */
+  @media (orientation: landscape) and (pointer: coarse) {
     .guessing-pool-right { padding-top: calc(7.5rem + env(safe-area-inset-top, 0px)); }
+  }
 
+  @media (orientation: landscape) {
     /* Board height-bound en paysage mobile : la seule façon d'agrandir un plateau CARRÉ est de
        lui rendre de la hauteur (la largeur n'est jamais le facteur limitant ici). On annule le
        plancher vertical p-safe de l'App (1rem haut/bas) et on remplit toute la hauteur svh :
