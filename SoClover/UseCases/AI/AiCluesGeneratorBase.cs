@@ -336,7 +336,19 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
 
         var text = response.Text;
         if (string.IsNullOrWhiteSpace(text))
+        {
+            // Cas typique d'un modèle reasoning (ex. gemma) dont la réflexion native sature la fenêtre de
+            // contexte / le budget de sortie : la complétion est tronquée (finish_reason=length) AVANT
+            // l'émission du JSON. response.Text est alors vide. On loggue finish_reason + usage pour rendre
+            // ce diagnostic immédiat, au lieu du générique « empty response » qui se répète en silence
+            // jusqu'à épuisement des retries (board bloqué à 0/4).
+            _logger.LogWarning(
+                "AI clue LLM returned empty content (native reasoning likely overflowed the context/output budget before emitting the answer): game={GameId} player={PlayerId} attempt={Attempt} finishReason={FinishReason} inputTokens={InputTokens} outputTokens={OutputTokens} model={LlmModel}. Increase the model's context window / maxOutputTokens, or enable ReasoningEnabled to load the concise reasoning prompt.",
+                game.Id.Value, player.Id.Value, attempt,
+                response.FinishReason, response.Usage?.InputTokenCount, response.Usage?.OutputTokenCount,
+                effectiveModel);
             throw new InvalidOperationException("LLM returned an empty response.");
+        }
         text = StripThinkTags(text);
         text = StripJsonFences(text);
         var draft = parseResponse(text);

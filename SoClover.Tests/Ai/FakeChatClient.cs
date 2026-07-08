@@ -35,6 +35,16 @@ public sealed class FakeChatClient : IChatClient
         _queue.Enqueue(new ScriptedResponse(Text: null, Delay: null, ExceptionToThrow: ex));
     }
 
+    /// <summary>
+    /// Enqueues a fully-formed <see cref="ChatResponse"/> so tests can control metadata such as
+    /// <see cref="ChatResponse.FinishReason"/> and <see cref="ChatResponse.Usage"/> — used to simulate
+    /// an empty completion truncated by the model's token budget (finish_reason=length).
+    /// </summary>
+    public void EnqueueResponse(ChatResponse response, TimeSpan? artificialDelay = null)
+    {
+        _queue.Enqueue(new ScriptedResponse(Text: null, artificialDelay, ExceptionToThrow: null, Response: response));
+    }
+
     public async Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
@@ -62,6 +72,11 @@ public sealed class FakeChatClient : IChatClient
                 throw ex;
             }
 
+            if (scripted.Response is { } prebuilt)
+            {
+                return prebuilt;
+            }
+
             var response = new ChatResponse(new ChatMessage(ChatRole.Assistant, scripted.Text!));
             return response;
         }
@@ -87,7 +102,8 @@ public sealed class FakeChatClient : IChatClient
 
     public void Dispose() { /* nothing to dispose */ }
 
-    private sealed record ScriptedResponse(string? Text, TimeSpan? Delay, Exception? ExceptionToThrow);
+    private sealed record ScriptedResponse(
+        string? Text, TimeSpan? Delay, Exception? ExceptionToThrow, ChatResponse? Response = null);
 
     public sealed record CallRecord(DateTime Start, DateTime End)
     {

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SoClover.Domain;
@@ -123,4 +124,45 @@ public class GenerateAICluesLoggingTests
             Assert.False(string.IsNullOrWhiteSpace(rules));
         });
     }
+
+    [Fact]
+    public async Task Emits_warning_with_finishReason_and_usage_when_LLM_returns_empty_content()
+    {
+        // Reproduit le cas gemma : le reasoning natif sature la fenêtre de contexte et la
+        // complétion est tronquée (finish_reason=length) AVANT l'émission du JSON → content vide.
+        // Sans ce log, l'échec est noyé dans un générique « empty response » non actionnable.
+        var fake = new FakeChatClient();
+        var capturing = new CapturingLogger<GenerateAIClues.Handler>();
+
+        var sp = AiTestProvider.BuildWithLogger(fake, capturing);
+        var (gameId, aiPids) = await AiTestProvider.SetupGameWithAis(sp);
+        var aiPid = aiPids[0];
+
+        // PerBoard : maxRetries=2 → 3 tentatives, 1 appel chacune.
+        for (var i = 0; i < 3; i++)
+            fake.EnqueueResponse(EmptyTruncatedResponse());
+
+        var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
+        await useCase.Handle(new GenerateAIClues.Request(gameId, aiPid));
+
+        var emptyWarnings = capturing.Records.Where(r =>
+            r.Level == LogLevel.Warning &&
+            r.Message.Contains("empty content", StringComparison.OrdinalIgnoreCase)).ToList();
+        Assert.NotEmpty(emptyWarnings);
+
+        var w = emptyWarnings[0];
+        Assert.True(w.Properties.ContainsKey("GameId"));
+        Assert.True(w.Properties.ContainsKey("PlayerId"));
+        Assert.True(w.Properties.ContainsKey("Attempt"));
+        Assert.True(w.Properties.ContainsKey("FinishReason"));
+        Assert.True(w.Properties.ContainsKey("OutputTokens"));
+        Assert.True(w.Properties.ContainsKey("LlmModel"));
+    }
+
+    private static ChatResponse EmptyTruncatedResponse() =>
+        new(new ChatMessage(ChatRole.Assistant, string.Empty))
+        {
+            FinishReason = ChatFinishReason.Length,
+            Usage = new UsageDetails { InputTokenCount = 1200, OutputTokenCount = 2900 },
+        };
 }
