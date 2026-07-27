@@ -55,7 +55,7 @@ public static class BenchGenerator
             var directions = BoardGeometry.AllDirections
                 .Select(d => new BenchDirection(
                     d.ToString(),
-                    BenchBoardMapper.ReferenceWords(readOnlyCards, d)))
+                    BenchBoardMapper.DeriveReferenceWords(readOnlyCards, d)))
                 .ToList()
                 .AsReadOnly();
 

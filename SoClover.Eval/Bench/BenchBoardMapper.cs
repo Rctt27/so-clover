@@ -40,10 +40,26 @@ public static class BenchBoardMapper
     public static IReadOnlyList<string> AllWords(BenchBoard board) =>
         board.Cards.SelectMany(c => c).ToList().AsReadOnly();
 
+    /// <summary>
+    /// Lit l'oracle gelé du banc — la paire de référence telle qu'écrite dans le fichier
+    /// committé. C'est la seule surcharge que doivent appeler les futurs consommateurs du
+    /// harnais (ClueRunner, ClueDecoder, BoardDecoder, RunMetrics) : ils doivent lire, jamais
+    /// recalculer, sous peine de diverger silencieusement du fichier gelé le jour où la
+    /// convention géométrique change en production.
+    /// </summary>
     public static IReadOnlyList<string> ReferenceWords(BenchBoard board, Direction direction) =>
         board.Directions.Single(d => d.Direction == direction.ToString()).ReferenceWords;
 
-    public static IReadOnlyList<string> ReferenceWords(
+    /// <summary>
+    /// DÉRIVE une paire de référence depuis <see cref="BoardGeometry.GetEdgeMapping"/> — c'est
+    /// la formule que <see cref="BenchGenerator"/> utilise pour PRODUIRE l'oracle au moment de la
+    /// génération d'un banc. Nom distinct et visibilité restreinte au générateur (son seul
+    /// appelant légitime) délibérément : sous le nom <c>ReferenceWords</c>, cette surcharge était
+    /// indiscernable de celle qui LIT l'oracle gelé ci-dessus — un appel à la mauvaise surcharge
+    /// compile, passe tous les tests actuels, et ferait diverger silencieusement le harnais du
+    /// fichier gelé si la convention géométrique bougeait un jour.
+    /// </summary>
+    internal static IReadOnlyList<string> DeriveReferenceWords(
         IReadOnlyList<IReadOnlyList<string>> cards, Direction edge)
     {
         var (cardA, faceA, cardB, faceB) = BoardGeometry.GetEdgeMapping(edge);
