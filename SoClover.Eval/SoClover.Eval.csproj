@@ -23,4 +23,8 @@
     <ProjectReference Include="..\SoClover\SoClover.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="SoClover.Tests" />
+  </ItemGroup>
+
 </Project>
