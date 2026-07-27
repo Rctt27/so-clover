@@ -437,16 +437,9 @@ public sealed class Game
 
         var player = RequirePlayer(playerId);
 
-        var trimmed = (clueText ?? string.Empty).Trim();
-        if (trimmed.Length > MaxClueLength)
-        {
-            player.Board.ClearClue(direction);
-            return ClueValidationResult.Invalid(
-                new ClueValidationError(ClueValidationRule.TooLong, string.Empty, null, MaxClueLength));
-        }
-
-        var parsed = ClueText.Create(clueText);
-        var result = validator.Validate(parsed.Value, direction, player.Board);
+        // La séquence trim → plafond → ClueText → validateur vit dans ClueAcceptance : le harnais
+        // d'évaluation hors ligne l'appelle sans Game, sur le même code que la partie réelle.
+        var result = ClueAcceptance.Check(clueText, direction, player.Board, validator);
 
         if (!result.IsValid)
         {
@@ -454,7 +447,7 @@ public sealed class Game
             return result;
         }
 
-        player.Board.SetClue(direction, parsed);
+        player.Board.SetClue(direction, ClueText.Create(clueText));
         return result;
     }
 
