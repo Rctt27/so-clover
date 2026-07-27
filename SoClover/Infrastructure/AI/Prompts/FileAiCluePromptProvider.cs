@@ -59,9 +59,6 @@ public abstract class FileAiCluePromptProvider : IAiCluePromptProvider
 }
 """;
 
-    private static readonly Direction[] AllDirections =
-        [Direction.Top, Direction.Right, Direction.Bottom, Direction.Left];
-
     private const string SingleClueJsonSchemaText = """
 {
   "type": "object",
@@ -248,31 +245,18 @@ public abstract class FileAiCluePromptProvider : IAiCluePromptProvider
         IReadOnlyDictionary<BoardPosition, BoardCardSnapshot> byPos)
     {
         var sb = new StringBuilder();
-        foreach (var dir in AllDirections)
+        foreach (var dir in BoardGeometry.AllDirections)
         {
             if (!remaining.Contains(dir))
                 continue;
 
-            var (cardA, faceA, cardB, faceB) = GetEdgeMapping(dir);
+            var (cardA, faceA, cardB, faceB) = BoardGeometry.GetEdgeMapping(dir);
             var wordA = GetOrientedWord(byPos[cardA], faceA);
             var wordB = GetOrientedWord(byPos[cardB], faceB);
             sb.AppendLine(string.Format(_labels.DirectionLineFormat, dir, wordA, wordB));
         }
         return sb.ToString().TrimEnd();
     }
-
-    // Convention "faces extérieures" : chaque clue évoque les deux mots des cartes
-    // sur son côté du board, sur les faces visuellement adjacentes au clue
-    // (celles qui pointent vers le bord extérieur, donc proches du clue placé sur la bordure).
-    private static (BoardPosition CardA, Direction FaceA, BoardPosition CardB, Direction FaceB) GetEdgeMapping(Direction edge)
-        => edge switch
-        {
-            Direction.Top    => (BoardPosition.TopLeft,     Direction.Top,    BoardPosition.TopRight,    Direction.Top),
-            Direction.Right  => (BoardPosition.TopRight,    Direction.Right,  BoardPosition.BottomRight, Direction.Right),
-            Direction.Bottom => (BoardPosition.BottomRight, Direction.Bottom, BoardPosition.BottomLeft,  Direction.Bottom),
-            Direction.Left   => (BoardPosition.BottomLeft,  Direction.Left,   BoardPosition.TopLeft,     Direction.Left),
-            _ => throw new ArgumentOutOfRangeException(nameof(edge)),
-        };
 
     private static string GetOrientedWord(BoardCardSnapshot card, Direction face)
         => face switch
@@ -299,7 +283,7 @@ public abstract class FileAiCluePromptProvider : IAiCluePromptProvider
             return string.Empty;
 
         var sb = new StringBuilder();
-        foreach (var dir in AllDirections)
+        foreach (var dir in BoardGeometry.AllDirections)
         {
             if (!rejectedPerDirection.TryGetValue(dir, out var attempts) || attempts.Count == 0)
                 continue;
