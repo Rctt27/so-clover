@@ -46,13 +46,21 @@ public sealed class Args
     public string Require(string name) =>
         Get(name) ?? throw new ArgumentException($"Argument requis manquant : --{name}");
 
+    // Le fallback n'est légitime que quand l'argument est ABSENT. S'il est présent mais mal
+    // formé (ex : --seed abc), retomber silencieusement dessus produirait un run faux mais
+    // plausible (ex : --decodes-per-clue x prendrait silencieusement le défaut 3). On échoue
+    // fermé, avec le nom du drapeau et la valeur reçue dans le message.
     public int GetInt(string name, int fallback) =>
-        Get(name) is { } raw && int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v)
-            ? v
-            : fallback;
+        Get(name) is not { } raw
+            ? fallback
+            : int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v)
+                ? v
+                : throw new ArgumentException($"--{name} attend un entier, valeur reçue : \"{raw}\"");
 
     public long GetLong(string name, long fallback) =>
-        Get(name) is { } raw && long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v)
-            ? v
-            : fallback;
+        Get(name) is not { } raw
+            ? fallback
+            : long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v)
+                ? v
+                : throw new ArgumentException($"--{name} attend un entier, valeur reçue : \"{raw}\"");
 }

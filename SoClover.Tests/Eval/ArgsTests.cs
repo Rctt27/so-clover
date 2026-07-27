@@ -44,6 +44,35 @@ public class ArgsTests
     }
 
     [Fact]
+    public void GetInt_throws_when_present_but_not_parsable()
+    {
+        var args = Args.Parse(["decode", "--decodes-per-clue", "x"]);
+
+        var ex = Assert.Throws<ArgumentException>(() => args.GetInt("decodes-per-clue", 3));
+        Assert.Contains("--decodes-per-clue", ex.Message);
+        Assert.Contains("x", ex.Message);
+    }
+
+    [Fact]
+    public void GetLong_falls_back_when_absent()
+    {
+        var args = Args.Parse(["bench", "--seed", "20260726001"]);
+
+        Assert.Equal(20260726001L, args.GetLong("seed", 0));
+        Assert.Equal(0L, args.GetLong("absent", 0));
+    }
+
+    [Fact]
+    public void GetLong_throws_when_present_but_not_parsable()
+    {
+        var args = Args.Parse(["bench", "--seed", "abc"]);
+
+        var ex = Assert.Throws<ArgumentException>(() => args.GetLong("seed", 0));
+        Assert.Contains("--seed", ex.Message);
+        Assert.Contains("abc", ex.Message);
+    }
+
+    [Fact]
     public void Parse_without_verb_yields_empty_verb()
     {
         var args = Args.Parse([]);
