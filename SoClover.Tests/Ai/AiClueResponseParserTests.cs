@@ -103,4 +103,31 @@ public class AiClueResponseParserTests
     {
         Assert.Throws<UnparseableLlmResponseException>(() => AiClueResponseParser.ParseBoard("{"));
     }
+
+    // Finding Important #2 : AiBoardCluesDraft est un record positionnel sans garde. "{}" et
+    // {"clues":null} désérialisent tous deux vers un objet non-null dont Clues est null — le
+    // `?? throw` du parser ne couvre que le retour null de la désérialisation elle-même, pas un
+    // Clues null à l'intérieur d'un objet non-null. En aval, `foreach (var item in draft.Clues)`
+    // lève un NullReferenceException non rattrapé (échappe au catch de retry ET au catch budget).
+    [Fact]
+    public void ParseBoard_rejects_an_empty_object()
+    {
+        Assert.Throws<UnparseableLlmResponseException>(() => AiClueResponseParser.ParseBoard("{}"));
+    }
+
+    [Fact]
+    public void ParseBoard_rejects_a_null_clues_array()
+    {
+        Assert.Throws<UnparseableLlmResponseException>(
+            () => AiClueResponseParser.ParseBoard("""{"clues":null}"""));
+    }
+
+    // Emprunte la branche "wrapped" de ParseSingleDirection (présence de la propriété "clues"),
+    // avec une valeur null : même NullReferenceException latente en aval que ParseBoard_rejects_a_null_clues_array.
+    [Fact]
+    public void ParseSingleDirection_rejects_a_wrapped_object_with_null_clues()
+    {
+        Assert.Throws<UnparseableLlmResponseException>(
+            () => AiClueResponseParser.ParseSingleDirection("""{"clues":null}"""));
+    }
 }

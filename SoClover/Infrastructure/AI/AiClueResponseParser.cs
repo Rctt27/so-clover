@@ -25,8 +25,11 @@ public static class AiClueResponseParser
             if (doc.RootElement.ValueKind == JsonValueKind.Object
                 && doc.RootElement.TryGetProperty("clues", out _))
             {
-                return JsonSerializer.Deserialize<AiBoardCluesDraft>(text, Options)
+                var wrapped = JsonSerializer.Deserialize<AiBoardCluesDraft>(text, Options)
                     ?? throw new UnparseableLlmResponseException(text);
+                if (wrapped.Clues is null)
+                    throw new UnparseableLlmResponseException(text);
+                return wrapped;
             }
 
             var item = JsonSerializer.Deserialize<AiClueDraft>(text, Options)
@@ -44,8 +47,11 @@ public static class AiClueResponseParser
     {
         try
         {
-            return JsonSerializer.Deserialize<AiBoardCluesDraft>(text, Options)
+            var draft = JsonSerializer.Deserialize<AiBoardCluesDraft>(text, Options)
                 ?? throw new UnparseableLlmResponseException(text);
+            if (draft.Clues is null)
+                throw new UnparseableLlmResponseException(text);
+            return draft;
         }
         catch (JsonException ex)
         {
