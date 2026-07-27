@@ -44,6 +44,12 @@ public static class BenchGenerator
 
         for (var i = 0; i < boardCount; i++)
         {
+            // Fisher-Yates COMPLET sur tout le dictionnaire (~880 mots) alors que seuls les 16
+            // premiers servent. C'est VOLONTAIRE — NE PAS "optimiser" en shuffle partiel ou en
+            // reservoir sampling : la consommation du PRNG (le nombre d'appels à rng.Next et leur
+            // ordre) fait partie du contrat de gel du banc. Un shuffle partiel consommerait un
+            // nombre d'octets aléatoires différent et changerait TOUS les boards à partir de là,
+            // invalidant silencieusement les deux bancs déjà gelés et committés.
             var pool = dictionary.ToList();
             rng.Shuffle(pool);
 
