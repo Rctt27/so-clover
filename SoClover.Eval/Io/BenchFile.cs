@@ -15,8 +15,11 @@ public sealed class BenchIntegrityException : Exception
 
 /// <summary>
 /// Lecture / écriture d'un fichier de banc JSONL : ligne 1 = manifeste, lignes suivantes = boards.
-/// La lecture <b>refuse</b> un banc dont le hash recalculé diffère du hash déclaré — un banc qui
-/// bouge invalide tout l'historique du registre, ce n'est pas un avertissement.
+/// La lecture <b>refuse</b> un banc dont le hash recalculé diffère du hash déclaré, ET un banc
+/// dont une ligne n'est plus dans sa forme canonique (champ inconnu ajouté à la main — ignoré
+/// silencieusement à la désérialisation sans la garde ci-dessous — ou simple reformatage) : dans
+/// les deux cas, un banc qui a bougé invalide tout l'historique du registre, ce n'est pas un
+/// avertissement.
 /// </summary>
 public static class BenchFile
 {
@@ -74,17 +77,23 @@ public static class BenchFile
             throw new BenchIntegrityException(
                 $"La première ligne de {path} n'est pas un manifeste (kind={manifest.Kind}).");
 
+        RequireCanonicalForm(path, lineNumber: 1, raw: lines[0], canonical: EvalJson.Serialize(manifest));
+
         var boards = new List<BenchBoard>(lines.Count - 1);
         for (var i = 1; i < lines.Count; i++)
         {
+            BenchBoard board;
             try
             {
-                boards.Add(EvalJson.Deserialize<BenchBoard>(lines[i]));
+                board = EvalJson.Deserialize<BenchBoard>(lines[i]);
             }
             catch (JsonException ex)
             {
                 throw new BenchIntegrityException($"Board illisible ligne {i + 1} de {path} : {ex.Message}");
             }
+
+            RequireCanonicalForm(path, lineNumber: i + 1, raw: lines[i], canonical: EvalJson.Serialize(board));
+            boards.Add(board);
         }
 
         if (boards.Count != manifest.BoardCount)
@@ -98,5 +107,23 @@ public static class BenchFile
                 "Le banc a dérivé — l'historique du registre serait invalidé.");
 
         return new BenchContents(manifest, boards.AsReadOnly());
+    }
+
+    // Désérialiser puis re-sérialiser ne suffit pas à prouver qu'une ligne n'a pas bougé :
+    // UnmappedMemberHandling par défaut = Skip, donc un champ inconnu ajouté à la main est
+    // ignoré silencieusement (le benchHash recalculé sur l'objet désérialisé matche quand même) ;
+    // un simple reformatage de la ligne passerait aussi. Cette garde compare la ligne BRUTE lue
+    // à ce que BenchFile.Write aurait produit — distinct d'un mismatch de benchHash : ce n'est
+    // pas l'oracle qui a dérivé, c'est la ligne elle-même qui n'est plus ce que Write a écrit.
+    private static void RequireCanonicalForm(string path, int lineNumber, string raw, string canonical)
+    {
+        if (raw == canonical)
+            return;
+
+        throw new BenchIntegrityException(
+            $"{path} ligne {lineNumber} : la ligne lue ne correspond pas à sa forme canonique " +
+            "(champ inconnu ignoré silencieusement à la désérialisation, ou reformatage manuel). " +
+            "Ce n'est pas un mismatch de benchHash — la ligne elle-même a été modifiée hors du " +
+            "chemin BenchFile.Write.");
     }
 }

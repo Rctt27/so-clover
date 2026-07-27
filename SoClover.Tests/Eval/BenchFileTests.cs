@@ -101,6 +101,37 @@ public class BenchFileTests : IDisposable
         Assert.Throws<BenchIntegrityException>(() => BenchFile.Read(_path));
     }
 
+    // La désérialisation ignore silencieusement les champs inconnus (UnmappedMemberHandling par
+    // défaut = Skip) : sans garde dédiée, ce cas passerait à travers le contrôle de benchHash,
+    // puisque le champ ajouté n'entre dans aucun objet désérialisé, donc dans aucun hash.
+    [Fact]
+    public void Refuses_a_board_line_with_an_unmapped_field_even_though_the_hash_still_matches()
+    {
+        BenchFile.Write(_path, Sample(boardCount: 2));
+        var lines = File.ReadAllLines(_path);
+
+        lines[1] = lines[1][..^1] + ",\"extraChampInconnu\":true}";
+        File.WriteAllLines(_path, lines);
+
+        var ex = Assert.Throws<BenchIntegrityException>(() => BenchFile.Read(_path));
+        Assert.Contains("forme canonique", ex.Message);
+    }
+
+    // Un reformatage manuel (ici : espace ajouté après les deux-points) ne change ni le contenu
+    // logique ni le benchHash recalculé — la garde de forme canonique doit quand même le refuser.
+    [Fact]
+    public void Refuses_a_manifest_line_that_was_manually_reformatted()
+    {
+        BenchFile.Write(_path, Sample());
+        var lines = File.ReadAllLines(_path);
+
+        lines[0] = lines[0].Replace("\"kind\":\"manifest\"", "\"kind\": \"manifest\"");
+        File.WriteAllLines(_path, lines);
+
+        var ex = Assert.Throws<BenchIntegrityException>(() => BenchFile.Read(_path));
+        Assert.Contains("forme canonique", ex.Message);
+    }
+
     [Fact]
     public void Refuses_a_file_whose_first_line_is_not_a_manifest()
     {
