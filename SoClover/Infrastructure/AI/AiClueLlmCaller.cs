@@ -17,6 +17,17 @@ public sealed record ClueCallRequest(
     double? TemperatureOverride);
 
 /// <summary>
+/// Diagnostic non fatal rencontré en tentant de charger le préambule système du mode reasoning
+/// (<see cref="LlmOptions.ReasoningSystemPromptPathEnabler"/>). <paramref name="Cause"/> distingue
+/// les deux cas : <c>null</c> = fichier introuvable, non-<c>null</c> = fichier présent mais illisible
+/// (verrou, permissions, ...). Porté à la fois par <see cref="ClueCallResult"/> (chemin succès) et
+/// par <see cref="LlmCallException"/> (chemin échec) : <see cref="AiClueLlmCaller"/> ne journalise
+/// pas, c'est donc le seul canal par lequel l'appelant peut apprendre qu'un préambule attendu n'a
+/// pas été injecté, quelle que soit l'issue de l'appel.
+/// </summary>
+public sealed record ReasoningPreambleWarning(string Path, Exception? Cause);
+
+/// <summary>
 /// Sortie d'un appel LLM réussi. <paramref name="RawText"/> est le texte brut du modèle,
 /// avant strip des balises de réflexion et des fences — utile au diagnostic.
 /// </summary>
@@ -28,7 +39,8 @@ public sealed record ClueCallResult(
     string RawText,
     ChatFinishReason? FinishReason,
     long? InputTokens,
-    long? OutputTokens);
+    long? OutputTokens,
+    ReasoningPreambleWarning? PreambleWarning);
 
 /// <summary>
 /// Appelant LLM partagé entre la production (via <c>AiCluesGeneratorBase</c>) et le harnais
@@ -58,9 +70,6 @@ public sealed class AiClueLlmCaller
         _reasoningConfigurator = reasoningConfigurator ?? new NullReasoningConfigurator();
     }
 
-    /// <summary>Chemins de préambule introuvables ou illisibles rencontrés, pour journalisation par l'appelant.</summary>
-    public string? LastPreambleWarning { get; private set; }
-
     public async Task<ClueCallResult> CallAsync(
         ClueCallRequest request,
         IAiCluePromptProvider promptProvider,
@@ -77,9 +86,11 @@ public sealed class AiClueLlmCaller
         var bundle = buildBundle(promptProvider, context);
 
         var systemPrompt = bundle.SystemPrompt;
+        ReasoningPreambleWarning? preambleWarning = null;
         if (reasoningEnabled)
         {
-            var preamble = ReadReasoningPreamble(opts.ReasoningSystemPromptPathEnabler);
+            var (preamble, warning) = ReadReasoningPreamble(opts.ReasoningSystemPromptPathEnabler);
+            preambleWarning = warning;
             if (!string.IsNullOrWhiteSpace(preamble))
                 systemPrompt = $"{preamble.Trim()}\n\n{systemPrompt}";
         }
@@ -123,6 +134,7 @@ public sealed class AiClueLlmCaller
                 LatencyMs = latencyMs,
                 PromptVersion = bundle.PromptVersion,
                 EffectiveModel = effectiveModel,
+                PreambleWarning = preambleWarning,
             };
         }
 
@@ -140,6 +152,7 @@ public sealed class AiClueLlmCaller
                 LatencyMs = latencyMs,
                 PromptVersion = bundle.PromptVersion,
                 EffectiveModel = effectiveModel,
+                PreambleWarning = preambleWarning,
             };
         }
 
@@ -151,7 +164,8 @@ public sealed class AiClueLlmCaller
             rawText,
             response.FinishReason,
             response.Usage?.InputTokenCount,
-            response.Usage?.OutputTokenCount);
+            response.Usage?.OutputTokenCount,
+            preambleWarning);
     }
 
     private static string StripJsonFences(string text)
@@ -176,11 +190,17 @@ public sealed class AiClueLlmCaller
         return text.Trim();
     }
 
-    private string ReadReasoningPreamble(string? path)
+    /// <summary>
+    /// Charge le préambule système du mode reasoning, avec cache indexé par <c>(Path,
+    /// LastWriteTimeUtc)</c> — un vrai hot-reload : le contenu n'est relu que si l'horodatage a
+    /// changé. Un fichier absent ou illisible n'est PAS masqué par une entrée de cache antérieure :
+    /// il est traité à chaque appel comme un diagnostic à part entière (fidèle au comportement
+    /// d'avant l'extraction), distinct selon qu'il s'agit d'une absence ou d'une erreur de lecture.
+    /// </summary>
+    private (string Content, ReasoningPreambleWarning? Warning) ReadReasoningPreamble(string? path)
     {
-        LastPreambleWarning = null;
         if (string.IsNullOrWhiteSpace(path))
-            return string.Empty;
+            return (string.Empty, null);
 
         if (!Path.IsPathRooted(path))
             path = Path.Combine(AppContext.BaseDirectory, path);
@@ -189,30 +209,20 @@ public sealed class AiClueLlmCaller
         {
             var info = new FileInfo(path);
             if (!info.Exists)
-            {
-                // Fichier disparu depuis le dernier appel réussi : on retombe sur le cache (indexé
-                // par Path seul ici, faute de LastWriteTimeUtc à comparer) plutôt que de traiter une
-                // absence transitoire comme une erreur — ne relit jamais le disque dans ce cas.
-                if (_reasoningPreambleCache is { } cachedMissing && cachedMissing.Path == path)
-                    return cachedMissing.Content;
-
-                LastPreambleWarning = path;
-                return string.Empty;
-            }
+                return (string.Empty, new ReasoningPreambleWarning(path, Cause: null));
 
             var lastWrite = info.LastWriteTimeUtc;
             if (_reasoningPreambleCache is { } cached
                 && cached.Path == path && cached.LastWriteTimeUtc == lastWrite)
-                return cached.Content;
+                return (cached.Content, null);
 
             var content = File.ReadAllText(path);
             _reasoningPreambleCache = (path, lastWrite, content);
-            return content;
+            return (content, null);
         }
-        catch (IOException)
+        catch (IOException ex)
         {
-            LastPreambleWarning = path;
-            return string.Empty;
+            return (string.Empty, new ReasoningPreambleWarning(path, ex));
         }
     }
 }

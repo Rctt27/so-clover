@@ -15,6 +15,13 @@ public abstract class LlmCallException : InvalidOperationException
     public long LatencyMs { get; init; }
     public int? PromptVersion { get; init; }
     public string EffectiveModel { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Diagnostic non fatal de chargement du préambule reasoning, rencontré sur CET appel avant son
+    /// échec. Porté ici pour que l'appelant puisse le journaliser même quand l'appel ne retourne pas
+    /// de <c>ClueCallResult</c> — <see cref="AiClueLlmCaller"/> ne journalise jamais lui-même.
+    /// </summary>
+    public ReasoningPreambleWarning? PreambleWarning { get; init; }
 }
 
 /// <summary>

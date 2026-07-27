@@ -190,34 +190,84 @@ public class AiClueLlmCallerTests
         }
     }
 
-    // Le cache est indexé par (path, LastWriteTimeUtc) : le second appel ne relit pas le disque,
-    // ce que l'on prouve en supprimant le fichier entre les deux appels.
+    // Le cache est indexé par (path, LastWriteTimeUtc). Preuve correcte du cache-hit : on modifie le
+    // CONTENU sur disque mais on restaure LastWriteTimeUtc à sa valeur d'origine — la clé de cache
+    // reste identique, donc le contenu PÉRIMÉ doit continuer d'être servi (le second appel ne relit
+    // pas le disque). Supprimer le fichier ne prouverait rien sur cette clé : c'est un scénario différent,
+    // couvert par A_missing_preamble_file_is_reported_and_does_not_abort_the_call.
     [Fact]
     public async Task Reasoning_preamble_is_cached_by_last_write_time()
     {
         var preamblePath = Path.Combine(Path.GetTempPath(), $"preamble-{Guid.NewGuid():N}.txt");
-        await File.WriteAllTextAsync(preamblePath, "PRÉAMBULE MODÈLE");
-
-        var spy = new CapturingChatClient("""{"direction":"Top","clueWord":"Rivage","explanation":"x"}""");
-        var caller = new AiClueLlmCaller(spy, Options.Create(new LlmOptions
+        await File.WriteAllTextAsync(preamblePath, "PRÉAMBULE ORIGINAL");
+        var originalWriteTimeUtc = File.GetLastWriteTimeUtc(preamblePath);
+        try
         {
-            DefaultModel = "default-model",
-            ReasoningEnabled = true,
-            ReasoningSystemPromptPathEnabler = preamblePath,
-        }));
+            var spy = new CapturingChatClient("""{"direction":"Top","clueWord":"Rivage","explanation":"x"}""");
+            var caller = new AiClueLlmCaller(spy, Options.Create(new LlmOptions
+            {
+                DefaultModel = "default-model",
+                ReasoningEnabled = true,
+                ReasoningSystemPromptPathEnabler = preamblePath,
+            }));
 
-        var provider = new InlinePromptProvider("Français_OFF", _ => Bundle(default));
-        await caller.CallAsync(Request(), provider,
-            static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
-            AiClueResponseParser.ParseSingleDirection, CancellationToken.None);
+            var provider = new InlinePromptProvider("Français_OFF", _ => Bundle(default));
+            await caller.CallAsync(Request(), provider,
+                static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                AiClueResponseParser.ParseSingleDirection, CancellationToken.None);
+            Assert.StartsWith("PRÉAMBULE ORIGINAL", spy.LastSystemPrompt);
 
-        File.Delete(preamblePath);
+            await File.WriteAllTextAsync(preamblePath, "PRÉAMBULE MODIFIÉ SUR DISQUE");
+            File.SetLastWriteTimeUtc(preamblePath, originalWriteTimeUtc);
 
-        await caller.CallAsync(Request(), provider,
-            static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
-            AiClueResponseParser.ParseSingleDirection, CancellationToken.None);
+            await caller.CallAsync(Request(), provider,
+                static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                AiClueResponseParser.ParseSingleDirection, CancellationToken.None);
 
-        Assert.StartsWith("PRÉAMBULE MODÈLE", spy.LastSystemPrompt);
+            Assert.StartsWith("PRÉAMBULE ORIGINAL", spy.LastSystemPrompt);
+        }
+        finally
+        {
+            if (File.Exists(preamblePath)) File.Delete(preamblePath);
+        }
+    }
+
+    // Symétrique du test précédent : un vrai hot-reload (contenu ET LastWriteTimeUtc changent) doit
+    // invalider le cache.
+    [Fact]
+    public async Task Reasoning_preamble_cache_is_invalidated_when_last_write_time_changes()
+    {
+        var preamblePath = Path.Combine(Path.GetTempPath(), $"preamble-{Guid.NewGuid():N}.txt");
+        await File.WriteAllTextAsync(preamblePath, "PRÉAMBULE V1");
+        try
+        {
+            var spy = new CapturingChatClient("""{"direction":"Top","clueWord":"Rivage","explanation":"x"}""");
+            var caller = new AiClueLlmCaller(spy, Options.Create(new LlmOptions
+            {
+                DefaultModel = "default-model",
+                ReasoningEnabled = true,
+                ReasoningSystemPromptPathEnabler = preamblePath,
+            }));
+
+            var provider = new InlinePromptProvider("Français_OFF", _ => Bundle(default));
+            await caller.CallAsync(Request(), provider,
+                static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                AiClueResponseParser.ParseSingleDirection, CancellationToken.None);
+            Assert.StartsWith("PRÉAMBULE V1", spy.LastSystemPrompt);
+
+            await Task.Delay(20); // laisse l'horodatage du FS avancer perceptiblement
+            await File.WriteAllTextAsync(preamblePath, "PRÉAMBULE V2");
+
+            await caller.CallAsync(Request(), provider,
+                static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                AiClueResponseParser.ParseSingleDirection, CancellationToken.None);
+
+            Assert.StartsWith("PRÉAMBULE V2", spy.LastSystemPrompt);
+        }
+        finally
+        {
+            if (File.Exists(preamblePath)) File.Delete(preamblePath);
+        }
     }
 
     [Fact]
@@ -237,8 +287,69 @@ public class AiClueLlmCallerTests
             AiClueResponseParser.ParseSingleDirection, CancellationToken.None);
 
         Assert.Equal("Rivage", result.Draft.Clues[0].ClueWord);
-        Assert.Equal(missing, caller.LastPreambleWarning);
+        Assert.NotNull(result.PreambleWarning);
+        Assert.Equal(missing, result.PreambleWarning!.Path);
+        Assert.Null(result.PreambleWarning.Cause);
         Assert.StartsWith("SYSTEM TEXT", spy.LastSystemPrompt);
+    }
+
+    [Fact]
+    public async Task Preamble_warning_is_still_surfaced_when_the_call_fails()
+    {
+        var missing = Path.Combine(Path.GetTempPath(), $"absent-{Guid.NewGuid():N}.txt");
+        var chat = new FakeChatClient();
+        chat.EnqueueResponse(new ChatResponse(new ChatMessage(ChatRole.Assistant, ""))
+        {
+            FinishReason = ChatFinishReason.Length,
+            Usage = new UsageDetails { InputTokenCount = 10, OutputTokenCount = 20 },
+        });
+        var caller = new AiClueLlmCaller(chat, Options.Create(new LlmOptions
+        {
+            DefaultModel = "default-model",
+            ReasoningEnabled = true,
+            ReasoningSystemPromptPathEnabler = missing,
+        }));
+
+        var ex = await Assert.ThrowsAsync<EmptyLlmResponseException>(() =>
+            caller.CallAsync(Request(), new InlinePromptProvider("Français_OFF", _ => Bundle(default)),
+                static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                AiClueResponseParser.ParseSingleDirection, CancellationToken.None));
+
+        Assert.NotNull(ex.PreambleWarning);
+        Assert.Equal(missing, ex.PreambleWarning!.Path);
+        Assert.Null(ex.PreambleWarning.Cause);
+    }
+
+    [Fact]
+    public async Task An_unreadable_preamble_file_reports_a_distinct_warning_with_the_exception()
+    {
+        var preamblePath = Path.Combine(Path.GetTempPath(), $"locked-{Guid.NewGuid():N}.txt");
+        await File.WriteAllTextAsync(preamblePath, "PRÉAMBULE VERROUILLÉ");
+        using var lockStream = new FileStream(preamblePath, FileMode.Open, FileAccess.Read, FileShare.None);
+        try
+        {
+            var spy = new CapturingChatClient("""{"direction":"Top","clueWord":"Rivage","explanation":"x"}""");
+            var caller = new AiClueLlmCaller(spy, Options.Create(new LlmOptions
+            {
+                DefaultModel = "default-model",
+                ReasoningEnabled = true,
+                ReasoningSystemPromptPathEnabler = preamblePath,
+            }));
+
+            var result = await caller.CallAsync(Request(), new InlinePromptProvider("Français_OFF", _ => Bundle(default)),
+                static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                AiClueResponseParser.ParseSingleDirection, CancellationToken.None);
+
+            Assert.NotNull(result.PreambleWarning);
+            Assert.Equal(preamblePath, result.PreambleWarning!.Path);
+            Assert.IsType<IOException>(result.PreambleWarning.Cause);
+            Assert.StartsWith("SYSTEM TEXT", spy.LastSystemPrompt);
+        }
+        finally
+        {
+            lockStream.Dispose();
+            if (File.Exists(preamblePath)) File.Delete(preamblePath);
+        }
     }
 
     private sealed class SpyReasoningConfigurator : IReasoningRequestConfigurator

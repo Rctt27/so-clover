@@ -315,19 +315,38 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
                     empty.EffectiveModel);
             }
 
+            LogPreambleWarning(ex.PreambleWarning);
             throw;
         }
 
         LogCallCompleted(game, player, attempt, result.LatencyMs, result.EffectiveModel, result.PromptVersion, remaining);
-
-        if (_caller.LastPreambleWarning is { } missingPreamble)
-        {
-            _logger.LogWarning(
-                "Reasoning system prompt file not found: {Path}. Continuing without preamble.", missingPreamble);
-        }
+        LogPreambleWarning(result.PreambleWarning);
 
         _lastPromptVersion = result.PromptVersion;
         return (result.Draft, result.PromptVersion);
+    }
+
+    /// <summary>
+    /// Journalise le préambule reasoning manquant/illisible, quelle que soit l'issue de l'appel LLM :
+    /// le cas le plus probable où ce diagnostic sert (mode reasoning mal configuré → préambule absent
+    /// → modèle renvoyant du vide) est précisément un chemin d'échec. Distingue « introuvable »
+    /// (message d'avant l'extraction) d'« illisible » (message + exception d'avant l'extraction).
+    /// </summary>
+    private void LogPreambleWarning(ReasoningPreambleWarning? warning)
+    {
+        if (warning is null)
+            return;
+
+        if (warning.Cause is { } cause)
+        {
+            _logger.LogWarning(cause,
+                "Failed to read reasoning system prompt file: {Path}. Continuing without preamble.", warning.Path);
+        }
+        else
+        {
+            _logger.LogWarning(
+                "Reasoning system prompt file not found: {Path}. Continuing without preamble.", warning.Path);
+        }
     }
 
     private void LogCallCompleted(
