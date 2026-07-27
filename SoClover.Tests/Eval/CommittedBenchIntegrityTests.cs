@@ -54,7 +54,11 @@ public class CommittedBenchIntegrityTests
     }
 
     // Régénérer au même seed doit redonner exactement le même banc, sinon la reproductibilité
-    // annoncée dans le manifeste est fausse.
+    // annoncée dans le manifeste est fausse. dictionaryHash est RECALCULÉ depuis le dictionnaire
+    // réel (pas transité depuis le manifeste committé) : transiter le ferait correspondre
+    // trivialement, sans jamais prouver qu'il correspond au contenu réel du dictionnaire sur
+    // disque — c'est exactement ce que couvre séparément
+    // Committed_bench_dictionary_hash_matches_the_dictionary_on_disk ci-dessous.
     [Theory]
     [InlineData("boards.dev.jsonl")]
     [InlineData("boards.test.jsonl")]
@@ -73,10 +77,29 @@ public class CommittedBenchIntegrityTests
             words,
             committed.Manifest.Language,
             committed.Manifest.DictionaryFile,
-            committed.Manifest.DictionaryHash,
+            EvalJson.DictionaryHash(words),
             committed.Manifest.CreatedAtUtc);
 
         Assert.Equal(committed.Manifest.BenchHash, regenerated.Manifest.BenchHash);
+    }
+
+    // Preuve de provenance : dictionaryHash n'est pas une décoration. Scénario que ce test
+    // détecte et que le hash de banc, lui, ne détecte pas forcément : un mot remplacé dans
+    // Français_OFF.txt qui n'est tiré dans aucun des boards du banc (~16 % des 880 mots) ne fait
+    // pas bouger benchHash, mais DOIT faire bouger dictionaryHash — sinon le champ censé prouver
+    // la provenance d'un artefact gelé à vie serait faux sans que rien ne le signale.
+    [Theory]
+    [InlineData("boards.dev.jsonl")]
+    [InlineData("boards.test.jsonl")]
+    public async Task Committed_bench_dictionary_hash_matches_the_dictionary_on_disk(string fileName)
+    {
+        var committed = BenchFile.Read(BenchPath(fileName));
+
+        var dictionaryDir = Path.Combine(AppContext.BaseDirectory, "Infrastructure", "Dictionaries");
+        var words = await new FileWordDictionary(dictionaryDir)
+            .GetAllWordsAsync(committed.Manifest.Language);
+
+        Assert.Equal(EvalJson.DictionaryHash(words), committed.Manifest.DictionaryHash);
     }
 
     [Fact]

@@ -108,13 +108,10 @@ internal static class EvalProgram
             .EnumerateFiles(dictionaryDir, "*.txt")
             .Single(f => Path.GetFileNameWithoutExtension(f) == language);
 
-        // Hash du contenu normalisé (mots effectivement chargés, joints par \n) plutôt que des
-        // octets bruts du fichier : immunisé contre CRLF/LF, BOM et encodage — donc contre le
-        // système/la config Git de qui régénère un banc.
         var contents = BenchGenerator.Generate(
             benchId, seed, boardCount, words, language,
             Path.GetFileName(dictionaryFile),
-            EvalJson.Sha256Hex(string.Join("\n", words))[..12],
+            EvalJson.DictionaryHash(words),
             DateTime.UtcNow);
 
         BenchFile.Write(outPath, contents);

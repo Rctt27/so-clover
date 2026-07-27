@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using SoClover.Eval.Bench;
 
 namespace SoClover.Eval.Io;
 
@@ -41,4 +42,16 @@ public static class EvalJson
         var canonical = string.Join("\n", items.Select(Serialize));
         return Sha256Hex(canonical)[..hexLength];
     }
+
+    /// <summary>
+    /// Hash de gel du dictionnaire : le contenu normalisé (les mots effectivement chargés par
+    /// <c>FileWordDictionary</c>, joints par <c>\n</c>) plutôt que les octets bruts du fichier.
+    /// Immunise contre CRLF/LF, BOM et encodage — donc contre le système/la config Git de qui
+    /// régénère un banc — sans toucher à la configuration Git du dépôt (arbitrage humain, Task 9).
+    /// C'est une politique de gel arbitrée par un humain : elle vit ici, pas éparpillée dans un
+    /// verbe CLI, pour rester appelable identiquement par le générateur et par toute vérification
+    /// indépendante (tests d'intégrité des bancs committés).
+    /// </summary>
+    public static string DictionaryHash(IReadOnlyList<string> words) =>
+        Sha256Hex(string.Join("\n", words))[..BenchGenerator.BenchHashHexLength];
 }
