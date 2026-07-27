@@ -32,12 +32,6 @@ public static class EvalJson
         return Convert.ToHexStringLower(bytes);
     }
 
-    public static string Sha256HexOfFile(string path)
-    {
-        using var stream = File.OpenRead(path);
-        return Convert.ToHexStringLower(SHA256.HashData(stream));
-    }
-
     /// <summary>
     /// Hash des items canonicalisés : chaque item sérialisé avec <see cref="Options"/>, joints
     /// par <c>\n</c>, puis SHA-256 tronqué à <paramref name="hexLength"/> caractères.
