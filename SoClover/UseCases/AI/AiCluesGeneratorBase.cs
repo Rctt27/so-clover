@@ -17,14 +17,12 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
 {
     protected readonly IGameRepository _repo;
     protected readonly IClueValidatorFactory _validatorFactory;
-    protected readonly IChatClient _chatClient;
     protected readonly IAiCluePromptProviderFactory _promptProviderFactory;
     protected readonly IAiClueExplanationStore _explanationStore;
     protected readonly IEventPublisher _events;
     protected readonly IOptions<LlmOptions> _llmOptions;
     protected readonly GameLlmBudget _budget;
     protected readonly ISubmitBoardUseCase _submitBoard;
-    protected readonly IReasoningRequestConfigurator _reasoningConfigurator;
     protected readonly ILogger _logger;
 
     // État par requête : valable uniquement parce que le use case est enregistré en DI transient (1 instance par appel Handle). _llmCalls est remis à 0 en tête de Handle ; ne pas passer ce type en Scoped/Singleton.
@@ -49,19 +47,17 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
     {
         _repo = repo;
         _validatorFactory = validatorFactory;
-        _chatClient = chatClient;
         _promptProviderFactory = promptProviderFactory;
         _explanationStore = explanationStore;
         _events = events;
         _llmOptions = llmOptions;
         _budget = budget;
         _submitBoard = submitBoard;
-        _reasoningConfigurator = reasoningConfigurator ?? new NullReasoningConfigurator();
         _logger = logger ?? NullLogger.Instance;
 
         // Composé ici plutôt qu'injecté : aucune signature de ctor de sous-classe ne change,
         // donc aucun câblage DI ni aucun test existant à toucher.
-        _caller = new AiClueLlmCaller(chatClient, llmOptions, _reasoningConfigurator);
+        _caller = new AiClueLlmCaller(chatClient, llmOptions, reasoningConfigurator ?? new NullReasoningConfigurator());
     }
 
     // Nombre maximal de tentatives d'appel LLM par direction (1 essai + MaxRetries).
