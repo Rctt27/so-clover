@@ -108,10 +108,15 @@ internal static class EvalProgram
             .EnumerateFiles(dictionaryDir, "*.txt")
             .Single(f => Path.GetFileNameWithoutExtension(f) == language);
 
+        // Hash du contenu normalisé (mots effectivement chargés, joints par \n) plutôt que des
+        // octets bruts du fichier : Sha256HexOfFile dépend de la fin de ligne du worktree
+        // (core.autocrlf), donc du système/de la config Git de qui régénère — pas du contenu du
+        // dictionnaire. Le hash de la liste de mots trimée/filtrée est immunisé contre
+        // CRLF/LF/BOM/encodage.
         var contents = BenchGenerator.Generate(
             benchId, seed, boardCount, words, language,
             Path.GetFileName(dictionaryFile),
-            EvalJson.Sha256HexOfFile(dictionaryFile)[..12],
+            EvalJson.Sha256Hex(string.Join("\n", words))[..12],
             DateTime.UtcNow);
 
         BenchFile.Write(outPath, contents);

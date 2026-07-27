@@ -5,3 +5,5 @@ SoClover.Tests/ export-ignore
 SoClover.sln    export-ignore
 .gitignore                      export-ignore
 SoClover/compose.override.yaml export-ignore
+
+eval/*.jsonl -text
