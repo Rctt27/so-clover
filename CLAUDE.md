@@ -148,6 +148,7 @@ Key test files:
 
 Tests use `TestClock` for time control and `InMemoryGameRepository` for isolation.
 
+- **Déterminisme du tirage de mots** : les suites IA et `ClueExplanationVisibilityTests` sont câblées sur `DeterministicWordDictionary` (`SoClover.Tests/Helpers/`), pas sur `FileWordDictionary`. Motif : les mots de carte sont tirés au hasard (`WordsPool.DrawWords` instancie un `Random` non seedé à chaque tirage) et le vrai dictionnaire ne garantit pas les deux propriétés dont ces tests dépendent — « Nu », « Os », « Or » sont normalisés à 2 caractères, donc sous le `MinWordLength` du validateur, donc **invisibles** de lui (un mot du board posé comme indice est alors accepté au lieu d'être rejeté) ; et la racine R2 de « Botte » (« bott ») est une sous-chaîne de `admin-bottom`, ce qui fait rejeter l'indice littéral et laisse le board incomplet. Tout test qui pose un indice codé en dur, ou qui attend qu'un mot du board soit rejeté comme indice, doit utiliser ce dictionnaire — et déclarer son littéral dans `DeterministicWordDictionaryTests.ClueLiteralsUsedByTests`. Les suites qui exercent volontairement le vrai dictionnaire (`DictionaryIntegrityTests`, `SetClueWithValidationTests`, `CreateGameCodeTests`, `WordsPoolPersistenceTests`) restent sur `FileWordDictionary`.
 - **Avant de passer à la suite** : après chaque tâche/commit, lancer toute la suite de tests et vérifier un build propre (`dotnet test`, et côté front `npm run lint && npm run build && npm run test`).
 
 ## Configuration
