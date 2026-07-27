@@ -11,9 +11,10 @@ namespace SoClover.Tests.Eval;
 /// </summary>
 public class CommittedBenchIntegrityTests
 {
-    // Recopiés depuis les benchHash affichés par le verbe `bench` (Step 6).
-    private const string DevBenchHash = "c7bd1bbebc91";
-    private const string TestBenchHash = "6a76ef1bfc45";
+    // Recopiés depuis les benchHash affichés par le verbe `bench` (regénéré après exclusion de
+    // `strata` du périmètre du hash — voir BenchFile.ComputeBenchHash).
+    private const string DevBenchHash = "416b819a41a1";
+    private const string TestBenchHash = "1436bb07dc0d";
 
     private static string RepoRoot()
     {

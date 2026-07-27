@@ -109,6 +109,65 @@ public class BenchFileTests : IDisposable
         Assert.Throws<BenchIntegrityException>(() => BenchFile.Read(_path));
     }
 
+    // Verrou de l'intention de la correction "strata hors du périmètre du hash" : la séance A
+    // (P4) doit pouvoir remplir strata.drawDifficulty EN PLACE dans les bancs gelés sans faire
+    // dériver benchHash, alors que l'oracle (cards, directions) doit continuer à le faire dériver.
+    // Sans ce test, l'exclusion peut être annulée par inadvertance en modifiant FrozenOracle.
+    [Fact]
+    public void ComputeBenchHash_ignores_strata_but_reacts_to_cards_and_directions()
+    {
+        var board = new BenchBoard(
+            Kind: "board",
+            BoardId: "dev-001",
+            Cards: new List<IReadOnlyList<string>>
+            {
+                new List<string> { "A", "B", "C", "D" }.AsReadOnly(),
+                new List<string> { "E", "F", "G", "H" }.AsReadOnly(),
+                new List<string> { "I", "J", "K", "L" }.AsReadOnly(),
+                new List<string> { "M", "N", "O", "P" }.AsReadOnly(),
+            }.AsReadOnly(),
+            Directions: new List<BenchDirection>
+            {
+                new("Top", new List<string> { "A", "E" }.AsReadOnly()),
+                new("Right", new List<string> { "F", "I" }.AsReadOnly()),
+                new("Bottom", new List<string> { "J", "M" }.AsReadOnly()),
+                new("Left", new List<string> { "N", "B" }.AsReadOnly()),
+            }.AsReadOnly(),
+            Strata: new BenchStrata(DrawDifficulty: null));
+
+        var baselineHash = BenchFile.ComputeBenchHash([board]);
+
+        // Remplir strata.drawDifficulty en place (ce que fera la séance A / P4 sur les bancs déjà
+        // committés) ne doit PAS faire dériver le hash : c'est le contrat que cette correction
+        // établit.
+        var withStrataFilled = board with { Strata = new BenchStrata(DrawDifficulty: "easy") };
+        Assert.Equal(baselineHash, BenchFile.ComputeBenchHash([withStrataFilled]));
+
+        // Modifier un mot du board doit faire dériver le hash : l'oracle (cards) reste dans le
+        // périmètre haché.
+        var mutatedCards = board with
+        {
+            Cards = new List<IReadOnlyList<string>>
+            {
+                new List<string> { "ZZZ", "B", "C", "D" }.AsReadOnly(),
+                board.Cards[1], board.Cards[2], board.Cards[3],
+            }.AsReadOnly(),
+        };
+        Assert.NotEqual(baselineHash, BenchFile.ComputeBenchHash([mutatedCards]));
+
+        // Modifier une paire de référence doit faire dériver le hash : l'oracle (directions)
+        // reste dans le périmètre haché.
+        var mutatedDirections = board with
+        {
+            Directions = new List<BenchDirection>
+            {
+                new("Top", new List<string> { "ZZZ", "E" }.AsReadOnly()),
+                board.Directions[1], board.Directions[2], board.Directions[3],
+            }.AsReadOnly(),
+        };
+        Assert.NotEqual(baselineHash, BenchFile.ComputeBenchHash([mutatedDirections]));
+    }
+
     [Fact]
     public void ComputeBenchHash_is_stable_and_twelve_hex_characters()
     {

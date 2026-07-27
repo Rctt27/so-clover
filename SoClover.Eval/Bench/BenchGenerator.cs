@@ -68,7 +68,9 @@ public static class BenchGenerator
         }
 
         var readOnlyBoards = boards.AsReadOnly();
-        var benchHash = EvalJson.ComputeItemsHash(readOnlyBoards, BenchHashHexLength);
+        // Passe par BenchFile.ComputeBenchHash — point d'entrée unique partagé avec Read, qui
+        // revalide ce même hash à la lecture. Ne pas dupliquer ce calcul ici.
+        var benchHash = BenchFile.ComputeBenchHash(readOnlyBoards);
 
         var manifest = new BenchManifest(
             Kind: "manifest",
