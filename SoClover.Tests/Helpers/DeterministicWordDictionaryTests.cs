@@ -13,8 +13,9 @@ public class DeterministicWordDictionaryTests
 {
     private const string AnyLanguage = "Français_OFF";
 
-    // MinWordLength de SubstringClueValidator (protected const, non accessible depuis les tests).
-    private const int ValidatorMinWordLength = 3;
+    // Marge au-dessus de MinBoardWordLength (2) de SubstringClueValidator : on exige davantage que le
+    // seuil produit pour rester insensible à un futur relèvement de celui-ci.
+    private const int SafeWordLength = 3;
 
     /// <summary>
     /// Indices littéraux posés par les suites câblées sur ce dictionnaire. Un test qui introduit un
@@ -41,14 +42,14 @@ public class DeterministicWordDictionaryTests
     [Fact]
     public async Task Every_word_is_long_enough_to_be_seen_by_the_clue_validators()
     {
-        // Le vrai dictionnaire FR contient « Nu », « Os », « Or » : normalisés à 2 caractères, ils
-        // passent sous MinWordLength et sont donc IGNORÉS par le validateur. Un test qui pose un mot du
-        // board comme indice en attendant un rejet voit alors son indice accepté.
+        // Historiquement : « Nu », « Os », « Or » (FR) passaient sous le seuil de visibilité et étaient
+        // IGNORÉS du validateur, si bien qu'un test posant un mot du board comme indice en attendant un
+        // rejet le voyait accepté. Le seuil produit a été abaissé depuis ; on garde la marge ici.
         var words = await new DeterministicWordDictionary().GetAllWordsAsync(AnyLanguage);
 
         Assert.NotEmpty(words);
         Assert.All(words, w => Assert.True(
-            TextNormalizer.Normalize(w).Length >= ValidatorMinWordLength,
+            TextNormalizer.Normalize(w).Length >= SafeWordLength,
             $"'{w}' est trop court pour être vu par le validateur."));
     }
 

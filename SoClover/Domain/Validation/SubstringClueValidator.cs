@@ -8,7 +8,19 @@ namespace SoClover.Domain.Validation;
 /// </summary>
 public abstract class SubstringClueValidator : IClueValidator
 {
+    /// <summary>
+    /// Seuil sous lequel un INDICE ne déclenche plus la branche « le mot de carte contient l'indice ».
+    /// Garde intentionnel contre les faux positifs sur sous-chaînes triviales (« bo » dans « bondir »).
+    /// Sert aussi de longueur minimale de racine pour les heuristiques morphologiques des sous-classes.
+    /// </summary>
     protected const int MinWordLength = 3;
+
+    /// <summary>
+    /// Seuil de visibilité d'un MOT DE CARTE. Volontairement plus bas : « Or », « Os », « Nu » sont de
+    /// vrais mots du dictionnaire FR, et les ignorer laissait un joueur donner comme indice un mot
+    /// présent sur son propre plateau.
+    /// </summary>
+    private const int MinBoardWordLength = 2;
 
     public abstract string Language { get; }
 
@@ -22,7 +34,7 @@ public abstract class SubstringClueValidator : IClueValidator
         foreach (var (word, wordDirection) in EnumerateBoardWords(board))
         {
             var wordNorm = TextNormalizer.Normalize(word);
-            if (wordNorm.Length < MinWordLength)
+            if (wordNorm.Length < MinBoardWordLength)
                 continue;
 
             // R1 — bidirectional substring on full word

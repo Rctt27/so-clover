@@ -80,11 +80,24 @@ public class FrenchOffClueValidatorTests
     }
 
     [Fact]
-    public void R1_short_card_word_is_skipped()
+    public void R1_two_letter_card_word_is_caught_inside_a_longer_clue()
     {
+        // Contrepartie assumée de la visibilité des mots de 2 caractères : un indice qui en contient un
+        // est rejeté, exactement comme « faire » l'est déjà face à « Air ». Portée réelle limitée : le
+        // dictionnaire FR ne compte que trois mots de 2 caractères (« Nu », « Os », « Or »).
         var board = BoardWithWords("si");
         var result = _sut.Validate("siège", Direction.Top, board);
-        Assert.True(result.IsValid); // "si" < 3 chars → R1 skip; R2 also inapplicable
+        Assert.False(result.IsValid);
+        Assert.Equal(ClueValidationRule.ExactMatch, result.Errors[0].Rule);
+    }
+
+    [Fact]
+    public void R1_one_letter_card_word_stays_invisible()
+    {
+        // Le plancher reste à 2 : une lettre seule ferait rejeter presque tout indice.
+        var board = BoardWithWords("a");
+        var result = _sut.Validate("bateau", Direction.Top, board);
+        Assert.True(result.IsValid);
     }
 
     [Fact]
@@ -173,6 +186,19 @@ public class FrenchOffClueValidatorTests
         var board = BoardWithWords("tour");
         var result = _sut.Validate("tour Eiffel", Direction.Top, board);
         Assert.False(result.IsValid); // R1 substring — normalized "tour eiffel" contains "tour"
+    }
+
+    [Fact]
+    public void R1_two_letter_board_word_used_as_clue_is_invalid()
+    {
+        // « Or », « Os », « Nu » sont de vrais mots de carte du dictionnaire FR. Normalisés à
+        // 2 caractères, ils passaient sous le seuil de visibilité du validateur : un joueur pouvait
+        // donner tel quel un mot présent sur son propre plateau.
+        var board = BoardWithWords("Or");
+        var result = _sut.Validate("or", Direction.Top, board);
+        Assert.False(result.IsValid);
+        Assert.Equal(ClueValidationRule.ExactMatch, result.Errors[0].Rule);
+        Assert.Equal("Or", result.Errors[0].CardWord);
     }
 
     [Fact]

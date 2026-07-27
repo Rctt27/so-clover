@@ -9,8 +9,9 @@ namespace SoClover.Tests.Helpers;
 /// chaque tirage), et plusieurs tests reposent implicitement sur des propriétés que le vrai
 /// dictionnaire ne garantit pas pour tous les tirages :
 /// <list type="number">
-/// <item>« un mot du board utilisé comme indice est rejeté » — faux pour « Nu », « Os », « Or » (FR),
-/// normalisés à 2 caractères, donc sous le <c>MinWordLength</c> du validateur, donc invisibles ;</item>
+/// <item>« un mot du board utilisé comme indice est rejeté » — c'était faux pour « Nu », « Os »,
+/// « Or » (FR), sous le seuil de visibilité du validateur ; le seuil a depuis été abaissé côté
+/// produit, l'invariant est ici conservé comme marge (mots d'un seul caractère, futurs seuils) ;</item>
 /// <item>« un indice littéral de test n'entre en conflit avec aucun mot de carte » — faux pour
 /// « Botte » (FR), dont la racine R2 « bott » est une sous-chaîne de « admin-bottom ».</item>
 /// </list>
