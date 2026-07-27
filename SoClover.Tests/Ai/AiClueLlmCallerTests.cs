@@ -131,6 +131,43 @@ public class AiClueLlmCallerTests
         Assert.Equal("default-model", ex.EffectiveModel);
     }
 
+    // Finding Mineur #3 : le catch d'origine ne rattrapait que UnparseableLlmResponseException — toute
+    // autre exception levée par parseResponse (ex. un parseResponse custom du harnais d'éval qui lève
+    // FormatException/NotSupportedException) traversait sans observabilité (LatencyMs/PromptVersion/
+    // EffectiveModel/PreambleWarning perdus) ni typage reconnaissable.
+    [Fact]
+    public async Task A_non_UnparseableLlmResponseException_thrown_by_parseResponse_is_wrapped_with_observability()
+    {
+        var chat = new FakeChatClient();
+        chat.Enqueue("peu importe le contenu");
+        var custom = new FormatException("custom parse failure");
+
+        var ex = await Assert.ThrowsAsync<UnparseableLlmResponseException>(() =>
+            Build(chat).CallAsync(Request(), new InlinePromptProvider("Français_OFF", _ => Bundle(default)),
+                static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                _ => throw custom,
+                CancellationToken.None));
+
+        Assert.Same(custom, ex.InnerException);
+        Assert.Equal(5, ex.PromptVersion);
+        Assert.Equal("default-model", ex.EffectiveModel);
+    }
+
+    // Une annulation (Task.Delay/CancellationToken côté modèle réel) ne doit jamais être ré-emballée en
+    // échec « JSON invalide » — le caller de l'appel a besoin de voir l'OperationCanceledException brute.
+    [Fact]
+    public async Task OperationCanceledException_from_parseResponse_is_not_swallowed()
+    {
+        var chat = new FakeChatClient();
+        chat.Enqueue("peu importe le contenu");
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            Build(chat).CallAsync(Request(), new InlinePromptProvider("Français_OFF", _ => Bundle(default)),
+                static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                _ => throw new OperationCanceledException(),
+                CancellationToken.None));
+    }
+
     [Theory]
     [InlineData("<think>réflexion interne</think>{\"direction\":\"Top\",\"clueWord\":\"Rivage\",\"explanation\":\"x\"}")]
     [InlineData("[THINK]bla[/THINK]{\"direction\":\"Top\",\"clueWord\":\"Rivage\",\"explanation\":\"x\"}")]

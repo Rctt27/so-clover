@@ -145,9 +145,22 @@ public sealed class AiClueLlmCaller
         {
             draft = parseResponse(text);
         }
-        catch (UnparseableLlmResponseException ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            throw new UnparseableLlmResponseException(ex.RawTextExcerpt, ex.InnerException)
+            // Ne rattrape pas que UnparseableLlmResponseException (le cas normal, émis par
+            // AiClueResponseParser) : un parseResponse custom (harnais d'éval, format futur) peut
+            // lever n'importe quelle autre exception de parse (NotSupportedException, FormatException,
+            // ...) — sans ce filet, elle traverserait sans observabilité (LatencyMs/PromptVersion/
+            // EffectiveModel/PreambleWarning) ni typage reconnaissable pour l'appelant. On préserve le
+            // RawTextExcerpt et l'InnerException déjà renseignés quand ex est déjà une
+            // UnparseableLlmResponseException ; sinon on repart du texte brut et on garde ex en
+            // InnerException. L'annulation (OperationCanceledException) est explicitement exclue du
+            // filtre : elle ne doit jamais être ré-emballée en échec « JSON invalide ».
+            var (rawTextExcerpt, inner) = ex is UnparseableLlmResponseException unparseable
+                ? (unparseable.RawTextExcerpt, unparseable.InnerException)
+                : (text, ex);
+
+            throw new UnparseableLlmResponseException(rawTextExcerpt, inner)
             {
                 LatencyMs = latencyMs,
                 PromptVersion = bundle.PromptVersion,
