@@ -1,5 +1,7 @@
+using System.Text.RegularExpressions;
 using SoClover.Domain;
 using SoClover.Eval.Bench;
+using SoClover.Infrastructure.AI.Prompts;
 using Xunit;
 
 namespace SoClover.Tests.Eval;
@@ -87,6 +89,78 @@ public class BenchGeneratorTests
             Assert.Equal(entry.ReferenceWords[0], clover.GetClueText(dir));
         }
     }
+
+    // Contre-preuve à Reference_words_follow_BoardGeometry_for_an_unrotated_board : ce test-là
+    // réutilise la même formule (BoardGeometry.GetEdgeMapping) que BenchGenerator, donc il est
+    // tautologique pour ReferenceWords[1] (le mot que CloverBoard.GetClueText ne couvre pas —
+    // voir Reference_words_match_the_domain_CloverBoard pour ReferenceWords[0]).
+    // Ici on passe par le pipeline de production réel : BenchBoardMapper.ToSnapshots(board) puis
+    // FileAiCluePromptProvider.BuildBoardCluesPrompt, qui construit les lignes "directionsToResolve"
+    // vues par le LLM (BuildDirectionsToResolve, interne au provider). C'est un oracle indépendant
+    // de BenchGenerator : si celui-ci calculait ReferenceWords[1] différemment de ce que le prompt
+    // IA envoie réellement au modèle, ce test le détecterait alors que le précédent ne le peut pas.
+    [Fact]
+    public void Reference_words_match_what_the_production_AI_prompt_pipeline_sees()
+    {
+        var board = Generate(boardCount: 1).Boards[0];
+        var snapshots = BenchBoardMapper.ToSnapshots(board);
+
+        var fixturePath = Path.Combine(Path.GetTempPath(), $"bench-oracle-{Guid.NewGuid()}.md");
+        File.WriteAllText(fixturePath, MinimalFrenchPromptTemplate);
+        try
+        {
+            var provider = new FrenchAiCluePromptProvider(new FilePromptLoader(), fixturePath, fixturePath);
+            var context = new BoardCluesPromptContext(
+                Language: "Français_OFF",
+                Cards: snapshots,
+                RemainingDirections: [Direction.Top, Direction.Right, Direction.Bottom, Direction.Left],
+                RejectedPerDirection: new Dictionary<Direction, IReadOnlyList<RejectedAttempt>>());
+
+            var bundle = provider.BuildBoardCluesPrompt(context);
+
+            foreach (var dir in new[] { Direction.Top, Direction.Right, Direction.Bottom, Direction.Left })
+            {
+                var match = Regex.Match(
+                    bundle.UserPrompt,
+                    $"- {dir} : trouve un mot-indice qui évoque à la fois \"([^\"]+)\" et \"([^\"]+)\"");
+                Assert.True(match.Success, $"Ligne directionsToResolve introuvable pour {dir} dans :\n{bundle.UserPrompt}");
+
+                var expected = board.Directions.Single(d => d.Direction == dir.ToString()).ReferenceWords;
+                Assert.Equal(expected[0], match.Groups[1].Value);
+                Assert.Equal(expected[1], match.Groups[2].Value);
+            }
+        }
+        finally
+        {
+            if (File.Exists(fixturePath))
+                File.Delete(fixturePath);
+        }
+    }
+
+    private const string MinimalFrenchPromptTemplate = """
+        # SYSTEM
+        Tu es un joueur expert.
+
+        # USER
+        {{boardLayout}}
+
+        À résoudre dans cet appel :
+        {{directionsToResolve}}
+
+        Tous les mots du board :
+        {{allBoardWordsList}}
+
+        {{retryFeedback}}
+
+        JSON.
+
+        # RETRY_FEEDBACK
+        Tes tentatives précédentes ont été rejetées :
+
+        {{rejectedAttemptsByDirection}}
+
+        Pour CHAQUE direction listée, propose un mot DIFFÉRENT.
+        """;
 
     [Fact]
     public void Generation_is_reproducible_for_a_given_seed()
