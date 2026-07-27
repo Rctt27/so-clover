@@ -7,6 +7,7 @@ using SoClover.Infrastructure;
 using SoClover.Infrastructure.AI;
 using SoClover.Infrastructure.AI.Prompts;
 using SoClover.Infrastructure.Validation;
+using SoClover.Tests.Helpers;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.GameLogics;
 using SoClover.UseCases.Gameplay;
@@ -20,10 +21,7 @@ internal static class DiSelectionTestStubs
         services.AddSingleton<IGameRepository, InMemoryGameRepository>();
         services.AddSingleton<InMemoryEventPublisher>();
         services.AddSingleton<IEventPublisher>(sp => sp.GetRequiredService<InMemoryEventPublisher>());
-        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
-            "SoClover", "Infrastructure", "Dictionaries");
-        services.AddSingleton<IWordDictionary>(_ =>
-            new FileWordDictionary(Path.GetFullPath(dictionaryPath)));
+        services.AddSingleton<IWordDictionary>(_ => new DeterministicWordDictionary());
         services.AddSingleton<IClock>(_ => new TestClock(
             new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
         services.AddSingleton<IGameSettingsProvider>(_ => new TestGameSettingsProvider());

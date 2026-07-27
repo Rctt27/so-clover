@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using SoClover.Domain;
 using SoClover.Infrastructure;
+using SoClover.Tests.Helpers;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.GameLogics;
 using Xunit;
@@ -14,10 +15,7 @@ public class UpdateGameSettingsGuessAiBoardOnlyTests
         var services = new ServiceCollection();
         services.AddSingleton<IGameRepository, InMemoryGameRepository>();
         services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
-        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
-            "SoClover", "Infrastructure", "Dictionaries");
-        services.AddSingleton<IWordDictionary>(sp =>
-            new FileWordDictionary(Path.GetFullPath(dictionaryPath)));
+        services.AddSingleton<IWordDictionary>(_ => new DeterministicWordDictionary());
         services.AddSingleton<IWordsPoolCache, InMemoryWordsPoolCache>();
         services.AddTransient<IUpdateGameSettingsUseCase, UpdateGameSettings.Handler>();
         return services.BuildServiceProvider();
