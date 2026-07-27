@@ -85,3 +85,6 @@ docs/superpowers/
 
 # Windows NUL device artifact
 nul
+
+# Harnais d'évaluation des indices IA — runs générés (les bancs et LEDGER.md sont committés)
+eval/runs/
