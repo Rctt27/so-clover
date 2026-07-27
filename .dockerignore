@@ -3,6 +3,12 @@ SoClover/**/bin
 SoClover/**/obj
 SoClover.Tests/**/bin
 SoClover.Tests/**/obj
+SoClover.Eval/**/bin
+SoClover.Eval/**/obj
+
+# Eval harness : le Dockerfile ne restaure/publie que SoClover/SoClover.csproj, jamais
+# SoClover.Eval ni le .sln - ces dossiers n'ont aucune raison d'entrer dans le contexte Docker
+eval
 
 # Frontend build outputs
 SoClover/client/dist
