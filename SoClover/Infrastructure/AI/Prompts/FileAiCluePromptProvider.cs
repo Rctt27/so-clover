@@ -59,13 +59,18 @@ public abstract class FileAiCluePromptProvider : IAiCluePromptProvider
 }
 """;
 
+    // "candidates" n'est volontairement PAS listé dans "required" : la Task 3 distingue "champ absent"
+    // (null, AiClueDraft.Candidates par défaut) de "liste vide" ([]) — un schéma qui l'imposerait
+    // interdirait justement au modèle de ne pas l'émettre. Sans effet runtime aujourd'hui (TODO
+    // ci-dessus : ce schéma n'est branché sur aucun ChatOptions.ResponseFormat).
     private const string SingleClueJsonSchemaText = """
 {
   "type": "object",
   "properties": {
     "direction": { "type": "string", "enum": ["Top", "Right", "Bottom", "Left"] },
     "clueWord": { "type": "string", "minLength": 1, "maxLength": 14 },
-    "explanation": { "type": "string", "minLength": 1 }
+    "explanation": { "type": "string", "minLength": 1 },
+    "candidates": { "type": "array", "items": { "type": "string" } }
   },
   "required": ["direction", "clueWord", "explanation"],
   "additionalProperties": false
