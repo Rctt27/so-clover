@@ -70,11 +70,13 @@ internal static class AiTestProvider
         return services.BuildServiceProvider();
     }
 
-    public static ServiceProvider BuildWithLogger(
+    public static ServiceProvider BuildWithLogger<THandler>(
         IChatClient chatClient,
-        ILogger<GenerateAIClues.Handler> logger,
+        ILogger<THandler> logger,
         int budgetMaxCallsPerGame = 50,
-        Func<BoardCluesPromptContext, AiCluePromptBundle>? promptBuild = null)
+        Func<BoardCluesPromptContext, AiCluePromptBundle>? promptBuild = null,
+        AiClueGenerationMode generationMode = AiClueGenerationMode.PerBoard)
+        where THandler : class
     {
         var services = new ServiceCollection();
         services.AddSingleton<IGameRepository, InMemoryGameRepository>();
@@ -96,6 +98,7 @@ internal static class AiTestProvider
             DefaultModel = "test-model",
             MaxRetries = 2,
             MaxCallsPerGame = Math.Max(1, budgetMaxCallsPerGame),
+            GenerationMode = generationMode,
         }));
         services.AddSingleton(sp => new GameLlmBudget(
             sp.GetRequiredService<IOptions<LlmOptions>>().Value.MaxCallsPerGame));
@@ -103,12 +106,16 @@ internal static class AiTestProvider
             new TestInlinePromptProviderFactory("Français_OFF", promptBuild));
         services.AddSingleton<IAiClueExplanationStore, InMemoryAiClueExplanationStore>();
 
-        services.AddSingleton(logger);
+        services.AddSingleton<ILogger<THandler>>(logger);
 
         services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
         services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
         services.AddTransient<ISubmitBoardUseCase, SubmitBoard.Handler>();
-        services.AddTransient<IGenerateAICluesUseCase, GenerateAIClues.Handler>();
+
+        if (generationMode == AiClueGenerationMode.PerDirection)
+            services.AddTransient<IGenerateAICluesUseCase, GenerateAICluesPerDirection.Handler>();
+        else
+            services.AddTransient<IGenerateAICluesUseCase, GenerateAIClues.Handler>();
 
         return services.BuildServiceProvider();
     }

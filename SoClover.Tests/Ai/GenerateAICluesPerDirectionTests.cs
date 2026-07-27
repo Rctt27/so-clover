@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SoClover.Domain;
 using SoClover.Domain.Validation;
 using SoClover.Infrastructure;
@@ -274,6 +275,49 @@ public class GenerateAICluesPerDirectionTests
 
         Assert.Equal(4, capturedIncludeReasoning.Count);
         Assert.All(capturedIncludeReasoning, v => Assert.True(v));
+    }
+
+    // Miroir de GenerateAICluesLoggingTests.Emits_a_recognizable_warning_with_the_raw_text_excerpt_when_the_LLM_returns_invalid_JSON
+    // (PerBoard), pour le pipeline PerDirection : même diagnostic attendu, plus le champ direction={Direction}
+    // que seul PerDirection connaît. Verrouille la correction du Finding Important #1 (le catch de
+    // GenerateAICluesPerDirection.FillRemainingAsync ne distinguait plus UnparseableLlmResponseException et
+    // perdait le RawTextExcerpt).
+    [Fact]
+    public async Task Emits_a_recognizable_warning_with_the_raw_text_excerpt_and_direction_when_the_LLM_returns_invalid_JSON()
+    {
+        var fake = new FakeChatClient();
+        var capturing = new CapturingLogger<GenerateAICluesPerDirection.Handler>();
+
+        var sp = AiTestProvider.BuildWithLogger(
+            fake, capturing, generationMode: AiClueGenerationMode.PerDirection);
+        var (gameId, aiPids) = await AiTestProvider.SetupGameWithAis(sp);
+        var aiPid = aiPids[0];
+
+        // PerDirection : maxRetries=2 -> 3 tentatives par direction, 4 directions -> jusqu'à 12 appels.
+        for (var i = 0; i < 12; i++)
+            fake.Enqueue("pas du JSON du tout");
+
+        var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
+        await useCase.Handle(new GenerateAIClues.Request(gameId, aiPid));
+
+        var unparseableWarnings = capturing.Records.Where(r =>
+            r.Level == LogLevel.Warning &&
+            r.Message.Contains("unparseable JSON", StringComparison.OrdinalIgnoreCase)).ToList();
+        Assert.NotEmpty(unparseableWarnings);
+
+        var w = unparseableWarnings[0];
+        Assert.True(w.Properties.ContainsKey("GameId"));
+        Assert.True(w.Properties.ContainsKey("PlayerId"));
+        Assert.True(w.Properties.ContainsKey("Attempt"));
+        Assert.True(w.Properties.ContainsKey("Direction"));
+        Assert.True(w.Properties.ContainsKey("RawTextExcerpt"));
+        Assert.Contains("pas du JSON", w.Properties["RawTextExcerpt"] as string);
+
+        // Le générique "AI clue LLM call failed" ne doit plus apparaître pour ce cas précis.
+        var genericWarnings = capturing.Records.Where(r =>
+            r.Level == LogLevel.Warning &&
+            r.Message.Contains("AI clue LLM call failed", StringComparison.OrdinalIgnoreCase)).ToList();
+        Assert.Empty(genericWarnings);
     }
 
     private static string PickConflictWord(CloverBoard board)

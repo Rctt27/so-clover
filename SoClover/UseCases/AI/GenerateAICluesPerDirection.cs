@@ -62,9 +62,22 @@ public static class GenerateAICluesPerDirection
                     }
                     catch (InvalidOperationException ex)
                     {
-                        _logger.LogWarning(ex,
-                            "AI clue LLM call failed (direction={Direction}, attempt={Attempt}): game={GameId} player={PlayerId}",
-                            dir, attempt, game.Id.Value, player.Id.Value);
+                        // UnparseableLlmResponseException dérive d'InvalidOperationException (cf.
+                        // AiClueResponseParser.ParseSingleDirection) : ce catch capte donc aussi le cas JSON invalide.
+                        // On distingue ce cas pour conserver un message de diagnostic reconnaissable —
+                        // le texte brut tronqué (RawTextExcerpt) était auparavant perdu avec le JsonException.
+                        if (ex is UnparseableLlmResponseException unparseable)
+                        {
+                            _logger.LogWarning(ex,
+                                "AI clue LLM returned unparseable JSON (direction={Direction}, attempt {Attempt}): game={GameId} player={PlayerId} rawTextExcerpt={RawTextExcerpt}",
+                                dir, attempt, game.Id.Value, player.Id.Value, unparseable.RawTextExcerpt);
+                        }
+                        else
+                        {
+                            _logger.LogWarning(ex,
+                                "AI clue LLM call failed (direction={Direction}, attempt={Attempt}): game={GameId} player={PlayerId}",
+                                dir, attempt, game.Id.Value, player.Id.Value);
+                        }
                         continue;
                     }
 
