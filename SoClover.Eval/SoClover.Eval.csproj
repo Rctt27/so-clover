@@ -37,6 +37,17 @@
     </Content>
   </ItemGroup>
 
+  <!--
+    Prompts décodeurs : sous Decoder/Prompts/<lang>/, copiés dans l'output du projet ET, par
+    propagation transitive des items Content, dans celui de SoClover.Tests — c'est ce qui permet
+    aux tests de les charger depuis AppContext.BaseDirectory.
+  -->
+  <ItemGroup>
+    <Content Include="Decoder\Prompts\**\*.md">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="SoClover.Tests" />
   </ItemGroup>
