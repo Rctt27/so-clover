@@ -76,37 +76,70 @@ registre. Le harnais ne peut pas rendre ce réglage observable ; il peut rendre 
 | Banc test | `eval/boards.test.jsonl` — 60 boards / 240 directions, seed `20260726002`, hash `1436bb07dc0d` — **non consulté dans ce cycle** |
 | Décodeur | `qwen/qwen3-8b`, thinking OFF, temp 0,3, `maxOutputTokens` 512 — 480 décodages N2 + 40 N3 en 3 min 11 s |
 | Plancher aléatoire | `recovery = 0,130` — porte `≤ 0,15` : **franchie**. `decode_failure_rate = 0,035` (≤ 0,05) |
-| Run baseline | *à produire — voir « Run de clôture » ci-dessous* |
-| `recovery` baseline | *à produire* |
+| Run baseline | `20260728-v5-google-gemma-4-12b-qat-d79a63b9` — prompt FR PerDirection v5, `google/gemma-4-12b-qat`, 160 directions en 10 min 44 |
+| `recovery` baseline | **0,363** — soit `+23,3` pts sur le plancher, IC 95 % `[+19,3 ; +27,3]` |
 | Statut du registre | `pré-calibration` — les portes P6 (accord ≥ 75 %, κ ≥ 0,40) ne sont pas franchies |
 
 Le plancher mesuré (`0,130`) colle à la valeur théorique du hasard pur : tirer 2 mots parmi 16
 donne une intersection espérée de `2 × 2/16 = 0,25` mot, soit `R̄ = 0,125`. Le décodeur ne devine
 donc rien à partir d'indices aléatoires — c'est précisément ce que la porte vérifie.
 
+### Ce que le premier baseline montre
+
+| Indicateur | v5 | Plancher |
+|---|---|---|
+| `valid_rate` | 0,963 | 1,000 |
+| `first_attempt_rate` | 0,963 | 1,000 |
+| `parse_failure_rate` | 0,031 | 0,000 |
+| `recovery` | **0,363** | 0,130 |
+| `strict_2of2` | 0,013 | 0,000 |
+| `half_rate` | **0,656** | 0,225 |
+| `board_positions` | 0,278 | 0,193 |
+| `board_solved` | 0,000 | 0,000 |
+| `decode_failure_rate` | 0,044 | 0,035 |
+
+Le mode d'échec dominant est net et chiffré : `half_rate = 0,656` contre `strict_2of2 = 0,013`.
+Dans deux tiers des directions, le décodeur retrouve **un seul** des deux mots visés, et presque
+jamais les deux. C'est la « signature Hôpital » du PRD — l'indice s'accroche fortement à un mot et
+laisse l'autre orphelin, au lieu de tendre un pont entre les deux. `board_solved = 0,000` sur les
+40 boards en découle mécaniquement.
+
+> **Attention à l'interprétation de `compare` sur ce couple.** Comparer v5 au plancher rend un
+> verdict `ÉCARTÉ`, motivé par `Δ valid_rate = -3,8 pts`. Ce n'est **pas** un jugement sur v5 :
+> le plancher a un `valid_rate` de 1,000 par construction (`RandomBaselineRunner` ne retient qu'un
+> mot déjà validé par `ClueAcceptance`), donc toute génération réelle perd forcément du terrain
+> sur cette colonne. La règle de promotion est faite pour départager **deux variantes de prompt**,
+> pas un prompt et un plancher. Le chiffre à lire ici est le Δ`recovery` et son IC, qui ne
+> contient pas zéro.
+
 > **Aucune ligne du registre n'est défendable avant P6.** Les chiffres de ce cycle sont
 > techniquement valides et pas encore légitimés : seule la porte du plancher aléatoire a été
 > franchie.
 
-### Run de clôture — procédure opérateur
+### Reproduire un cycle complet
 
-Le code des cinq verbes est complet et testé ; les chiffres réels demandent LM Studio et deux
-modèles distincts, chargés successivement. Dans l'ordre :
+**Le rechargement manuel de modèle n'est pas nécessaire avec LM Studio récent** : les deux modèles
+sont servis simultanément par chargement JIT, `generate` et `decode` s'enchaînent sans
+intervention. La contrainte des deux passes reste vraie pour un serveur qui n'expose qu'un modèle
+à la fois. Vérifier ce qui est servi : `curl http://localhost:1234/v1/models`.
 
-1. Charger le **générateur** (`Generator.defaultModel` dans `evalsettings.json`), thinking OFF,
-   contexte ≥ 12k. Vérifier : `dotnet run --project SoClover.Eval -- doctor`.
+Renseigner dans `evalsettings.json` les identifiants **exacts** rendus par cet endpoint — LM Studio
+préfixe l'organisation (`google/gemma-4-12b-qat`, et non `gemma-4-12b-qat`). Un identifiant qui ne
+correspond à rien fait échouer le premier appel.
+
+1. Charger les modèles, **thinking OFF** sur les deux, contexte ≥ 12k (générateur) et ≥ 8k
+   (décodeur). Vérifier les prompts : `dotnet run --project SoClover.Eval -- doctor`.
 2. `generate --bench eval/boards.dev.jsonl --notes "thinking OFF, ctx 16k"` — 160 directions,
-   plusieurs heures en séquentiel local. Reprenable : relancer la même commande après une
-   interruption.
-3. Recharger LM Studio avec le **décodeur** (famille différente du générateur), thinking OFF,
-   contexte ≥ 8k. Puis `decode --run eval/runs/<runId>.jsonl --decodes 3`.
+   ~11 min sur un 12B local. Reprenable : relancer la même commande après une interruption.
+3. `decode --run eval/runs/<runId>.jsonl --decodes 3` — 480 décodages N2 + 40 N3, ~2-3 min sur un
+   8B local.
 4. `score --run … --ledger eval/LEDGER.md --hypothesis "…" --decision neutre`.
    **Vérifier `decode_failure_rate ≤ 0,05`** — au-delà, le prompt décodeur est cassé et aucun
    `recovery` n'est lisible.
 5. Décoder et scorer le plancher aléatoire avec le **même décodeur**. **Porte : `recovery ≤ 0,15`.**
    Si elle n'est pas franchie, le décodeur devine à partir de rien : consigner l'échec au registre
    (`--decision écarté`) et reprendre `decode-clue.md` avant de publier le moindre `recovery`.
-6. `compare --baseline <plancher> --variant <baseline>` pour vérifier le Δ apparié et son IC.
+6. `compare --baseline <runA> --variant <runB>` pour le Δ apparié et son IC.
 
 ## Ce que ce cycle ne livre pas
 

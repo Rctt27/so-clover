@@ -3,7 +3,7 @@
     "provider": "OpenAI",
     "baseUrl": "http://localhost:1234/v1",
     "apiKey": "lm-studio",
-    "defaultModel": "gemma-3-12b-it-qat",
+    "defaultModel": "google/gemma-4-12b-qat",
     "defaultTemperature": 1.0,
     "topP": 0.95,
     "maxOutputTokens": 4096,
