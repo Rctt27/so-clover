@@ -51,6 +51,11 @@ public static class GenerateCommand
         var bench = BenchFile.Read(benchPath);
         Console.WriteLine($"banc : {benchPath} ({bench.Manifest.BoardCount} boards, hash {bench.Manifest.BenchHash})");
 
+        // Avant toute résolution de configuration LLM : le plancher n'appelle aucun modèle et doit
+        // donc rester produisible sans provider joignable.
+        if (args.Has("random-baseline"))
+            return await ExecuteRandomBaselineAsync(args, bench, ct).ConfigureAwait(false);
+
         var config = EvalLlmConfig.BuildConfiguration();
         var llmOptions = EvalLlmConfig.Bind(config, "Generator");
         var opts = llmOptions.Value;
@@ -150,6 +155,68 @@ public static class GenerateCommand
         }
 
         Console.WriteLine($"terminé en {stopwatch.Elapsed:hh\\:mm\\:ss}. Run : {runPath}");
+        return 0;
+    }
+
+    // Plancher aléatoire : aucun appel LLM, aucun code de scoring dédié. Le run produit
+    // se décode et se score comme n'importe quel autre.
+    private static async Task<int> ExecuteRandomBaselineAsync(
+        Args args, BenchContents bench, CancellationToken ct)
+    {
+        var seed = args.GetLong("seed", 20260727000);
+        var outDirectory = args.Get("out-dir") ?? Path.Combine("eval", "runs");
+        var notes = args.Get("notes");
+
+        var dictionaryDir = Path.Combine(AppContext.BaseDirectory, "Infrastructure", "Dictionaries");
+        var words = await new SoClover.Infrastructure.FileWordDictionary(dictionaryDir)
+            .GetAllWordsAsync(bench.Manifest.Language, ct).ConfigureAwait(false);
+
+        var validator = new ClueValidatorFactory().GetFor(bench.Manifest.Language, semanticCheckEnabled: true);
+        var runner = new RandomBaselineRunner(words, validator, seed);
+
+        var createdAtUtc = DateTime.UtcNow;
+        var draftManifest = new RunManifest(
+            Kind: "manifest",
+            RunId: string.Empty,
+            Stage: "generate",
+            CreatedAtUtc: createdAtUtc,
+            BenchFile: args.Require("bench").Replace('\\', '/'),
+            BenchHash: bench.Manifest.BenchHash,
+            PromptFile: null,
+            PromptVersion: null,
+            GenerationMode: "RandomBaseline",
+            ReasoningEnabled: false,
+            Provider: "None",
+            BaseUrl: string.Empty,
+            ModelId: $"random-baseline-seed-{seed}",
+            ModelSnapshotDate: null,
+            ProviderModelListHash: null,
+            Temperature: 0,
+            TopP: null,
+            MaxOutputTokens: null,
+            MaxRetries: 0,
+            Language: bench.Manifest.Language,
+            HarnessVersion: RunFile.HarnessVersion,
+            OperatorNotes: notes);
+
+        var hash8 = RunFile.ComputeHash8(draftManifest);
+        var runId = RunFile.BuildRunId(createdAtUtc, null, draftManifest.ModelId, hash8);
+        var runPath = Path.Combine(outDirectory, $"{runId}.jsonl");
+
+        RunFile.WriteManifest(runPath, draftManifest with { RunId = runId });
+
+        foreach (var board in bench.Boards)
+        {
+            foreach (var direction in BoardGeometry.AllDirections)
+            {
+                ct.ThrowIfCancellationRequested();
+                RunFile.AppendAttempt(runPath, runner.RunDirection(board, direction));
+            }
+        }
+
+        Console.WriteLine($"plancher aléatoire écrit : {runPath}");
+        Console.WriteLine($"  seed : {seed}");
+        Console.WriteLine($"  porte à franchir après décodage : recovery ≤ 0,15");
         return 0;
     }
 }
