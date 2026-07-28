@@ -19,7 +19,7 @@ public class LedgerWriterTests : IDisposable
             40, 160,
             ValidRate: 0.94, FirstAttemptRate: 0.81, ParseFailureRate: 0.02,
             Recovery: recovery, Strict2Of2: 0.41, HalfRate: 0.33,
-            BoardPositions: 0.55, BoardSolved: 0.12,
+            BoardPositions: 0.55, BoardSolvedFirstTry: 0.12,
             ConfusionTop: [new ConfusionEntry("Infirmière", 23)],
             DecodeFailureRate: 0.01,
             ItemsCompleted: 160, ItemsExpected: 160,
@@ -40,6 +40,18 @@ public class LedgerWriterTests : IDisposable
         Assert.Contains("Registre d'expériences", text);
         Assert.Contains("| date |", text);
         Assert.Contains("20260727-v5-gemma-a1b2c3d4", text);
+    }
+
+    // Le jeu réel accorde 3 tentatives avec correction par position entre chaque. La colonne n'en
+    // tolère aucune : son nom doit le dire, sinon un lecteur du registre surinterprète un 0,000.
+    [Fact]
+    public void The_column_name_states_that_no_retry_is_tolerated()
+    {
+        LedgerWriter.Append(_path, Entry());
+
+        var header = File.ReadAllLines(_path).Single(l => l.StartsWith("| date |"));
+
+        Assert.Contains("board_solved_first_try", header);
     }
 
     // Le registre est le livrable le plus durable du chantier : jamais réécrit.
@@ -87,7 +99,7 @@ public class LedgerWriterTests : IDisposable
         Assert.Contains("0,620", row);  // recovery
         Assert.Contains("0,410", row);  // strict_2of2
         Assert.Contains("0,330", row);  // half_rate
-        Assert.Contains("0,120", row);  // board_solved
+        Assert.Contains("0,120", row);  // board_solved_first_try
         Assert.Contains("baseline v5", row);
         Assert.Contains("neutre", row);
         Assert.Contains("thinking OFF, ctx 16k", row);

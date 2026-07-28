@@ -51,6 +51,15 @@ public sealed record ClueDecodeLine(
 /// <summary>
 /// Un décodage board complet (N3) : affectation de 2 mots à chacune des 4 directions.
 /// <c>boardPositions</c> = crédit sommé sur les 4 directions, divisé par 8.
+/// <para>
+/// <see cref="BoardSolved"/> garde ce nom alors que la métrique agrégée s'appelle
+/// <c>board_solved_first_try</c> : ici la notion est <b>tautologique</b> — une ligne
+/// <c>boardDecode</c> est le résultat d'une passe unique, il n'y a pas de seconde tentative dont
+/// se distinguer. Renommer le champ changerait le schéma des <c>.decoded.jsonl</c> déjà produits,
+/// que <c>EvalJson</c> relirait <b>silencieusement</b> avec la valeur à <c>null</c> (les options
+/// de sérialisation ne rejettent pas les champs absents). Le gain de clarté est nul, le risque de
+/// corruption silencieuse ne l'est pas.
+/// </para>
 /// </summary>
 public sealed record BoardDecodeLine(
     string Kind,

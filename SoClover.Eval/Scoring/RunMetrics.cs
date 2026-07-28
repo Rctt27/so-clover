@@ -25,7 +25,7 @@ public sealed record MetricsReport(
     double Strict2Of2,
     double HalfRate,
     double BoardPositions,
-    double BoardSolved,
+    double BoardSolvedFirstTry,
     IReadOnlyList<ConfusionEntry> ConfusionTop,
     double DecodeFailureRate,
     int ItemsCompleted,
@@ -148,7 +148,7 @@ public static class RunMetrics
             .ToList();
 
         var boardPositions = scoredBoards.Count == 0 ? 0.0 : scoredBoards.Average(b => b.BoardPositions!.Value);
-        var boardSolved = scoredBoards.Count == 0 ? 0.0
+        var boardSolvedFirstTry = scoredBoards.Count == 0 ? 0.0
             : scoredBoards.Count(b => b.BoardSolved == true) / (double)scoredBoards.Count;
 
         // ---- Santé ----------------------------------------------------------
@@ -169,7 +169,7 @@ public static class RunMetrics
             Strict2Of2: Ratio(strictItems, decodedItems.Count),
             HalfRate: Ratio(halfItems, decodedItems.Count),
             BoardPositions: boardPositions,
-            BoardSolved: boardSolved,
+            BoardSolvedFirstTry: boardSolvedFirstTry,
             ConfusionTop: confusionTop,
             DecodeFailureRate: Ratio(decodeFailures, decodeAttempts),
             ItemsCompleted: completedItems,

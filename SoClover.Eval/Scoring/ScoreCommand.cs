@@ -95,22 +95,22 @@ public static class ScoreCommand
         if (operatorNotes is not null) Console.WriteLine($"notes : {operatorNotes}");
         Console.WriteLine();
         Console.WriteLine("N1 — validité");
-        Console.WriteLine($"  valid_rate           {N(m.ValidRate)}");
-        Console.WriteLine($"  first_attempt_rate   {N(m.FirstAttemptRate)}");
-        Console.WriteLine($"  parse_failure_rate   {N(m.ParseFailureRate)}");
+        Console.WriteLine($"  valid_rate             {N(m.ValidRate)}");
+        Console.WriteLine($"  first_attempt_rate     {N(m.FirstAttemptRate)}");
+        Console.WriteLine($"  parse_failure_rate     {N(m.ParseFailureRate)}");
         Console.WriteLine();
         Console.WriteLine("N2 — devinabilité");
-        Console.WriteLine($"  recovery             {N(m.Recovery)}   ← métrique principale");
-        Console.WriteLine($"  strict_2of2          {N(m.Strict2Of2)}");
-        Console.WriteLine($"  half_rate            {N(m.HalfRate)}");
+        Console.WriteLine($"  recovery               {N(m.Recovery)}   ← métrique principale");
+        Console.WriteLine($"  strict_2of2            {N(m.Strict2Of2)}");
+        Console.WriteLine($"  half_rate              {N(m.HalfRate)}");
         Console.WriteLine();
         Console.WriteLine("N3 — cohérence board");
-        Console.WriteLine($"  board_positions      {N(m.BoardPositions)}");
-        Console.WriteLine($"  board_solved         {N(m.BoardSolved)}");
+        Console.WriteLine($"  board_positions        {N(m.BoardPositions)}   ← pilotage N3");
+        Console.WriteLine($"  board_solved_first_try {N(m.BoardSolvedFirstTry)}   ← témoin, pas un critère");
         Console.WriteLine();
         Console.WriteLine("santé");
-        Console.WriteLine($"  decode_failure_rate  {N(m.DecodeFailureRate)}");
-        Console.WriteLine($"  items                {m.ItemsCompleted} / {m.ItemsExpected}");
+        Console.WriteLine($"  decode_failure_rate    {N(m.DecodeFailureRate)}");
+        Console.WriteLine($"  items                  {m.ItemsCompleted} / {m.ItemsExpected}");
 
         if (m.ItemsCompleted < m.ItemsExpected)
         {

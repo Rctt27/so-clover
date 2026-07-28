@@ -54,7 +54,7 @@ public static class LedgerWriter
         > (`recovery ≤ 0,15`). Les portes d'accord ≥ 75 % et κ ≥ 0,40 relèvent de la phase P6 —
         > **aucune ligne pré-calibration n'est défendable** au sens du PRD.
 
-        | date | runId | banc | prompt | version | modèle | snapshot | réglages | valid_rate | first_attempt | recovery | strict_2of2 | half_rate | board_solved | statut | décision | hypothèse | notes |
+        | date | runId | banc | prompt | version | modèle | snapshot | réglages | valid_rate | first_attempt | recovery | strict_2of2 | half_rate | board_solved_first_try | statut | décision | hypothèse | notes |
         |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
         """;
 
@@ -102,7 +102,7 @@ public static class LedgerWriter
             Number(m.Recovery),
             Number(m.Strict2Of2),
             Number(m.HalfRate),
-            Number(m.BoardSolved),
+            Number(m.BoardSolvedFirstTry),
             e.Status,
             e.Decision,
             e.Hypothesis ?? "—",

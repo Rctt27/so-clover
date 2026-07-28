@@ -16,7 +16,7 @@ public sealed record PairedComparisonResult(
     double BaselineRecovery,
     double VariantRecovery,
     double DeltaValidRate,
-    double DeltaBoardSolved,
+    double DeltaBoardSolvedFirstTry,
     string Verdict,
     IReadOnlyList<string> Reasons);
 
@@ -33,7 +33,7 @@ public static class PairedComparison
 {
     public const double PromotionRecoveryGain = 0.03;
     public const double MaxValidRateLoss = 0.01;
-    public const double MaxBoardSolvedRegression = 0.05;
+    public const double MaxBoardSolvedFirstTryRegression = 0.05;
     public const int DefaultBootstrapIterations = 10_000;
     public const long DefaultBootstrapSeed = 20260727777;
 
@@ -74,7 +74,7 @@ public static class PairedComparison
         var (ciLow, ciHigh) = BootstrapCi(deltas, bootstrapIterations, seed);
 
         var deltaValidRate = variant.ValidRate - baseline.ValidRate;
-        var deltaBoardSolved = variant.BoardSolved - baseline.BoardSolved;
+        var deltaBoardSolvedFirstTry = variant.BoardSolvedFirstTry - baseline.BoardSolvedFirstTry;
 
         var reasons = new List<string>();
         var disqualified = false;
@@ -84,9 +84,9 @@ public static class PairedComparison
             reasons.Add($"valid_rate perd {(-deltaValidRate) * 100:0.0} pts (> 1 pt toléré)");
             disqualified = true;
         }
-        if (-deltaBoardSolved > MaxBoardSolvedRegression + ThresholdTolerance)
+        if (-deltaBoardSolvedFirstTry > MaxBoardSolvedFirstTryRegression + ThresholdTolerance)
         {
-            reasons.Add($"board_solved régresse de {(-deltaBoardSolved) * 100:0.0} pts (> 5 pts tolérés)");
+            reasons.Add($"board_solved_first_try régresse de {(-deltaBoardSolvedFirstTry) * 100:0.0} pts (> 5 pts tolérés)");
             disqualified = true;
         }
         if (deltaRecovery <= -PromotionRecoveryGain + ThresholdTolerance)
@@ -122,7 +122,7 @@ public static class PairedComparison
             BaselineRecovery: baseline.Recovery,
             VariantRecovery: variant.Recovery,
             DeltaValidRate: deltaValidRate,
-            DeltaBoardSolved: deltaBoardSolved,
+            DeltaBoardSolvedFirstTry: deltaBoardSolvedFirstTry,
             Verdict: verdict,
             Reasons: reasons.AsReadOnly());
     }

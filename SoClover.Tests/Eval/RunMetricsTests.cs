@@ -225,7 +225,7 @@ public class RunMetricsTests
     // ---- N3 ------------------------------------------------------------------
 
     [Fact]
-    public void Board_positions_and_board_solved_are_computed_over_decoded_boards()
+    public void Board_positions_and_board_solved_first_try_are_computed_over_decoded_boards()
     {
         var bench = Bench(boards: 3);
         var run = Run();
@@ -239,7 +239,7 @@ public class RunMetricsTests
         var metrics = RunMetrics.Compute(bench, run, Decoded([], boards), maxAttempts: 3);
 
         Assert.Equal(0.75, metrics.BoardPositions, precision: 10);
-        Assert.Equal(0.5, metrics.BoardSolved, precision: 10);
+        Assert.Equal(0.5, metrics.BoardSolvedFirstTry, precision: 10);
     }
 
     // ---- Santé ---------------------------------------------------------------
@@ -274,7 +274,7 @@ public class RunMetricsTests
         Assert.Equal(0.0, metrics.Strict2Of2);
         Assert.Equal(0.0, metrics.HalfRate);
         Assert.Equal(0.0, metrics.BoardPositions);
-        Assert.Equal(0.0, metrics.BoardSolved);
+        Assert.Equal(0.0, metrics.BoardSolvedFirstTry);
         Assert.Equal(0.0, metrics.DecodeFailureRate);
         Assert.Empty(metrics.ConfusionTop);
         Assert.Equal(0, metrics.ItemsCompleted);
@@ -337,5 +337,18 @@ public class RunMetricsTests
 
         Assert.Contains("\"recovery\"", json);
         Assert.DoesNotContain("perItemRBar", json);
+    }
+
+    // Le nom porte l'exigence : « du premier coup ». Sous le nom board_solved, un lecteur pouvait
+    // croire que la métrique tolérait les 3 tentatives du jeu réel — elle n'en tolère aucune.
+    [Fact]
+    public void The_serialized_metric_name_states_that_it_is_first_try_only()
+    {
+        var metrics = RunMetrics.Compute(Bench(), Run(), decoded: null, maxAttempts: 3);
+
+        var json = EvalJson.Serialize(metrics);
+
+        Assert.Contains("\"boardSolvedFirstTry\"", json);
+        Assert.DoesNotContain("\"boardSolved\"", json);
     }
 }

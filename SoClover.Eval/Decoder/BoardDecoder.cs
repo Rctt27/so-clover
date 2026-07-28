@@ -16,7 +16,7 @@ namespace SoClover.Eval.Decoder;
 /// <b>Choix de modélisation assumé</b> : le vrai jeu fait placer des <i>cartes</i> avec la bonne
 /// rotation, ce qui engage aussi les 8 faces intérieures. N3 mesure l'affectation mot → arête,
 /// donc une <b>borne supérieure optimiste</b> du score réel. C'est suffisant pour son usage :
-/// détecter les collisions inter-directions (<c>recovery</c> bon + <c>board_solved</c> mauvais
+/// détecter les collisions inter-directions (<c>recovery</c> bon + <c>board_solved_first_try</c> mauvais
 /// = mode M6).
 /// </para>
 /// </summary>

@@ -28,9 +28,9 @@ public static class CompareCommand
         Console.WriteLine($"  baseline : {baseline.RunId}   recovery {N(result.BaselineRecovery)}");
         Console.WriteLine($"  variante : {variant.RunId}   recovery {N(result.VariantRecovery)}");
         Console.WriteLine();
-        Console.WriteLine($"  Δ recovery      {Pts(result.DeltaRecovery)} pts   IC 95 % [{Pts(result.CiLow)} ; {Pts(result.CiHigh)}]");
-        Console.WriteLine($"  Δ valid_rate    {Pts(result.DeltaValidRate)} pts");
-        Console.WriteLine($"  Δ board_solved  {Pts(result.DeltaBoardSolved)} pts");
+        Console.WriteLine($"  Δ recovery              {Pts(result.DeltaRecovery)} pts   IC 95 % [{Pts(result.CiLow)} ; {Pts(result.CiHigh)}]");
+        Console.WriteLine($"  Δ valid_rate            {Pts(result.DeltaValidRate)} pts");
+        Console.WriteLine($"  Δ board_solved_first_try {Pts(result.DeltaBoardSolvedFirstTry)} pts");
         Console.WriteLine();
         Console.WriteLine($"  verdict : {result.Verdict.ToUpperInvariant()}");
         foreach (var reason in result.Reasons)

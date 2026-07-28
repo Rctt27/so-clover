@@ -95,14 +95,50 @@ donc rien à partir d'indices aléatoires — c'est précisément ce que la port
 | `strict_2of2` | 0,013 | 0,000 |
 | `half_rate` | **0,656** | 0,225 |
 | `board_positions` | 0,278 | 0,193 |
-| `board_solved` | 0,000 | 0,000 |
+| `board_solved_first_try` | 0,000 | 0,000 |
 | `decode_failure_rate` | 0,044 | 0,035 |
 
 Le mode d'échec dominant est net et chiffré : `half_rate = 0,656` contre `strict_2of2 = 0,013`.
 Dans deux tiers des directions, le décodeur retrouve **un seul** des deux mots visés, et presque
 jamais les deux. C'est la « signature Hôpital » du PRD — l'indice s'accroche fortement à un mot et
-laisse l'autre orphelin, au lieu de tendre un pont entre les deux. `board_solved = 0,000` sur les
-40 boards en découle mécaniquement.
+laisse l'autre orphelin, au lieu de tendre un pont entre les deux. `board_solved_first_try = 0,000`
+sur les 40 boards en découle mécaniquement.
+
+### N3 : piloter sur `board_positions`, pas sur `board_solved_first_try`
+
+`board_solved_first_try` vaut **0,000 des deux côtés** — pour le prompt v5 comme pour le plancher
+aléatoire. Une métrique qui ne bouge pas entre un pipeline réel et du bruit ne discrimine rien :
+elle ne pourra jamais départager un v5 d'un v6. **Ne pas l'utiliser comme critère de décision.**
+Elle reste au registre comme témoin, et dans la règle de promotion uniquement comme garde-fou de
+régression (≤ 5 pts), ce qui est inoffensif tant qu'elle est à zéro.
+
+Deux raisons à ce zéro, et aucune n'est « le modèle est mauvais » :
+
+1. **L'exigence est irréaliste.** La métrique demande les 8 slots corrects **du premier coup**. Le
+   jeu réel accorde 3 tentatives, avec annonce des positions correctes entre chaque
+   (`Game.RemainingAttempts`, `Domain/Game.cs:74`) — et même des joueurs expérimentés résolvent
+   rarement un plateau d'emblée. La métrique mesure une exigence que personne ne satisfait, pas
+   une qualité d'indice. C'est le sens du renommage : le nom porte désormais la contrainte.
+2. **Le chiffre est déjà une borne supérieure optimiste.** `BoardDecoder` mesure l'affectation
+   mot → arête ; le vrai jeu fait placer des *cartes* avec la bonne rotation, ce qui engage aussi
+   les 8 faces intérieures. Le score réel serait donc encore plus bas.
+
+**Le signal N3 exploitable est `board_positions`** (0,278 contre 0,193), gradué et non saturé. Il
+sépare toutefois bien moins que `recovery` (+8,5 pts contre +23,3 pts) : N3 reste un indicateur de
+diagnostic — détecter le mode `M6`, collision inter-directions — et non un critère de promotion.
+
+> **Pourquoi le harnais ne rejoue pas les 3 tentatives.** Le PRD l'exclut explicitement
+> (`00_Overview.md:152`, « du premier coup ») et range la boucle multi-tentatives en hors-périmètre,
+> côté télémétrie de production. La raison est méthodologique : avec le feedback « ces positions
+> sont bonnes », un décodeur converge **par élimination** même sur des indices médiocres. On
+> mesurerait un mélange de qualité d'indice et de capacité de déduction du décodeur — exactement ce
+> que le harnais cherche à isoler. Le PRD identifie d'ailleurs cette stratégie et la range du côté
+> humain : « stratégie au niveau du board, structurellement hors d'atteinte de `PerDirection` »
+> (`00_Overview.md:441-444`).
+>
+> La mesure fidèle au jeu réel viendra de `ValidateGuessingBoard`
+> (`UseCases/Gameplay/ValidateGuessingBoard.cs`), qui calcule déjà la correction par position, à
+> chaque tentative, par de vrais joueurs, avec les vraies rotations — puis la jette.
 
 > **Attention à l'interprétation de `compare` sur ce couple.** Comparer v5 au plancher rend un
 > verdict `ÉCARTÉ`, motivé par `Δ valid_rate = -3,8 pts`. Ce n'est **pas** un jugement sur v5 :

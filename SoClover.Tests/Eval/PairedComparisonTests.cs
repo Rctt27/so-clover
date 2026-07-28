@@ -9,12 +9,12 @@ public class PairedComparisonTests
         IReadOnlyDictionary<(string, string), double> perItem,
         string benchHash = "a1b2c3d4e5f6",
         double validRate = 0.94,
-        double boardSolved = 0.12)
+        double boardSolvedFirstTry = 0.12)
     {
         var recovery = perItem.Count == 0 ? 0.0 : perItem.Values.Average();
         return new MetricsReport(
             "run", "eval/boards.dev.jsonl", benchHash, 1, perItem.Count,
-            validRate, 0.8, 0.02, recovery, 0.4, 0.3, 0.55, boardSolved,
+            validRate, 0.8, 0.02, recovery, 0.4, 0.3, 0.55, boardSolvedFirstTry,
             [], 0.01, perItem.Count, perItem.Count, perItem);
     }
 
@@ -104,8 +104,8 @@ public class PairedComparisonTests
     [Fact]
     public void Verdict_is_retenu_when_all_three_conditions_hold()
     {
-        var baseline = Report(Items(Enumerable.Repeat(0.50, 40).ToArray()), validRate: 0.94, boardSolved: 0.12);
-        var variant = Report(Items(Enumerable.Repeat(0.60, 40).ToArray()), validRate: 0.94, boardSolved: 0.13);
+        var baseline = Report(Items(Enumerable.Repeat(0.50, 40).ToArray()), validRate: 0.94, boardSolvedFirstTry: 0.12);
+        var variant = Report(Items(Enumerable.Repeat(0.60, 40).ToArray()), validRate: 0.94, boardSolvedFirstTry: 0.13);
 
         var result = PairedComparison.Compare(baseline, variant);
 
@@ -147,15 +147,15 @@ public class PairedComparisonTests
     }
 
     [Fact]
-    public void A_board_solved_regression_above_five_points_disqualifies()
+    public void A_board_solved_first_try_regression_above_five_points_disqualifies()
     {
-        var baseline = Report(Items(Enumerable.Repeat(0.50, 40).ToArray()), boardSolved: 0.20);
-        var variant = Report(Items(Enumerable.Repeat(0.70, 40).ToArray()), boardSolved: 0.13);
+        var baseline = Report(Items(Enumerable.Repeat(0.50, 40).ToArray()), boardSolvedFirstTry: 0.20);
+        var variant = Report(Items(Enumerable.Repeat(0.70, 40).ToArray()), boardSolvedFirstTry: 0.13);
 
         var result = PairedComparison.Compare(baseline, variant);
 
         Assert.Equal("écarté", result.Verdict);
-        Assert.Contains(result.Reasons, r => r.Contains("board_solved"));
+        Assert.Contains(result.Reasons, r => r.Contains("board_solved_first_try"));
     }
 
     [Fact]
