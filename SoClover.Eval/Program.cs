@@ -2,6 +2,7 @@ using SoClover.Domain;
 using SoClover.Eval.Bench;
 using SoClover.Eval.Cli;
 using SoClover.Eval.Io;
+using SoClover.Eval.Runner;
 using SoClover.Infrastructure;
 using SoClover.Infrastructure.AI.Prompts;
 
@@ -26,6 +27,7 @@ internal static class EvalProgram
             {
                 "doctor" => Task.FromResult(Doctor()),
                 "bench" => Bench(cliArgs),
+                "generate" => GenerateCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "" => Task.FromResult(Usage()),
                 _ => Task.FromResult(Usage($"Verbe inconnu : {cliArgs.Verb}")),
             };
@@ -47,6 +49,7 @@ internal static class EvalProgram
             Verbes :
               doctor    Vérifie que les prompts de SoClover sont résolvables depuis cet exécutable
               bench     Génère un banc seedé et l'écrit en JSONL
+              generate  Banc -> indices (appelle le LLM générateur ; reprenable)
             """);
         return message is null ? 0 : 2;
     }
