@@ -74,10 +74,15 @@ registre. Le harnais ne peut pas rendre ce réglage observable ; il peut rendre 
 |---|---|
 | Banc dev | `eval/boards.dev.jsonl` — 40 boards / 160 directions, seed `20260726001`, hash `416b819a41a1` |
 | Banc test | `eval/boards.test.jsonl` — 60 boards / 240 directions, seed `20260726002`, hash `1436bb07dc0d` — **non consulté dans ce cycle** |
+| Décodeur | `qwen/qwen3-8b`, thinking OFF, temp 0,3, `maxOutputTokens` 512 — 480 décodages N2 + 40 N3 en 3 min 11 s |
+| Plancher aléatoire | `recovery = 0,130` — porte `≤ 0,15` : **franchie**. `decode_failure_rate = 0,035` (≤ 0,05) |
 | Run baseline | *à produire — voir « Run de clôture » ci-dessous* |
 | `recovery` baseline | *à produire* |
-| Plancher aléatoire | `eval/runs/20260728-vnone-random-baseline-seed-20260727000-a45667bc.jsonl` — décodage et porte `≤ 0,15` **à produire** |
 | Statut du registre | `pré-calibration` — les portes P6 (accord ≥ 75 %, κ ≥ 0,40) ne sont pas franchies |
+
+Le plancher mesuré (`0,130`) colle à la valeur théorique du hasard pur : tirer 2 mots parmi 16
+donne une intersection espérée de `2 × 2/16 = 0,25` mot, soit `R̄ = 0,125`. Le décodeur ne devine
+donc rien à partir d'indices aléatoires — c'est précisément ce que la porte vérifie.
 
 > **Aucune ligne du registre n'est défendable avant P6.** Les chiffres de ce cycle sont
 > techniquement valides et pas encore légitimés : seule la porte du plancher aléatoire a été

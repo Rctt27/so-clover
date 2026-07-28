@@ -18,7 +18,7 @@
     "provider": "OpenAI",
     "baseUrl": "http://localhost:1234/v1",
     "apiKey": "lm-studio",
-    "defaultModel": "qwen3-8b",
+    "defaultModel": "qwen/qwen3-8b",
     "defaultTemperature": 0.3,
     "topP": null,
     "maxOutputTokens": 512,
