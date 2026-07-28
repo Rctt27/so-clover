@@ -139,6 +139,31 @@ npm run dev   # Proxy automatique vers localhost:5000
   - `board-clues-per-direction.reasoning.md` — **variante reasoning-only** du pipeline `PerDirection`, co-localisée par langue. Chargée **uniquement** quand `Llm.ReasoningEnabled=true` ET `Llm.GenerationMode=PerDirection` ET que le provider de langue injecte un path non-null (FR et EN aujourd'hui). Le fichier **EST** la variante reasoning : aucune section `# REASONING` n'y est appendée (une section `# REASONING` présente serait ignorée). Sections requises : `# SYSTEM`, `# USER` (placeholders `{{boardLayout}}`, `{{directionToResolve}}`, `{{allBoardWordsList}}`, `{{retryFeedback}}`), `# RETRY_FEEDBACK` (`{{rejectedAttemptsByDirection}}`). Politique **fail-fast** : si le path est injecté mais le fichier absent du disque, `BuildSingleDirectionCluePrompt` throw `FileNotFoundException`. Convention **opt-in** pour les langues futures (path `null` → voie legacy : charge `board-clues-per-direction.md` et appende `# REASONING`). Le `PromptVersion` du log « AI clue LLM call completed » reflète le `version:` du fichier chargé — utile pour A/B reasoning vs non-reasoning.
   Convention : **le pipeline détermine le prompt** (jamais déduit du `remaining.Count`) → pas de fuite cross-mode lors d'un retry partiel PerBoard. La traçabilité est dans `PromptVersion` du log structuré « AI clue LLM call completed ».
 
+### Harnais d'évaluation des indices IA (`SoClover.Eval/`)
+
+- **Projet console hors ligne, jamais déployé.** Le `Dockerfile` ne restaure que
+  `SoClover/SoClover.csproj` et `docs/deploy.md` fait `git archive HEAD … SoClover/` : ne jamais
+  y ajouter `SoClover.Eval`.
+- **Spécifications** : `Specs/AI_Clue_Eval_Loop/` (PRD `00_Overview.md`, design P0-P3
+  `01_Design_Harness_P0_P3.md`). Mode d'emploi : `SoClover.Eval/README.md`.
+- **Verbes** : `doctor | bench | generate | decode | score | compare`. Générer et décoder sont
+  **deux passes distinctes** séparées par un rechargement manuel de modèle dans LM Studio (un
+  seul modèle servi à la fois). Les deux sont reprenables ; `--force` repart de zéro.
+- **Artefacts** : `eval/boards.dev.jsonl` (40 boards) et `eval/boards.test.jsonl` (60 boards)
+  sont **committés avec leur seed et leur hash** — un banc qui bouge invalide tout l'historique
+  du registre, et `BenchFile.Read` refuse de charger un banc dérivé. `eval/runs/` est gitignoré.
+  `eval/LEDGER.md` est committé : une ligne par run, **jamais réécrite**.
+- **Discipline dev/test** : itérer exclusivement sur `boards.dev.jsonl`. Le test set se consulte
+  une fois par jalon, et chaque consultation se consigne dans le registre.
+- **Briques partagées avec la prod** (extraites en P0, ne pas dupliquer côté éval) :
+  `Domain/BoardGeometry.cs`, `Domain/ClueAcceptance.cs`, `Infrastructure/AI/AiClueLlmCaller.cs`,
+  `Infrastructure/AI/AiClueResponseParser.cs`. `AiClueLlmCaller` **ne journalise pas** : il rend
+  latence / version de prompt / modèle effectif / usage, et `AiCluesGeneratorBase` conserve ses
+  messages de log inchangés.
+- **Gotcha LM Studio** : le toggle « enable thinking » est appliqué **au chargement du modèle** et
+  n'est capturé par aucun champ observable du manifeste. Le consigner via
+  `--notes "thinking OFF, ctx 16k"`, recopié dans la ligne du registre.
+
 ## Testing
 
 Key test files:
