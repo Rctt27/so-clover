@@ -1,5 +1,6 @@
 using System.Globalization;
 using SoClover.Eval.Cli;
+using SoClover.Eval.Decoder;
 using SoClover.Eval.Io;
 
 namespace SoClover.Eval.Scoring;
@@ -45,12 +46,42 @@ public static class ScoreCommand
                 Status: LedgerWriter.PreCalibrationStatus,
                 Hypothesis: args.Get("hypothesis"),
                 Decision: args.Get("decision") ?? "neutre",
-                OperatorNotes: run.Manifest.OperatorNotes));
+                OperatorNotes: ComposeNotes(run.Manifest.OperatorNotes, decoded)));
 
             Console.WriteLine($"ligne ajoutée au registre : {ledgerPath}");
         }
 
         return Task.FromResult(0);
+    }
+
+    /// <summary>
+    /// Fusionne les notes du run générateur et celles du décodage en une seule colonne de
+    /// registre, en attribuant chaque moitié.
+    /// <para>
+    /// Le <c>recovery</c> d'une ligne n'est interprétable que si l'on sait <b>quel décodeur</b>
+    /// l'a produit : deux lignes décodées par des modèles différents ne se comparent pas. Le
+    /// modèle décodeur est donc toujours nommé dès qu'un décodage existe, même sans aucune note.
+    /// C'est aussi le seul endroit du registre où le toggle « enable thinking » de LM Studio —
+    /// que rien n'observe automatiquement — peut apparaître.
+    /// </para>
+    /// </summary>
+    internal static string? ComposeNotes(string? runNotes, DecodeContents? decoded)
+    {
+        if (decoded is null)
+            return runNotes;
+
+        var parts = new List<string>(2);
+        if (!string.IsNullOrWhiteSpace(runNotes))
+            parts.Add($"gén. : {runNotes}");
+
+        // Le pipe est le séparateur de colonnes du registre ; LedgerWriter le neutraliserait
+        // en « ¦ ». Un séparateur qui n'en est pas un garde la fusion lisible.
+        var decoder = $"déc. : {decoded.Manifest.ModelId}";
+        if (!string.IsNullOrWhiteSpace(decoded.Manifest.OperatorNotes))
+            decoder += $" ({decoded.Manifest.OperatorNotes})";
+        parts.Add(decoder);
+
+        return string.Join(" ; ", parts);
     }
 
     private static void Print(MetricsReport m, string? operatorNotes, string? decoderModel)
