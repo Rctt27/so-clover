@@ -4,6 +4,7 @@ using SoClover.Eval.Cli;
 using SoClover.Eval.Decoder;
 using SoClover.Eval.Io;
 using SoClover.Eval.Runner;
+using SoClover.Eval.Scoring;
 using SoClover.Infrastructure;
 using SoClover.Infrastructure.AI.Prompts;
 
@@ -30,6 +31,7 @@ internal static class EvalProgram
                 "bench" => Bench(cliArgs),
                 "generate" => GenerateCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "decode" => DecodeCommand.ExecuteAsync(cliArgs, CancellationToken.None),
+                "score" => ScoreCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "" => Task.FromResult(Usage()),
                 _ => Task.FromResult(Usage($"Verbe inconnu : {cliArgs.Verb}")),
             };
@@ -53,6 +55,7 @@ internal static class EvalProgram
               bench     Génère un banc seedé et l'écrit en JSONL
               generate  Banc -> indices (appelle le LLM générateur ; reprenable)
               decode    Run d'indices -> décodages N2/N3 (appelle le LLM décodeur ; reprenable)
+              score     Calcule les 9 indicateurs N1-N3 + 2 de santé (aucun appel LLM)
             """);
         return message is null ? 0 : 2;
     }
