@@ -183,6 +183,39 @@ public class ClueRunnerTests
         Assert.True(attempts[1].Valid);
     }
 
+    // Le SDK du provider (System.ClientModel, côté OpenAI/LM Studio) n'expose PAS la connexion
+    // refusée telle quelle : sa politique de retry l'enveloppe dans une AggregateException
+    // « Retry failed after N tries ». Sans inspection de la chaîne d'inner exceptions, un
+    // LM Studio arrêté faisait planter le run entier au premier board au lieu de consigner
+    // failureKind:"transport" et de continuer — la règle A-1 n'était honorée qu'en test.
+    [Fact]
+    public async Task A_transport_error_wrapped_by_the_provider_sdk_is_still_failureKind_transport()
+    {
+        var chat = new FakeChatClient();
+        chat.EnqueueException(new AggregateException(
+            "Retry failed after 4 tries.",
+            new HttpRequestException("connexion refusée"),
+            new HttpRequestException("connexion refusée")));
+        chat.Enqueue(Json(Direction.Top, "Hôpital"));
+
+        var attempts = await Run(Build(chat), Board(), Direction.Top);
+
+        Assert.Equal("transport", attempts[0].FailureKind);
+        Assert.True(attempts[1].Valid);
+    }
+
+    // Un défaut de programmation ne doit PAS être avalé en « transport » : il doit remonter,
+    // sinon un run entier se remplit de faux échecs réseau et le chiffre mesuré ment.
+    [Fact]
+    public async Task An_unrelated_exception_is_not_swallowed_as_transport()
+    {
+        var chat = new FakeChatClient();
+        chat.EnqueueException(new NotSupportedException("bug de programmation"));
+
+        await Assert.ThrowsAsync<NotSupportedException>(
+            () => Run(Build(chat, maxAttempts: 1), Board(), Direction.Top));
+    }
+
     [Fact]
     public async Task An_empty_clue_word_is_recorded_as_unparseable_rather_than_crashing()
     {

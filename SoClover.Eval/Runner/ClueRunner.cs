@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using SoClover.Domain;
 using SoClover.Domain.Validation;
@@ -149,12 +150,33 @@ public sealed class ClueRunner
             // sans demande de l'appelant est un dépassement de délai.
             return new CallOutcome(null, "timeout", 0, null, string.Empty, null, null);
         }
-        catch (Exception ex) when (ex is HttpRequestException or IOException)
+        catch (Exception ex) when (IsTransportFailure(ex))
         {
             Console.Error.WriteLine($"AVERTISSEMENT : erreur de transport ({ex.Message}), le run continue.");
             return new CallOutcome(null, "transport", 0, null, string.Empty, null, null);
         }
     }
+
+    /// <summary>
+    /// Vrai si l'échec est imputable au transport, y compris <b>enveloppé</b>.
+    /// <para>
+    /// Le SDK du provider n'expose pas la connexion refusée telle quelle : côté OpenAI/LM Studio,
+    /// la politique de retry de <c>System.ClientModel</c> la présente en
+    /// <see cref="AggregateException"/> « Retry failed after N tries ». Un filtre sur le seul type
+    /// de surface laissait donc échapper le cas le plus banal — LM Studio arrêté — et faisait
+    /// planter le run entier au premier board au lieu de consigner la direction en échec et de
+    /// continuer (règle A-1). L'inspection reste ciblée : une exception sans cause de transport
+    /// dans sa chaîne remonte intacte, pour qu'un défaut de programmation ne se déguise jamais en
+    /// panne réseau dans le fichier de run.
+    /// </para>
+    /// </summary>
+    private static bool IsTransportFailure(Exception ex) => ex switch
+    {
+        HttpRequestException or IOException or SocketException => true,
+        AggregateException aggregate => aggregate.InnerExceptions.Any(IsTransportFailure),
+        { InnerException: { } inner } => IsTransportFailure(inner),
+        _ => false,
+    };
 
     private static RunAttempt Failure(
         BenchBoard board, Direction direction, int attempt, string failureKind, CallOutcome outcome) =>
