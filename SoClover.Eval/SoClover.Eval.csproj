@@ -23,6 +23,20 @@
     <ProjectReference Include="..\SoClover\SoClover.csproj" />
   </ItemGroup>
 
+  <!--
+    evalsettings.json, et NON appsettings.json : les items Content d'un projet se propagent
+    TRANSITIVEMENT à ses référençants (c'est ce mécanisme qui apporte ici les prompts et les
+    dictionnaires de SoClover). Sous le nom appsettings.json, ce fichier gagnait la course de
+    copie contre celui de SoClover dans l'output de SoClover.Tests et faisait disparaître
+    GameDefaults / Llm / AIPlayers des tests d'intégration HTTP (WebApplicationFactory<Program>),
+    silencieusement. Un nom distinct supprime la collision à la racine.
+  -->
+  <ItemGroup>
+    <Content Include="evalsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="SoClover.Tests" />
   </ItemGroup>
