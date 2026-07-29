@@ -84,8 +84,17 @@ public class JudgeServerTests : IDisposable
 
             Assert.Equal(HttpStatusCode.OK,
                 (await client.PostAsJsonAsync("/api/verdict", new { positionChoice = "1", elapsedMs = 9000 })).StatusCode);
+
+            // Défaut Critique corrigé en revue : sans repasser par /api/next, une soumission
+            // directe pour le couple suivant est refusée (409), pas silencieusement acceptée —
+            // sans quoi la page serait le seul rempart contre un item jamais servi.
+            Assert.Equal(HttpStatusCode.Conflict,
+                (await client.PostAsJsonAsync("/api/verdict", new { positionChoice = "2", elapsedMs = 500 })).StatusCode);
+
             Assert.Equal(HttpStatusCode.OK,
                 (await client.PostAsJsonAsync("/api/rejudge", new { positionChoice = "tie", elapsedMs = 3000 })).StatusCode);
+
+            await client.GetAsync("/api/next");
             Assert.Equal(HttpStatusCode.BadRequest,
                 (await client.PostAsJsonAsync("/api/verdict", new { positionChoice = "9", elapsedMs = 1000 })).StatusCode);
 
@@ -107,6 +116,48 @@ public class JudgeServerTests : IDisposable
         try
         {
             Assert.Contains("séance B", await client.GetStringAsync("/"), StringComparison.Ordinal);
+        }
+        finally
+        {
+            await app.StopAsync();
+            await app.DisposeAsync();
+        }
+    }
+
+    // ── Trou de couverture comblé (revue, IMPORTANT 3) ───────────────────────────
+    //
+    // Le test ci-dessus passe délibérément un fichier temporaire à BuildJudgeApp — il exerce le
+    // routage HTTP, pas l'empaquetage. Ce test-ci exerce l'autre moitié : que
+    // <Content Include="Web\Pages\**\*.html"> du csproj copie réellement judge.html vers
+    // AppContext.BaseDirectory (celui de SoClover.Tests, par propagation transitive), avec le MÊME
+    // calcul de chemin que EvalProgram.Judge (Program.cs). Même patron que
+    // ElicitServerTests.La_page_elicit_est_copiee_par_le_csproj_et_servie_depuis_la_sortie_de_build
+    // (T6). Une régression du csproj (item mal filtré, CopyToOutputDirectory oublié) ferait
+    // échouer File.Exists ici sans jamais toucher aux tests précédents.
+    [Fact]
+    public async Task La_page_judge_est_copiee_par_le_csproj_et_servie_depuis_la_sortie_de_build()
+    {
+        var outputPath = Path.Combine(AppContext.BaseDirectory, "Web", "Pages", "judge.html");
+
+        Assert.True(
+            outputPath.Contains(Path.Combine("bin", "Debug"), StringComparison.OrdinalIgnoreCase) ||
+            outputPath.Contains(Path.Combine("bin", "Release"), StringComparison.OrdinalIgnoreCase),
+            $"AppContext.BaseDirectory ({AppContext.BaseDirectory}) ne ressemble pas à une sortie " +
+            "de build : ce test doit lire une copie, pas l'arborescence source.");
+        Assert.True(File.Exists(outputPath),
+            $"Page absente de la sortie de build : {outputPath}. Le csproj ne l'embarque pas " +
+            "(vérifier l'item Content Web\\Pages\\**\\*.html et sa propagation vers SoClover.Tests).");
+
+        var app = HumanServer.BuildJudgeApp(NewSession(), outputPath, port: 0);
+        await app.StartAsync();
+        using var client = new HttpClient { BaseAddress = new Uri(HumanServer.ResolveUrl(app)) };
+        try
+        {
+            var response = await client.GetAsync("/");
+            var html = await response.Content.ReadAsStringAsync();
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Contains("Séance B", html, StringComparison.Ordinal);
         }
         finally
         {

@@ -18,8 +18,19 @@ public sealed record VerdictRequest(string PositionChoice, long ElapsedMs);
 /// <summary>
 /// Serveur des séances humaines. Écoute exclusivement sur la boucle locale : l'outil est un
 /// instrument de mesure personnel, jamais un service. C'est le serveur — et non la page — qui
-/// applique le protocole (verrou A-4, aveuglement, quotas, chrono, écriture append-only) :
-/// une page statique ne pourrait garantir aucun des six principes du PRD.
+/// applique le protocole (verrou A-4 et chrono serveur pour la séance A, aveuglement structurel et
+/// séquencement pour la séance B, quotas et écriture append-only pour les deux) : une page
+/// statique ne pourrait garantir aucun des principes du PRD.
+/// <para>
+/// Nuance entre les deux séances : la séance A recoupe le chrono client avec un
+/// <c>ServerElapsedSeconds</c> mesuré entre <c>/api/next</c> et <c>/api/attempt</c>
+/// (<see cref="ElicitationLine"/>). La séance B n'a <b>aucun</b> pendant serveur à
+/// <see cref="ComparisonLine.ElapsedMs"/> — cette valeur reste purement déclarative, fournie par
+/// le client. Ce que <see cref="JudgeSession"/> garantit côté serveur pour la séance B, ce n'est
+/// pas la véracité du chrono, mais le <b>séquencement</b> : <c>SubmitVerdict</c>/
+/// <c>ReJudgeLast</c> refusent toute consignation tant que <c>Next()</c> n'a pas réellement servi
+/// l'item courant (ce qui, au passage, empêche aussi de sauter une pause de quota due).
+/// </para>
 /// </summary>
 public static class HumanServer
 {

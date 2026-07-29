@@ -56,6 +56,7 @@ public sealed class JudgeSession
     private readonly Lock _gate = new();
 
     private int _index;
+    private int _servedForIndex = -1;
     private int _lastJudgedIndex = -1;
     private DateTime? _pauseStartedAtUtc;
     private int _pauseAcknowledgedAt = -1;
@@ -139,6 +140,14 @@ public sealed class JudgeSession
                 _pauseStartedAtUtc = null;
             }
 
+            // Marque l'item courant comme réellement servi. Positionné ICI seulement — jamais
+            // sur un retour anticipé (fin de séance, pause due) — de sorte qu'une soumission ne
+            // puisse jamais franchir une pause non purgée en sautant Next() : SubmitVerdict exige
+            // plus bas _servedForIndex == _index, donc reste bloquée tant que Next() n'a pas fait
+            // passer la pause ici. Même défense qu'ElicitationSession (T5) contre un client qui
+            // dicterait la valeur censée l'auditer.
+            _servedForIndex = _index;
+
             var item = _plan[_index];
             var board = _boards[item.BoardId];
             var (cardA, faceA, cardB, faceB) = BoardGeometry.GetEdgeMapping(Enum.Parse<Direction>(item.Direction));
@@ -168,6 +177,18 @@ public sealed class JudgeSession
             if (_index >= _plan.Count)
                 return new SessionResult(SessionStatus.Finished, "Séance terminée.", []);
 
+            // Défaut Critique corrigé en revue : sans cette garde, un client pouvait consigner un
+            // verdict pour un item jamais servi par Next() — et, plus grave, franchir la frontière
+            // de quota sans jamais déclencher la pause (IsPauseDue n'est consultée que par Next()).
+            // _servedForIndex n'est positionné que par Next(), et seulement quand il sert
+            // effectivement l'item courant (jamais sur pause/fin) : exiger l'égalité rend Next()
+            // incontournable avant toute soumission, ce qui restaure les deux garanties. Même
+            // patron qu'ElicitationSession.SubmitAttempt (T5).
+            if (_servedForIndex != _index)
+                return new SessionResult(SessionStatus.Conflict,
+                    "Next() doit être appelé avant toute soumission pour ce couple : il n'a pas " +
+                    "encore été servi (ou une pause de quota reste à purger).", []);
+
             var item = _plan[_index];
             var written = Write(item, positionChoice, elapsedMs);
             if (written.Status != SessionStatus.Ok)
@@ -185,6 +206,17 @@ public sealed class JudgeSession
     /// Re-jugement du dernier couple : une <b>nouvelle ligne</b> est ajoutée, jamais une
     /// réécriture. Le lecteur retient la dernière ligne d'un <c>comparisonId</c>.
     /// </summary>
+    /// <remarks>
+    /// Ne vérifie pas <c>_servedForIndex</c> : ce n'est pas une lacune symétrique à celle corrigée
+    /// dans <see cref="SubmitVerdict"/>. <c>_lastJudgedIndex</c> n'est renseigné que par
+    /// <see cref="SubmitVerdict"/> après une écriture réussie — donc seulement pour un couple qui
+    /// a lui-même satisfait la garde <c>_servedForIndex == _index</c> au moment de son premier
+    /// jugement. <c>ReJudgeLast</c> ne fait jamais progresser <c>_index</c> ni
+    /// <c>_servedForIndex</c> : le couple courant (suivant) reste donc protégé par la même garde,
+    /// vérifiée dans <see cref="SubmitVerdict"/> — un appel direct pour ce couple suivant, sans
+    /// nouveau <c>Next()</c>, continue d'échouer après un re-jugement
+    /// (voir <c>Apres_un_re_jugement_next_reste_requis_avant_le_couple_suivant</c>).
+    /// </remarks>
     public SessionResult ReJudgeLast(string positionChoice, long elapsedMs)
     {
         lock (_gate)

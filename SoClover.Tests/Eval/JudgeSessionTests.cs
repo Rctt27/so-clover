@@ -96,8 +96,15 @@ public class JudgeSessionTests : IDisposable
         Assert.Equal(expected, JudgeSession.CanonicalVerdict(presentedOrder, positionChoice));
     }
 
+    // Nom corrigé en revue : ce test n'exerce, par exécution, que l'ordre que le seed assigne
+    // réellement à plan[0] (un seul des deux ordres, pas « les deux » comme l'ancien nom le
+    // prétendait). La propriété générale — les deux ordres, les deux positions — est prouvée par
+    // le [Theory] voisin (Le_verdict_canonique_ne_depend_jamais_de_la_position). Ce test-ci est un
+    // test d'intégration : il vérifie que le plan RÉEL produit par ComparisonPlan.Build (et pas
+    // seulement CanonicalVerdict en isolation) respecte l'invariant, quel que soit l'ordre tiré
+    // pour cet item précis — d'où l'assertion explicite sur l'ordre effectivement rencontré.
     [Fact]
-    public void Le_meme_couple_dans_les_deux_ordres_designe_le_meme_gagnant_canonique()
+    public void Le_gagnant_canonique_correspond_a_lindice_affiche_en_position_1_quel_que_soit_lordre_tire()
     {
         // L'invariant le plus dangereux du cycle : une inversion silencieuse rendrait faux à la
         // fois le taux de victoire du modèle et le contrôle de biais de position, sans qu'aucun
@@ -108,6 +115,10 @@ public class JudgeSessionTests : IDisposable
         Assert.NotNull(first.Position1Clue);
 
         var current = plan[0];
+        // Documente l'ordre effectivement exercé par cette exécution (déterministe par seed) :
+        // ni AB ni BA n'est privilégié par construction du test.
+        Assert.True(current.PresentedOrder is PresentedOrders.Ab or PresentedOrders.Ba);
+
         var winnerClue = current.PresentedOrder == PresentedOrders.Ab
             ? current.OptionA.Clue
             : current.OptionB.Clue;
@@ -180,6 +191,83 @@ public class JudgeSessionTests : IDisposable
 
         Assert.Equal(SessionStatus.BadRequest, session.SubmitVerdict("3", 1000).Status);
         Assert.Empty(HumanFile.ReadComparisons(_path).Comparisons);
+    }
+
+    // ── Défaut Critique corrigé en revue ──────────────────────────────────────
+    //
+    // SubmitVerdict lisait directement _plan[_index] et écrivait, sans jamais vérifier qu'un
+    // Next() correspondant avait servi cet index. Un client pouvait donc consigner un verdict
+    // pour un item jamais affiché — et, pire, franchir la frontière de quota sans jamais
+    // déclencher la pause obligatoire (IsPauseDue n'est consultée que par Next()). Le correctif
+    // introduit _servedForIndex, sur le modèle exact d'ElicitationSession (T5) : Next() est seul
+    // à le positionner, et seulement quand il sert réellement l'item (pas sur pause/fin).
+    [Fact]
+    public void Un_verdict_est_refuse_si_next_na_jamais_servi_litem()
+    {
+        var (session, _) = NewSession();
+
+        // Aucun appel à Next() : le client tente de consigner directement.
+        var result = session.SubmitVerdict(JudgeSession.PositionOne, 1);
+
+        Assert.Equal(SessionStatus.Conflict, result.Status);
+        Assert.Empty(HumanFile.ReadComparisons(_path).Comparisons);
+    }
+
+    [Fact]
+    public void Un_verdict_est_refuse_si_next_a_servi_un_autre_item()
+    {
+        var (session, _) = NewSession();
+        session.Next();
+        session.SubmitVerdict(JudgeSession.PositionOne, 9000);
+
+        // _index a avancé après la soumission ; _servedForIndex, lui, ne l'a pas suivi tant que
+        // Next() n'a pas été rappelé pour le nouvel item courant.
+        var result = session.SubmitVerdict(JudgeSession.PositionTwo, 500);
+
+        Assert.Equal(SessionStatus.Conflict, result.Status);
+        Assert.Single(HumanFile.ReadComparisons(_path).Comparisons);
+    }
+
+    [Fact]
+    public void La_frontiere_de_quota_ne_peut_pas_etre_franchie_sans_passer_par_la_pause()
+    {
+        var (session, _) = NewSession(targetCount: 30, quota: 2, pauseSeconds: 60);
+
+        for (var i = 0; i < 2; i++)
+        {
+            session.Next();
+            session.SubmitVerdict(JudgeSession.PositionOne, 8000);
+        }
+
+        // Le client saute délibérément le GET /api/next qui aurait révélé la pause, et tente de
+        // consigner un troisième verdict directement : la garde doit l'en empêcher, faute de quoi
+        // la page deviendrait le seul rempart de la pause de quota (ce que le brief qualifie de
+        // Critique).
+        var bypass = session.SubmitVerdict(JudgeSession.PositionOne, 100);
+
+        Assert.Equal(SessionStatus.Conflict, bypass.Status);
+        Assert.Equal(2, HumanFile.ReadComparisons(_path).Comparisons.Count);
+
+        // Rappeler Next() correctement révèle bien la pause — la garde n'a pas seulement bloqué
+        // l'écriture, elle a aussi laissé la pause faire son travail au prochain passage légitime.
+        Assert.True(session.Next().PauseRequired);
+    }
+
+    [Fact]
+    public void Apres_un_re_jugement_next_reste_requis_avant_le_couple_suivant()
+    {
+        var (session, _) = NewSession();
+        session.Next();
+        session.SubmitVerdict(JudgeSession.PositionOne, 9000);
+        session.ReJudgeLast(JudgeSession.PositionTwo, 4000);
+
+        // Le re-jugement porte sur le couple déjà servi (_lastJudgedIndex) ; il ne sert jamais le
+        // couple suivant. Une soumission directe pour ce couple suivant, sans nouveau Next(),
+        // doit donc rester refusée exactement comme avant le re-jugement.
+        var result = session.SubmitVerdict(JudgeSession.PositionOne, 1000);
+
+        Assert.Equal(SessionStatus.Conflict, result.Status);
+        Assert.Equal(2, HumanFile.ReadComparisons(_path).Comparisons.Count);
     }
 
     [Fact]

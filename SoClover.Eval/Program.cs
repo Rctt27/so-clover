@@ -290,19 +290,16 @@ internal static class EvalProgram
                 .Select(s => new ComparisonRunRef(s.Run.Manifest.RunId, s.Path.Replace('\\', '/')))
                 .ToList();
 
-            manifest = new ComparisonManifest(
-                Kind: "manifest",
-                BenchFile: benchPath.Replace('\\', '/'),
-                BenchHash: bench.Manifest.BenchHash,
-                Seed: seed,
-                ElicitationFile: elicitationPath.Replace('\\', '/'),
-                Runs: runRefs.AsReadOnly(),
-                TargetCount: args.GetInt("count", 100),
-                QuotaBeforePause: args.GetInt("quota", 50),
-                HoursSinceElicitation: guard.HoursSinceElicitation,
-                EarlyStart: guard.EarlyStart,
-                HarnessVersion: HumanFile.HarnessVersion,
-                CreatedAtUtc: DateTime.UtcNow);
+            manifest = BuildComparisonManifest(
+                guard,
+                benchFile: benchPath.Replace('\\', '/'),
+                benchHash: bench.Manifest.BenchHash,
+                seed: seed,
+                elicitationFile: elicitationPath.Replace('\\', '/'),
+                runs: runRefs.AsReadOnly(),
+                targetCount: args.GetInt("count", 100),
+                quotaBeforePause: args.GetInt("quota", 50),
+                createdAtUtc: DateTime.UtcNow);
 
             HumanFile.WriteComparisonManifest(outPath, manifest);
             existing = HumanFile.ReadComparisons(outPath);
@@ -343,4 +340,35 @@ internal static class EvalProgram
         await app.WaitForShutdownAsync(ct);
         return 0;
     }
+
+    /// <summary>
+    /// Isole le calcul du manifeste de la séance B (jusqu'ici en ligne dans <see cref="Judge"/>)
+    /// pour le rendre testable sans démarrer de serveur HTTP ni attendre un arrêt de processus.
+    /// Le point qui compte : <see cref="JudgeGuardResult.EarlyStart"/> et
+    /// <see cref="JudgeGuardResult.HoursSinceElicitation"/> sont recopiés **tels quels** dans le
+    /// manifeste écrit — un contournement de la garde A-5 devient une donnée du corpus, pas un
+    /// secret, et ce fait est vérifiable indépendamment de la CLI (<c>JudgeManifestTests</c>).
+    /// </summary>
+    internal static ComparisonManifest BuildComparisonManifest(
+        JudgeGuardResult guard,
+        string benchFile,
+        string benchHash,
+        long seed,
+        string elicitationFile,
+        IReadOnlyList<ComparisonRunRef> runs,
+        int targetCount,
+        int quotaBeforePause,
+        DateTime createdAtUtc) => new(
+        Kind: "manifest",
+        BenchFile: benchFile,
+        BenchHash: benchHash,
+        Seed: seed,
+        ElicitationFile: elicitationFile,
+        Runs: runs,
+        TargetCount: targetCount,
+        QuotaBeforePause: quotaBeforePause,
+        HoursSinceElicitation: guard.HoursSinceElicitation,
+        EarlyStart: guard.EarlyStart,
+        HarnessVersion: HumanFile.HarnessVersion,
+        CreatedAtUtc: createdAtUtc);
 }
