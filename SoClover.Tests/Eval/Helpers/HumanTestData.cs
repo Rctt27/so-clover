@@ -66,6 +66,26 @@ public static class HumanTestData
         HarnessVersion: HumanFile.HarnessVersion,
         CreatedAtUtc: new DateTime(2026, 7, 29, 8, 0, 0, DateTimeKind.Utc));
 
+    public static ComparisonManifest ComparisonManifest(
+        string benchHash, int targetCount, int quotaBeforePause = 50,
+        double hoursSinceElicitation = 26.4, bool earlyStart = false) => new(
+        Kind: "manifest",
+        BenchFile: "eval/boards.dev.jsonl",
+        BenchHash: benchHash,
+        Seed: 20260730001,
+        ElicitationFile: "eval/human/elicitation.dev.jsonl",
+        Runs:
+        [
+            new ComparisonRunRef("run-a", "eval/runs/run-a.jsonl"),
+            new ComparisonRunRef("run-b", "eval/runs/run-b.jsonl"),
+        ],
+        TargetCount: targetCount,
+        QuotaBeforePause: quotaBeforePause,
+        HoursSinceElicitation: hoursSinceElicitation,
+        EarlyStart: earlyStart,
+        HarnessVersion: HumanFile.HarnessVersion,
+        CreatedAtUtc: new DateTime(2026, 7, 31, 8, 0, 0, DateTimeKind.Utc));
+
     /// <summary>Run synthétique : un indice valide par direction, préfixé pour être traçable.</summary>
     public static RunContents Run(BenchContents bench, string runId, string cluePrefix)
     {

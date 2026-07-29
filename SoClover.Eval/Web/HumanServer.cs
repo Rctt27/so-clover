@@ -12,6 +12,9 @@ public sealed record AttemptRequest(string? Clue, string Outcome, string? Relati
 /// <summary>Corps de <c>POST /api/assisted</c>. Les deux champs sont facultatifs.</summary>
 public sealed record AssistedRequest(string? AssistedClue, string? Notes);
 
+/// <summary>Corps de <c>POST /api/verdict</c> et <c>POST /api/rejudge</c>.</summary>
+public sealed record VerdictRequest(string PositionChoice, long ElapsedMs);
+
 /// <summary>
 /// Serveur des séances humaines. Écoute exclusivement sur la boucle locale : l'outil est un
 /// instrument de mesure personnel, jamais un service. C'est le serveur — et non la page — qui
@@ -57,6 +60,22 @@ public static class HumanServer
 
         app.MapPost("/api/assisted", (AssistedRequest request) =>
             Map(session.RecordAssist(request.AssistedClue, request.Notes)));
+
+        return app;
+    }
+
+    public static WebApplication BuildJudgeApp(JudgeSession session, string pagePath, int port)
+    {
+        var app = NewApp(port);
+
+        app.MapGet("/", () => Page(pagePath));
+        app.MapGet("/api/next", () => Results.Json(session.Next()));
+
+        app.MapPost("/api/verdict", (VerdictRequest request) =>
+            Map(session.SubmitVerdict(request.PositionChoice, request.ElapsedMs)));
+
+        app.MapPost("/api/rejudge", (VerdictRequest request) =>
+            Map(session.ReJudgeLast(request.PositionChoice, request.ElapsedMs)));
 
         return app;
     }

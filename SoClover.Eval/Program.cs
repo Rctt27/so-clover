@@ -38,6 +38,7 @@ internal static class EvalProgram
                 "score" => ScoreCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "compare" => CompareCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "elicit" => Elicit(cliArgs, CancellationToken.None),
+                "judge" => Judge(cliArgs, CancellationToken.None),
                 "" => Task.FromResult(Usage()),
                 _ => Task.FromResult(Usage($"Verbe inconnu : {cliArgs.Verb}")),
             };
@@ -64,6 +65,7 @@ internal static class EvalProgram
               score     Calcule les 9 indicateurs N1-N3 + 2 de santé (aucun appel LLM)
               compare   Δ recovery apparié + IC bootstrap + verdict de promotion (aucun appel LLM)
               elicit    Séance A (auteur) : serveur local de saisie chronométrée
+              judge     Séance B (juge) : serveur local de comparaison en aveugle, J+1
             """);
         return message is null ? 0 : 2;
     }
@@ -228,6 +230,115 @@ internal static class EvalProgram
         Console.WriteLine($"  déjà saisies  : {session.CompletedCount}");
         Console.WriteLine($"  candidats     : {manifest.CandidatesRunId ?? "— (aucun run fourni)"}");
         Console.WriteLine("  Ctrl+C pour arrêter. La reprise est sûre : chaque item est écrit à la soumission.");
+
+        await app.WaitForShutdownAsync(ct);
+        return 0;
+    }
+
+    /// <summary>
+    /// Verbe <c>judge</c> : séance B. Refuse de démarrer avant J+1 ; <c>--force-early</c> autorise
+    /// l'entorse et la stampe dans le manifeste — l'entorse devient une donnée du corpus, pas un
+    /// secret. Aucun appel LLM.
+    /// </summary>
+    private static async Task<int> Judge(Args args, CancellationToken ct)
+    {
+        var benchPath = args.Require("bench");
+        var elicitationPath = args.Get("elicitation") ?? Path.Combine("eval", "human", "elicitation.dev.jsonl");
+        var outPath = args.Get("out") ?? Path.Combine("eval", "human", "comparisons.dev.jsonl");
+        var runAPath = args.Require("run-a");
+        var runBPath = args.Require("run-b");
+        var anchorPath = args.Get("anchor-run");
+        var pauseSeconds = args.GetInt("pause-seconds", 300);
+        var port = args.GetInt("port", 5178);
+
+        var bench = BenchFile.Read(benchPath);
+        var elicitation = HumanFile.ReadElicitation(elicitationPath);
+        HumanFile.RequireBench(elicitationPath, elicitation.Manifest.BenchHash, bench);
+
+        var runA = RunFile.Read(runAPath);
+        var runB = RunFile.Read(runBPath);
+        var anchorRun = anchorPath is null ? null : RunFile.Read(anchorPath);
+
+        var sourceRuns = new List<(string Path, RunContents Run)> { (runAPath, runA), (runBPath, runB) };
+        if (anchorPath is not null && anchorRun is not null)
+            sourceRuns.Add((anchorPath, anchorRun));
+
+        foreach (var (path, run) in sourceRuns)
+        {
+            if (run.Manifest.BenchHash != bench.Manifest.BenchHash)
+                throw new InvalidOperationException(
+                    $"{path} porte benchHash {run.Manifest.BenchHash}, incompatible avec {bench.Manifest.BenchHash}.");
+        }
+
+        var existing = HumanFile.ReadComparisonsOrNull(outPath);
+        ComparisonManifest manifest;
+
+        if (existing is null)
+        {
+            var seed = args.GetLong("seed", 0);
+            if (seed == 0) throw new ArgumentException("--seed est requis et doit être non nul.");
+
+            var guard = JudgeSession.Evaluate(elicitation, DateTime.UtcNow, args.Has("force-early"));
+            if (!guard.Allowed)
+                throw new InvalidOperationException(
+                    $"A-5 : la dernière ligne d'élicitation date de {guard.HoursSinceElicitation:0.0} h. " +
+                    "Le même jour, on reconnaît ses propres indices — on ne mesure plus que sa loyauté " +
+                    "envers soi-même. Attendre 24 h, ou passer --force-early en connaissance de cause " +
+                    "(l'entorse sera consignée dans le manifeste).");
+
+            var runRefs = sourceRuns
+                .Select(s => new ComparisonRunRef(s.Run.Manifest.RunId, s.Path.Replace('\\', '/')))
+                .ToList();
+
+            manifest = new ComparisonManifest(
+                Kind: "manifest",
+                BenchFile: benchPath.Replace('\\', '/'),
+                BenchHash: bench.Manifest.BenchHash,
+                Seed: seed,
+                ElicitationFile: elicitationPath.Replace('\\', '/'),
+                Runs: runRefs.AsReadOnly(),
+                TargetCount: args.GetInt("count", 100),
+                QuotaBeforePause: args.GetInt("quota", 50),
+                HoursSinceElicitation: guard.HoursSinceElicitation,
+                EarlyStart: guard.EarlyStart,
+                HarnessVersion: HumanFile.HarnessVersion,
+                CreatedAtUtc: DateTime.UtcNow);
+
+            HumanFile.WriteComparisonManifest(outPath, manifest);
+            existing = HumanFile.ReadComparisons(outPath);
+        }
+        else
+        {
+            // Reprise : le manifeste fait foi (append-only). La garde J+1 a déjà été évaluée
+            // au premier démarrage et sa trace est dans la ligne 1.
+            manifest = existing.Manifest;
+            HumanFile.RequireBench(outPath, manifest.BenchHash, bench);
+        }
+
+        var plan = ComparisonPlan.Build(
+            bench, elicitation,
+            runA, runA.Manifest.RunId,
+            runB, runB.Manifest.RunId,
+            anchorRun, anchorRun?.Manifest.RunId,
+            manifest.Seed, manifest.TargetCount);
+
+        var session = new JudgeSession(
+            bench, plan, existing, outPath,
+            sessionId: $"s-{DateTime.UtcNow:yyyyMMddHHmmss}",
+            quotaBeforePause: manifest.QuotaBeforePause,
+            pauseSeconds: pauseSeconds);
+
+        var pagePath = Path.Combine(AppContext.BaseDirectory, "Web", "Pages", "judge.html");
+        var app = HumanServer.BuildJudgeApp(session, pagePath, port);
+        await app.StartAsync(ct);
+
+        Console.WriteLine($"séance B : {HumanServer.ResolveUrl(app)}");
+        Console.WriteLine($"  fichier        : {outPath}");
+        Console.WriteLine($"  lot            : {plan.Count} couple(s), seed {manifest.Seed}");
+        Console.WriteLine($"  déjà jugés     : {session.CompletedCount}");
+        Console.WriteLine($"  écart séance A : {manifest.HoursSinceElicitation:0.0} h" +
+                          (manifest.EarlyStart ? "  ⚠ earlyStart consigné dans le manifeste" : string.Empty));
+        Console.WriteLine("  Ctrl+C pour arrêter. Reprise sûre : chaque verdict est écrit à la soumission.");
 
         await app.WaitForShutdownAsync(ct);
         return 0;
