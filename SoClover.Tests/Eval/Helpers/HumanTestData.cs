@@ -2,6 +2,7 @@ using SoClover.Domain;
 using SoClover.Eval.Bench;
 using SoClover.Eval.Human;
 using SoClover.Eval.Io;
+using SoClover.Eval.Runner;
 
 namespace SoClover.Tests.Eval.Helpers;
 
@@ -64,6 +65,90 @@ public static class HumanTestData
         CandidatesRunId: candidatesRunId,
         HarnessVersion: HumanFile.HarnessVersion,
         CreatedAtUtc: new DateTime(2026, 7, 29, 8, 0, 0, DateTimeKind.Utc));
+
+    /// <summary>Run synthétique : un indice valide par direction, préfixé pour être traçable.</summary>
+    public static RunContents Run(BenchContents bench, string runId, string cluePrefix)
+    {
+        var manifest = new RunManifest(
+            Kind: "manifest", RunId: runId, Stage: "generate",
+            CreatedAtUtc: new DateTime(2026, 7, 28, 12, 0, 0, DateTimeKind.Utc),
+            BenchFile: "eval/boards.dev.jsonl", BenchHash: bench.Manifest.BenchHash,
+            PromptFile: null, PromptVersion: null, GenerationMode: "PerDirection",
+            ReasoningEnabled: false, Provider: "None", BaseUrl: string.Empty,
+            ModelId: cluePrefix, ModelSnapshotDate: null, ProviderModelListHash: null,
+            Temperature: 1.0, TopP: null, MaxOutputTokens: null, MaxRetries: 0,
+            Language: bench.Manifest.Language, HarnessVersion: RunFile.HarnessVersion,
+            OperatorNotes: null);
+
+        var attempts = new List<RunAttempt>();
+        foreach (var board in bench.Boards)
+        {
+            foreach (var direction in BoardGeometry.AllDirections)
+            {
+                attempts.Add(new RunAttempt(
+                    Kind: "attempt", BoardId: board.BoardId, Direction: direction.ToString(),
+                    Attempt: 0, Clue: $"{cluePrefix}-{board.BoardId}-{direction}",
+                    Candidates: [$"{cluePrefix}-c1 (fort, fort)", $"{cluePrefix}-c2 (moyen, fort)"],
+                    Explanation: "synthétique", Valid: true, RejectionRules: [], FailureKind: null,
+                    LatencyMs: 1000, InputTokens: null, OutputTokens: null,
+                    PromptVersion: null, EffectiveModel: cluePrefix));
+            }
+        }
+
+        return new RunContents(manifest, attempts.AsReadOnly());
+    }
+
+    /// <summary>
+    /// Corpus d'élicitation synthétique en mémoire (aucun fichier). <paramref name="passEvery"/>
+    /// insère un <c>pass</c> tous les N items, <paramref name="assistCount"/> ajoute des lignes
+    /// <c>assist</c> sur les premiers items.
+    /// </summary>
+    public static ElicitationContents Elicitation(
+        BenchContents bench,
+        IReadOnlyList<PlanItem> plan,
+        int assistCount = 0,
+        int passEvery = 0,
+        DateTime? authoredAtUtc = null)
+    {
+        var when = authoredAtUtc ?? new DateTime(2026, 7, 29, 10, 0, 0, DateTimeKind.Utc);
+        var boards = bench.Boards.ToDictionary(b => b.BoardId, StringComparer.Ordinal);
+
+        var lines = new List<ElicitationLine>();
+        var assists = new List<AssistLine>();
+
+        for (var i = 0; i < plan.Count; i++)
+        {
+            var item = plan[i];
+            var isPass = passEvery > 0 && i % passEvery == passEvery - 1;
+            var direction = Enum.Parse<Direction>(item.Direction);
+
+            lines.Add(new ElicitationLine(
+                Kind: "elicitation",
+                BoardId: item.BoardId,
+                Direction: item.Direction,
+                ReferenceWords: BenchBoardMapper.ReferenceWords(boards[item.BoardId], direction),
+                Outcome: isPass ? Outcomes.Pass : (i % 2 == 0 ? Outcomes.Solide : Outcomes.Tiede),
+                Clue: isPass ? null : $"humain-{item.BoardId}-{item.Direction}",
+                ElapsedSeconds: 30 + i,
+                ServerElapsedSeconds: 32 + i,
+                RelationType: isPass ? null : RelationTypes.All[i % RelationTypes.All.Count],
+                RejectedAttempts: [],
+                SessionId: "s-fixture",
+                ItemOrdinal: i + 1,
+                AuthoredAtUtc: when.AddMinutes(i)));
+
+            if (i < assistCount && !isPass)
+                assists.Add(new AssistLine(
+                    Kind: "assist", BoardId: item.BoardId, Direction: item.Direction,
+                    AssistedClue: $"assiste-{item.BoardId}-{item.Direction}",
+                    Notes: null, AuthoredAtUtc: when.AddMinutes(i).AddSeconds(30)));
+        }
+
+        return new ElicitationContents(
+            ElicitationManifest(bench.Manifest.BenchHash, plan.Count),
+            lines.AsReadOnly(),
+            assists.AsReadOnly());
+    }
 
     /// <summary>
     /// Dérive la paire de référence par la même convention que le générateur de bancs.
