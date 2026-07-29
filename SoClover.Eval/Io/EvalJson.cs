@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using SoClover.Eval.Bench;
 
 namespace SoClover.Eval.Io;
@@ -19,6 +20,10 @@ public static class EvalJson
         // Les bancs sont committés et relus par un humain : on ne veut pas de é partout.
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         WriteIndented = false,
+        Converters =
+        {
+            new ReadOnlyListConverter(),
+        },
     };
 
     public static string Serialize<T>(T value) => JsonSerializer.Serialize(value, Options);
@@ -54,4 +59,62 @@ public static class EvalJson
     /// </summary>
     public static string DictionaryHash(IReadOnlyList<string> words) =>
         Sha256Hex(string.Join("\n", words))[..BenchGenerator.BenchHashHexLength];
+}
+
+// ── Convertisseur JSON personnalisé ─────────────────────────────────────────
+
+/// <summary>
+/// Convertisseur pour IReadOnlyList&lt;T&gt; : désérialise en List&lt;T&gt; qui implémente
+/// IReadOnlyList&lt;T&gt;, pour préserver le contenu sans imposer le type exact.
+/// </summary>
+internal sealed class ReadOnlyListConverter : JsonConverterFactory
+{
+    public override bool CanConvert(Type typeToConvert)
+    {
+        if (!typeToConvert.IsGenericType)
+            return false;
+
+        var genericDef = typeToConvert.GetGenericTypeDefinition();
+        return genericDef == typeof(IReadOnlyList<>);
+    }
+
+    public override JsonConverter? CreateConverter(Type typeToConvert, JsonSerializerOptions options)
+    {
+        var elementType = typeToConvert.GetGenericArguments()[0];
+        var converterType = typeof(ReadOnlyListConverterGeneric<>).MakeGenericType(elementType);
+        return (JsonConverter?)Activator.CreateInstance(converterType) ??
+            throw new InvalidOperationException($"Impossible de créer le convertisseur pour {typeToConvert}");
+    }
+}
+
+internal sealed class ReadOnlyListConverterGeneric<T> : JsonConverter<IReadOnlyList<T>>
+{
+    public override IReadOnlyList<T>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.StartArray)
+            throw new JsonException($"Attendu un tableau JSON, reçu {reader.TokenType}");
+
+        var items = new List<T>();
+        while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
+        {
+            var item = JsonSerializer.Deserialize<T>(ref reader, options);
+            items.Add(item!);
+        }
+
+        return (IReadOnlyList<T>)items;
+    }
+
+    public override void Write(Utf8JsonWriter writer, IReadOnlyList<T>? value, JsonSerializerOptions options)
+    {
+        if (value == null)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+
+        writer.WriteStartArray();
+        foreach (var item in value)
+            JsonSerializer.Serialize(writer, item, options);
+        writer.WriteEndArray();
+    }
 }
