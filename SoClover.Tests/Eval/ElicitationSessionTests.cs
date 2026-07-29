@@ -211,4 +211,70 @@ public class ElicitationSessionTests : IDisposable
         Assert.NotNull(item.TargetCells);
         Assert.Equal(2, item.TargetCells!.Count);
     }
+
+    // ── Corrections suite à revue : garde Next() avant SubmitAttempt ──────────
+
+    [Fact]
+    public void Une_soumission_sans_next_prealable_est_refusee_et_rien_nest_consigne()
+    {
+        var session = NewSession();
+
+        // Aucun appel à Next() : _servedForIndex (-1) ne peut pas correspondre à _index (0).
+        // Sans la garde, ceci écrirait une ligne avec serverElapsedSeconds == elapsedSeconds
+        // (aucune mesure serveur indépendante — exactement ce que le PRD veut détecter).
+        var result = session.SubmitAttempt("Pédiatre", Outcomes.Solide, null, 10);
+
+        Assert.Equal(SessionStatus.Conflict, result.Status);
+        Assert.Empty(HumanFile.ReadElicitation(_path).Elicitations);
+    }
+
+    [Fact]
+    public void Une_soumission_apres_avancement_sans_rappeler_next_est_refusee_chrono_perime()
+    {
+        var session = NewSession(targetCount: 4);
+
+        session.Next();
+        Assert.Equal(SessionStatus.Ok, session.SubmitAttempt("Pédiatre", Outcomes.Solide, null, 10).Status);
+        Assert.Equal(SessionStatus.Ok, session.RecordAssist(null, null).Status);
+
+        // RecordAssist a fait avancer _index vers le deuxième item, mais Next() n'a jamais été
+        // rappelé pour lui : _servedForIndex pointe encore sur le premier item. Sans la garde,
+        // ceci consignerait une ligne pour le deuxième item avec un serverElapsedSeconds mesuré
+        // depuis le service du PREMIER — une donnée fausse, sans aucun signal d'erreur.
+        var stale = session.SubmitAttempt("Radiologue", Outcomes.Solide, null, 20);
+
+        Assert.Equal(SessionStatus.Conflict, stale.Status);
+        Assert.Single(HumanFile.ReadElicitation(_path).Elicitations);
+    }
+
+    [Fact]
+    public void Une_deuxieme_frontiere_de_quota_redeclenche_la_pause()
+    {
+        var session = NewSession(targetCount: 8, quota: 2, pauseSeconds: 300);
+
+        for (var i = 0; i < 2; i++)
+        {
+            session.Next();
+            session.SubmitAttempt("Pédiatre", Outcomes.Solide, null, 10);
+            session.RecordAssist(null, null);
+        }
+
+        Assert.True(session.Next().PauseRequired);
+        _now = _now.AddSeconds(300);
+        Assert.False(session.Next().PauseRequired);
+
+        for (var i = 0; i < 2; i++)
+        {
+            session.Next();
+            session.SubmitAttempt("Pédiatre", Outcomes.Solide, null, 10);
+            session.RecordAssist(null, null);
+        }
+
+        // Deuxième frontière : le compteur de complétion atteint de nouveau un multiple du
+        // quota (4). _pauseAcknowledgedAt ne doit plus correspondre à ce nouveau compte, donc
+        // la pause doit se redéclencher — et non rester acquittée à vie après la première.
+        var secondPause = session.Next();
+        Assert.True(secondPause.PauseRequired);
+        Assert.Equal(300, secondPause.PauseSecondsRemaining);
+    }
 }

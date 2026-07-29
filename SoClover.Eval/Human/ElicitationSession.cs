@@ -134,7 +134,7 @@ public sealed class ElicitationSession
     {
         lock (_gate)
         {
-            if (_index >= _plan.Count)
+            if (IsFinished)
                 return Empty(finished: true, pauseRequired: false, pauseSecondsRemaining: 0);
 
             // Item déjà consigné mais non encore révélé : on ne redémarre NI le chrono NI le
@@ -168,11 +168,23 @@ public sealed class ElicitationSession
     {
         lock (_gate)
         {
-            if (_index >= _plan.Count)
+            if (IsFinished)
                 return Finished();
             if (IsAwaitingReveal())
                 return new SessionResult(SessionStatus.Conflict,
                     "Une tentative est déjà consignée pour cet item.", []);
+            // Le chrono serveur (_servedAtUtc) et le compteur de pause (IsPauseDue) ne sont
+            // établis que dans Next(). Sans cette garde, un appel direct — premier appel de la
+            // séance, ou après un RecordAssist qui a fait avancer _index sans qu'on rappelle
+            // Next() — soumettrait soit avec un _servedAtUtc nul (serverElapsed retomberait sur
+            // la valeur fournie par le client, invérifiable), soit avec un _servedAtUtc périmé
+            // (mesuré pour un autre item), et court-circuiterait silencieusement la pause de
+            // quota puisque IsPauseDue() n'est consultée que par Next(). Exiger l'égalité rend
+            // Next() incontournable avant toute soumission, ce qui restaure les deux garanties.
+            if (_servedForIndex != _index)
+                return new SessionResult(SessionStatus.Conflict,
+                    "Next() doit être appelé avant toute soumission pour cet item : le chrono " +
+                    "serveur n'a pas été démarré (ou est périmé).", []);
             if (!Outcomes.IsKnown(outcome))
                 return Bad($"Issue inconnue : « {outcome} ». Valeurs admises : {string.Join(", ", Outcomes.All)}.");
             if (relationType is not null && !RelationTypes.IsKnown(relationType))
@@ -191,16 +203,11 @@ public sealed class ElicitationSession
                 if (trimmed.Length == 0)
                     return Bad("Un indice est requis pour une issue « solide » ou « tiède ».");
 
-                ClueValidationResult check;
-                try
-                {
-                    check = ClueAcceptance.Check(
-                        trimmed, direction, BenchBoardMapper.ToCloverBoard(board), _validator);
-                }
-                catch (InvalidClueException)
-                {
-                    return Bad("Indice vide.");
-                }
+                // ClueAcceptance.Check ne peut lever InvalidClueException que sur un texte
+                // vide/blanc après trim ; `trimmed` est déjà non vide à ce stade (garde
+                // ci-dessus), donc aucun try/catch n'est nécessaire ici.
+                var check = ClueAcceptance.Check(
+                    trimmed, direction, BenchBoardMapper.ToCloverBoard(board), _validator);
 
                 // Le chrono continue : un indice refusé n'interrompt pas la mesure de difficulté.
                 if (!check.IsValid)
@@ -245,7 +252,7 @@ public sealed class ElicitationSession
     {
         lock (_gate)
         {
-            if (_index >= _plan.Count)
+            if (IsFinished)
                 return new CandidatesView(SessionStatus.Finished, "Séance terminée.", null, [], null);
 
             // A-4 est un verrou, pas un conseil : regarder avant de tenter détruirait
@@ -267,7 +274,7 @@ public sealed class ElicitationSession
     {
         lock (_gate)
         {
-            if (_index >= _plan.Count)
+            if (IsFinished)
                 return Finished();
             if (!IsAwaitingReveal())
                 return new SessionResult(SessionStatus.Conflict,
@@ -293,6 +300,12 @@ public sealed class ElicitationSession
     }
 
     // ── Interne ─────────────────────────────────────────────────────────────
+
+    // Factorisée : réutilisée par Next, SubmitAttempt, Candidates et RecordAssist. Les messages
+    // Conflict qui suivent cette garde restent volontairement distincts par méthode — ils portent
+    // des diagnostics différents (item déjà consigné, verrou A-4, chrono non démarré) et une
+    // fusion les rendrait moins précis pour un opérateur qui lit une réponse d'erreur.
+    private bool IsFinished => _index >= _plan.Count;
 
     private void SkipDone()
     {
