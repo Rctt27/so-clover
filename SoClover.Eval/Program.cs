@@ -2,11 +2,15 @@ using SoClover.Domain;
 using SoClover.Eval.Bench;
 using SoClover.Eval.Cli;
 using SoClover.Eval.Decoder;
+using SoClover.Eval.Human;
 using SoClover.Eval.Io;
 using SoClover.Eval.Runner;
 using SoClover.Eval.Scoring;
+using SoClover.Eval.Web;
 using SoClover.Infrastructure;
 using SoClover.Infrastructure.AI.Prompts;
+using SoClover.Infrastructure.Validation;
+using Microsoft.Extensions.Hosting;
 
 namespace SoClover.Eval;
 
@@ -33,6 +37,7 @@ internal static class EvalProgram
                 "decode" => DecodeCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "score" => ScoreCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "compare" => CompareCommand.ExecuteAsync(cliArgs, CancellationToken.None),
+                "elicit" => Elicit(cliArgs, CancellationToken.None),
                 "" => Task.FromResult(Usage()),
                 _ => Task.FromResult(Usage($"Verbe inconnu : {cliArgs.Verb}")),
             };
@@ -58,6 +63,7 @@ internal static class EvalProgram
               decode    Run d'indices -> décodages N2/N3 (appelle le LLM décodeur ; reprenable)
               score     Calcule les 9 indicateurs N1-N3 + 2 de santé (aucun appel LLM)
               compare   Δ recovery apparié + IC bootstrap + verdict de promotion (aucun appel LLM)
+              elicit    Séance A (auteur) : serveur local de saisie chronométrée
             """);
         return message is null ? 0 : 2;
     }
@@ -134,6 +140,96 @@ internal static class EvalProgram
         Console.WriteLine($"  dictionnaire  : {contents.Manifest.DictionaryFile} ({words.Count} mots, sha {contents.Manifest.DictionaryHash})");
         Console.WriteLine($"  prng          : {contents.Manifest.PrngAlgorithm}");
         Console.WriteLine($"  benchHash     : {contents.Manifest.BenchHash}");
+        return 0;
+    }
+
+    /// <summary>
+    /// Verbe <c>elicit</c> : séance A. Ouvre un serveur local et rend la main quand l'opérateur
+    /// arrête le processus. Aucun appel LLM — le run de candidats est lu sur disque.
+    /// </summary>
+    private static async Task<int> Elicit(Args args, CancellationToken ct)
+    {
+        var benchPath = args.Require("bench");
+        var outPath = args.Get("out") ?? Path.Combine("eval", "human", "elicitation.dev.jsonl");
+        var candidatesRunPath = args.Get("candidates-run");
+        var pauseSeconds = args.GetInt("pause-seconds", 300);
+        var port = args.GetInt("port", 5177);
+
+        var bench = BenchFile.Read(benchPath);
+
+        RunContents? candidatesRun = null;
+        if (candidatesRunPath is not null)
+        {
+            candidatesRun = RunFile.Read(candidatesRunPath);
+            if (candidatesRun.Manifest.BenchHash != bench.Manifest.BenchHash)
+                throw new InvalidOperationException(
+                    $"Le run de candidats porte benchHash {candidatesRun.Manifest.BenchHash}, " +
+                    $"le banc {bench.Manifest.BenchHash}. Révéler les candidats d'un autre banc " +
+                    "montrerait des indices sans rapport avec la paire cible.");
+        }
+
+        var existing = HumanFile.ReadElicitationOrNull(outPath);
+        ElicitationManifest manifest;
+
+        if (existing is null)
+        {
+            var seed = args.GetLong("seed", 0);
+            if (seed == 0) throw new ArgumentException("--seed est requis et doit être non nul.");
+
+            manifest = new ElicitationManifest(
+                Kind: "manifest",
+                BenchFile: benchPath.Replace('\\', '/'),
+                BenchHash: bench.Manifest.BenchHash,
+                Seed: seed,
+                TargetCount: args.GetInt("count", 40),
+                TimerSeconds: args.GetInt("timer", 90),
+                QuotaBeforePause: args.GetInt("quota", 25),
+                CandidatesRunId: candidatesRun?.Manifest.RunId,
+                HarnessVersion: HumanFile.HarnessVersion,
+                CreatedAtUtc: DateTime.UtcNow);
+
+            HumanFile.WriteElicitationManifest(outPath, manifest);
+            existing = HumanFile.ReadElicitation(outPath);
+        }
+        else
+        {
+            // Le manifeste fait foi à la reprise : réécrire la ligne 1 violerait l'append-only,
+            // et un plan reconstruit avec un autre seed ne correspondrait plus aux lignes déjà
+            // saisies. Pour étendre une séance, changer de nom de fichier.
+            manifest = existing.Manifest;
+            HumanFile.RequireBench(outPath, manifest.BenchHash, bench);
+
+            if (args.Has("seed") && args.GetLong("seed", 0) != manifest.Seed)
+                Console.Error.WriteLine(
+                    $"AVERTISSEMENT : --seed ignoré, le manifeste de {outPath} porte {manifest.Seed}.");
+        }
+
+        var plan = ElicitationPlan.Build(bench, manifest.Seed, manifest.TargetCount);
+        var validator = new ClueValidatorFactory().GetFor(bench.Manifest.Language, semanticCheckEnabled: true);
+
+        var session = new ElicitationSession(
+            bench, plan, existing,
+            ElicitationSession.BuildCandidateIndex(candidatesRun),
+            validator,
+            outPath,
+            sessionId: $"s-{DateTime.UtcNow:yyyyMMddHHmmss}",
+            timerSeconds: manifest.TimerSeconds,
+            quotaBeforePause: manifest.QuotaBeforePause,
+            pauseSeconds: pauseSeconds);
+
+        var pagePath = Path.Combine(AppContext.BaseDirectory, "Web", "Pages", "elicit.html");
+        var app = HumanServer.BuildElicitApp(session, pagePath, port);
+        await app.StartAsync(ct);
+
+        Console.WriteLine($"séance A : {HumanServer.ResolveUrl(app)}");
+        Console.WriteLine($"  banc          : {benchPath} (hash {bench.Manifest.BenchHash})");
+        Console.WriteLine($"  fichier       : {outPath}");
+        Console.WriteLine($"  plan          : {plan.Count} direction(s), seed {manifest.Seed}");
+        Console.WriteLine($"  déjà saisies  : {session.CompletedCount}");
+        Console.WriteLine($"  candidats     : {manifest.CandidatesRunId ?? "— (aucun run fourni)"}");
+        Console.WriteLine("  Ctrl+C pour arrêter. La reprise est sûre : chaque item est écrit à la soumission.");
+
+        await app.WaitForShutdownAsync(ct);
         return 0;
     }
 }

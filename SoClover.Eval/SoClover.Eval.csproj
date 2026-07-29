@@ -48,6 +48,17 @@
     </Content>
   </ItemGroup>
 
+  <!--
+    Pages des séances humaines : même mécanisme que les prompts décodeurs — copiées dans
+    l'output du projet ET, par propagation transitive des items Content, dans celui de
+    SoClover.Tests. C'est ce qui permet de les charger depuis AppContext.BaseDirectory.
+  -->
+  <ItemGroup>
+    <Content Include="Web\Pages\**\*.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="SoClover.Tests" />
   </ItemGroup>
