@@ -35,7 +35,29 @@ public class ComparisonPlanTests
     [Fact]
     public void Le_plan_est_reproductible_a_seed_fixe()
     {
-        Assert.Equal(Build(), Build());
+        // Comparaison champ par champ, ReferenceWords inclus : ComparisonPlanItem est un record
+        // dont ReferenceWords (IReadOnlyList<string>) est comparé PAR RÉFÉRENCE par l'Equals
+        // généré par le compilateur. `Assert.Equal(Build(), Build())` sur les deux listes serait
+        // structurellement inerte sur ce champ (les deux appels partagent le même _bench, donc la
+        // même instance de liste) — un `.ToList()` défensif ajouté demain dans ComparisonPlan.Build
+        // romprait le partage de référence et ferait rougir ce test malgré un contenu identique.
+        // Patron : BenchFileTests.cs:32-41, HumanFileTests.cs.
+        var first = Build();
+        var second = Build();
+
+        Assert.Equal(first.Count, second.Count);
+        for (var i = 0; i < first.Count; i++)
+        {
+            Assert.Equal(first[i].ComparisonId, second[i].ComparisonId);
+            Assert.Equal(first[i].Family, second[i].Family);
+            Assert.Equal(first[i].BoardId, second[i].BoardId);
+            Assert.Equal(first[i].Direction, second[i].Direction);
+            Assert.Equal(first[i].ReferenceWords, second[i].ReferenceWords);
+            Assert.Equal(first[i].OptionA, second[i].OptionA);
+            Assert.Equal(first[i].OptionB, second[i].OptionB);
+            Assert.Equal(first[i].PresentedOrder, second[i].PresentedOrder);
+            Assert.Equal(first[i].DuplicateOf, second[i].DuplicateOf);
+        }
     }
 
     [Fact]
