@@ -1,5 +1,7 @@
 using SoClover.Domain;
 using SoClover.Eval.Bench;
+using SoClover.Eval.Human;
+using SoClover.Eval.Io;
 
 namespace SoClover.Tests.Eval.Helpers;
 
@@ -48,6 +50,20 @@ public static class HumanTestData
 
         return new BenchContents(manifest, boards.AsReadOnly());
     }
+
+    public static ElicitationManifest ElicitationManifest(
+        string benchHash, int targetCount = 40, int quotaBeforePause = 25,
+        string? candidatesRunId = null) => new(
+        Kind: "manifest",
+        BenchFile: "eval/boards.dev.jsonl",
+        BenchHash: benchHash,
+        Seed: 42,
+        TargetCount: targetCount,
+        TimerSeconds: 90,
+        QuotaBeforePause: quotaBeforePause,
+        CandidatesRunId: candidatesRunId,
+        HarnessVersion: HumanFile.HarnessVersion,
+        CreatedAtUtc: new DateTime(2026, 7, 29, 8, 0, 0, DateTimeKind.Utc));
 
     /// <summary>
     /// Dérive la paire de référence par la même convention que le générateur de bancs.
