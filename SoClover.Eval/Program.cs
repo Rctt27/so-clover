@@ -1,3 +1,4 @@
+using System.Globalization;
 using SoClover.Domain;
 using SoClover.Eval.Bench;
 using SoClover.Eval.Cli;
@@ -39,6 +40,7 @@ internal static class EvalProgram
                 "compare" => CompareCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "elicit" => Elicit(cliArgs, CancellationToken.None),
                 "judge" => Judge(cliArgs, CancellationToken.None),
+                "human-report" => Task.FromResult(HumanReportCommand(cliArgs)),
                 "" => Task.FromResult(Usage()),
                 _ => Task.FromResult(Usage($"Verbe inconnu : {cliArgs.Verb}")),
             };
@@ -66,6 +68,7 @@ internal static class EvalProgram
               compare   Δ recovery apparié + IC bootstrap + verdict de promotion (aucun appel LLM)
               elicit    Séance A (auteur) : serveur local de saisie chronométrée
               judge     Séance B (juge) : serveur local de comparaison en aveugle, J+1
+              human-report  Agrégats des deux séances humaines (aucun appel LLM)
             """);
         return message is null ? 0 : 2;
     }
@@ -371,4 +374,89 @@ internal static class EvalProgram
         EarlyStart: guard.EarlyStart,
         HarnessVersion: HumanFile.HarnessVersion,
         CreatedAtUtc: createdAtUtc);
+
+    /// <summary>
+    /// Verbe <c>human-report</c>. Ni accord décodeur/humain ni κ : c'est P6, et les publier ici
+    /// reviendrait à franchir une porte en la décrivant.
+    /// </summary>
+    private static int HumanReportCommand(Args args)
+    {
+        static string N(double v) => v.ToString("0.000", CultureInfo.GetCultureInfo("fr-FR"));
+
+        var elicitationPath = args.Get("elicitation");
+        var comparisonsPath = args.Get("comparisons");
+        if (elicitationPath is null && comparisonsPath is null)
+            throw new ArgumentException("Au moins --elicitation ou --comparisons est requis.");
+
+        if (elicitationPath is not null)
+        {
+            var report = HumanReport.ForElicitation(HumanFile.ReadElicitation(elicitationPath));
+
+            Console.WriteLine();
+            Console.WriteLine($"séance A — {elicitationPath}");
+            Console.WriteLine($"  items saisis           {report.ItemsSaved} / {report.ItemsPlanned}");
+            foreach (var outcome in report.Outcomes)
+                Console.WriteLine($"  {outcome.Outcome,-22} {outcome.Count}");
+            Console.WriteLine($"  taux de pass           {N(report.PassRate)}   ← argument pour/contre l'intervention de rang 4");
+            Console.WriteLine();
+            Console.WriteLine("  chrono par issue (s)   médiane / min / max");
+            foreach (var e in report.Elapsed.Where(e => e.Count > 0))
+                Console.WriteLine($"    {e.Outcome,-20} {e.MedianSeconds,6:0.0} / {e.MinSeconds,3} / {e.MaxSeconds,3}   (n={e.Count})");
+            Console.WriteLine();
+            Console.WriteLine("  dérive de fatigue      moyenne du chrono par tranche d'items");
+            foreach (var bucket in report.Fatigue)
+                Console.WriteLine($"    {bucket.FromOrdinal,3}–{bucket.ToOrdinal,-3}            {bucket.MeanElapsedSeconds,6:0.0} s   (n={bucket.Count})");
+            Console.WriteLine();
+            Console.WriteLine("  relations");
+            foreach (var relation in report.Relations)
+                Console.WriteLine($"    {relation.Count,4}  {relation.RelationType}");
+            Console.WriteLine();
+            Console.WriteLine($"  indices assistés       {report.AssistedClueCount}");
+            Console.WriteLine($"  indices refusés        {report.RejectedClueCount}");
+
+            if (report.ItemsSaved < report.ItemsPlanned)
+                Console.WriteLine($"  ⚠ SÉANCE INCOMPLÈTE : {report.ItemsSaved}/{report.ItemsPlanned}.");
+
+            var path = Path.ChangeExtension(elicitationPath, ".report.json");
+            File.WriteAllText(path, EvalJson.Serialize(report));
+            Console.WriteLine($"  rapport écrit : {path}");
+        }
+
+        if (comparisonsPath is not null)
+        {
+            var report = HumanReport.ForComparisons(HumanFile.ReadComparisons(comparisonsPath));
+
+            Console.WriteLine();
+            Console.WriteLine($"séance B — {comparisonsPath}");
+            Console.WriteLine($"  couples jugés          {report.ItemsJudged} / {report.ItemsPlanned}");
+            Console.WriteLine();
+            Console.WriteLine("  taux de victoire par famille");
+            foreach (var family in report.Families)
+                Console.WriteLine(
+                    $"    {family.Family,-18} {family.Label,-22} A {N(family.OptionAWinRate)} / B {N(family.OptionBWinRate)} / = {N(family.TieRate)}   (n={family.Count})");
+            Console.WriteLine();
+            Console.WriteLine($"  position 1 gagne       {N(report.Position1WinRate)}");
+            Console.WriteLine($"  taux d'égalité         {N(report.TieRate)}");
+            Console.WriteLine($"  cohérence intra-juge   {N(report.IntraJudgeAgreement)}   (sur {report.DuplicatePairCount} doublon(s) inversé(s))");
+            Console.WriteLine($"  ancres réussies        {report.AnchorCorrect} / {report.AnchorCount}");
+
+            if (report.Position1Suspect)
+                Console.WriteLine(
+                    $"  ⚠ LOT SUSPECT : la position 1 gagne {N(report.Position1WinRate)}, à plus de " +
+                    "10 points de 50 %. Le biais de position domine — le consigner DANS LE REGISTRE.");
+
+            if (report.AnchorSuspect)
+                Console.WriteLine(
+                    "  ⚠ LOT SUSPECT : plus d'une ancre ratée. Un opérateur qui préfère un indice " +
+                    "aléatoire à un indice réel a produit un lot dont on ne peut tirer aucune porte.");
+
+            var path = Path.ChangeExtension(comparisonsPath, ".report.json");
+            File.WriteAllText(path, EvalJson.Serialize(report));
+            Console.WriteLine($"  rapport écrit : {path}");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Ce rapport ne calcule NI l'accord décodeur/humain NI κ — c'est P6.");
+        return 0;
+    }
 }
