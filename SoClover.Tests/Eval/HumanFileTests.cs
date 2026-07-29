@@ -55,7 +55,25 @@ public class HumanFileTests : IDisposable
         var read = HumanFile.ReadElicitation(_path);
 
         Assert.Equal(Manifest(), read.Manifest);
-        Assert.Equal(Line(), Assert.Single(read.Elicitations));
+
+        // Comparaison champ par champ : l'égalité de record sur IReadOnlyList échoue
+        // par sémantique reference-based (voir BenchFileTests.cs:32-38 pour le précédent)
+        var elicitation = Assert.Single(read.Elicitations);
+        var expected = Line();
+        Assert.Equal(expected.Kind, elicitation.Kind);
+        Assert.Equal(expected.BoardId, elicitation.BoardId);
+        Assert.Equal(expected.Direction, elicitation.Direction);
+        Assert.Equal(expected.ReferenceWords, elicitation.ReferenceWords);
+        Assert.Equal(expected.Outcome, elicitation.Outcome);
+        Assert.Equal(expected.Clue, elicitation.Clue);
+        Assert.Equal(expected.ElapsedSeconds, elicitation.ElapsedSeconds);
+        Assert.Equal(expected.ServerElapsedSeconds, elicitation.ServerElapsedSeconds);
+        Assert.Equal(expected.RelationType, elicitation.RelationType);
+        Assert.Equal(expected.RejectedAttempts, elicitation.RejectedAttempts);
+        Assert.Equal(expected.SessionId, elicitation.SessionId);
+        Assert.Equal(expected.ItemOrdinal, elicitation.ItemOrdinal);
+        Assert.Equal(expected.AuthoredAtUtc, elicitation.AuthoredAtUtc);
+
         Assert.Equal("candidats tous génériques", Assert.Single(read.Assists).Notes);
     }
 
