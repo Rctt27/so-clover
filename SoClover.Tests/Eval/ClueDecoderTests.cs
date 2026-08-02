@@ -34,7 +34,10 @@ public class ClueDecoderTests
     [Fact]
     public void Exposes_the_decoder_prompt_version_independently_of_the_generator()
     {
-        Assert.Equal(1, Build(new FakeChatClient()).PromptVersion);
+        // Littéral volontaire : le frontmatter du décodeur DOIT être bumpé quand son contenu
+        // change, sinon deux décodages différents s'inscrivent au registre sous la même version
+        // et plus aucun recovery n'est comparable. Ce test est le rappel qui casse.
+        Assert.Equal(2, Build(new FakeChatClient()).PromptVersion);
     }
 
     [Fact]
