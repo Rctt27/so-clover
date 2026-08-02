@@ -41,6 +41,7 @@ internal static class EvalProgram
                 "elicit" => Elicit(cliArgs, CancellationToken.None),
                 "judge" => Judge(cliArgs, CancellationToken.None),
                 "human-report" => Task.FromResult(HumanReportCommand(cliArgs)),
+                "human-run" => Task.FromResult(HumanRunCommand(cliArgs)),
                 "" => Task.FromResult(Usage()),
                 _ => Task.FromResult(Usage($"Verbe inconnu : {cliArgs.Verb}")),
             };
@@ -69,6 +70,13 @@ internal static class EvalProgram
               elicit    Séance A (auteur) : serveur local de saisie chronométrée
               judge     Séance B (juge) : serveur local de comparaison en aveugle, J+1
               human-report  Agrégats des deux séances humaines (aucun appel LLM)
+              human-run Projette la séance A en pseudo-run décodable (aucun appel LLM)
+
+            Sous-ensemble (score, compare) :
+              --subset <elicitation.jsonl>      restreint TOUS les dénominateurs aux directions
+                                                réellement couvertes par la séance A
+              --subset-outcome solide,tiede     « plafond sur paires résolues » (A-3) ; sans le
+                                                drapeau, toutes les issues — c'est le plafond joué
             """);
         return message is null ? 0 : 2;
     }
@@ -374,6 +382,52 @@ internal static class EvalProgram
         EarlyStart: guard.EarlyStart,
         HarnessVersion: HumanFile.HarnessVersion,
         CreatedAtUtc: createdAtUtc);
+
+    /// <summary>
+    /// Verbe <c>human-run</c> : projette la séance A en pseudo-run au format <see cref="RunFile"/>.
+    /// Les verbes existants s'appliquent alors <b>sans modification</b> — <c>decode</c> saute N3
+    /// tout seul (aucun board du banc n'a ses 4 directions annotées), <c>score --subset</c> et
+    /// <c>compare --subset</c> font le reste. Aucun appel LLM.
+    /// </summary>
+    private static int HumanRunCommand(Args args)
+    {
+        var elicitationPath = args.Get("elicitation")
+                              ?? Path.Combine("eval", "human", "elicitation.dev.jsonl");
+        var outDirectory = args.Get("out") ?? Path.Combine("eval", "runs");
+
+        var elicitation = HumanFile.ReadElicitation(elicitationPath);
+        var benchPath = args.Get("bench") ?? elicitation.Manifest.BenchFile;
+        var bench = BenchFile.Read(benchPath);
+        HumanFile.RequireBench(elicitationPath, elicitation.Manifest.BenchHash, bench);
+
+        if (elicitation.Elicitations.Count == 0)
+            throw new InvalidOperationException(
+                $"{elicitationPath} ne contient aucune ligne d'élicitation : rien à projeter.");
+
+        var (manifest, attempts) = HumanRunExport.Build(
+            bench, elicitation, benchPath, DateTime.UtcNow);
+
+        var path = Path.Combine(outDirectory, $"{manifest.RunId}.jsonl");
+        if (File.Exists(path) && !args.Has("force"))
+            throw new InvalidOperationException(
+                $"{path} existe déjà. Réécrire un run décodé perdrait son .decoded.jsonl : " +
+                "passer --force en connaissance de cause.");
+
+        Directory.CreateDirectory(outDirectory);
+        HumanRunExport.Write(outDirectory, manifest, attempts);
+
+        var passCount = attempts.Count(a => a.FailureKind == HumanRunExport.PassFailureKind);
+
+        Console.WriteLine($"pseudo-run écrit : {path}");
+        Console.WriteLine($"  runId       : {manifest.RunId}");
+        Console.WriteLine($"  banc        : {benchPath} (hash {manifest.BenchHash})");
+        Console.WriteLine($"  directions  : {attempts.Count} dont {passCount} pass " +
+                          "(A-1 : un pass reste au dénominateur, il n'est jamais retiré)");
+        Console.WriteLine();
+        Console.WriteLine("Suite : decode ce run, puis");
+        Console.WriteLine($"  score --run {path.Replace('\\', '/')} --subset {elicitationPath.Replace('\\', '/')}");
+        return 0;
+    }
 
     /// <summary>
     /// Verbe <c>human-report</c>. Ni accord décodeur/humain ni κ : c'est P6, et les publier ici

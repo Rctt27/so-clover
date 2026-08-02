@@ -1,5 +1,6 @@
 using System.Globalization;
 using SoClover.Eval.Cli;
+using SoClover.Eval.Human;
 using SoClover.Eval.Io;
 
 namespace SoClover.Eval.Scoring;
@@ -12,8 +13,16 @@ public static class CompareCommand
 {
     public static Task<int> ExecuteAsync(Args args, CancellationToken ct)
     {
-        var baseline = Load(args.Require("baseline"));
-        var variant = Load(args.Require("variant"));
+        // Sans restriction, apparier un run humain de 40 directions à un run de modèle en
+        // couvrant 160 comparerait l'humain à lui-même sur 120 items où il n'a rien écrit :
+        // R̄ = 0 des deux côtés, delta nul, dilution silencieuse du chiffre réel.
+        IReadOnlySet<(string BoardId, string Direction)>? subset = null;
+        string? subsetName = null;
+        if (args.Get("subset") is { } subsetPath)
+            (subset, subsetName) = SubsetSelector.FromFile(subsetPath, args.Get("subset-outcome"));
+
+        var baseline = Load(args.Require("baseline"), subset);
+        var variant = Load(args.Require("variant"), subset);
 
         var result = PairedComparison.Compare(
             baseline, variant,
@@ -25,6 +34,8 @@ public static class CompareCommand
 
         Console.WriteLine();
         Console.WriteLine($"comparaison appariée sur {result.PairedItemCount} item(s), banc {baseline.BenchHash}");
+        if (subsetName is not null)
+            Console.WriteLine($"  sous-ensemble : {subsetName}");
         Console.WriteLine($"  baseline : {baseline.RunId}   recovery {N(result.BaselineRecovery)}");
         Console.WriteLine($"  variante : {variant.RunId}   recovery {N(result.VariantRecovery)}");
         Console.WriteLine();
@@ -45,7 +56,8 @@ public static class CompareCommand
     /// deux cas on recalcule les métriques plutôt que de relire un <c>.metrics.json</c> qui
     /// pourrait dater d'une version antérieure du scorer.
     /// </summary>
-    private static MetricsReport Load(string path)
+    private static MetricsReport Load(
+        string path, IReadOnlySet<(string BoardId, string Direction)>? subset)
     {
         var runPath = path.EndsWith(".decoded.jsonl", StringComparison.OrdinalIgnoreCase)
             ? path[..^".decoded.jsonl".Length] + ".jsonl"
@@ -55,6 +67,6 @@ public static class CompareCommand
         var bench = BenchFile.Read(run.Manifest.BenchFile);
         var decoded = DecodeFile.ReadOrNull(DecodeFile.PathFor(runPath));
 
-        return RunMetrics.Compute(bench, run, decoded, run.Manifest.MaxRetries + 1);
+        return RunMetrics.Compute(bench, run, decoded, run.Manifest.MaxRetries + 1, subset);
     }
 }

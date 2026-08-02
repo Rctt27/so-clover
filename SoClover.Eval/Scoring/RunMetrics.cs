@@ -40,15 +40,37 @@ public static class RunMetrics
 {
     public const int ConfusionTopSize = 10;
 
+    /// <summary>
+    /// <paramref name="subset"/> restreint la liste d'items ; <b>tous</b> les dénominateurs
+    /// suivent, <see cref="MetricsReport.DirectionCount"/> compris — la restriction devient donc
+    /// visible dans le rapport au lieu d'être une note de bas de page. Utilisé par le pseudo-run
+    /// humain, qui ne couvre qu'une fraction du banc (§6.2 du design P4-P5).
+    /// </summary>
     public static MetricsReport Compute(
-        BenchContents bench, RunContents run, DecodeContents? decoded, int maxAttempts)
+        BenchContents bench, RunContents run, DecodeContents? decoded, int maxAttempts,
+        IReadOnlySet<(string BoardId, string Direction)>? subset = null)
     {
         var items = bench.Boards
             .SelectMany(b => BoardGeometry.AllDirections.Select(d => (BoardId: b.BoardId, Direction: d.ToString())))
+            .Where(item => subset is null || subset.Contains(item))
             .ToList();
         var directionCount = items.Count;
+        var boardCount = subset is null
+            ? bench.Manifest.BoardCount
+            : items.Select(i => i.BoardId).Distinct(StringComparer.Ordinal).Count();
 
-        var attemptsByItem = run.Attempts
+        // Le sous-ensemble ne restreint pas que les items : les tentatives, décodages et boards
+        // hors périmètre sortent aussi des dénominateurs de santé, sinon `parse_failure_rate` et
+        // `decode_failure_rate` parleraient d'un banc que le rapport ne prétend plus couvrir.
+        var scope = items.ToHashSet();
+        var scopedBoards = items.Select(i => i.BoardId).ToHashSet(StringComparer.Ordinal);
+        var scopedAttempts = run.Attempts.Where(a => scope.Contains((a.BoardId, a.Direction))).ToList();
+        var scopedClueDecodes = (decoded?.ClueDecodes ?? [])
+            .Where(d => scope.Contains((d.BoardId, d.Direction))).ToList();
+        var scopedBoardDecodes = (decoded?.BoardDecodes ?? [])
+            .Where(b => scopedBoards.Contains(b.BoardId)).ToList();
+
+        var attemptsByItem = scopedAttempts
             .GroupBy(a => (a.BoardId, a.Direction))
             .ToDictionary(g => g.Key, g => g.OrderBy(a => a.Attempt).ToList());
 
@@ -74,10 +96,10 @@ public static class RunMetrics
                 completedItems++;
         }
 
-        var parseFailures = run.Attempts.Count(a => a.FailureKind is "empty" or "unparseable");
+        var parseFailures = scopedAttempts.Count(a => a.FailureKind is "empty" or "unparseable");
 
         // ---- N2 -------------------------------------------------------------
-        var decodesByItem = (decoded?.ClueDecodes ?? [])
+        var decodesByItem = scopedClueDecodes
             .GroupBy(d => (d.BoardId, d.Direction))
             .ToDictionary(g => g.Key, g => g.OrderBy(d => d.DecodeIndex).ToList());
 
@@ -125,7 +147,7 @@ public static class RunMetrics
             .ToDictionary(x => x.Key, x => x.Words);
 
         var confusion = new Dictionary<string, int>();
-        foreach (var decode in decoded?.ClueDecodes ?? [])
+        foreach (var decode in scopedClueDecodes)
         {
             if (decode.Picked is null) continue;
             if (!referenceByItem.TryGetValue((decode.BoardId, decode.Direction), out var reference)) continue;
@@ -143,7 +165,7 @@ public static class RunMetrics
             .AsReadOnly();
 
         // ---- N3 -------------------------------------------------------------
-        var scoredBoards = (decoded?.BoardDecodes ?? [])
+        var scoredBoards = scopedBoardDecodes
             .Where(b => b.DecodeFailureKind is null && b.BoardPositions is not null)
             .ToList();
 
@@ -152,15 +174,15 @@ public static class RunMetrics
             : scoredBoards.Count(b => b.BoardSolved == true) / (double)scoredBoards.Count;
 
         // ---- Santé ----------------------------------------------------------
-        var decodeAttempts = (decoded?.ClueDecodes.Count ?? 0) + (decoded?.BoardDecodes.Count ?? 0);
-        var decodeFailures = (decoded?.ClueDecodes.Count(d => d.DecodeFailureKind is not null) ?? 0)
-                           + (decoded?.BoardDecodes.Count(b => b.DecodeFailureKind is not null) ?? 0);
+        var decodeAttempts = scopedClueDecodes.Count + scopedBoardDecodes.Count;
+        var decodeFailures = scopedClueDecodes.Count(d => d.DecodeFailureKind is not null)
+                           + scopedBoardDecodes.Count(b => b.DecodeFailureKind is not null);
 
         return new MetricsReport(
             RunId: run.Manifest.RunId,
             BenchFile: run.Manifest.BenchFile,
             BenchHash: run.Manifest.BenchHash,
-            BoardCount: bench.Manifest.BoardCount,
+            BoardCount: boardCount,
             DirectionCount: directionCount,
             ValidRate: Ratio(validItems.Count, directionCount),
             FirstAttemptRate: Ratio(firstAttemptItems.Count, directionCount),

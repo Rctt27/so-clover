@@ -1,7 +1,10 @@
 using System.Globalization;
+using SoClover.Domain;
 using SoClover.Eval.Cli;
 using SoClover.Eval.Decoder;
+using SoClover.Eval.Human;
 using SoClover.Eval.Io;
+using SoClover.Eval.Runner;
 
 namespace SoClover.Eval.Scoring;
 
@@ -16,9 +19,18 @@ public static class ScoreCommand
         var decoded = DecodeFile.ReadOrNull(args.Get("decoded") ?? DecodeFile.PathFor(runPath));
 
         var maxAttempts = run.Manifest.MaxRetries + 1;
-        var metrics = RunMetrics.Compute(bench, run, decoded, maxAttempts);
 
-        Print(metrics, run.Manifest.OperatorNotes, decoded?.Manifest.ModelId);
+        // Le banc entier reste le dénominateur par défaut. --subset ne s'invoque que pour un run
+        // qui ne prétend pas le couvrir — le pseudo-run humain, aujourd'hui.
+        IReadOnlySet<(string BoardId, string Direction)>? subset = null;
+        string? subsetName = null;
+        if (args.Get("subset") is { } subsetPath)
+            (subset, subsetName) = SubsetSelector.FromFile(subsetPath, args.Get("subset-outcome"));
+
+        var metrics = RunMetrics.Compute(bench, run, decoded, maxAttempts, subset);
+        var benchDirectionCount = bench.Manifest.BoardCount * BoardGeometry.AllDirections.Count;
+
+        Print(metrics, run.Manifest.OperatorNotes, decoded?.Manifest.ModelId, subsetName, benchDirectionCount);
 
         // PerItemRBar est [JsonIgnore] : le détail par item se recalcule depuis les fichiers
         // de run, et n'a pas à figurer dans l'artefact de synthèse.
@@ -28,10 +40,8 @@ public static class ScoreCommand
 
         if (args.Get("ledger") is { } ledgerPath)
         {
-            var settings = string.Create(CultureInfo.InvariantCulture,
-                $"temp {run.Manifest.Temperature} / topP {run.Manifest.TopP?.ToString() ?? "—"} / " +
-                $"maxTokens {run.Manifest.MaxOutputTokens?.ToString() ?? "—"} / " +
-                $"maxRetries {run.Manifest.MaxRetries} / reasoning {run.Manifest.ReasoningEnabled}");
+            var settings = ComposeSettings(
+                run.Manifest, subsetName, metrics.DirectionCount, benchDirectionCount);
 
             LedgerWriter.Append(ledgerPath, new LedgerEntry(
                 Date: DateOnly.FromDateTime(DateTime.UtcNow),
@@ -52,6 +62,25 @@ public static class ScoreCommand
         }
 
         return Task.FromResult(0);
+    }
+
+    /// <summary>
+    /// Cellule <i>réglages</i> du registre. Quand le score porte sur un sous-ensemble, la mention
+    /// <c>subset=&lt;nom&gt; (40/160)</c> s'y ajoute : aucune colonne nouvelle — les 18 colonnes du
+    /// registre sont préservées — et surtout <b>aucune ligne ne peut prétendre porter sur le banc
+    /// entier alors qu'elle porte sur un quart</b>.
+    /// </summary>
+    internal static string ComposeSettings(
+        RunManifest manifest, string? subsetName, int subsetDirectionCount, int benchDirectionCount)
+    {
+        var settings = string.Create(CultureInfo.InvariantCulture,
+            $"temp {manifest.Temperature} / topP {manifest.TopP?.ToString() ?? "—"} / " +
+            $"maxTokens {manifest.MaxOutputTokens?.ToString() ?? "—"} / " +
+            $"maxRetries {manifest.MaxRetries} / reasoning {manifest.ReasoningEnabled}");
+
+        return subsetName is null
+            ? settings
+            : $"{settings} / subset={subsetName} ({subsetDirectionCount}/{benchDirectionCount})";
     }
 
     /// <summary>
@@ -84,13 +113,19 @@ public static class ScoreCommand
         return string.Join(" ; ", parts);
     }
 
-    private static void Print(MetricsReport m, string? operatorNotes, string? decoderModel)
+    private static void Print(
+        MetricsReport m, string? operatorNotes, string? decoderModel,
+        string? subsetName, int benchDirectionCount)
     {
         static string N(double v) => v.ToString("0.000", CultureInfo.GetCultureInfo("fr-FR"));
 
         Console.WriteLine();
         Console.WriteLine($"run   : {m.RunId}");
         Console.WriteLine($"banc  : {m.BenchFile} ({m.BoardCount} boards, {m.DirectionCount} directions, hash {m.BenchHash})");
+        if (subsetName is not null)
+            Console.WriteLine(
+                $"subset : {subsetName} — {m.DirectionCount}/{benchDirectionCount} directions. " +
+                "Tous les dénominateurs ci-dessous portent sur ce sous-ensemble.");
         if (decoderModel is not null) Console.WriteLine($"décodeur : {decoderModel}");
         if (operatorNotes is not null) Console.WriteLine($"notes : {operatorNotes}");
         Console.WriteLine();
