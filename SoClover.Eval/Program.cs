@@ -69,8 +69,8 @@ internal static class EvalProgram
               compare   Δ recovery apparié + IC bootstrap + verdict de promotion (aucun appel LLM)
               elicit    Séance A (auteur) : serveur local de saisie chronométrée
               judge     Séance B (juge) : serveur local de comparaison en aveugle, J+1
+              human-run     Projette la séance A en pseudo-run décodable (aucun appel LLM)
               human-report  Agrégats des deux séances humaines (aucun appel LLM)
-              human-run Projette la séance A en pseudo-run décodable (aucun appel LLM)
 
             Sous-ensemble (score, compare) :
               --subset <elicitation.jsonl>      restreint TOUS les dénominateurs aux directions

@@ -145,13 +145,27 @@ npm run dev   # Proxy automatique vers localhost:5000
   `SoClover/SoClover.csproj` et `docs/deploy.md` fait `git archive HEAD … SoClover/` : ne jamais
   y ajouter `SoClover.Eval`.
 - **Spécifications** : `Specs/AI_Clue_Eval_Loop/` (PRD `00_Overview.md`, design P0-P3
-  `01_Design_Harness_P0_P3.md`). Mode d'emploi : `SoClover.Eval/README.md`.
-- **Verbes** : `doctor | bench | generate | decode | score | compare`. Générer et décoder sont
-  **deux passes distinctes** séparées par un rechargement manuel de modèle dans LM Studio (un
-  seul modèle servi à la fois). Les deux sont reprenables ; `--force` repart de zéro.
+  `01_Design_Harness_P0_P3.md`, design P4-P5 `02_Design_Human_P4_P5.md`). Mode d'emploi :
+  `SoClover.Eval/README.md`.
+- **Verbes** : `doctor | bench | generate | decode | score | compare | elicit | judge | human-run |
+  human-report`. Générer et décoder sont **deux passes distinctes** séparées par un rechargement
+  manuel de modèle dans LM Studio (un seul modèle servi à la fois). Les deux sont reprenables ;
+  `--force` repart de zéro.
+- **Séances humaines (P4-P5)** : `elicit` (séance A, auteur, chronométrée) et `judge` (séance B,
+  juge, en aveugle) démarrent un `WebApplication` local — **c'est le serveur qui applique le
+  protocole**, pas la discipline de l'opérateur : verrou A-4 (`/api/candidates` → `409` avant
+  tentative), aucune API de saut (A-1), garde J+1 d'A-5 contournable seulement via `--force-early`
+  qui **stampe l'entorse dans le manifeste**, et aveuglement structurel (`/api/next` ne porte ni
+  `source` ni `runId`). `human-run` projette la séance A en pseudo-run scorable.
+- **`--subset` sur `score` / `compare`** : correction de dénominateur, jamais un confort.
+  `RunMetrics.Compute` attribue `R̄ = 0` aux directions absentes du run — juste pour un modèle,
+  faux pour un run humain couvrant 40 directions sur 160 (plafond divisé par quatre). Le drapeau
+  restreint **tous** les dénominateurs et inscrit `subset=<nom> (40/160)` dans la cellule
+  *réglages* du registre. `--subset-outcome solide,tiede` donne le plafond sur paires résolues (A-3).
 - **Artefacts** : `eval/boards.dev.jsonl` (40 boards) et `eval/boards.test.jsonl` (60 boards)
   sont **committés avec leur seed et leur hash** — un banc qui bouge invalide tout l'historique
-  du registre, et `BenchFile.Read` refuse de charger un banc dérivé. `eval/runs/` est gitignoré.
+  du registre, et `BenchFile.Read` refuse de charger un banc dérivé. `eval/runs/` est gitignoré ;
+  `eval/human/` est **committé** (corpus humain : l'investissement irremplaçable du chantier).
   `eval/LEDGER.md` est committé : une ligne par run, **jamais réécrite**.
 - **Discipline dev/test** : itérer exclusivement sur `boards.dev.jsonl`. Le test set se consulte
   une fois par jalon, et chaque consultation se consigne dans le registre.

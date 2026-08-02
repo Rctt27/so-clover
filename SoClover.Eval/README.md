@@ -61,6 +61,88 @@ confiance bootstrap à 95 %, et le verdict de la règle de promotion (`retenu` /
 `écarté`). Deux runs de `benchHash` différents sont **refusés** : comparer sur deux tirages
 distincts est une erreur de protocole, pas une approximation acceptable.
 
+## Séances humaines (P4-P5)
+
+Le `recovery` automatique a un bas d'échelle (le plancher aléatoire) et **pas de haut** : rien ne
+dit s'il reste de la marge, ni si le décodeur juge comme un joueur humain. Les deux séances
+produisent ces deux corpus manquants. Design :
+[`02_Design_Human_P4_P5.md`](../Specs/AI_Clue_Eval_Loop/02_Design_Human_P4_P5.md).
+
+Chaque verbe démarre un `WebApplication` sur `127.0.0.1` servant une page unique. **Le serveur
+applique le protocole** — c'est tout l'intérêt de la forme : une page statique ne pourrait garantir
+ni le verrou A-4, ni l'aveuglement, ni le chrono mesuré côté serveur.
+
+```bash
+# Séance A — auteur, chronométrée, ~40 directions, ≈ 1 h 30
+dotnet run --project SoClover.Eval -- elicit \
+  --bench eval/boards.dev.jsonl --seed 20260729001 \
+  --candidates-run eval/runs/<runId>.jsonl \
+  --out eval/human/elicitation.dev.jsonl
+
+# ATTENDRE 24 H — la garde A-5 du verbe judge le rappellera
+
+# Séance B — juge, en aveugle, ~100 couples, ≈ 45 min
+dotnet run --project SoClover.Eval -- judge \
+  --bench eval/boards.dev.jsonl --seed 20260730001 \
+  --run-a eval/runs/<runA>.jsonl --run-b eval/runs/<runB>.jsonl \
+  --anchor-run eval/runs/<plancher>.jsonl \
+  --out eval/human/comparisons.dev.jsonl
+
+# Agrégats des deux séances (aucun appel LLM, ni accord ni κ — c'est P6)
+dotnet run --project SoClover.Eval -- human-report \
+  --elicitation eval/human/elicitation.dev.jsonl \
+  --comparisons eval/human/comparisons.dev.jsonl
+```
+
+Les deux séances sont **reprenables** : chaque item est écrit à la soumission, relancer le verbe
+complète ce qui manque. `eval/human/` est **committé**, contrairement à `eval/runs/`.
+
+Trois règles sont non contournables par construction, pas par discipline : `GET /api/candidates`
+répond `409` tant que l'item n'a pas été tenté (A-4) ; il n'existe **aucune API de saut**, un item
+ne se quitte que par `solide`, `tiede` ou `pass` (A-1) ; la réponse de `/api/next` de la séance B ne
+contient jamais `source` ni `runId`, la provenance étant réattachée côté serveur à l'écriture.
+
+Prérequis de la séance B : **deux runs générateurs** sur le banc dev. Avec un seul run réel, la
+famille `modelVsModel` retomberait sur le plancher aléatoire, dont l'écart de qualité évident
+gonflerait artificiellement l'accord et κ en P6.
+
+### Le plafond humain — `human-run` et `--subset`
+
+```bash
+# 1. La séance A devient un pseudo-run au format RunFile
+dotnet run --project SoClover.Eval -- human-run --elicitation eval/human/elicitation.dev.jsonl
+
+# 2. Décoder avec LE MÊME décodeur que les runs auxquels on le comparera
+dotnet run --project SoClover.Eval -- decode --run eval/runs/human-<date>-<hash8>.jsonl
+
+# 3. Plafond joué (toutes issues, pass compris)
+dotnet run --project SoClover.Eval -- score --run eval/runs/human-<…>.jsonl \
+  --subset eval/human/elicitation.dev.jsonl --ledger eval/LEDGER.md
+
+# 3 bis. Plafond sur les seules paires résolues (A-3)
+dotnet run --project SoClover.Eval -- score --run eval/runs/human-<…>.jsonl \
+  --subset eval/human/elicitation.dev.jsonl --subset-outcome solide,tiede
+
+# 4. Écart apparié modèle ↔ humain, avec son IC
+dotnet run --project SoClover.Eval -- compare \
+  --baseline eval/runs/<run v5>.jsonl --variant eval/runs/human-<…>.jsonl \
+  --subset eval/human/elicitation.dev.jsonl
+```
+
+> **`--subset` n'est pas un confort, c'est une correction de dénominateur.** `RunMetrics.Compute`
+> construit ses items depuis le banc **entier** et attribue `R̄ = 0` aux directions absentes —
+> comportement voulu pour un run de modèle, où une direction non générée est un échec. Appliqué tel
+> quel à un run humain couvrant 40 directions sur 160, il produirait deux chiffres faux et
+> parfaitement plausibles : un plafond humain **divisé par quatre**, et un `compare` appariant
+> l'humain au modèle sur 120 items où l'humain n'a jamais rien écrit. Avec le drapeau, tous les
+> dénominateurs suivent, `DirectionCount` passe à 40, et la cellule *réglages* du registre porte
+> `subset=<nom> (40/160)` : **aucune ligne ne peut prétendre porter sur le banc entier alors
+> qu'elle porte sur un quart.**
+
+Un `pass` reste au dénominateur (`failureKind: "pass"`, `valid: false`) : retirer les cas durs,
+c'est retirer la résolution de l'instrument. `decode` saute N3 tout seul sur ce pseudo-run, aucun
+board n'ayant ses 4 directions annotées.
+
 ## Ce que le harnais ne peut pas observer
 
 `providerModelListHash` capture la liste de modèles servie par le provider, mais **pas** le toggle
@@ -177,9 +259,13 @@ correspond à rien fait échouer le premier appel.
    (`--decision écarté`) et reprendre `decode-clue.md` avant de publier le moindre `recovery`.
 6. `compare --baseline <runA> --variant <runB>` pour le Δ apparié et son IC.
 
-## Ce que ce cycle ne livre pas
+## Ce que les cycles livrés ne livrent pas
 
-- **P4 / P5** — outil de saisie humaine (séance auteur chronométrée, séance juge en aveugle).
-- **P6** — portes de calibration accord ≥ 75 % et κ ≥ 0,40, qui exigent `comparisons.dev.jsonl`.
-- **P7** — run baseline officiel, plafond humain, taxonomie chiffrée des modes d'échec.
+L'outillage P4-P5 est livré ; **les deux séances restent à tenir**, et sans elles aucun corpus
+humain n'existe. Le code ne produit rien tant que l'opérateur n'a pas saisi.
+
+- **P6** — accord décodeur/humain et κ de Cohen, portes ≥ 75 % et ≥ 0,40. Les deux corpus et le
+  pont (`human-run`, `--subset`) sont dimensionnés pour, mais **aucun chiffre de décodeur ne
+  devient défendable avant**.
+- **P7** — run baseline officiel, plafond humain publié, taxonomie chiffrée des modes d'échec.
 - Le pack few-shot (`fewshot/pack.fr.json`), qui dérive de la séance A.
