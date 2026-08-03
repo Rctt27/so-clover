@@ -171,6 +171,43 @@ public static class HumanTestData
     }
 
     /// <summary>
+    /// Une ligne de comparaison synthétique. <paramref name="duplicateOf"/> reproduit le doublon
+    /// inversé de la séance B : même couple, identifiant suffixé, ordre de présentation inversé.
+    /// </summary>
+    public static ComparisonLine Comparison(
+        string comparisonId,
+        string verdict,
+        string family = ComparisonFamilies.HumanVsModel,
+        string boardId = "dev-000",
+        string direction = "Top",
+        string sourceA = ComparisonSources.Human,
+        string sourceB = ComparisonSources.Model,
+        string clueA = "indice-humain",
+        string clueB = "indice-modele",
+        string presentedOrder = PresentedOrders.Ab,
+        string? duplicateOf = null,
+        int itemOrdinal = 1) => new(
+        Kind: "comparison",
+        ComparisonId: comparisonId,
+        Family: family,
+        BoardId: boardId,
+        Direction: direction,
+        ReferenceWords: ["ref1", "ref2"],
+        OptionA: new ComparisonOption(sourceA, sourceA == ComparisonSources.Human ? null : "run-a", clueA),
+        OptionB: new ComparisonOption(sourceB, sourceB == ComparisonSources.Human ? null : "run-b", clueB),
+        PresentedOrder: presentedOrder,
+        Verdict: verdict,
+        ElapsedMs: 4200,
+        DuplicateOf: duplicateOf,
+        SessionId: "s-fixture",
+        ItemOrdinal: itemOrdinal,
+        JudgedAtUtc: new DateTime(2026, 7, 31, 9, 0, 0, DateTimeKind.Utc).AddMinutes(itemOrdinal));
+
+    public static ComparisonContents Comparisons(
+        params ComparisonLine[] lines) =>
+        new(ComparisonManifest("aaaaaaaaaaaa", lines.Length), lines.ToList().AsReadOnly());
+
+    /// <summary>
     /// Dérive la paire de référence par la même convention que le générateur de bancs.
     /// BenchBoardMapper.DeriveReferenceWords est `internal` au projet Eval ; le projet de test y
     /// a accès par InternalsVisibleTo, mais on passe par ce point unique pour que le jour où la
