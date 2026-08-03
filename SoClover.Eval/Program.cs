@@ -1,6 +1,7 @@
 using System.Globalization;
 using SoClover.Domain;
 using SoClover.Eval.Bench;
+using SoClover.Eval.Calibration;
 using SoClover.Eval.Cli;
 using SoClover.Eval.Decoder;
 using SoClover.Eval.Human;
@@ -38,6 +39,7 @@ internal static class EvalProgram
                 "decode" => DecodeCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "score" => ScoreCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "compare" => CompareCommand.ExecuteAsync(cliArgs, CancellationToken.None),
+                "calibrate" => CalibrateCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "elicit" => Elicit(cliArgs, CancellationToken.None),
                 "judge" => Judge(cliArgs, CancellationToken.None),
                 "human-report" => Task.FromResult(HumanReportCommand(cliArgs)),
@@ -71,12 +73,21 @@ internal static class EvalProgram
               judge     Séance B (juge) : serveur local de comparaison en aveugle, J+1
               human-run     Projette la séance A en pseudo-run décodable (aucun appel LLM)
               human-report  Agrégats des deux séances humaines (aucun appel LLM)
+              calibrate     P6 : accord decodeur/humain, kappa, quatre portes, verdict unique
 
             Sous-ensemble (score, compare) :
               --subset <elicitation.jsonl>      restreint TOUS les dénominateurs aux directions
                                                 réellement couvertes par la séance A
               --subset-outcome solide,tiede     « plafond sur paires résolues » (A-3) ; sans le
                                                 drapeau, toutes les issues — c'est le plafond joué
+
+            Calibration (calibrate) :
+              --comparisons <comparisons.jsonl>  corpus de la séance B (défaut eval/human/)
+              --decodes 5                        granularité de R̄ ; le défaut de `decode` reste 3
+              --saturation-metrics <x.metrics.json>  porte de non-saturation (recovery ≤ 0,95)
+              --floor-metrics      <x.metrics.json>  porte du plancher       (recovery ≤ 0,15)
+              --epsilon 0                        marge du verdict décodeur ; se décide AVANT de
+                                                 lire l'accord, et part au manifeste
             """);
         return message is null ? 0 : 2;
     }
