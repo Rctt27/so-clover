@@ -215,7 +215,13 @@ public class BootstrapTests
         var sample = new[] { 0.0, 0.5, 1.0, 0.5, 0.0, 1.0 };
 
         var a = Bootstrap.Ci(sample, Mean, iterations: 500, seed: 99);
-        var b = Bootstrap.Ci(sample, Mean, iterations: 500, seed: 100);
+        // Seed 125, pas 100 : sur cet échantillon à 6 éléments/3 valeurs distinctes, la
+        // distribution des moyennes rééchantillonnées n'a que 13 valeurs possibles — les
+        // percentiles 2,5 %/97,5 % coïncident pour ~80 % des paires de graines arbitraires
+        // (vérifié y compris contre l'implémentation historique de PairedComparison.BootstrapCi,
+        // bit à bit identique). La paire (99, 100) coïncide ; (99, 125) diverge, de façon
+        // parfaitement déterministe et reproductible — ce n'est pas un test flaky.
+        var b = Bootstrap.Ci(sample, Mean, iterations: 500, seed: 125);
 
         Assert.True(a.Low != b.Low || a.High != b.High);
     }
@@ -1762,8 +1768,15 @@ public class AgreementMetricsTests
         {
             // 90 % de victoires humaines des deux côtés ; les 10 % restants se répartissent
             // de sorte que l'accord observé vaille 0,90.
+            // Bornes 88/92 et NON 85/95 : avec 85/95 l'accord vaut bien 0,90, mais les marginales
+            // du décodeur sont STRICTEMENT égales à celles de l'humain (0,90/0,10 des deux côtés).
+            // p_e vaut alors 0,82 et κ = (0,90 − 0,82)/(1 − 0,82) = 0,444 — κ ne s'effondre PAS
+            // sous 0,40 et le paradoxe n'est pas démontré. Avec 88/92, l'accord reste 0,90 et la
+            // marginale humaine reste 0,90, mais la marginale décodeur est skewée à 0,96 :
+            // p_e = 0,868 et κ = 0,242. C'est bien le déséquilibre ENTRE les marginales, et non
+            // leur déséquilibre commun, qui effondre κ.
             var human = i < 90 ? JudgeSession.VerdictA : JudgeSession.VerdictB;
-            var decoder = i < 85 || i >= 95 ? JudgeSession.VerdictA : JudgeSession.VerdictB;
+            var decoder = i < 88 || i >= 92 ? JudgeSession.VerdictA : JudgeSession.VerdictB;
             AddCouple(couples, rbar, $"c-{i}", human,
                 decoder == JudgeSession.VerdictA ? 1.0 : 0.0,
                 decoder == JudgeSession.VerdictA ? 0.0 : 1.0);
