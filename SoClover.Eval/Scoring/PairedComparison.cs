@@ -1,5 +1,3 @@
-using SoClover.Eval.Bench;
-
 namespace SoClover.Eval.Scoring;
 
 /// <summary>Comparer deux runs de bancs différents est une erreur de protocole, pas une approximation.</summary>
@@ -128,33 +126,14 @@ public static class PairedComparison
     }
 
     /// <summary>
-    /// Bootstrap apparié : rééchantillonnage des <b>items</b> avec remise, percentiles 2,5 % et
-    /// 97,5 % des moyennes obtenues. Déterministe à seed fixé.
+    /// Bootstrap apparié : rééchantillonnage des <b>items</b> avec remise. Délègue à
+    /// <see cref="Bootstrap.Ci{T}"/> — le repli « moins d'une itération » reste ici : c'est une
+    /// convention propre à ce verbe (rendre l'étendue observée plutôt que de refuser), pas un
+    /// comportement que doit porter la brique partagée.
     /// </summary>
     private static (double Low, double High) BootstrapCi(
-        IReadOnlyList<double> deltas, int iterations, long seed)
-    {
-        if (iterations < 1)
-            return (deltas.Min(), deltas.Max());
-
-        var rng = new Xoshiro256SS(seed);
-        var means = new double[iterations];
-
-        for (var i = 0; i < iterations; i++)
-        {
-            var sum = 0.0;
-            for (var j = 0; j < deltas.Count; j++)
-                sum += deltas[rng.NextInt(deltas.Count)];
-            means[i] = sum / deltas.Count;
-        }
-
-        Array.Sort(means);
-        return (Percentile(means, 0.025), Percentile(means, 0.975));
-    }
-
-    private static double Percentile(double[] sorted, double p)
-    {
-        var index = (int)Math.Clamp(Math.Round(p * (sorted.Length - 1)), 0, sorted.Length - 1);
-        return sorted[index];
-    }
+        IReadOnlyList<double> deltas, int iterations, long seed) =>
+        iterations < 1
+            ? (deltas.Min(), deltas.Max())
+            : Bootstrap.Ci(deltas, static xs => xs.Average(), iterations, seed);
 }
