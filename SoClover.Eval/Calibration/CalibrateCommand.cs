@@ -98,10 +98,15 @@ public static class CalibrateCommand
             opts.DefaultTemperature, opts.TopP, opts.MaxOutputTokens);
 
         // Les quatre portes doivent porter sur le MÊME décodeur — vérifié AVANT de dépenser
-        // ~900 appels au LLM.
+        // ~900 appels au LLM. Les deux `recovery` externes sont lues ici même, tout de suite
+        // après : un .metrics.json absent ou illisible doit arrêter la commande avant la
+        // moindre dépense (y compris le fetch du hash de modèles et l'écriture du manifeste),
+        // pas seulement après la boucle de décodage complète.
         var saturationMetrics = args.Require("saturation-metrics");
         var floorMetrics = args.Require("floor-metrics");
         CalibrationGates.RequireSameDecoder(fingerprint, saturationMetrics, floorMetrics);
+        var saturationRecovery = ReadRecovery(saturationMetrics);
+        var floorRecovery = ReadRecovery(floorMetrics);
 
         var calibrationId = $"{DateTime.UtcNow:yyyyMMdd}-{fingerprint}";
         var path = CalibrationFile.PathFor(outDirectory, calibrationId);
@@ -208,8 +213,6 @@ public static class CalibrateCommand
             args.GetInt("bootstrap", Bootstrap.DefaultIterations),
             args.GetLong("seed", AgreementMetrics.DefaultBootstrapSeed));
 
-        var saturationRecovery = ReadRecovery(saturationMetrics);
-        var floorRecovery = ReadRecovery(floorMetrics);
         var verdict = CalibrationGates.Evaluate(agreement, saturationRecovery, floorRecovery);
 
         var humanReport = HumanReport.ForComparisons(comparisons);
