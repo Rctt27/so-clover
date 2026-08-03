@@ -24,7 +24,7 @@ public static class DecoderFingerprint
     public const int HexLength = 12;
 
     /// <summary>Séparateur de champs du texte haché : U+001F, impossible dans un identifiant de modèle.</summary>
-    private const string FieldSeparator = "";
+    private const string FieldSeparator = "\u001F";
 
     private const string Absent = "—";
 
