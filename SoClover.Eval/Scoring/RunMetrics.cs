@@ -189,7 +189,9 @@ public static class RunMetrics
             DirectionCount: directionCount,
             ValidRate: Ratio(validItems.Count, directionCount),
             FirstAttemptRate: Ratio(firstAttemptItems.Count, directionCount),
-            ParseFailureRate: Ratio(parseFailures, run.Attempts.Count),
+            // scopedAttempts, pas run.Attempts : le numérateur est déjà restreint, un dénominateur
+            // sur le run entier rendrait un taux divisé par la part du banc couverte.
+            ParseFailureRate: Ratio(parseFailures, scopedAttempts.Count),
             Recovery: recovery,
             Strict2Of2: Ratio(strictItems, decodedItems.Count),
             HalfRate: Ratio(halfItems, decodedItems.Count),
