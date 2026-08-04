@@ -1,5 +1,8 @@
+using SoClover.Domain;
 using SoClover.Eval.Analysis;
+using SoClover.Eval.Bench;
 using SoClover.Eval.Decoder;
+using SoClover.Tests.Eval.Helpers;
 using Xunit;
 
 namespace SoClover.Tests.Eval;
@@ -179,5 +182,248 @@ public class FailureTaxonomyTests
     public void M5_still_has_a_label_for_the_hand_written_sample()
     {
         Assert.False(string.IsNullOrWhiteSpace(FailureModes.Label(FailureModes.M5)));
+    }
+
+    // Tests de Compute() : couverture de la logique d'agrégation au niveau board/run
+
+    [Fact]
+    public void Compute_basic_report_structure()
+    {
+        // Test minimal : un banc simple avec des décodages trivaux (tous M0).
+        // Vérifier que Compute() retourne un rapport avec les champs attendus.
+        var bench = HumanTestData.Bench(boardCount: 2);
+        var run = HumanTestData.Run(bench, "test-run-min", "prefix");
+
+        // Créer des décodages simples : un succès (M0) par direction
+        var clueDecodes = new List<ClueDecodeLine>();
+        foreach (var board in bench.Boards)
+        {
+            foreach (var direction in BoardGeometry.AllDirections)
+            {
+                var refs = BenchBoardMapper.ReferenceWords(board, direction);
+                clueDecodes.Add(new("decode", board.BoardId, direction.ToString(), 0,
+                    refs.ToList(), 1.0, "1", null, 100));
+            }
+        }
+
+        var manifest = new DecodeManifest(
+            "manifest", "test-decode-min", DateTime.UtcNow, "test-run-min",
+            "eval/boards.dev.jsonl", bench.Manifest.BenchHash, "test", "", "test", null, null,
+            1.0, null, null, "test.md", 1, "test.md", 1, 1, 1, null);
+
+        var decoded = new DecodeContents(manifest, clueDecodes.AsReadOnly(), new List<BoardDecodeLine>().AsReadOnly());
+        var report = FailureTaxonomy.Compute(bench, run, decoded);
+
+        // Vérifications de structure
+        Assert.NotNull(report);
+        Assert.Equal(run.Manifest.RunId, report.RunId);
+        Assert.Equal(8, report.DirectionCount); // 2 boards × 4 directions
+        Assert.Equal(8, report.ScorableDirectionCount);
+        Assert.Equal(0, report.UnscorableDirectionCount);
+        Assert.Equal(2, report.BoardCount);
+    }
+
+    [Fact]
+    public void Compute_ActionJustified_above_five_percent()
+    {
+        // Test : ActionJustified vrai quand part > 5%
+        var bench = HumanTestData.Bench(boardCount: 1);
+        var run = HumanTestData.Run(bench, "test-run-5pct", "prefix");
+        var board = bench.Boards[0];
+
+        var clueDecodes = new List<ClueDecodeLine>();
+        var directions = BoardGeometry.AllDirections.Select(d => d.ToString()).ToList();
+
+        // Direction 0 : M1 (dispersé) — pour que ce compte > 5% avec 4 directions
+        var refs0 = BenchBoardMapper.ReferenceWords(board, BoardGeometry.AllDirections[0]);
+        clueDecodes.Add(new("decode", board.BoardId, directions[0], 0,
+            new string[] { refs0[0], "x1" }, 0.5, "1", null, 100));
+        clueDecodes.Add(new("decode", board.BoardId, directions[0], 1,
+            new string[] { "x2", "x3" }, 0.0, "1", null, 100));
+        clueDecodes.Add(new("decode", board.BoardId, directions[0], 2,
+            new string[] { "x4", "x5" }, 0.0, "1", null, 100));
+
+        // Directions 1-3 : M0 (succès)
+        for (var i = 1; i < 4; i++)
+        {
+            var refs = BenchBoardMapper.ReferenceWords(board, BoardGeometry.AllDirections[i]);
+            clueDecodes.Add(new("decode", board.BoardId, directions[i], 0,
+                refs.ToList(), 1.0, "1", null, 100));
+        }
+
+        var manifest = new DecodeManifest(
+            "manifest", "test-decode-5pct", DateTime.UtcNow, "test-run-5pct",
+            "eval/boards.dev.jsonl", bench.Manifest.BenchHash, "test", "", "test", null, null,
+            1.0, null, null, "test.md", 1, "test.md", 1, 1, 1, null);
+
+        var decoded = new DecodeContents(manifest, clueDecodes.AsReadOnly(), new List<BoardDecodeLine>().AsReadOnly());
+        var report = FailureTaxonomy.Compute(bench, run, decoded);
+
+        // M1 → 1/4 = 25% > 5%
+        var m1 = report.Distribution.Single(d => d.Mode == FailureModes.M1);
+        Assert.True(m1.ActionJustified);
+    }
+
+    [Fact]
+    public void Compute_ActionJustified_false_strictly_below_five_percent()
+    {
+        // Test : ActionJustified faux quand part < 5%
+        var bench = HumanTestData.Bench(boardCount: 10); // 10 × 4 = 40 directions (< 5% = < 2 directions)
+        var run = HumanTestData.Run(bench, "test-run-below5", "prefix");
+
+        var clueDecodes = new List<ClueDecodeLine>();
+        var allDirections = BoardGeometry.AllDirections.Select(d => d.ToString()).ToList();
+        var isFirst = true;
+
+        foreach (var board in bench.Boards)
+        {
+            for (var i = 0; i < 4; i++)
+            {
+                var direction = allDirections[i];
+                var refs = BenchBoardMapper.ReferenceWords(board, BoardGeometry.AllDirections[i]);
+
+                if (isFirst)
+                {
+                    // M1 : 1 direction parmi 40 = 2.5% < 5%
+                    clueDecodes.Add(new("decode", board.BoardId, direction, 0,
+                        new string[] { refs[0], "x1" }, 0.5, "1", null, 100));
+                    clueDecodes.Add(new("decode", board.BoardId, direction, 1,
+                        new string[] { "x2", "x3" }, 0.0, "1", null, 100));
+                    clueDecodes.Add(new("decode", board.BoardId, direction, 2,
+                        new string[] { "x4", "x5" }, 0.0, "1", null, 100));
+                    isFirst = false;
+                }
+                else
+                {
+                    // M0
+                    clueDecodes.Add(new("decode", board.BoardId, direction, 0,
+                        refs.ToList(), 1.0, "1", null, 100));
+                }
+            }
+        }
+
+        var manifest = new DecodeManifest(
+            "manifest", "test-decode-below5", DateTime.UtcNow, "test-run-below5",
+            "eval/boards.dev.jsonl", bench.Manifest.BenchHash, "test", "", "test", null, null,
+            1.0, null, null, "test.md", 1, "test.md", 1, 1, 1, null);
+
+        var decoded = new DecodeContents(manifest, clueDecodes.AsReadOnly(), new List<BoardDecodeLine>().AsReadOnly());
+        var report = FailureTaxonomy.Compute(bench, run, decoded);
+
+        // M1 → 1/40 = 2.5% < 5% → ActionJustified = false
+        var m1 = report.Distribution.Single(d => d.Mode == FailureModes.M1);
+        Assert.Equal(1, m1.Count);
+        Assert.False(m1.ActionJustified);
+    }
+
+    [Fact]
+    public void Compute_unscorables_counted_separately()
+    {
+        // D6 : une direction sans décodage exploitable est comptée à part.
+        var bench = HumanTestData.Bench(boardCount: 1);
+        var run = HumanTestData.Run(bench, "test-run-unscore", "prefix");
+        var board = bench.Boards[0];
+
+        var clueDecodes = new List<ClueDecodeLine>();
+        var directions = BoardGeometry.AllDirections.Select(d => d.ToString()).ToList();
+
+        // Top, Right, Left : M0
+        for (var i = 0; i < 3; i++)
+        {
+            var refs = BenchBoardMapper.ReferenceWords(board, BoardGeometry.AllDirections[i]);
+            clueDecodes.Add(new("decode", board.BoardId, directions[i], 0,
+                refs.ToList(), 1.0, "1", null, 100));
+        }
+
+        // Bottom : inexploritable (DecodFailureKind non-null)
+        clueDecodes.Add(new("decode", board.BoardId, directions[3], 0,
+            null, null, "1", "unparseable", 100));
+
+        var manifest = new DecodeManifest(
+            "manifest", "test-decode-unscore", DateTime.UtcNow, "test-run-unscore",
+            "eval/boards.dev.jsonl", bench.Manifest.BenchHash, "test", "", "test", null, null,
+            1.0, null, null, "test.md", 1, "test.md", 1, 1, 1, null);
+
+        var decoded = new DecodeContents(manifest, clueDecodes.AsReadOnly(), new List<BoardDecodeLine>().AsReadOnly());
+        var report = FailureTaxonomy.Compute(bench, run, decoded);
+
+        Assert.Equal(4, report.DirectionCount);
+        Assert.Equal(3, report.ScorableDirectionCount);
+        Assert.Equal(1, report.UnscorableDirectionCount);
+    }
+
+    [Fact]
+    public void Compute_M6_boards_above_thresholds()
+    {
+        // M6 : board franchit M6MinBoardMean (0.50) et M6MinGap (0.20).
+        var bench = HumanTestData.Bench(boardCount: 1);
+        var run = HumanTestData.Run(bench, "test-run-m6in", "prefix");
+        var board = bench.Boards[0];
+
+        // Toutes les directions : M0 (R̄ = 1.0 par direction)
+        // → Moyenne board = 1.0 ≥ 0.50 ✓
+        var clueDecodes = new List<ClueDecodeLine>();
+        foreach (var direction in BoardGeometry.AllDirections)
+        {
+            var refs = BenchBoardMapper.ReferenceWords(board, direction);
+            clueDecodes.Add(new("decode", board.BoardId, direction.ToString(), 0,
+                refs.ToList(), 1.0, "1", null, 100));
+        }
+
+        // BoardDecode : boardPositions = 0.75
+        // → gap = 1.0 - 0.75 = 0.25 ≥ 0.20 ✓
+        var boardDecodes = new List<BoardDecodeLine>
+        {
+            new("board", board.BoardId, null, 0.75, true, "1", null, 100),
+        };
+
+        var manifest = new DecodeManifest(
+            "manifest", "test-decode-m6in", DateTime.UtcNow, "test-run-m6in",
+            "eval/boards.dev.jsonl", bench.Manifest.BenchHash, "test", "", "test", null, null,
+            1.0, null, null, "test.md", 1, "test.md", 1, 1, 1, null);
+
+        var decoded = new DecodeContents(manifest, clueDecodes.AsReadOnly(), boardDecodes.AsReadOnly());
+        var report = FailureTaxonomy.Compute(bench, run, decoded);
+
+        Assert.Equal(1, report.M6BoardCount);
+        Assert.Contains(board.BoardId, report.M6Boards);
+        Assert.Equal(1.0, report.M6Share);
+    }
+
+    [Fact]
+    public void Compute_M6_boards_excluded_below_thresholds()
+    {
+        // M6 : board ne franchit PAS le seuil M6MinGap.
+        var bench = HumanTestData.Bench(boardCount: 1);
+        var run = HumanTestData.Run(bench, "test-run-m6out", "prefix");
+        var board = bench.Boards[0];
+
+        // Toutes les directions : M0
+        var clueDecodes = new List<ClueDecodeLine>();
+        foreach (var direction in BoardGeometry.AllDirections)
+        {
+            var refs = BenchBoardMapper.ReferenceWords(board, direction);
+            clueDecodes.Add(new("decode", board.BoardId, direction.ToString(), 0,
+                refs.ToList(), 1.0, "1", null, 100));
+        }
+
+        // BoardDecode : boardPositions = 0.95
+        // → gap = 1.0 - 0.95 = 0.05 < 0.20 ✗
+        var boardDecodes = new List<BoardDecodeLine>
+        {
+            new("board", board.BoardId, null, 0.95, true, "1", null, 100),
+        };
+
+        var manifest = new DecodeManifest(
+            "manifest", "test-decode-m6out", DateTime.UtcNow, "test-run-m6out",
+            "eval/boards.dev.jsonl", bench.Manifest.BenchHash, "test", "", "test", null, null,
+            1.0, null, null, "test.md", 1, "test.md", 1, 1, 1, null);
+
+        var decoded = new DecodeContents(manifest, clueDecodes.AsReadOnly(), boardDecodes.AsReadOnly());
+        var report = FailureTaxonomy.Compute(bench, run, decoded);
+
+        Assert.Equal(0, report.M6BoardCount);
+        Assert.Empty(report.M6Boards);
+        Assert.Equal(0.0, report.M6Share);
     }
 }
