@@ -34,7 +34,9 @@ public sealed record MetricsReport(
     // System.Text.Json ne sait pas écrire un dictionnaire à clé tuple, et ce détail n'a
     // aucun sens dans le fichier .metrics.json (il se recalcule depuis les fichiers de run).
     [property: JsonIgnore]
-    IReadOnlyDictionary<(string BoardId, string Direction), double> PerItemRBar);
+    IReadOnlyDictionary<(string BoardId, string Direction), double> PerItemRBar,
+    string? SubsetFile = null,
+    string? SubsetOutcome = null);
 
 public static class RunMetrics
 {
@@ -48,7 +50,8 @@ public static class RunMetrics
     /// </summary>
     public static MetricsReport Compute(
         BenchContents bench, RunContents run, DecodeContents? decoded, int maxAttempts,
-        IReadOnlySet<(string BoardId, string Direction)>? subset = null)
+        IReadOnlySet<(string BoardId, string Direction)>? subset = null,
+        string? subsetFile = null, string? subsetOutcome = null)
     {
         var items = bench.Boards
             .SelectMany(b => BoardGeometry.AllDirections.Select(d => (BoardId: b.BoardId, Direction: d.ToString())))
@@ -196,7 +199,9 @@ public static class RunMetrics
             DecodeFailureRate: Ratio(decodeFailures, decodeAttempts),
             ItemsCompleted: completedItems,
             ItemsExpected: directionCount,
-            PerItemRBar: perItemRBar);
+            PerItemRBar: perItemRBar,
+            SubsetFile: subsetFile,
+            SubsetOutcome: subsetOutcome);
     }
 
     private static double Ratio(int numerator, int denominator) =>

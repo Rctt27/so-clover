@@ -36,6 +36,19 @@ public static class SubsetSelector
     }
 
     /// <summary>
+    /// Périmètre d'issues effectif, trié, tel qu'il part dans le <c>.metrics.json</c>.
+    /// <para>
+    /// Toujours renseigné, même sans drapeau : « toutes les issues » écrit
+    /// <c>pass,solide,tiede</c> plutôt que <c>null</c>. C'est ce qui permet à
+    /// <c>CalibrationGates.RequireSaturationSubset</c> de distinguer un périmètre déclaré d'un
+    /// fichier antérieur à la provenance — le premier se vérifie, le second ne prouve rien. Le tri
+    /// garantit qu'un même périmètre ne produit pas deux provenances selon l'ordre de saisie.
+    /// </para>
+    /// </summary>
+    internal static string Normalize(IReadOnlySet<string> outcomes) =>
+        string.Join(",", outcomes.OrderBy(o => o, StringComparer.Ordinal));
+
+    /// <summary>
     /// Les directions écrites par la séance, filtrées sur les issues demandées. Une direction
     /// jamais saisie n'appartient à aucun sous-ensemble : elle n'est pas un échec humain, elle
     /// n'a simplement pas été posée.
@@ -55,10 +68,11 @@ public static class SubsetSelector
     /// dans la cellule <i>réglages</i> du registre : aucune ligne ne peut prétendre porter sur le
     /// banc entier alors qu'elle porte sur un quart.
     /// </summary>
-    public static (IReadOnlySet<(string BoardId, string Direction)> Subset, string Name) FromFile(
-        string path, string? outcomeFilter)
+    public static (IReadOnlySet<(string BoardId, string Direction)> Subset, string Name, string? Outcome)
+        FromFile(string path, string? outcomeFilter)
     {
         var elicitation = HumanFile.ReadElicitation(path);
-        return (FromElicitation(elicitation, ParseOutcomes(outcomeFilter)), Path.GetFileName(path));
+        var outcomes = ParseOutcomes(outcomeFilter);
+        return (FromElicitation(elicitation, outcomes), Path.GetFileName(path), Normalize(outcomes));
     }
 }

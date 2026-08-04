@@ -19,7 +19,7 @@ public static class CompareCommand
         IReadOnlySet<(string BoardId, string Direction)>? subset = null;
         string? subsetName = null;
         if (args.Get("subset") is { } subsetPath)
-            (subset, subsetName) = SubsetSelector.FromFile(subsetPath, args.Get("subset-outcome"));
+            (subset, subsetName, _) = SubsetSelector.FromFile(subsetPath, args.Get("subset-outcome"));
 
         var baseline = Load(args.Require("baseline"), subset);
         var variant = Load(args.Require("variant"), subset);

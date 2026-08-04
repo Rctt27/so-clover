@@ -25,10 +25,16 @@ public static class ScoreCommand
         // qui ne prétend pas le couvrir — le pseudo-run humain, aujourd'hui.
         IReadOnlySet<(string BoardId, string Direction)>? subset = null;
         string? subsetName = null;
+        string? subsetOutcome = null;
         if (args.Get("subset") is { } subsetPath)
-            (subset, subsetName) = SubsetSelector.FromFile(subsetPath, args.Get("subset-outcome"));
+            (subset, subsetName, subsetOutcome) =
+                SubsetSelector.FromFile(subsetPath, args.Get("subset-outcome"));
 
-        var metrics = RunMetrics.Compute(bench, run, decoded, maxAttempts, subset);
+        // La provenance part dans le .metrics.json : ce fichier vit à un chemin fixe par run et
+        // chaque `score` écrase le précédent. Sans elle, `calibrate --saturation-metrics` ne peut
+        // pas vérifier que le fichier désigné porte bien sur les seuls indices `solide`.
+        var metrics = RunMetrics.Compute(
+            bench, run, decoded, maxAttempts, subset, subsetName, subsetOutcome);
         var benchDirectionCount = bench.Manifest.BoardCount * BoardGeometry.AllDirections.Count;
 
         Print(metrics, run.Manifest.OperatorNotes, decoded?.Manifest.ModelId, subsetName, benchDirectionCount);

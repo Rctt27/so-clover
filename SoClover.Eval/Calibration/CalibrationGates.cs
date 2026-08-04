@@ -1,5 +1,7 @@
 using System.Globalization;
+using SoClover.Eval.Human;
 using SoClover.Eval.Io;
+using SoClover.Eval.Scoring;
 
 namespace SoClover.Eval.Calibration;
 
@@ -98,6 +100,40 @@ public static class CalibrationGates
                 $"Chemin de métriques attendu en « {MetricsSuffix} », reçu : {metricsPath}", nameof(metricsPath));
 
         return metricsPath[..^MetricsSuffix.Length] + DecodedSuffix;
+    }
+
+    /// <summary>Issue sur laquelle la porte de non-saturation est définie.</summary>
+    public const string SaturationOutcome = "solide";
+
+    /// <summary>
+    /// Refuse des métriques de saturation qui ne portent pas <b>exactement</b> sur les indices
+    /// humains <c>solide</c>.
+    /// <para>
+    /// <c>score</c> écrit toujours dans <c>&lt;run&gt;.metrics.json</c> : un second <c>score</c>
+    /// sur le même pseudo-run, sans <c>--subset-outcome solide</c>, remplace le fichier sans rien
+    /// signaler. La porte serait alors évaluée sur le plafond <i>joué</i> — <c>pass</c> compris,
+    /// donc plus bas — et franchie pour la mauvaise raison. Même philosophie que
+    /// <see cref="RequireSameDecoder"/> : refus bruyant plutôt que chiffre plausible.
+    /// </para>
+    /// </summary>
+    public static void RequireSaturationSubset(string metricsPath)
+    {
+        var metrics = EvalJson.Deserialize<MetricsReport>(File.ReadAllText(metricsPath));
+
+        if (metrics.SubsetOutcome is null)
+            throw new InvalidOperationException(
+                $"{metricsPath} ne déclare aucun filtre d'issues. La porte de non-saturation est " +
+                $"définie sur les seuls indices « {SaturationOutcome} » : produire ce fichier avec " +
+                $"`score --subset <élicitation> --subset-outcome {SaturationOutcome}`. " +
+                "Un .metrics.json antérieur à l'ajout de la provenance ne prouve rien.");
+
+        var outcomes = SubsetSelector.ParseOutcomes(metrics.SubsetOutcome);
+        if (outcomes.Count != 1 || !outcomes.Contains(SaturationOutcome))
+            throw new InvalidOperationException(
+                $"{metricsPath} porte sur les issues « {metrics.SubsetOutcome} », la porte de " +
+                $"non-saturation sur les seuls « {SaturationOutcome} ». Le plafond sur paires " +
+                "résolues (A-3) et le plafond joué sont d'autres mesures — elles ne franchissent " +
+                "pas cette porte.");
     }
 
     public static string FingerprintOfMetrics(string metricsPath) =>

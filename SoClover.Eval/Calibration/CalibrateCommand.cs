@@ -105,6 +105,7 @@ public static class CalibrateCommand
         var saturationMetrics = args.Require("saturation-metrics");
         var floorMetrics = args.Require("floor-metrics");
         CalibrationGates.RequireSameDecoder(fingerprint, saturationMetrics, floorMetrics);
+        CalibrationGates.RequireSaturationSubset(saturationMetrics);
         var saturationRecovery = ReadRecovery(saturationMetrics);
         var floorRecovery = ReadRecovery(floorMetrics);
 
