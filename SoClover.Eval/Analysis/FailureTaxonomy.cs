@@ -138,13 +138,18 @@ public static class FailureTaxonomy
                 m6Boards.Add(board.BoardId);
         }
 
-        var scorable = labels.Count(l => l.ScoredDecodeCount > 0);
+        // D6/I1 : le dénominateur des parts est le nombre de directions EXPLOITABLES, jamais le
+        // total. Une direction D6 (aucun décodage exploitable) n'entre dans AUCUNE part — ni
+        // comme numérateur, ni comme dénominateur : elle est rapportée à part, via
+        // UnscorableDirectionCount, jamais mélangée à la distribution par mode.
+        var scorableLabels = labels.Where(l => l.ScoredDecodeCount > 0).ToList();
+        var scorable = scorableLabels.Count;
         var distribution = FailureModes.All
             .Where(m => m != FailureModes.M6)
             .Select(m =>
             {
-                var count = labels.Count(l => l.Mode == m);
-                var share = labels.Count == 0 ? 0.0 : count / (double)labels.Count;
+                var count = scorableLabels.Count(l => l.Mode == m);
+                var share = scorable == 0 ? 0.0 : count / (double)scorable;
                 return new ModeCount(m, FailureModes.Label(m), count, share, share >= ActionThreshold);
             })
             .ToList()

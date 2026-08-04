@@ -111,11 +111,20 @@ public static class AnalyzeCommand
 
         foreach (var m in t.Distribution)
         {
-            var rule = m.Mode == FailureModes.M0
-                ? string.Empty
-                : m.ActionJustified
+            // I1 : la règle des 5 % n'a de sens que sur un mode d'échec sémantique mesuré
+            // automatiquement sur les directions exploitables. M5 n'est JAMAIS mesuré
+            // automatiquement (§5.3) ; M? mélange « aucune signature reconnue » et des directions
+            // hors de toute part (D6, comptées à part) — dans les deux cas, « ≥ 5 % →
+            // intervention justifiée » ne veut rien dire.
+            var rule = m.Mode switch
+            {
+                FailureModes.M0 => string.Empty,
+                FailureModes.M5 => "   non extrapolé",
+                FailureModes.Unclassified => $"   dont {t.UnscorableDirectionCount} sans décodage",
+                _ => m.ActionJustified
                     ? "   ≥ 5 % → intervention justifiée"
-                    : "   < 5 % → aucune ligne de prompt";
+                    : "   < 5 % → aucune ligne de prompt",
+            };
             Console.WriteLine($"  {m.Mode,-4}  {N(m.Share)}  {m.Count,4}  {m.Label}{rule}");
         }
 

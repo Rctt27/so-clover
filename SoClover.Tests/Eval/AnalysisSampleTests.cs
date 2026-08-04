@@ -191,6 +191,59 @@ public class AnalysisSampleTests
 
         Assert.Equal(taxonomy.Labels.Count(l => l.Mode != FailureModes.M0), sample.Count);
     }
+
+    // I1 : une direction D6 (aucun décodage exploitable) n'est pas un échec sémantique — le
+    // vocabulaire fermé n'a aucun code pour « échec de format du décodeur ». La faire entrer dans
+    // le tirage tirerait vers le bas l'accord auto ↔ humain. La taille demandée dépasse largement
+    // le nombre de candidats réels : si Bottom pouvait être tiré, il le serait forcément ici.
+    [Fact]
+    public void The_draw_never_picks_a_direction_without_any_exploitable_decode()
+    {
+        var bench = HumanTestData.Bench(boardCount: 1);
+        var run = HumanTestData.Run(bench, "run-d6", "clue");
+        var board = bench.Boards[0];
+        var directions = BoardGeometry.AllDirections;
+
+        var clueDecodes = new List<ClueDecodeLine>();
+
+        // Top : M4 (rBar = 0, aucun mot commun entre les deux décodages).
+        clueDecodes.Add(new("decode", board.BoardId, directions[0].ToString(), 0,
+            ["faux1", "faux2"], 0.0, "1", null, 100));
+        clueDecodes.Add(new("decode", board.BoardId, directions[0].ToString(), 1,
+            ["faux3", "faux4"], 0.0, "1", null, 100));
+
+        // Right : M1 (dispersé).
+        var refsRight = BenchBoardMapper.ReferenceWords(board, directions[1]);
+        clueDecodes.Add(new("decode", board.BoardId, directions[1].ToString(), 0,
+            [refsRight[0], "y1"], 0.5, "1", null, 100));
+        clueDecodes.Add(new("decode", board.BoardId, directions[1].ToString(), 1,
+            ["y2", "y3"], 0.0, "1", null, 100));
+        clueDecodes.Add(new("decode", board.BoardId, directions[1].ToString(), 2,
+            ["y4", "y5"], 0.0, "1", null, 100));
+
+        // Left : M0 (réussite — jamais tiré non plus, mais pour une autre raison).
+        var refsLeft = BenchBoardMapper.ReferenceWords(board, directions[2]);
+        clueDecodes.Add(new("decode", board.BoardId, directions[2].ToString(), 0,
+            refsLeft.ToList(), 1.0, "1", null, 100));
+
+        // Bottom : D6, aucun décodage exploitable.
+        clueDecodes.Add(new("decode", board.BoardId, directions[3].ToString(), 0,
+            null, null, "1", "unparseable", 100));
+
+        var manifest = new SoClover.Eval.Decoder.DecodeManifest(
+            "manifest", "run-d6-decoded", DateTime.UtcNow, "run-d6",
+            "eval/boards.dev.jsonl", bench.Manifest.BenchHash, "test", "", "test", null, null,
+            1.0, null, null, "test.md", 1, "test.md", 1, 3, 1, null);
+
+        var decoded = new DecodeContents(
+            manifest, clueDecodes.AsReadOnly(), new List<BoardDecodeLine>().AsReadOnly());
+        var taxonomy = FailureTaxonomy.Compute(bench, run, decoded);
+
+        var sample = AnalysisSample.Draw(bench, run, decoded, taxonomy, size: 10, seed: 7);
+
+        Assert.DoesNotContain(sample, i => i.Direction == directions[3].ToString());
+        Assert.Equal(2, sample.Count);
+    }
 }
 
 /// <summary>

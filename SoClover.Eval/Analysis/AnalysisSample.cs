@@ -64,8 +64,12 @@ public static class AnalysisSample
             .ToDictionary(g => g.Key, g => g.OrderBy(d => d.DecodeIndex).ToList());
 
         // On tire parmi les ÉCHECS : lire 20 réussites n'apprendrait rien sur les modes d'échec.
+        // I1 : une direction D6 (aucun décodage exploitable) n'est pas un échec SÉMANTIQUE — le
+        // vocabulaire fermé n'a aucun code pour « échec de format du décodeur », et la faire
+        // entrer dans le tirage tirerait vers le bas l'accord auto ↔ humain qui gouverne le
+        // seuil 0,70 déclenchant une révision des seuils de signature.
         var candidates = taxonomy.Labels
-            .Where(l => l.Mode != FailureModes.M0)
+            .Where(l => l.Mode != FailureModes.M0 && l.ScoredDecodeCount > 0)
             .OrderBy(l => l.BoardId, StringComparer.Ordinal)
             .ThenBy(l => l.Direction, StringComparer.Ordinal)
             .ToList();

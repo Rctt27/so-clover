@@ -352,6 +352,78 @@ public class FailureTaxonomyTests
         Assert.Equal(1, report.UnscorableDirectionCount);
     }
 
+    // I1 : le dénominateur des parts est le nombre de directions EXPLOITABLES, jamais le total.
+    // 44 directions : 4 D6 (inexploitables), 2 M1, 38 M0.
+    // Naïvement (dénominateur = 44) : 2/44 = 0,0454... < 5 % → PAS d'intervention.
+    // Corrigé (dénominateur = 40 exploitables) : 2/40 = 0,05 → intervention justifiée. C'est
+    // exactement le cas que le finding décrit : un mode réel dilué sous le seuil par des
+    // directions qui n'ont rien à voir avec un mode d'échec sémantique.
+    [Fact]
+    public void Compute_mode_share_is_computed_on_exploitable_directions_only()
+    {
+        var bench = HumanTestData.Bench(boardCount: 11);
+        var run = HumanTestData.Run(bench, "test-run-denom", "prefix");
+
+        var clueDecodes = new List<ClueDecodeLine>();
+        var allDirections = BoardGeometry.AllDirections.Select(d => d.ToString()).ToList();
+
+        var boardIndex = 0;
+        foreach (var board in bench.Boards)
+        {
+            for (var i = 0; i < 4; i++)
+            {
+                var direction = allDirections[i];
+                var refs = BenchBoardMapper.ReferenceWords(board, BoardGeometry.AllDirections[i]);
+                var globalIndex = boardIndex * 4 + i;
+
+                if (globalIndex < 4)
+                {
+                    // D6 : aucun décodage exploitable.
+                    clueDecodes.Add(new("decode", board.BoardId, direction, 0,
+                        null, null, "1", "unparseable", 100));
+                }
+                else if (globalIndex < 6)
+                {
+                    // M1 : dispersé.
+                    clueDecodes.Add(new("decode", board.BoardId, direction, 0,
+                        new[] { refs[0], "x1" }, 0.5, "1", null, 100));
+                    clueDecodes.Add(new("decode", board.BoardId, direction, 1,
+                        new[] { "x2", "x3" }, 0.0, "1", null, 100));
+                    clueDecodes.Add(new("decode", board.BoardId, direction, 2,
+                        new[] { "x4", "x5" }, 0.0, "1", null, 100));
+                }
+                else
+                {
+                    clueDecodes.Add(new("decode", board.BoardId, direction, 0,
+                        refs.ToList(), 1.0, "1", null, 100));
+                }
+            }
+
+            boardIndex++;
+        }
+
+        var manifest = new DecodeManifest(
+            "manifest", "test-decode-denom", DateTime.UtcNow, "test-run-denom",
+            "eval/boards.dev.jsonl", bench.Manifest.BenchHash, "test", "", "test", null, null,
+            1.0, null, null, "test.md", 1, "test.md", 1, 1, 1, null);
+
+        var decoded = new DecodeContents(manifest, clueDecodes.AsReadOnly(), new List<BoardDecodeLine>().AsReadOnly());
+        var report = FailureTaxonomy.Compute(bench, run, decoded);
+
+        Assert.Equal(44, report.DirectionCount);
+        Assert.Equal(40, report.ScorableDirectionCount);
+        Assert.Equal(4, report.UnscorableDirectionCount);
+
+        var m1 = report.Distribution.Single(d => d.Mode == FailureModes.M1);
+        Assert.Equal(2, m1.Count);
+        Assert.Equal(0.05, m1.Share, precision: 10);
+        Assert.True(m1.ActionJustified);
+
+        // Le dénominateur naïf (44) aurait donné 0,0454... < 5 % : c'est bien la correction du
+        // dénominateur, pas un hasard de construction, qui fait franchir le seuil.
+        Assert.NotEqual(2 / 44.0, m1.Share, precision: 10);
+    }
+
     [Fact]
     public void Compute_M6_boards_above_thresholds()
     {
