@@ -10,6 +10,12 @@ namespace SoClover.Eval.Calibration;
 /// après avoir vu l'accord serait ajuster l'instrument sur sa propre mesure. Toute valeur non
 /// nulle doit être décidée <i>avant</i> de lire le résultat — et l'artefact la rend visible.
 /// </para>
+/// <para>
+/// <see cref="CoupleAndAnchorCount"/> = <c>lot.Couples.Count + lot.Anchors.Count</c> — ancres
+/// INCLUSES. Ni le même compteur que <c>AgreementReport.CoupleCount</c> (ancres exclues) ni que
+/// <c>FamilyAgreement.ScorableCoupleCount</c> (non-scorables exclus) : le nom porte la sémantique
+/// pour que l'artefact committé reste lisible sans ce contexte.
+/// </para>
 /// </summary>
 public sealed record CalibrationManifest(
     string Kind,
@@ -18,7 +24,7 @@ public sealed record CalibrationManifest(
     string ComparisonsFile,
     string BenchFile,
     string BenchHash,
-    int CoupleCount,
+    int CoupleAndAnchorCount,
     int ClueCount,
     string DecoderFingerprint,
     string Provider,

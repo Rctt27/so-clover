@@ -8,9 +8,22 @@ public sealed record VerdictPair(string Human, string Decoder);
 
 public sealed record ContingencyCell(string HumanVerdict, string DecoderVerdict, int Count);
 
+/// <summary>
+/// <see cref="ScorableCoupleCount"/> ne compte que les couples <b>scorables</b> de la famille
+/// (verdict décodeur défini) — pas le total, et pas les décidés. Trois compteurs de couples
+/// différents vivent dans ce cycle (<see cref="AgreementReport.CoupleCount"/>,
+/// <see cref="ScorableCoupleCount"/>, <c>CalibrationManifest.CoupleAndAnchorCount</c>) : le nom
+/// porte la sémantique pour que les artefacts committés restent lisibles sans ce contexte.
+/// </summary>
 public sealed record FamilyAgreement(
-    string Family, int CoupleCount, int DecidedCount, double Agreement, double Kappa);
+    string Family, int ScorableCoupleCount, int DecidedCount, double Agreement, double Kappa);
 
+/// <summary>
+/// <see cref="CoupleCount"/> : <b>tous</b> les couples principaux du lot, ancres exclues,
+/// non-scorables inclus (<c>lot.Couples.Count</c>) — pas le même compteur que
+/// <see cref="FamilyAgreement.ScorableCoupleCount"/> ni que
+/// <c>CalibrationManifest.CoupleAndAnchorCount</c>.
+/// </summary>
 public sealed record AgreementReport(
     int CoupleCount,
     int DecidedCount,

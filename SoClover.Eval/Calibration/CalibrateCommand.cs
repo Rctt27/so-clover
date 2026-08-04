@@ -124,7 +124,7 @@ public static class CalibrateCommand
                 ComparisonsFile: comparisonsPath.Replace('\\', '/'),
                 BenchFile: benchPath.Replace('\\', '/'),
                 BenchHash: bench.Manifest.BenchHash,
-                CoupleCount: lot.Couples.Count + lot.Anchors.Count,
+                CoupleAndAnchorCount: lot.Couples.Count + lot.Anchors.Count,
                 ClueCount: lot.Clues.Count,
                 DecoderFingerprint: fingerprint,
                 Provider: opts.Provider.ToString(),

@@ -225,7 +225,7 @@ public class CalibrationSetTests
         Kind: "manifest", CalibrationId: "20260805-3f2a91c4e0d1",
         CreatedAtUtc: new DateTime(2026, 8, 5, 9, 0, 0, DateTimeKind.Utc),
         ComparisonsFile: "eval/human/comparisons.dev.jsonl", BenchFile: "eval/boards.dev.jsonl",
-        BenchHash: "aaaaaaaaaaaa", CoupleCount: 0, ClueCount: 0,
+        BenchHash: "aaaaaaaaaaaa", CoupleAndAnchorCount: 0, ClueCount: 0,
         DecoderFingerprint: "3f2a91c4e0d1", Provider: "OpenAI",
         BaseUrl: "http://localhost:1234/v1", ModelId: "m", ModelSnapshotDate: null,
         ProviderModelListHash: null, Temperature: 0.3, TopP: null, MaxOutputTokens: 512,

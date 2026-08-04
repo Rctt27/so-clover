@@ -27,7 +27,7 @@ public class CalibrationFileTests : IDisposable
         ComparisonsFile: "eval/human/comparisons.dev.jsonl",
         BenchFile: "eval/boards.dev.jsonl",
         BenchHash: benchHash,
-        CoupleCount: 100,
+        CoupleAndAnchorCount: 100,
         ClueCount: 187,
         DecoderFingerprint: fingerprint,
         Provider: "OpenAI",
