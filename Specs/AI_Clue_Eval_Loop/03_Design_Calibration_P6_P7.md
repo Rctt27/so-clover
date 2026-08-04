@@ -400,6 +400,12 @@ taxonomie dont l'ordre d'évaluation n'est pas écrit produit des distributions 
 `M6` est compté **séparément, en boards**, jamais mélangé à la distribution par direction : ce n'est
 pas la même unité.
 
+*(Corrigé à l'implémentation : la part d'un mode se calcule sur les directions **exploitables** —
+celles qui ont au moins un décodage scorable ; les directions D6 (ni indice valide, ni décodage
+exploitable) sont rapportées à part, dans `UnscorableDirectionCount`, et n'entrent dans **aucune**
+part, pas même celle de `M?`. Sans cette règle, un mode réel au-dessus du seuil d'intervention passe
+dessous par simple dilution du dénominateur.)*
+
 > **`M5` reste manuel, et c'est une décision, pas un oubli.** Le harnais n'embarque aucune ressource
 > de fréquence lexicale, et en ajouter une (choix du corpus, licence, poids, couverture du français)
 > serait hors de proportion avec l'usage. Un proxy inventé — longueur du mot, absence du
