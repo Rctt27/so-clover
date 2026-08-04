@@ -30,15 +30,21 @@ public class CalibrateCommandTests
 
     // ---- D8 : garde de reprise ---------------------------------------------------------
 
+    // Le chemin du fichier de calibration fautif doit rester DANS le message : l'opérateur qui
+    // reprend une calibration doit savoir QUEL fichier refuse, pas seulement pourquoi.
+    private const string SamplePath = "eval/human/calibration.20260805-3f2a91c4e0d1.jsonl";
+
     [Fact]
-    public void A_divergent_decodes_per_clue_refuses_and_points_to_force()
+    public void A_divergent_decodes_per_clue_refuses_names_the_file_and_points_to_force()
     {
         var existing = Manifest(decodesPerClue: 5, epsilon: 0.0);
 
         var ex = Assert.Throws<InvalidOperationException>(
-            () => CalibrateCommand.RequireCompatibleResume(existing, decodesPerClue: 3, epsilon: 0.0));
+            () => CalibrateCommand.RequireCompatibleResume(
+                existing, decodesPerClue: 3, epsilon: 0.0, SamplePath));
 
         Assert.Contains("--force", ex.Message, StringComparison.Ordinal);
+        Assert.Contains(SamplePath, ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -47,7 +53,8 @@ public class CalibrateCommandTests
         var existing = Manifest(decodesPerClue: 5, epsilon: 0.0);
 
         Assert.Throws<InvalidOperationException>(
-            () => CalibrateCommand.RequireCompatibleResume(existing, decodesPerClue: 5, epsilon: 0.2));
+            () => CalibrateCommand.RequireCompatibleResume(
+                existing, decodesPerClue: 5, epsilon: 0.2, SamplePath));
     }
 
     [Fact]
@@ -55,7 +62,7 @@ public class CalibrateCommandTests
     {
         var existing = Manifest(decodesPerClue: 5, epsilon: 0.0);
 
-        CalibrateCommand.RequireCompatibleResume(existing, decodesPerClue: 5, epsilon: 0.0);
+        CalibrateCommand.RequireCompatibleResume(existing, decodesPerClue: 5, epsilon: 0.0, SamplePath);
     }
 
     private static CalibrationManifest Manifest(int decodesPerClue, double epsilon) => new(

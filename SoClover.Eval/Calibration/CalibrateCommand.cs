@@ -144,7 +144,7 @@ public static class CalibrateCommand
         }
         else
         {
-            RequireCompatibleResume(existing.Manifest, decodesPerClue, epsilon);
+            RequireCompatibleResume(existing.Manifest, decodesPerClue, epsilon, path);
         }
 
         var alreadyDecoded = existing is null
@@ -243,20 +243,22 @@ public static class CalibrateCommand
     /// décodages dans un même fichier produirait des R̄ de granularités différentes selon
     /// l'indice ; ε se décide AVANT de lire l'accord, le changer en cours de calibration est une
     /// faute de protocole. <b>Statique pure</b>, testable sans réseau ni <c>IChatClient</c>.
+    /// <paramref name="pathForMessages"/> n'est utilisé que pour nommer le fichier fautif dans
+    /// les messages — l'opérateur qui reprend une calibration doit savoir QUEL fichier refuse.
     /// </summary>
     internal static void RequireCompatibleResume(
-        CalibrationManifest existing, int decodesPerClue, double epsilon)
+        CalibrationManifest existing, int decodesPerClue, double epsilon, string pathForMessages)
     {
         if (existing.DecodesPerClue != decodesPerClue)
             throw new InvalidOperationException(
-                $"la calibration existante porte decodesPerClue={existing.DecodesPerClue}, " +
-                $"incompatible avec --decodes {decodesPerClue}. Utiliser --force pour repartir de zéro.");
+                $"{pathForMessages} porte decodesPerClue={existing.DecodesPerClue}, incompatible avec " +
+                $"--decodes {decodesPerClue}. Utiliser --force pour repartir de zéro.");
 
         if (Math.Abs(existing.Epsilon - epsilon) > 1e-12)
             throw new InvalidOperationException(
-                $"la calibration existante porte epsilon={existing.Epsilon}, incompatible avec " +
-                $"--epsilon {epsilon}. ε se décide AVANT de lire l'accord : le changer en cours de " +
-                "calibration est une faute de protocole. Utiliser --force en connaissance de cause.");
+                $"{pathForMessages} porte epsilon={existing.Epsilon}, incompatible avec --epsilon " +
+                $"{epsilon}. ε se décide AVANT de lire l'accord : le changer en cours de calibration " +
+                "est une faute de protocole. Utiliser --force en connaissance de cause.");
     }
 
     private static double ParseEpsilon(string? raw) =>
