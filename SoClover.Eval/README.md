@@ -61,6 +61,96 @@ confiance bootstrap à 95 %, et le verdict de la règle de promotion (`retenu` /
 `écarté`). Deux runs de `benchHash` différents sont **refusés** : comparer sur deux tirages
 distincts est une erreur de protocole, pas une approximation acceptable.
 
+## Calibrer le décodeur (P6)
+
+**Rien n'est publiable avant.** Toutes les lignes de `eval/LEDGER.md` portent le statut
+`pré-calibration` : seule la porte du plancher aléatoire est franchie.
+
+```bash
+dotnet run --project SoClover.Eval -- calibrate \
+  --comparisons eval/human/comparisons.dev.jsonl \
+  --decodes 5 \
+  --saturation-metrics eval/runs/<pseudo-run humain>.metrics.json \
+  --floor-metrics      eval/runs/<plancher>.metrics.json \
+  --notes "qwen3-8b thinking OFF, ctx 8k"
+```
+
+Le verbe re-décode les indices des deux options de chaque couple avec le décodeur **courant**,
+puis rend un verdict unique sur **quatre** portes :
+
+| Porte | Seuil |
+|---|---|
+| accord brut décodeur/humain, hors égalités | ≥ 0,75 |
+| Cohen's κ | ≥ 0,40 |
+| non-saturation (`recovery` sur indices humains `solide`) | ≤ 0,95 |
+| plancher (`recovery` sur indices aléatoires) | ≤ 0,15 |
+
+Deux artefacts, **committés** : `eval/human/calibration.<date>-<empreinte>.jsonl` (les décodages)
+et `.json` (le rapport).
+
+### L'empreinte de décodeur
+
+`<empreinte>` = 12 hex du SHA-256 de `(modèle, prompt et sa version, température, topP,
+maxOutputTokens)`. **`decodesPerClue` en est exclu** : il change la granularité de R̄, pas le
+décodeur — d'où une calibration à 5 décodages et des runs à 3, sans divergence.
+
+> **Deux `recovery` d'empreintes différentes ne se comparent pas**, au même titre que deux runs de
+> `benchHash` différents. Les `.decoded.jsonl` committés portent `cluePromptVersion: 1` alors que
+> `decode-clue.md` est en v2 : **le décodeur qui a produit `recovery = 0,363` n'existe plus**. P6
+> commence donc par `decode --force` des deux runs dev.
+
+### Publier une ligne `calibré`
+
+```bash
+dotnet run --project SoClover.Eval -- score \
+  --run eval/runs/<runId>.jsonl \
+  --calibration eval/human/calibration.<date>-<empreinte>.json \
+  --ledger eval/LEDGER.md
+```
+
+Le statut passe à `calibré (<empreinte>)` **si et seulement si** les quatre portes sont franchies
+**et** que le run a été décodé par ce décodeur. Sinon : **refus bruyant**, jamais de repli
+silencieux. Sans le drapeau, le comportement est inchangé.
+
+### Si une porte tombe
+
+Retour en P3, **une variable à la fois** : prompt `decode-clue.md` (version incrémentée) → modèle
+→ température / `maxOutputTokens` → `decodesPerClue`. Chaque tentative laisse son fichier daté et
+empreinté ; ils s'accumulent, ils ne s'écrasent pas.
+
+> **Interdit** : ajuster le décodeur en regardant les désaccords couple par couple. Le corpus de
+> calibration est le seul juge dont on dispose ; l'optimiser contre lui fabrique un décodeur qui
+> s'accorde avec 100 comparaisons et avec rien d'autre. On lit au plus une dizaine de désaccords
+> pour **diagnostiquer**, jamais pour ajuster item par item.
+
+### Le paradoxe de κ
+
+Sur marginales déséquilibrées — et elles le seront : sur `humanVsModel`, l'humain gagnera
+probablement la grande majorité des couples — `p_e` s'approche de `p_o` et **κ s'effondre malgré
+un accord élevé**. Ce n'est pas un défaut du décodeur. Le rapport publie la table de contingence
+complète, les marginales, κ **par famille** (`modelVsModel` est la plus informative) et PABAK
+**en diagnostic** — la porte reste κ.
+
+## Taxonomie des modes d'échec (P7)
+
+```bash
+dotnet run --project SoClover.Eval -- analyze --run eval/runs/<runId>.jsonl --sample 20 --seed 20260806
+# lire eval/analysis/<runId>.sample.md, remplir « étiquette humaine : » pour les 20 items
+dotnet run --project SoClover.Eval -- analyze --review eval/analysis/<runId>.sample.md
+```
+
+Chaque direction reçoit **une** étiquette, dans l'ordre `M2 → M3 → M4 → M1 → M?`.
+`M6` se compte **en boards**, jamais mélangé à la distribution par direction. `M?` compte et
+s'affiche : une taxonomie qui classe 100 % des items est une taxonomie qui triche. La **règle des
+5 %** est imprimée mode par mode.
+
+`M5` (jargon / mot rare) n'est **jamais** produit automatiquement : le harnais n'embarque aucune
+ressource de fréquence lexicale, et un proxy inventé donnerait une fausse impression de rigueur.
+Il se pose à la main sur l'échantillon lu.
+
+`<runId>.sample.md` est **committé** (il porte l'étiquetage humain) ; `<runId>.taxonomy.json` est
+dérivé et gitignoré.
+
 ## Séances humaines (P4-P5)
 
 Le `recovery` automatique a un bas d'échelle (le plancher aléatoire) et **pas de haut** : rien ne

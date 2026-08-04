@@ -148,9 +148,9 @@ npm run dev   # Proxy automatique vers localhost:5000
   `01_Design_Harness_P0_P3.md`, design P4-P5 `02_Design_Human_P4_P5.md`). Mode d'emploi :
   `SoClover.Eval/README.md`.
 - **Verbes** : `doctor | bench | generate | decode | score | compare | elicit | judge | human-run |
-  human-report`. Générer et décoder sont **deux passes distinctes** séparées par un rechargement
-  manuel de modèle dans LM Studio (un seul modèle servi à la fois). Les deux sont reprenables ;
-  `--force` repart de zéro.
+  human-report | calibrate | analyze`. Générer et décoder sont **deux passes distinctes** séparées
+  par un rechargement manuel de modèle dans LM Studio (un seul modèle servi à la fois). Les deux
+  sont reprenables ; `--force` repart de zéro.
 - **Séances humaines (P4-P5)** : `elicit` (séance A, auteur, chronométrée) et `judge` (séance B,
   juge, en aveugle) démarrent un `WebApplication` local — **c'est le serveur qui applique le
   protocole**, pas la discipline de l'opérateur : verrou A-4 (`/api/candidates` → `409` avant
@@ -162,6 +162,22 @@ npm run dev   # Proxy automatique vers localhost:5000
   faux pour un run humain couvrant 40 directions sur 160 (plafond divisé par quatre). Le drapeau
   restreint **tous** les dénominateurs et inscrit `subset=<nom> (40/160)` dans la cellule
   *réglages* du registre. `--subset-outcome solide,tiede` donne le plafond sur paires résolues (A-3).
+- **Empreinte de décodeur (P6)** : `DecoderFingerprint` = 12 hex de `(modèle, prompt et sa version,
+  température, topP, maxOutputTokens)` — **`decodesPerClue` exclu** (granularité de R̄, pas
+  décodeur). Deux `recovery` d'empreintes différentes **ne se comparent pas**. `calibrate` refuse
+  des `.metrics.json` produits par un autre décodeur ; `score --calibration` refuse **bruyamment**
+  de publier une ligne `calibré` si une porte est tombée ou si l'empreinte diverge — jamais de
+  repli silencieux en `pré-calibration`. Les 18 colonnes du registre sont préservées : l'empreinte
+  vit dans la cellule *statut*.
+- **Les quatre portes, en un verdict** : accord ≥ 0,75, κ ≥ 0,40, non-saturation ≤ 0,95, plancher
+  ≤ 0,15. `calibrate` calcule les deux premières et **lit** les deux autres dans les `.metrics.json`
+  désignés. Sans cette agrégation, on franchit « une porte sur trois » portes sur quatre.
+- **Taxonomie (P7)** : ordre de priorité **`M2 → M3 → M4 → M1 → M?`** — et non l'ordre du design,
+  sous lequel `M4` est structurellement inatteignable (`R̄ = 0` ⟹ ≥ 4 mots faux distincts ⟹ `M1`).
+  `M6` se compte en **boards**. `M5` n'est **jamais** automatique. `analyze --review` valide
+  l'étiquetage contre 20 items lus à la main (seuil indicatif 0,70).
+- **Un seul bootstrap** : `Scoring/Bootstrap.Ci` sert le Δ`recovery`, l'accord et κ. Ne jamais en
+  écrire un second — deux IC différents pour la même raison, et personne ne sait lequel croire.
 - **Artefacts** : `eval/boards.dev.jsonl` (40 boards) et `eval/boards.test.jsonl` (60 boards)
   sont **committés avec leur seed et leur hash** — un banc qui bouge invalide tout l'historique
   du registre, et `BenchFile.Read` refuse de charger un banc dérivé. `eval/runs/` est gitignoré ;

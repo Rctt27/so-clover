@@ -1,8 +1,8 @@
 # Design — Calibration du décodeur et baseline officielle (P6 → P7)
 
-> **Statut** : design validé, plan d'implémentation écrit
-> ([`2026-08-03-decoder-calibration-taxonomy-p6-p7.md`](../../docs/superpowers/plans/2026-08-03-decoder-calibration-taxonomy-p6-p7.md)).
-> **Aucun code écrit.**
+> **Statut** : **implémenté** (plan
+> [`2026-08-03-decoder-calibration-taxonomy-p6-p7.md`](../../docs/superpowers/plans/2026-08-03-decoder-calibration-taxonomy-p6-p7.md)).
+> Les chiffres restent à produire : voir §9, ordre opérationnel.
 > **Périmètre** : phases **P6** (portes de calibration accord / κ) et **P7** (baseline officielle,
 > plafond humain publié, taxonomie chiffrée des modes d'échec) du PRD
 > [`00_Overview.md`](00_Overview.md). Dernier cycle du chantier.
@@ -390,7 +390,11 @@ reçoit **une** étiquette.
 | `M6` | collision inter-directions | signature **au niveau board** : moyenne des R̄ des 4 directions ≥ 0,5 alors que `boardPositions` du même board lui est inférieur d'au moins 0,20 |
 | `M?` | non classé | ne satisfait aucune signature |
 
-**Ordre de priorité déterministe et documenté** : `M2 → M3 → M1 → M4 → M?`. Les signatures se
+**Ordre de priorité déterministe et documenté** : `M2 → M3 → M4 → M1 → M?`. *(Corrigé à
+l'implémentation : sous l'ordre initialement écrit `M2 → M3 → M1 → M4`, `M4` est structurellement
+inatteignable — `R̄ = 0` impose deux mots faux par décodage, et une intersection vide sur ≥ 2
+décodages impose ≥ 4 mots faux distincts, donc `M1` à tous les coups. `R̄ = 0` est la condition
+strictement plus forte : elle passe devant.)* Les signatures se
 recouvrent — une direction peut être à la fois dispersée et concentrée sur un mot — et une
 taxonomie dont l'ordre d'évaluation n'est pas écrit produit des distributions non reproductibles.
 `M6` est compté **séparément, en boards**, jamais mélangé à la distribution par direction : ce n'est
