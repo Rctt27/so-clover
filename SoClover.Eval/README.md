@@ -312,6 +312,32 @@ diagnostic — détecter le mode `M6`, collision inter-directions — et non un 
 > (`UseCases/Gameplay/ValidateGuessingBoard.cs`), qui calcule déjà la correction par position, à
 > chaque tentative, par de vrais joueurs, avec les vraies rotations — puis la jette.
 
+### `strict_2of2` : un critère d'unanimité, pas un taux de succès
+
+`RunMetrics.Compute` compte une direction dans `strict_2of2` seulement si **les trois décodages**
+sont à `r = 1` (`Scoring/RunMetrics.cs`, `scored.All(d => d.R!.Value == 1.0)`). Le nom suggère
+« les 2 mots sur 2 retrouvés » ; la mesure exige en réalité que le décodeur y parvienne trois fois
+de suite. Deux conséquences, toutes deux vérifiées sur les runs du 2026-08-04.
+
+**Un `strict_2of2` nul ne veut pas dire que le décodeur échoue toujours.** Sur les 22 indices
+humains `solide`, `strict_2of2 = 0,000` alors que **9,1 % des décodages** sont à `r = 1` — taux
+supérieur à celui du modèle v5 (6,3 %). Quatre directions ont eu au moins un décodage parfait,
+deux d'entre elles à 2 sur 3. Ce qui manque n'est pas la réussite, c'est sa stabilité.
+
+**Sur un petit dénominateur, la métrique n'a presque aucune résolution.** Sur 22 directions elle ne
+peut valoir que 0 ; 0,045 ; 0,091… Avec ~9 % de réussite par décodage, l'unanimité 3/3 est rare par
+construction : observer 0 est le résultat attendu, pas un signal. Sur le pseudo-run humain
+(`--subset`, 22 à 40 directions), **ne rien conclure de `strict_2of2`**.
+
+Pour juger la devinabilité complète, lire la **distribution brute des `r`** dans le
+`.decoded.jsonl`, pas cet agrégat. C'est là qu'apparaît le fait intéressant du corpus humain : les
+indices humains sont plus polarisés que ceux du modèle — plus de `r = 0` (40,9 % contre 30,0 %)
+mais plus de `r = 1` — quand le modèle se masse sur le demi-succès (`half_rate` 0,630 contre 0,455
+sur les `solide`).
+
+Même piège que `board_solved_first_try`, et même remède : la contrainte doit être portée par le
+nom et par la lecture, pas découverte après coup.
+
 > **Attention à l'interprétation de `compare` sur ce couple.** Comparer v5 au plancher rend un
 > verdict `ÉCARTÉ`, motivé par `Δ valid_rate = -3,8 pts`. Ce n'est **pas** un jugement sur v5 :
 > le plancher a un `valid_rate` de 1,000 par construction (`RandomBaselineRunner` ne retient qu'un
