@@ -396,7 +396,8 @@ Le `using SoClover.Eval.Bench;` en tête de `PairedComparison.cs` devient inutil
 - [ ] **Step 6 : Vérifier la non-régression, sans toucher une assertion**
 
 Run : `dotnet test --filter "FullyQualifiedName~PairedComparisonTests"`
-Attendu : **14 tests PASS**, avec `PairedComparisonTests.cs` **non modifié** — en particulier
+Attendu : **13 tests PASS** (et non 14 : décompte vérifié à l'exécution sur
+`PairedComparisonTests.cs`), avec `PairedComparisonTests.cs` **non modifié** — en particulier
 `Bootstrap_is_deterministic_for_a_fixed_seed` et `Confidence_interval_brackets_the_delta`.
 
 - [ ] **Step 7 : Suite complète et build**
@@ -3737,9 +3738,14 @@ public static class FailureTaxonomy
 - [ ] **Step 4 : Exécuter, vérifier le passage**
 
 Run : `dotnet test --filter "FullyQualifiedName~FailureTaxonomyTests"`
-Attendu : **17 tests PASS**.
+Attendu : **16 tests PASS** *(et non 17 : décompte vérifié à l'exécution sur le bloc de code du
+Step 1)*.
 
-Si `M1_wins_over_M4_when_both_signatures_hold` échoue en rendant `M4`, l'ordre a été inversé : `M1` s'évalue **avant** `M4`, conformément à `PriorityOrder`.
+Si `M4_wins_over_M1_because_zero_recovery_is_the_stronger_signature` échoue en rendant `M1`,
+l'ordre a été inversé : `M4` s'évalue **avant** `M1`, conformément à `PriorityOrder` (décision D9).
+*(Corrigé à l'implémentation : la phrase d'origine nommait un test inexistant,
+`M1_wins_over_M4_when_both_signatures_hold`, et affirmait l'ordre inverse de celui retenu par D9 et
+du code de ce plan — `M2 → M3 → M4 → M1 → M?`.)*
 
 - [ ] **Step 5 : Suite complète et build**
 
