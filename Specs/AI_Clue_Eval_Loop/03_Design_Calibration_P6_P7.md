@@ -491,7 +491,7 @@ décodeur de calibration comme il sert déjà `ClueDecoder`.
 | `Bootstrap` | Déterministe à seed fixé ; IC d'une proportion connue ; **non-régression de `PairedComparison` après extraction, sans modification d'assertion** |
 | `CalibrationGates` | Les quatre portes ; chaque combinaison d'échec ; verdict global ; refus sur empreintes divergentes ; portes lues depuis des `.metrics.json` fabriqués |
 | `score --calibration` | Statut `calibré` **seulement** si portes franchies **et** empreinte concordante ; refus bruyant sinon ; statut inchangé sans le drapeau ; **18 colonnes préservées** |
-| `FailureTaxonomy` | Chaque signature sur un item fabriqué ; ordre de priorité `M2 → M3 → M1 → M4` sur un item qui en satisfait plusieurs ; `M?` compté ; `M6` calculé en boards ; règle des 5 % appliquée à l'impression |
+| `FailureTaxonomy` | Chaque signature sur un item fabriqué ; ordre de priorité `M2 → M3 → M4 → M1` (§5.3) sur un item qui en satisfait plusieurs ; `M?` compté ; `M6` calculé en boards ; règle des 5 % appliquée à l'impression |
 | `AnalysisSample` | Échantillon reproductible à seed fixé, tiré parmi les seuls échecs ; round-trip du fichier `.sample.md` ; matrice de confusion ; refus si des étiquettes humaines manquent |
 | Non-régression | **Toutes les suites Eval et AI de P0-P5 passent sans modification d'assertion** |
 
