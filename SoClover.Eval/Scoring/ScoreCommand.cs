@@ -204,7 +204,7 @@ public static class ScoreCommand
         Console.WriteLine();
         Console.WriteLine("N2 — devinabilité");
         Console.WriteLine($"  recovery               {N(m.Recovery)}   sur {m.DirectionCount} direction(s)   ← métrique principale");
-        Console.WriteLine($"  strict_2of2            {FormatRate(m.Strict2Of2, c.StrictItems, c.DecodedItems)}   ← unanimité des 3 décodages");
+        Console.WriteLine($"  strict_2of2_all_decodes {FormatRate(m.Strict2Of2, c.StrictItems, c.DecodedItems)}   ← unanimité des 3 décodages");
         Console.WriteLine($"  half_rate              {FormatRate(m.HalfRate, c.HalfItems, c.DecodedItems)}");
         Console.WriteLine();
         Console.WriteLine("N3 — cohérence board");

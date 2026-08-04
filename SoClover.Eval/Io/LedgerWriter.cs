@@ -58,7 +58,18 @@ public static class LedgerWriter
     /// </summary>
     private const char PipeSubstitute = '¦';
 
-    private const string Header = """
+    /// <summary>
+    /// Ligne d'en-tête du tableau, 18 colonnes. <c>strict_2of2_all_decodes</c> porte sa
+    /// contrainte dans son nom — la métrique exige l'unanimité des trois décodages, pas
+    /// « les 2 mots sur 2 » — au même titre que <c>board_solved_first_try</c>. Seul le libellé
+    /// change : la clé sérialisée <c>strict2Of2</c> des <c>.metrics.json</c> reste intacte.
+    /// </summary>
+    public const string HeaderRow =
+        "| date | runId | banc | prompt | version | modèle | snapshot | réglages | valid_rate " +
+        "| first_attempt | recovery | strict_2of2_all_decodes | half_rate " +
+        "| board_solved_first_try | statut | décision | hypothèse | notes |";
+
+    private static readonly string Header = $$"""
         # Registre d'expériences — harnais d'évaluation des indices IA
 
         > Une ligne par run, **jamais réécrite**. Une correction s'ajoute, elle ne remplace pas.
@@ -74,7 +85,7 @@ public static class LedgerWriter
         > nombre de décodages, qui change la granularité de R̄ et non le décodeur. **Deux `recovery`
         > d'empreintes différentes ne se comparent pas.**
 
-        | date | runId | banc | prompt | version | modèle | snapshot | réglages | valid_rate | first_attempt | recovery | strict_2of2 | half_rate | board_solved_first_try | statut | décision | hypothèse | notes |
+        {{HeaderRow}}
         |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
         """;
 
