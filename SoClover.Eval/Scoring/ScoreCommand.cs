@@ -1,5 +1,6 @@
 using System.Globalization;
 using SoClover.Domain;
+using SoClover.Eval.Calibration;
 using SoClover.Eval.Cli;
 using SoClover.Eval.Decoder;
 using SoClover.Eval.Human;
@@ -43,6 +44,11 @@ public static class ScoreCommand
             var settings = ComposeSettings(
                 run.Manifest, subsetName, metrics.DirectionCount, benchDirectionCount);
 
+            var calibrationPath = args.Get("calibration");
+            var calibration = calibrationPath is null
+                ? null
+                : EvalJson.Deserialize<CalibrationReport>(File.ReadAllText(calibrationPath));
+
             LedgerWriter.Append(ledgerPath, new LedgerEntry(
                 Date: DateOnly.FromDateTime(DateTime.UtcNow),
                 RunId: run.Manifest.RunId,
@@ -53,7 +59,7 @@ public static class ScoreCommand
                 ModelSnapshotDate: run.Manifest.ModelSnapshotDate,
                 Settings: settings,
                 Metrics: metrics,
-                Status: LedgerWriter.PreCalibrationStatus,
+                Status: ResolveStatus(calibration, decoded, calibrationPath ?? "—"),
                 Hypothesis: args.Get("hypothesis"),
                 Decision: args.Get("decision") ?? "neutre",
                 OperatorNotes: ComposeNotes(run.Manifest.OperatorNotes, decoded)));
@@ -81,6 +87,44 @@ public static class ScoreCommand
         return subsetName is null
             ? settings
             : $"{settings} / subset={subsetName} ({subsetDirectionCount}/{benchDirectionCount})";
+    }
+
+    /// <summary>
+    /// Le statut passe à <c>calibré</c> <b>si et seulement si</b> le fichier de calibration
+    /// déclare les quatre portes franchies <b>et</b> que son empreinte est celle du
+    /// <c>.decoded.jsonl</c> du run scoré.
+    /// <para>
+    /// Sinon : <b>refus bruyant</b>, jamais de dégradation silencieuse en <c>pré-calibration</c>.
+    /// Qui passe le drapeau veut publier une ligne défendable ; produire à la place une ligne mal
+    /// étiquetée serait le pire des deux mondes. <b>Sans</b> le drapeau, le comportement est
+    /// inchangé.
+    /// </para>
+    /// </summary>
+    internal static string ResolveStatus(
+        CalibrationReport? calibration, DecodeContents? decoded, string calibrationPathForMessages)
+    {
+        if (calibration is null)
+            return LedgerWriter.PreCalibrationStatus;
+
+        if (!calibration.AllGatesPassed)
+            throw new InvalidOperationException(
+                $"{calibrationPathForMessages} déclare « {calibration.Verdict} » : toutes les portes " +
+                "ne sont pas franchies, aucune ligne ne peut être publiée comme défendable. " +
+                "Retirer --calibration, ou refranchir les portes.");
+
+        if (decoded is null)
+            throw new InvalidOperationException(
+                "Ce run n'a pas de fichier de décodage : un statut calibré suppose un recovery, " +
+                "donc un décodage. Lancer `decode` avant de scorer avec --calibration.");
+
+        var runFingerprint = DecoderFingerprint.FromManifest(decoded.Manifest);
+        if (!string.Equals(runFingerprint, calibration.DecoderFingerprint, StringComparison.Ordinal))
+            throw new InvalidOperationException(
+                $"Le run a été décodé par l'empreinte {runFingerprint}, la calibration porte sur " +
+                $"{calibration.DecoderFingerprint}. Deux recovery d'empreintes différentes ne se " +
+                "comparent pas — re-décoder ce run avec le décodeur calibré (decode --force).");
+
+        return LedgerWriter.CalibratedStatusFor(calibration.DecoderFingerprint);
     }
 
     /// <summary>

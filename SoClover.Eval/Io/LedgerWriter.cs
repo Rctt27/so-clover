@@ -39,6 +39,19 @@ public static class LedgerWriter
     public const int ColumnCount = 18;
 
     /// <summary>
+    /// Statut d'une ligne défendable : le décodeur a franchi les <b>quatre</b> portes du PRD.
+    /// <para>
+    /// La cellule porte aussi l'<b>empreinte du décodeur</b> — c'est ce qui rendra lisible, dans
+    /// six mois, l'effet du passage de <c>decode-clue</c> v1 à v2 : les deux lignes coexistent,
+    /// aucune n'est réécrite, et l'empreinte dit laquelle se compare à laquelle.
+    /// </para>
+    /// </summary>
+    public const string CalibratedStatus = "calibré";
+
+    public static string CalibratedStatusFor(string decoderFingerprint) =>
+        $"{CalibratedStatus} ({decoderFingerprint})";
+
+    /// <summary>
     /// Substitut du pipe dans le texte libre. On NEUTRALISE plutôt qu'on n'échappe : un
     /// <c>\|</c> reste un vrai <c>|</c> dans la ligne, et tout relecteur qui découpe naïvement
     /// sur <c>|</c> (le réflexe naturel devant un tableau markdown) décalerait ses colonnes.
@@ -53,6 +66,13 @@ public static class LedgerWriter
         > Statut `pré-calibration` : le décodeur n'a franchi que la porte du plancher aléatoire
         > (`recovery ≤ 0,15`). Les portes d'accord ≥ 75 % et κ ≥ 0,40 relèvent de la phase P6 —
         > **aucune ligne pré-calibration n'est défendable** au sens du PRD.
+        >
+        > Statut `calibré (<empreinte>)` : le décodeur a franchi les **quatre** portes (accord
+        > ≥ 0,75, κ ≥ 0,40, non-saturation ≤ 0,95, plancher ≤ 0,15), consignées dans un fichier
+        > `eval/human/calibration.<date>-<empreinte>.json`. L'**empreinte** identifie la config du
+        > décodeur (modèle, prompt et sa version, température, topP, maxOutputTokens) — jamais le
+        > nombre de décodages, qui change la granularité de R̄ et non le décodeur. **Deux `recovery`
+        > d'empreintes différentes ne se comparent pas.**
 
         | date | runId | banc | prompt | version | modèle | snapshot | réglages | valid_rate | first_attempt | recovery | strict_2of2 | half_rate | board_solved_first_try | statut | décision | hypothèse | notes |
         |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|

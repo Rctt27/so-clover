@@ -81,6 +81,10 @@ internal static class EvalProgram
               --subset-outcome solide,tiede     « plafond sur paires résolues » (A-3) ; sans le
                                                 drapeau, toutes les issues — c'est le plafond joué
 
+            Registre (score) :
+              --calibration <calibration.json>  statut `calibré` — refuse si une porte est tombée
+                                                ou si l'empreinte du décodeur ne concorde pas
+
             Calibration (calibrate) :
               --comparisons <comparisons.jsonl>  corpus de la séance B (défaut eval/human/)
               --decodes 5                        granularité de R̄ ; le défaut de `decode` reste 3
