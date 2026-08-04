@@ -146,26 +146,7 @@ public class AgreementMetricsTests
     [Fact]
     public void Kappa_collapses_on_skewed_marginals_despite_a_high_agreement()
     {
-        var couples = new List<CalibrationCouple>();
-        var rbar = new Dictionary<CalibrationClue, double?>();
-
-        for (var i = 0; i < 100; i++)
-        {
-            // 90 % de victoires humaines des deux côtés ; les 10 % restants se répartissent
-            // de sorte que l'accord observé vaille 0,90.
-            // NOTE (déviation documentée du brief, cf. task-5-report.md) : les bornes 85/95 du
-            // brief donnent un accord de 0,90 mais des marginales décodeur STRICTEMENT égales aux
-            // marginales humain (90/10 des deux côtés) — p_e vaut alors 0,82 et κ = 0,444, qui ne
-            // s'effondre PAS sous 0,40. Vérifié indépendamment (script Python, formule manuelle).
-            // Les bornes 88/92 ci-dessous conservent le même accord de 0,90 et la même marginale
-            // humaine de 0,90, mais skewent la marginale décodeur à 0,96 (p_e = 0,868), ce qui
-            // reproduit le paradoxe décrit par le commentaire : κ = 0,242.
-            var human = i < 90 ? JudgeSession.VerdictA : JudgeSession.VerdictB;
-            var decoder = i < 88 || i >= 92 ? JudgeSession.VerdictA : JudgeSession.VerdictB;
-            AddCouple(couples, rbar, $"c-{i}", human,
-                decoder == JudgeSession.VerdictA ? 1.0 : 0.0,
-                decoder == JudgeSession.VerdictA ? 0.0 : 1.0);
-        }
+        var (couples, rbar) = SkewedMarginalsCorpus();
 
         var report = AgreementMetrics.Compute(
             new CalibrationLot(couples.AsReadOnly(), [], []), rbar,
@@ -178,6 +159,76 @@ public class AgreementMetricsTests
         // de « la statistique est mal conditionnée ».
         Assert.Equal(4, report.Contingency.Count);
         Assert.Equal(0.90, report.HumanMarginalA, precision: 2);
+    }
+
+    // I3 : les deux seuls tests qui touchaient KappaCiLow/KappaCiHigh partageaient un corpus où
+    // κ = 0 pour l'échantillon d'origine COMME pour chaque rééchantillon (marginales décodeur
+    // dégénérées 1,0/0,0) — l'IC ne pouvait qu'être [0 ; 0]. Le corpus 88/92 ci-dessus a des
+    // marginales décodeur NON dégénérées (0,96/0,04) et κ = 0,242 : c'est le premier test du
+    // dépôt qui exerce le chemin bootstrap de κ sur une valeur non nulle.
+    [Fact]
+    public void The_kappa_confidence_interval_is_non_degenerate_on_a_corpus_with_non_trivial_kappa()
+    {
+        var (couples, rbar) = SkewedMarginalsCorpus();
+
+        var report = AgreementMetrics.Compute(
+            new CalibrationLot(couples.AsReadOnly(), [], []), rbar,
+            epsilon: 0.0, bootstrapIterations: 200, seed: 1);
+
+        Assert.True(report.KappaCiLow < report.Kappa,
+            $"IC bas {report.KappaCiLow} devrait être strictement sous κ {report.Kappa}");
+        Assert.True(report.Kappa < report.KappaCiHigh,
+            $"IC haut {report.KappaCiHigh} devrait être strictement au-dessus de κ {report.Kappa}");
+    }
+
+    [Fact]
+    public void The_kappa_confidence_interval_is_deterministic_and_non_zero_on_the_same_corpus()
+    {
+        var (couplesA, rbarA) = SkewedMarginalsCorpus();
+        var (couplesB, rbarB) = SkewedMarginalsCorpus();
+
+        var a = AgreementMetrics.Compute(
+            new CalibrationLot(couplesA.AsReadOnly(), [], []), rbarA,
+            epsilon: 0.0, bootstrapIterations: 200, seed: 1);
+        var b = AgreementMetrics.Compute(
+            new CalibrationLot(couplesB.AsReadOnly(), [], []), rbarB,
+            epsilon: 0.0, bootstrapIterations: 200, seed: 1);
+
+        Assert.Equal(a.KappaCiLow, b.KappaCiLow);
+        Assert.Equal(a.KappaCiHigh, b.KappaCiHigh);
+        Assert.NotEqual(0.0, a.KappaCiLow);
+        Assert.NotEqual(0.0, a.KappaCiHigh);
+    }
+
+    /// <summary>
+    /// 90 % de victoires humaines des deux côtés ; les 10 % restants se répartissent de sorte
+    /// que l'accord observé vaille 0,90.
+    /// <para>
+    /// NOTE (déviation documentée du brief, cf. task-5-report.md) : les bornes 85/95 du brief
+    /// donnent un accord de 0,90 mais des marginales décodeur STRICTEMENT égales aux marginales
+    /// humain (90/10 des deux côtés) — p_e vaut alors 0,82 et κ = 0,444, qui ne s'effondre PAS
+    /// sous 0,40. Vérifié indépendamment (script Python, formule manuelle). Les bornes 88/92
+    /// ci-dessous conservent le même accord de 0,90 et la même marginale humaine de 0,90, mais
+    /// skewent la marginale décodeur à 0,96 (p_e = 0,868), ce qui reproduit le paradoxe décrit
+    /// par le commentaire de <see cref="Kappa_collapses_on_skewed_marginals_despite_a_high_agreement"/> :
+    /// κ = 0,242.
+    /// </para>
+    /// </summary>
+    private static (List<CalibrationCouple> Couples, Dictionary<CalibrationClue, double?> RBar) SkewedMarginalsCorpus()
+    {
+        var couples = new List<CalibrationCouple>();
+        var rbar = new Dictionary<CalibrationClue, double?>();
+
+        for (var i = 0; i < 100; i++)
+        {
+            var human = i < 90 ? JudgeSession.VerdictA : JudgeSession.VerdictB;
+            var decoder = i < 88 || i >= 92 ? JudgeSession.VerdictA : JudgeSession.VerdictB;
+            AddCouple(couples, rbar, $"c-{i}", human,
+                decoder == JudgeSession.VerdictA ? 1.0 : 0.0,
+                decoder == JudgeSession.VerdictA ? 0.0 : 1.0);
+        }
+
+        return (couples, rbar);
     }
 
     [Fact]
