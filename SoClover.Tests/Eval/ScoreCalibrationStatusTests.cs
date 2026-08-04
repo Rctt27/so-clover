@@ -162,6 +162,6 @@ public class ScoreCalibrationStatusTests
         new MetricsReport(
             "20260728-v5-gemma-d79a63b9", "eval/boards.dev.jsonl", "416b819a41a1", 40, 160,
             0.94, 0.81, 0.02, 0.363, 0.41, 0.656, 0.55, 0.12, [], 0.01, 160, 160,
-            new Dictionary<(string, string), double>()),
+            new Dictionary<(string, string), double>(), MetricCounts.Zero),
         status, "baseline v5", "neutre", "thinking OFF, ctx 16k");
 }

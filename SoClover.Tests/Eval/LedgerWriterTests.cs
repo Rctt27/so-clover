@@ -23,7 +23,8 @@ public class LedgerWriterTests : IDisposable
             ConfusionTop: [new ConfusionEntry("Infirmière", 23)],
             DecodeFailureRate: 0.01,
             ItemsCompleted: 160, ItemsExpected: 160,
-            PerItemRBar: new Dictionary<(string, string), double>());
+            PerItemRBar: new Dictionary<(string, string), double>(),
+            Counts: MetricCounts.Zero);
 
     private static LedgerEntry Entry(string runId = "20260727-v5-gemma-a1b2c3d4", double recovery = 0.62) =>
         new(new DateOnly(2026, 7, 27), runId, "eval/boards.dev.jsonl",

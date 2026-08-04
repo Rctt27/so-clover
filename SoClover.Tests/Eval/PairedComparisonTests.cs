@@ -15,7 +15,7 @@ public class PairedComparisonTests
         return new MetricsReport(
             "run", "eval/boards.dev.jsonl", benchHash, 1, perItem.Count,
             validRate, 0.8, 0.02, recovery, 0.4, 0.3, 0.55, boardSolvedFirstTry,
-            [], 0.01, perItem.Count, perItem.Count, perItem);
+            [], 0.01, perItem.Count, perItem.Count, perItem, MetricCounts.Zero);
     }
 
     private static Dictionary<(string, string), double> Items(params double[] values) =>

@@ -163,6 +163,23 @@ public static class ScoreCommand
         return string.Join(" ; ", parts);
     }
 
+    /// <summary>
+    /// Un taux suivi de ses effectifs. Sans eux, <c>0,000</c> se lit comme un fait alors qu'il
+    /// peut n'être qu'un plancher d'estimateur : sur 22 items, <c>strict_2of2</c> ne peut valoir
+    /// que 0 ; 0,045 ; 0,091… et un zéro y est le résultat attendu.
+    /// <para>
+    /// Dénominateur nul : on n'imprime pas de taux. <c>0,000</c> sur zéro item serait un chiffre
+    /// entièrement fabriqué.
+    /// </para>
+    /// </summary>
+    internal static string FormatRate(double value, int numerator, int denominator)
+    {
+        var counts = $"({numerator}/{denominator})";
+        return denominator == 0
+            ? $"  —       {counts}"
+            : $"{value.ToString("0.000", CultureInfo.GetCultureInfo("fr-FR"))}   {counts}";
+    }
+
     private static void Print(
         MetricsReport m, string? operatorNotes, string? decoderModel,
         string? subsetName, int benchDirectionCount)
@@ -179,22 +196,23 @@ public static class ScoreCommand
         if (decoderModel is not null) Console.WriteLine($"décodeur : {decoderModel}");
         if (operatorNotes is not null) Console.WriteLine($"notes : {operatorNotes}");
         Console.WriteLine();
+        var c = m.Counts;
         Console.WriteLine("N1 — validité");
-        Console.WriteLine($"  valid_rate             {N(m.ValidRate)}");
-        Console.WriteLine($"  first_attempt_rate     {N(m.FirstAttemptRate)}");
-        Console.WriteLine($"  parse_failure_rate     {N(m.ParseFailureRate)}");
+        Console.WriteLine($"  valid_rate             {FormatRate(m.ValidRate, c.ValidItems, m.DirectionCount)}");
+        Console.WriteLine($"  first_attempt_rate     {FormatRate(m.FirstAttemptRate, c.FirstAttemptItems, m.DirectionCount)}");
+        Console.WriteLine($"  parse_failure_rate     {FormatRate(m.ParseFailureRate, c.ParseFailures, c.Attempts)}");
         Console.WriteLine();
         Console.WriteLine("N2 — devinabilité");
-        Console.WriteLine($"  recovery               {N(m.Recovery)}   ← métrique principale");
-        Console.WriteLine($"  strict_2of2            {N(m.Strict2Of2)}");
-        Console.WriteLine($"  half_rate              {N(m.HalfRate)}");
+        Console.WriteLine($"  recovery               {N(m.Recovery)}   sur {m.DirectionCount} direction(s)   ← métrique principale");
+        Console.WriteLine($"  strict_2of2            {FormatRate(m.Strict2Of2, c.StrictItems, c.DecodedItems)}   ← unanimité des 3 décodages");
+        Console.WriteLine($"  half_rate              {FormatRate(m.HalfRate, c.HalfItems, c.DecodedItems)}");
         Console.WriteLine();
         Console.WriteLine("N3 — cohérence board");
-        Console.WriteLine($"  board_positions        {N(m.BoardPositions)}   ← pilotage N3");
-        Console.WriteLine($"  board_solved_first_try {N(m.BoardSolvedFirstTry)}   ← témoin, pas un critère");
+        Console.WriteLine($"  board_positions        {N(m.BoardPositions)}   sur {c.ScoredBoards} board(s)   ← pilotage N3");
+        Console.WriteLine($"  board_solved_first_try {FormatRate(m.BoardSolvedFirstTry, c.SolvedBoards, c.ScoredBoards)}   ← témoin, pas un critère");
         Console.WriteLine();
         Console.WriteLine("santé");
-        Console.WriteLine($"  decode_failure_rate    {N(m.DecodeFailureRate)}");
+        Console.WriteLine($"  decode_failure_rate    {FormatRate(m.DecodeFailureRate, c.DecodeFailures, c.Decodes)}");
         Console.WriteLine($"  items                  {m.ItemsCompleted} / {m.ItemsExpected}");
 
         if (m.ItemsCompleted < m.ItemsExpected)

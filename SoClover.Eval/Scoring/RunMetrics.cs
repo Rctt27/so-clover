@@ -9,6 +9,28 @@ namespace SoClover.Eval.Scoring;
 public sealed record ConfusionEntry(string Word, int Count);
 
 /// <summary>
+/// Effectifs derrière chaque taux. Un taux seul se lit comme un fait ; sur un petit dénominateur
+/// il n'est parfois qu'un plancher d'estimateur — <c>strict_2of2</c> sur 22 directions ne peut
+/// valoir que 0 ; 0,045 ; 0,091… Ces compteurs existent pour l'affichage : ils ne créent aucune
+/// colonne de registre, les 18 colonnes sont préservées.
+/// </summary>
+public sealed record MetricCounts(
+    int ValidItems,
+    int FirstAttemptItems,
+    int ParseFailures,
+    int Attempts,
+    int DecodedItems,
+    int StrictItems,
+    int HalfItems,
+    int ScoredBoards,
+    int SolvedBoards,
+    int DecodeFailures,
+    int Decodes)
+{
+    public static readonly MetricCounts Zero = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+}
+
+/// <summary>
 /// Les neuf indicateurs N1–N3, plus les deux indicateurs de santé. Aucun score unique : un
 /// chiffre agrégé cacherait les compromis.
 /// </summary>
@@ -35,6 +57,7 @@ public sealed record MetricsReport(
     // aucun sens dans le fichier .metrics.json (il se recalcule depuis les fichiers de run).
     [property: JsonIgnore]
     IReadOnlyDictionary<(string BoardId, string Direction), double> PerItemRBar,
+    MetricCounts Counts,
     string? SubsetFile = null,
     string? SubsetOutcome = null);
 
@@ -202,6 +225,18 @@ public static class RunMetrics
             ItemsCompleted: completedItems,
             ItemsExpected: directionCount,
             PerItemRBar: perItemRBar,
+            Counts: new MetricCounts(
+                ValidItems: validItems.Count,
+                FirstAttemptItems: firstAttemptItems.Count,
+                ParseFailures: parseFailures,
+                Attempts: scopedAttempts.Count,
+                DecodedItems: decodedItems.Count,
+                StrictItems: strictItems,
+                HalfItems: halfItems,
+                ScoredBoards: scoredBoards.Count,
+                SolvedBoards: scoredBoards.Count(b => b.BoardSolved == true),
+                DecodeFailures: decodeFailures,
+                Decodes: decodeAttempts),
             SubsetFile: subsetFile,
             SubsetOutcome: subsetOutcome);
     }

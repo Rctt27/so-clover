@@ -47,6 +47,7 @@ public class SaturationSubsetGuardTests : IDisposable
             ItemsCompleted: 22,
             ItemsExpected: 22,
             PerItemRBar: new Dictionary<(string, string), double>(),
+            Counts: MetricCounts.Zero,
             SubsetFile: subsetFile,
             SubsetOutcome: subsetOutcome);
 
