@@ -89,5 +89,9 @@ nul
 # Harnais d'évaluation des indices IA — runs générés (les bancs et LEDGER.md sont committés)
 eval/runs/
 
+# Taxonomie derivee : recalculable a tout moment depuis le run et son decodage.
+# En revanche eval/analysis/*.sample.md est COMMITTE — il porte l'etiquetage humain.
+eval/analysis/*.taxonomy.json
+
 # Surcharges locales du harnais d'evaluation (secrets, modeles) — jamais commitees
 SoClover.Eval/evalsettings.local.json

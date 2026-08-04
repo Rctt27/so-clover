@@ -1,5 +1,6 @@
 using System.Globalization;
 using SoClover.Domain;
+using SoClover.Eval.Analysis;
 using SoClover.Eval.Bench;
 using SoClover.Eval.Calibration;
 using SoClover.Eval.Cli;
@@ -40,6 +41,7 @@ internal static class EvalProgram
                 "score" => ScoreCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "compare" => CompareCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "calibrate" => CalibrateCommand.ExecuteAsync(cliArgs, CancellationToken.None),
+                "analyze" => AnalyzeCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "elicit" => Elicit(cliArgs, CancellationToken.None),
                 "judge" => Judge(cliArgs, CancellationToken.None),
                 "human-report" => Task.FromResult(HumanReportCommand(cliArgs)),
@@ -74,6 +76,7 @@ internal static class EvalProgram
               human-run     Projette la séance A en pseudo-run décodable (aucun appel LLM)
               human-report  Agrégats des deux séances humaines (aucun appel LLM)
               calibrate     P6 : accord decodeur/humain, kappa, quatre portes, verdict unique
+              analyze       P7 : taxonomie chiffree des modes d'echec (aucun appel LLM)
 
             Sous-ensemble (score, compare) :
               --subset <elicitation.jsonl>      restreint TOUS les dénominateurs aux directions
@@ -92,6 +95,11 @@ internal static class EvalProgram
               --floor-metrics      <x.metrics.json>  porte du plancher       (recovery ≤ 0,15)
               --epsilon 0                        marge du verdict décodeur ; se décide AVANT de
                                                  lire l'accord, et part au manifeste
+
+            Taxonomie (analyze) :
+              --run <run.jsonl>                 run DÉCODÉ ; refuse sinon
+              --sample 20 --seed S              échantillon seedé d'échecs, lisible à la main
+              --review <run.sample.md>          matrice de confusion auto ↔ humain
             """);
         return message is null ? 0 : 2;
     }
