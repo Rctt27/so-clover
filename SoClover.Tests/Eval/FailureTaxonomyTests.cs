@@ -498,4 +498,95 @@ public class FailureTaxonomyTests
         Assert.Empty(report.M6Boards);
         Assert.Equal(0.0, report.M6Share);
     }
+
+    // I2 : une direction D6 imputée à R̄ = 0 fausse la moyenne board à la baisse. Ici, 3
+    // directions à R = 1,0 + 1 D6 :
+    //   - moyenne naïve (D6 imputée à 0)   = (1+1+1+0)/4 = 0,75 → gap = 0,75-0,70 = 0,05 < 0,20 ✗
+    //   - moyenne corrigée (D6 exclue)     = (1+1+1)/3   = 1,00 → gap = 1,00-0,70 = 0,30 ≥ 0,20 ✓
+    // Le board franchit M6 seulement après la correction : c'est le faux négatif que le finding
+    // décrit.
+    [Fact]
+    public void Compute_M6_board_crosses_the_gate_after_excluding_the_unscorable_direction()
+    {
+        var bench = HumanTestData.Bench(boardCount: 1);
+        var run = HumanTestData.Run(bench, "test-run-m6-d6", "prefix");
+        var board = bench.Boards[0];
+        var directions = BoardGeometry.AllDirections;
+
+        var clueDecodes = new List<ClueDecodeLine>
+        {
+            // Bottom (index 3) : D6, aucun décodage exploitable.
+            new("decode", board.BoardId, directions[3].ToString(), 0,
+                null, null, "1", "unparseable", 100),
+        };
+
+        // Top, Right, Left : R̄ = 1,0 chacune.
+        for (var i = 0; i < 3; i++)
+        {
+            var refs = BenchBoardMapper.ReferenceWords(board, directions[i]);
+            clueDecodes.Add(new("decode", board.BoardId, directions[i].ToString(), 0,
+                refs.ToList(), 1.0, "1", null, 100));
+        }
+
+        var boardDecodes = new List<BoardDecodeLine>
+        {
+            new("board", board.BoardId, null, 0.70, true, "1", null, 100),
+        };
+
+        var manifest = new DecodeManifest(
+            "manifest", "test-decode-m6-d6", DateTime.UtcNow, "test-run-m6-d6",
+            "eval/boards.dev.jsonl", bench.Manifest.BenchHash, "test", "", "test", null, null,
+            1.0, null, null, "test.md", 1, "test.md", 1, 1, 1, null);
+
+        var decoded = new DecodeContents(manifest, clueDecodes.AsReadOnly(), boardDecodes.AsReadOnly());
+        var report = FailureTaxonomy.Compute(bench, run, decoded);
+
+        Assert.Equal(1, report.M6BoardCount);
+        Assert.Contains(board.BoardId, report.M6Boards);
+    }
+
+    // I2 : un board dont moins de M6MinExploitableDirections (3) directions sont exploitables
+    // n'est plus la même mesure — exclu de M6 quoi qu'il arrive, même dans le meilleur des cas
+    // (ici, gap maximal : boardPositions = 0).
+    [Fact]
+    public void Compute_M6_board_with_only_two_exploitable_directions_is_excluded_regardless()
+    {
+        var bench = HumanTestData.Bench(boardCount: 1);
+        var run = HumanTestData.Run(bench, "test-run-m6-sparse", "prefix");
+        var board = bench.Boards[0];
+        var directions = BoardGeometry.AllDirections;
+
+        var clueDecodes = new List<ClueDecodeLine>
+        {
+            // Left, Bottom : D6.
+            new("decode", board.BoardId, directions[2].ToString(), 0,
+                null, null, "1", "unparseable", 100),
+            new("decode", board.BoardId, directions[3].ToString(), 0,
+                null, null, "1", "unparseable", 100),
+        };
+
+        // Top, Right : R̄ = 1,0 chacune.
+        for (var i = 0; i < 2; i++)
+        {
+            var refs = BenchBoardMapper.ReferenceWords(board, directions[i]);
+            clueDecodes.Add(new("decode", board.BoardId, directions[i].ToString(), 0,
+                refs.ToList(), 1.0, "1", null, 100));
+        }
+
+        var boardDecodes = new List<BoardDecodeLine>
+        {
+            new("board", board.BoardId, null, 0.0, true, "1", null, 100),
+        };
+
+        var manifest = new DecodeManifest(
+            "manifest", "test-decode-m6-sparse", DateTime.UtcNow, "test-run-m6-sparse",
+            "eval/boards.dev.jsonl", bench.Manifest.BenchHash, "test", "", "test", null, null,
+            1.0, null, null, "test.md", 1, "test.md", 1, 1, 1, null);
+
+        var decoded = new DecodeContents(manifest, clueDecodes.AsReadOnly(), boardDecodes.AsReadOnly());
+        var report = FailureTaxonomy.Compute(bench, run, decoded);
+
+        Assert.Equal(0, report.M6BoardCount);
+        Assert.Empty(report.M6Boards);
+    }
 }

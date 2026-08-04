@@ -89,6 +89,12 @@ public static class FailureTaxonomy
     public const double M6MinGap = 0.20;
 
     /// <summary>
+    /// Sous ce nombre de directions exploitables, une moyenne « au niveau board » n'est plus la
+    /// même mesure : le board est écarté de M6, jamais imputé à 0.
+    /// </summary>
+    public const int M6MinExploitableDirections = 3;
+
+    /// <summary>
     /// L'ordre d'évaluation, exposé pour être testable et lisible dans le rapport.
     /// <para>
     /// <b>M4 précède M1</b>, contrairement à l'ordre littéral du design. Sous l'ordre
@@ -117,7 +123,10 @@ public static class FailureTaxonomy
 
         foreach (var board in bench.Boards)
         {
-            var perDirection = new List<double>(4);
+            // I2 : SEULES les directions exploitables entrent dans la moyenne board. Une
+            // direction D6 n'a pas de R̄ « nul » — elle n'a pas de R̄ du tout ; l'imputer à 0
+            // biaiserait la moyenne à la baisse (faux négatifs M6).
+            var exploitableRBar = new List<double>(4);
 
             foreach (var direction in BoardGeometry.AllDirections)
             {
@@ -127,14 +136,17 @@ public static class FailureTaxonomy
 
                 var (mode, rBar, scored) = LabelDirection(reference, decodes);
                 labels.Add(new DirectionLabel(board.BoardId, direction.ToString(), mode, rBar, scored));
-                perDirection.Add(rBar);
+                if (scored > 0)
+                    exploitableRBar.Add(rBar);
             }
 
             // M6 : signature AU NIVEAU BOARD. Les indices marchent un par un, mais mis ensemble
-            // ils se disputent les mêmes mots.
-            if (boardPositionsByBoard.TryGetValue(board.BoardId, out var boardPositions)
-                && perDirection.Average() >= M6MinBoardMean
-                && perDirection.Average() - boardPositions >= M6MinGap)
+            // ils se disputent les mêmes mots. Sous M6MinExploitableDirections, ce n'est plus la
+            // même mesure : le board est écarté, jamais imputé.
+            if (exploitableRBar.Count >= M6MinExploitableDirections
+                && boardPositionsByBoard.TryGetValue(board.BoardId, out var boardPositions)
+                && exploitableRBar.Average() >= M6MinBoardMean
+                && exploitableRBar.Average() - boardPositions >= M6MinGap)
                 m6Boards.Add(board.BoardId);
         }
 
