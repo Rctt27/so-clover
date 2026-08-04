@@ -89,10 +89,13 @@ public static class FailureTaxonomy
     public const double M6MinGap = 0.20;
 
     /// <summary>
-    /// Sous ce nombre de directions exploitables, une moyenne « au niveau board » n'est plus la
-    /// même mesure : le board est écarté de M6, jamais imputé à 0.
+    /// M6 affirme que le <b>board lui-même</b> est en cause : la moyenne des 4 R̄ est comparée à
+    /// <c>boardPositions</c>, qui reflète les 4 cartes du board. Une moyenne sur moins de 4
+    /// directions ne se compare plus à cette référence — ce n'est pas la même mesure, quelle
+    /// que soit la performance des directions restantes. Un board dont ne serait-ce qu'une seule
+    /// direction est non exploitable (D6) est donc exclu de M6, jamais imputé à 0.
     /// </summary>
-    public const int M6MinExploitableDirections = 3;
+    public const int M6MinExploitableDirections = 4;
 
     /// <summary>
     /// L'ordre d'évaluation, exposé pour être testable et lisible dans le rapport.

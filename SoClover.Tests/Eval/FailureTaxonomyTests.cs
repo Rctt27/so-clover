@@ -499,14 +499,14 @@ public class FailureTaxonomyTests
         Assert.Equal(0.0, report.M6Share);
     }
 
-    // I2 : une direction D6 imputée à R̄ = 0 fausse la moyenne board à la baisse. Ici, 3
-    // directions à R = 1,0 + 1 D6 :
-    //   - moyenne naïve (D6 imputée à 0)   = (1+1+1+0)/4 = 0,75 → gap = 0,75-0,70 = 0,05 < 0,20 ✗
-    //   - moyenne corrigée (D6 exclue)     = (1+1+1)/3   = 1,00 → gap = 1,00-0,70 = 0,30 ≥ 0,20 ✓
-    // Le board franchit M6 seulement après la correction : c'est le faux négatif que le finding
-    // décrit.
+    // I2 (arbitrage post-revue) : le seuil retenu est M6MinExploitableDirections = 4 — un board
+    // dont NE SERAIT-CE QU'UNE SEULE direction est non exploitable (D6) est exclu de M6, QUELLE
+    // QUE SOIT la moyenne des trois autres. Ce n'est PAS un jugement sur la performance des
+    // trois directions restantes : M6 compare la moyenne des 4 R̄ à boardPositions, qui reflète
+    // les 4 cartes du board — une moyenne calculée sur 3 directions n'est plus la même mesure.
+    // Ici, 3 directions à R̄ = 1,0 (performance maximale) + 1 D6 : le board est exclu quand même.
     [Fact]
-    public void Compute_M6_board_crosses_the_gate_after_excluding_the_unscorable_direction()
+    public void Compute_M6_board_with_one_unscorable_direction_is_excluded_regardless_of_the_others()
     {
         var bench = HumanTestData.Bench(boardCount: 1);
         var run = HumanTestData.Run(bench, "test-run-m6-d6", "prefix");
@@ -520,7 +520,8 @@ public class FailureTaxonomyTests
                 null, null, "1", "unparseable", 100),
         };
 
-        // Top, Right, Left : R̄ = 1,0 chacune.
+        // Top, Right, Left : R̄ = 1,0 chacune — performance maximale sur les trois directions
+        // exploitables, ce qui ne suffit pas : la mesure elle-même n'est pas comparable.
         for (var i = 0; i < 3; i++)
         {
             var refs = BenchBoardMapper.ReferenceWords(board, directions[i]);
@@ -528,6 +529,9 @@ public class FailureTaxonomyTests
                 refs.ToList(), 1.0, "1", null, 100));
         }
 
+        // boardPositions choisi pour que la moyenne des 3 exploitables (1,0) aurait franchi le
+        // gap si elle avait été retenue — la preuve que l'exclusion, pas le calcul, est ce qui
+        // décide ici.
         var boardDecodes = new List<BoardDecodeLine>
         {
             new("board", board.BoardId, null, 0.70, true, "1", null, 100),
@@ -541,13 +545,12 @@ public class FailureTaxonomyTests
         var decoded = new DecodeContents(manifest, clueDecodes.AsReadOnly(), boardDecodes.AsReadOnly());
         var report = FailureTaxonomy.Compute(bench, run, decoded);
 
-        Assert.Equal(1, report.M6BoardCount);
-        Assert.Contains(board.BoardId, report.M6Boards);
+        Assert.Equal(0, report.M6BoardCount);
+        Assert.Empty(report.M6Boards);
     }
 
-    // I2 : un board dont moins de M6MinExploitableDirections (3) directions sont exploitables
-    // n'est plus la même mesure — exclu de M6 quoi qu'il arrive, même dans le meilleur des cas
-    // (ici, gap maximal : boardPositions = 0).
+    // I2 : a fortiori avec seulement 2 directions exploitables — exclu de M6 quoi qu'il arrive,
+    // même dans le meilleur des cas (ici, gap maximal : boardPositions = 0).
     [Fact]
     public void Compute_M6_board_with_only_two_exploitable_directions_is_excluded_regardless()
     {
