@@ -67,6 +67,10 @@ distincts est une erreur de protocole, pas une approximation acceptable.
 `pré-calibration` : seule la porte du plancher aléatoire est franchie.
 
 ```bash
+# Prérequis : le .metrics.json de saturation doit porter sur les SEULS indices `solide`
+dotnet run --project SoClover.Eval -- score --run eval/runs/human-<…>.jsonl \
+  --subset eval/human/elicitation.dev.jsonl --subset-outcome solide
+
 dotnet run --project SoClover.Eval -- calibrate \
   --comparisons eval/human/comparisons.dev.jsonl \
   --decodes 5 \
@@ -88,6 +92,16 @@ puis rend un verdict unique sur **quatre** portes :
 Deux artefacts, **committés** : `eval/human/calibration.<date>-<empreinte>.jsonl` (les décodages)
 et `.json` (le rapport).
 
+> **Pourquoi le prérequis `--subset-outcome solide` est une garde, pas une convention.**
+> `score` écrit toujours dans `<run>.metrics.json`, chemin fixe par run : un second `score` sur le
+> même pseudo-run humain — sans le drapeau — remplace le fichier **sans rien signaler**. La porte
+> serait alors évaluée sur le plafond *joué* (`pass` compris, donc plus bas) et franchie pour la
+> mauvaise raison. D'où `CalibrationGates.RequireSaturationSubset` : chaque `.metrics.json` porte
+> désormais sa provenance (`subsetFile`, `subsetOutcome`, **toujours** renseignés — « toutes les
+> issues » s'écrit `pass,solide,tiede`, jamais `null`), et `calibrate` refuse bruyamment un fichier
+> qui ne déclare pas exactement `solide`. Un `.metrics.json` antérieur à l'ajout de la provenance
+> ne prouve rien : il est refusé aussi.
+
 ### L'empreinte de décodeur
 
 `<empreinte>` = 12 hex du SHA-256 de `(modèle, prompt et sa version, température, topP,
@@ -95,9 +109,10 @@ maxOutputTokens)`. **`decodesPerClue` en est exclu** : il change la granularité
 décodeur — d'où une calibration à 5 décodages et des runs à 3, sans divergence.
 
 > **Deux `recovery` d'empreintes différentes ne se comparent pas**, au même titre que deux runs de
-> `benchHash` différents. Les `.decoded.jsonl` committés portent `cluePromptVersion: 1` alors que
-> `decode-clue.md` est en v2 : **le décodeur qui a produit `recovery = 0,363` n'existe plus**. P6
-> commence donc par `decode --force` des deux runs dev.
+> `benchHash` différents. C'est ce qui a imposé le **réancrage du 2026-08-04** : les décodages
+> portaient `cluePromptVersion: 1` alors que `decode-clue.md` était passé en v2 — le décodeur qui
+> avait produit `recovery = 0,363` n'existait plus. Tous les runs dev ont donc été repassés au
+> `decode --force`, et seules les lignes du 2026-08-04 du registre sont comparables entre elles.
 
 ### Publier une ligne `calibré`
 
@@ -141,12 +156,34 @@ dotnet run --project SoClover.Eval -- analyze --review eval/analysis/<runId>.sam
 
 Chaque direction reçoit **une** étiquette, dans l'ordre `M2 → M3 → M4 → M1 → M?`.
 `M6` se compte **en boards**, jamais mélangé à la distribution par direction. `M?` compte et
-s'affiche : une taxonomie qui classe 100 % des items est une taxonomie qui triche. La **règle des
-5 %** est imprimée mode par mode.
+s'affiche : une taxonomie qui classe 100 % des items est une taxonomie qui triche.
 
 `M5` (jargon / mot rare) n'est **jamais** produit automatiquement : le harnais n'embarque aucune
 ressource de fréquence lexicale, et un proxy inventé donnerait une fausse impression de rigueur.
 Il se pose à la main sur l'échantillon lu.
+
+### Le dénominateur : les directions *exploitables*, jamais le total
+
+Une direction **D6** — ni indice valide, ni décodage exploitable — n'est pas un échec *sémantique* :
+le vocabulaire fermé `M0…M6` n'a aucun code pour « échec de format du décodeur ». Elle est donc
+sortie de la mesure, partout et de la même façon :
+
+| Endroit | Traitement de D6 |
+|---|---|
+| parts par mode (`M0…M4`, `M?`) | ni au numérateur ni au dénominateur — dénominateur = `ScorableDirectionCount` |
+| rapport | comptée à part, ligne `dont SANS décodage` (`UnscorableDirectionCount`) |
+| moyenne board de `M6` | exclue de la moyenne, et un board qui perd **ne serait-ce qu'une** direction est écarté de `M6` (`M6MinExploitableDirections = 4`) — jamais imputé à 0 |
+| tirage de `--sample` | exclue des candidats : la lire n'apprendrait rien sur les modes d'échec, et elle tirerait vers le bas l'accord auto ↔ humain qui gouverne le seuil 0,70 |
+
+Imputer `R̄ = 0` à une direction sans décodage biaiserait la moyenne board à la baisse — donc des
+faux négatifs `M6`. `M6` affirme que le **board lui-même** est en cause : sa moyenne se compare à
+`board_positions`, qui reflète les 4 cartes. Une moyenne sur 3 directions ne se compare plus à cette
+référence, quelle que soit la performance des directions restantes.
+
+La **règle des 5 %** (`≥ 5 % → intervention justifiée`) n'est imprimée que sur les modes d'échec
+sémantiques mesurés automatiquement. Deux exceptions explicites dans le rapport :
+`M5` porte `non extrapolé` (jamais mesuré automatiquement), `M?` porte le rappel des directions sans
+décodage. Pour ces deux-là, « ≥ 5 % » ne veut rien dire.
 
 `<runId>.sample.md` est **committé** (il porte l'étiquetage humain) ; `<runId>.taxonomy.json` est
 dérivé et gitignoré.
@@ -187,6 +224,10 @@ dotnet run --project SoClover.Eval -- human-report \
 Les deux séances sont **reprenables** : chaque item est écrit à la soumission, relancer le verbe
 complète ce qui manque. `eval/human/` est **committé**, contrairement à `eval/runs/`.
 
+> **La séance A a été tenue le 2026-08-04** — `eval/human/elicitation.dev.jsonl`, 40 directions,
+> 22 `solide` / 17 `tiede` / 1 `pass`, médiane 30 s sur les `solide`. La séance B reste à tenir ;
+> son verbe `judge` sera le premier à consommer la garde J+1, désormais largement satisfaite.
+
 Trois règles sont non contournables par construction, pas par discipline : `GET /api/candidates`
 répond `409` tant que l'item n'a pas été tenté (A-4) ; il n'existe **aucune API de saut**, un item
 ne se quitte que par `solide`, `tiede` ou `pass` (A-1) ; la réponse de `/api/next` de la séance B ne
@@ -225,9 +266,11 @@ dotnet run --project SoClover.Eval -- compare \
 > quel à un run humain couvrant 40 directions sur 160, il produirait deux chiffres faux et
 > parfaitement plausibles : un plafond humain **divisé par quatre**, et un `compare` appariant
 > l'humain au modèle sur 120 items où l'humain n'a jamais rien écrit. Avec le drapeau, tous les
-> dénominateurs suivent, `DirectionCount` passe à 40, et la cellule *réglages* du registre porte
-> `subset=<nom> (40/160)` : **aucune ligne ne peut prétendre porter sur le banc entier alors
-> qu'elle porte sur un quart.**
+> dénominateurs suivent — `DirectionCount` passe à 40, `parse_failure_rate` se rapporte aux seules
+> tentatives du sous-ensemble — et la cellule *réglages* du registre porte `subset=<nom> (40/160)` :
+> **aucune ligne ne peut prétendre porter sur le banc entier alors qu'elle porte sur un quart.**
+> La même provenance part dans le `.metrics.json` (`subsetFile`, `subsetOutcome`) : c'est elle que
+> `calibrate` relit pour vérifier que la porte de saturation porte bien sur les seuls `solide`.
 
 Un `pass` reste au dénominateur (`failureKind: "pass"`, `valid: false`) : retirer les cas durs,
 c'est retirer la résolution de l'instrument. `decode` saute N3 tout seul sur ce pseudo-run, aucun
@@ -240,23 +283,33 @@ board n'ayant ses 4 directions annotées.
 déjà fait dériver des runs. D'où `--notes "thinking OFF, ctx 16k"`, recopié dans la ligne du
 registre. Le harnais ne peut pas rendre ce réglage observable ; il peut rendre son absence visible.
 
-## État à la clôture du cycle P0-P3
+## État courant — décodeur v2, au 2026-08-04
 
 | Élément | Valeur |
 |---|---|
 | Banc dev | `eval/boards.dev.jsonl` — 40 boards / 160 directions, seed `20260726001`, hash `416b819a41a1` |
-| Banc test | `eval/boards.test.jsonl` — 60 boards / 240 directions, seed `20260726002`, hash `1436bb07dc0d` — **non consulté dans ce cycle** |
-| Décodeur | `qwen/qwen3-8b`, thinking OFF, temp 0,3, `maxOutputTokens` 512 — 480 décodages N2 + 40 N3 en 3 min 11 s |
-| Plancher aléatoire | `recovery = 0,130` — porte `≤ 0,15` : **franchie**. `decode_failure_rate = 0,035` (≤ 0,05) |
-| Run baseline | `20260728-v5-google-gemma-4-12b-qat-d79a63b9` — prompt FR PerDirection v5, `google/gemma-4-12b-qat`, 160 directions en 10 min 44 |
-| `recovery` baseline | **0,363** — soit `+23,3` pts sur le plancher, IC 95 % `[+19,3 ; +27,3]` |
-| Statut du registre | `pré-calibration` — les portes P6 (accord ≥ 75 %, κ ≥ 0,40) ne sont pas franchies |
+| Banc test | `eval/boards.test.jsonl` — 60 boards / 240 directions, seed `20260726002`, hash `1436bb07dc0d` — **jamais consulté à ce jour** |
+| Décodeur | `qwen/qwen3-8b`, thinking OFF, prompt `decode-clue.md` **v2** |
+| Plancher aléatoire | `recovery = 0,128` — porte `≤ 0,15` : **franchie** |
+| Baseline v5 | `20260728-v5-…-d79a63b9`, temp 1,0 — `recovery = 0,370`, `half_rate = 0,630` |
+| 2ᵉ run générateur | `20260804-v5-…-fbb92760`, **temp 0,7** — `recovery = 0,383`. Matériau de **contraste** pour la séance B, pas une optimisation |
+| Séance A (P4) | **tenue le 2026-08-04** — 40 directions, 22 `solide` / 17 `tiede` / 1 `pass`. Corpus committé : `eval/human/elicitation.dev.jsonl` |
+| Plafond humain joué | `recovery = 0,333` sur 40/160 directions (toutes issues, `pass` compris) |
+| Plafond humain `solide` | `recovery = 0,341` sur 22/160 directions (A-3) |
+| Séance B (P5) | **non tenue** — sans elle, ni accord, ni κ, ni calibration |
+| Statut du registre | `pré-calibration` sur **toutes** les lignes — seule la porte du plancher est franchie |
 
-Le plancher mesuré (`0,130`) colle à la valeur théorique du hasard pur : tirer 2 mots parmi 16
-donne une intersection espérée de `2 × 2/16 = 0,25` mot, soit `R̄ = 0,125`. Le décodeur ne devine
-donc rien à partir d'indices aléatoires — c'est précisément ce que la porte vérifie.
+Le plancher mesuré colle à la valeur théorique du hasard pur : tirer 2 mots parmi 16 donne une
+intersection espérée de `2 × 2/16 = 0,25` mot, soit `R̄ = 0,125`. Le décodeur ne devine donc rien à
+partir d'indices aléatoires — c'est précisément ce que la porte vérifie.
 
-### Ce que le premier baseline montre
+Deux runs générateurs distincts existent désormais sur le banc dev : c'est le **prérequis de la
+séance B**, faute de quoi la famille `modelVsModel` retomberait sur le plancher aléatoire.
+
+### Ce que le premier baseline a montré
+
+Chiffres du **décodeur v1**, conservés pour la lecture qualitative — ils ne se comparent pas à ceux
+du tableau ci-dessus, d'empreinte différente.
 
 | Indicateur | v5 | Plancher |
 |---|---|---|
@@ -264,13 +317,14 @@ donc rien à partir d'indices aléatoires — c'est précisément ce que la port
 | `first_attempt_rate` | 0,963 | 1,000 |
 | `parse_failure_rate` | 0,031 | 0,000 |
 | `recovery` | **0,363** | 0,130 |
-| `strict_2of2` | 0,013 | 0,000 |
+| `strict_2of2_all_decodes` | 0,013 | 0,000 |
 | `half_rate` | **0,656** | 0,225 |
 | `board_positions` | 0,278 | 0,193 |
 | `board_solved_first_try` | 0,000 | 0,000 |
 | `decode_failure_rate` | 0,044 | 0,035 |
 
-Le mode d'échec dominant est net et chiffré : `half_rate = 0,656` contre `strict_2of2 = 0,013`.
+Le mode d'échec dominant est net et chiffré : `half_rate = 0,656` contre
+`strict_2of2_all_decodes = 0,013`.
 Dans deux tiers des directions, le décodeur retrouve **un seul** des deux mots visés, et presque
 jamais les deux. C'est la « signature Hôpital » du PRD — l'indice s'accroche fortement à un mot et
 laisse l'autre orphelin, au lieu de tendre un pont entre les deux. `board_solved_first_try = 0,000`
@@ -312,22 +366,25 @@ diagnostic — détecter le mode `M6`, collision inter-directions — et non un 
 > (`UseCases/Gameplay/ValidateGuessingBoard.cs`), qui calcule déjà la correction par position, à
 > chaque tentative, par de vrais joueurs, avec les vraies rotations — puis la jette.
 
-### `strict_2of2` : un critère d'unanimité, pas un taux de succès
+### `strict_2of2_all_decodes` : un critère d'unanimité, pas un taux de succès
 
-`RunMetrics.Compute` compte une direction dans `strict_2of2` seulement si **les trois décodages**
-sont à `r = 1` (`Scoring/RunMetrics.cs`, `scored.All(d => d.R!.Value == 1.0)`). Le nom suggère
-« les 2 mots sur 2 retrouvés » ; la mesure exige en réalité que le décodeur y parvienne trois fois
-de suite. Deux conséquences, toutes deux vérifiées sur les runs du 2026-08-04.
+`RunMetrics.Compute` compte une direction dans cette métrique seulement si **les trois décodages**
+sont à `r = 1` (`Scoring/RunMetrics.cs`, `scored.All(d => d.R!.Value == 1.0)`). L'ancien nom
+`strict_2of2` suggérait « les 2 mots sur 2 retrouvés » ; la mesure exige en réalité que le décodeur
+y parvienne trois fois de suite — d'où le renommage, **à l'affichage et au registre uniquement** :
+la clé sérialisée `strict2Of2` des `.metrics.json` reste intacte, les 18 colonnes du registre aussi.
+Même remède que `board_solved_first_try` : la contrainte est portée par le nom, pas découverte
+après coup. Deux conséquences, toutes deux vérifiées sur les runs du 2026-08-04.
 
-**Un `strict_2of2` nul ne veut pas dire que le décodeur échoue toujours.** Sur les 22 indices
-humains `solide`, `strict_2of2 = 0,000` alors que **9,1 % des décodages** sont à `r = 1` — taux
+**Un `strict_2of2_all_decodes` nul ne veut pas dire que le décodeur échoue toujours.** Sur les 22
+indices humains `solide`, il vaut `0,000` alors que **9,1 % des décodages** sont à `r = 1` — taux
 supérieur à celui du modèle v5 (6,3 %). Quatre directions ont eu au moins un décodage parfait,
 deux d'entre elles à 2 sur 3. Ce qui manque n'est pas la réussite, c'est sa stabilité.
 
 **Sur un petit dénominateur, la métrique n'a presque aucune résolution.** Sur 22 directions elle ne
 peut valoir que 0 ; 0,045 ; 0,091… Avec ~9 % de réussite par décodage, l'unanimité 3/3 est rare par
 construction : observer 0 est le résultat attendu, pas un signal. Sur le pseudo-run humain
-(`--subset`, 22 à 40 directions), **ne rien conclure de `strict_2of2`**.
+(`--subset`, 22 à 40 directions), **ne rien conclure de cette métrique**.
 
 Pour juger la devinabilité complète, lire la **distribution brute des `r`** dans le
 `.decoded.jsonl`, pas cet agrégat. C'est là qu'apparaît le fait intéressant du corpus humain : les
@@ -335,8 +392,23 @@ indices humains sont plus polarisés que ceux du modèle — plus de `r = 0` (40
 mais plus de `r = 1` — quand le modèle se masse sur le demi-succès (`half_rate` 0,630 contre 0,455
 sur les `solide`).
 
-Même piège que `board_solved_first_try`, et même remède : la contrainte doit être portée par le
-nom et par la lecture, pas découverte après coup.
+### Lire un taux avec ses effectifs
+
+C'est ce piège, généralisé, qui a mis les effectifs derrière chaque taux à l'affichage de `score` :
+
+```
+  strict_2of2_all_decodes 0,000   (0/22)   ← unanimité des 3 décodages
+  half_rate              0,455   (10/22)
+```
+
+Un taux seul se lit comme un fait ; sur un petit dénominateur il n'est parfois qu'un plancher
+d'estimateur. Dénominateur nul : **aucun taux n'est imprimé** (`—`) — un `0,000` sur zéro item
+serait un chiffre entièrement fabriqué. Ces compteurs vivent dans `MetricCounts`, à l'affichage
+seulement : **aucune colonne de registre n'est créée**, les 18 colonnes sont préservées.
+
+Un dénominateur suit désormais `--subset` jusqu'au bout : `parse_failure_rate` se rapporte aux
+tentatives **du sous-ensemble** (`scopedAttempts`), pas du run entier — sinon le taux serait divisé
+par la part du banc couverte, soit un quart sur le pseudo-run humain.
 
 > **Attention à l'interprétation de `compare` sur ce couple.** Comparer v5 au plancher rend un
 > verdict `ÉCARTÉ`, motivé par `Δ valid_rate = -3,8 pts`. Ce n'est **pas** un jugement sur v5 :
@@ -377,11 +449,15 @@ correspond à rien fait échouer le premier appel.
 
 ## Ce que les cycles livrés ne livrent pas
 
-L'outillage P4-P5 est livré ; **les deux séances restent à tenir**, et sans elles aucun corpus
-humain n'existe. Le code ne produit rien tant que l'opérateur n'a pas saisi.
+L'outillage P0-P7 est livré. Le code ne produit rien tant que l'opérateur n'a pas saisi : **la
+séance B reste à tenir**, et sans elle il n'existe aucun corpus de comparaisons.
 
-- **P6** — accord décodeur/humain et κ de Cohen, portes ≥ 75 % et ≥ 0,40. Les deux corpus et le
-  pont (`human-run`, `--subset`) sont dimensionnés pour, mais **aucun chiffre de décodeur ne
-  devient défendable avant**.
-- **P7** — run baseline officiel, plafond humain publié, taxonomie chiffrée des modes d'échec.
+- **Séance B (P5)** — ~100 couples, ≈ 45 min. Ses deux prérequis sont réunis : deux runs
+  générateurs distincts sur le banc dev, et la séance A tenue depuis plus de 24 h (garde A-5).
+- **P6** — accord décodeur/humain et κ de Cohen, portes ≥ 75 % et ≥ 0,40, réunies aux deux portes
+  déjà mesurées. `calibrate` ne peut pas s'exécuter sans `--comparisons`. **Aucun chiffre de
+  décodeur ne devient défendable avant**, et toutes les lignes du registre restent
+  `pré-calibration`.
+- **P7** — run baseline officiel promu `calibré`, plafond humain publié, taxonomie chiffrée des
+  modes d'échec avec son échantillon relu à la main.
 - Le pack few-shot (`fewshot/pack.fr.json`), qui dérive de la séance A.
