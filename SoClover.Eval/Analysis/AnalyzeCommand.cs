@@ -92,6 +92,33 @@ public static class AnalyzeCommand
         return 0;
     }
 
+    /// <summary>
+    /// Le suffixe d'une ligne de distribution.
+    /// <para>
+    /// I1 : la règle des 5 % n'a de sens que sur un mode d'échec sémantique mesuré automatiquement
+    /// sur les directions exploitables. <c>M5</c> n'est JAMAIS mesuré automatiquement (§5.3) ;
+    /// <c>M?</c> ne dit que « aucune signature reconnue » — dans les deux cas, « ≥ 5 % →
+    /// intervention justifiée » ne veut rien dire.
+    /// </para>
+    /// <para>
+    /// <paramref name="unscorableDirectionCount"/> ne s'affiche <b>pas</b> sur la ligne <c>M?</c> :
+    /// depuis I1, les directions D6 sortent du numérateur ET du dénominateur des parts, donc de
+    /// cette ligne. Un « dont N sans décodage » y annonçait un sous-ensemble plus grand que
+    /// l'ensemble. L'effectif est rapporté à part, en tête du rapport.
+    /// </para>
+    /// </summary>
+    internal static string RuleSuffix(ModeCount m, int unscorableDirectionCount) => m.Mode switch
+    {
+        FailureModes.M0 => string.Empty,
+        FailureModes.M5 => "   non extrapolé",
+        FailureModes.Unclassified => unscorableDirectionCount > 0
+            ? "   aucune signature reconnue — D6 exclues, comptées à part"
+            : "   aucune signature reconnue",
+        _ => m.ActionJustified
+            ? "   ≥ 5 % → intervention justifiée"
+            : "   < 5 % → aucune ligne de prompt",
+    };
+
     private static void Print(TaxonomyReport t)
     {
         static string N(double v) => v.ToString("0.000", CultureInfo.GetCultureInfo("fr-FR"));
@@ -110,23 +137,9 @@ public static class AnalyzeCommand
         Console.WriteLine("  mode  part     n     libellé");
 
         foreach (var m in t.Distribution)
-        {
-            // I1 : la règle des 5 % n'a de sens que sur un mode d'échec sémantique mesuré
-            // automatiquement sur les directions exploitables. M5 n'est JAMAIS mesuré
-            // automatiquement (§5.3) ; M? mélange « aucune signature reconnue » et des directions
-            // hors de toute part (D6, comptées à part) — dans les deux cas, « ≥ 5 % →
-            // intervention justifiée » ne veut rien dire.
-            var rule = m.Mode switch
-            {
-                FailureModes.M0 => string.Empty,
-                FailureModes.M5 => "   non extrapolé",
-                FailureModes.Unclassified => $"   dont {t.UnscorableDirectionCount} sans décodage",
-                _ => m.ActionJustified
-                    ? "   ≥ 5 % → intervention justifiée"
-                    : "   < 5 % → aucune ligne de prompt",
-            };
-            Console.WriteLine($"  {m.Mode,-4}  {N(m.Share)}  {m.Count,4}  {m.Label}{rule}");
-        }
+            Console.WriteLine(
+                $"  {m.Mode,-4}  {N(m.Share)}  {m.Count,4}  {m.Label}" +
+                $"{RuleSuffix(m, t.UnscorableDirectionCount)}");
 
         // M6 se compte en BOARDS, jamais mélangé à la distribution par direction : ce n'est pas
         // la même unité.
