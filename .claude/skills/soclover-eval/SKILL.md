@@ -22,6 +22,15 @@ contre un corpus de jugements humains — c'est la phase P6 et ses **quatre port
 Chiffres, verdicts et rétractations vivent dans le registre, **jamais ici**. Cette skill ne se
 met pas à jour après un run ; elle se met à jour quand la *méthode* change.
 
+**Ne pas re-dériver ce que ce tableau attribue déjà.** Le circuit des verbes, les gardes et les
+pièges d'artefacts sont *ici* : rouvrir `README.md` ou le code de `SoClover.Eval` pour les
+retrouver est du gaspillage, pas de la rigueur. Lire un artefact se justifie pour les **valeurs**
+d'une mesure passée, que rien d'autre ne porte — l'`--epsilon` et le `decodesPerClue` d'une
+calibration à reproduire (dans son `.json`), la granularité d'un run d'ancrage (manifeste de son
+`.decoded.jsonl`), une empreinte. Règle courte : **le protocole se lit ici, les paramètres se
+lisent dans les artefacts.** Et écrire une note de registre ne demande **ni build ni
+`dotnet test`** — un fichier Markdown ne compile pas.
+
 ## Avant de commencer — trois lectures
 
 1. La **dernière ligne** de `eval/LEDGER.md` (table des runs *et* table des calibrations) et les
