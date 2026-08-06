@@ -27,6 +27,24 @@
 | date | empreinte | décodeur | lot | couples | ε | accord (IC 95 %) | κ (IC 95 %) | non-sat. | plancher | verdict | notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | 2026-08-06 | `9a829dc206d2` | qwen/qwen3-8b · clue v2 · temp 0,3 · maxOut 512 | comparisons.dev.jsonl | 85 + 5 ancres | 0 | **0,583** [0,438 ; 0,708] ✗ | **0,171** [-0,106 ; 0,429] ✗ | 0,341 ✓ | 0,128 ✓ | **renvoyé en P3** | 5 décodages/indice. Lot marqué `AnchorSuspect` (juge 3/5 : 2 égalités, l'aléatoire n'a jamais gagné) ; cohérence intra-juge 0,900, donc porte d'accord *atteignable*. Décodeur 5/5 sur les ancres : discrimination grossière intacte, discrimination fine nulle — κ humainVsModèle 0,026 (n=25) contre modèleVsModèle 0,233 (n=23). L'IC entier de l'accord est sous le seuil : l'échec ne s'explique pas par le bruit du lot. thinking OFF, ctx 8k. |
+| 2026-08-06 | `cc992cfe4dd6` | mistralai/ministral-3-3b · clue v2 · temp 0,3 · maxOut 512 | comparisons.dev.jsonl | 85 + 5 ancres | 0 | **0,490** [0,347 ; 0,633] ✗ | **-0,017** [-0,292 ; 0,255] ✗ | 0,436 ✓ | 0,139 ✓ | **renvoyé en P3** | 5 décodages/indice, 49/85 couples tranchés. P3 première variable : **le modèle seul** change (prompt, température, topP, maxOut, décodages identiques à `9a829dc206d2`). Hypothèse testée : un modèle d'origine francophone manipulerait mieux le français. **Non confirmée à 3B** — mais les IC recouvrent ceux de qwen3-8b, donc « pire que qwen » n'est *pas* établi ; ce qui l'est, c'est que κ est indiscernable de zéro. Ancres décodeur 4/5 (contre 5/5) : la discrimination grossière commence elle-même à s'éroder. Contraste notable : la **dynamique brute est meilleure** (saturation − plancher = 0,297 contre 0,213) alors que l'ordonnancement est plus mauvais — mieux récupérer n'est pas mieux classer. Latence médiane 139 ms contre ~2,5 s : itérer sur ce modèle coûte deux ordres de grandeur de moins. Lot toujours marqué `AnchorSuspect` (juge 3/5, inchangé — même corpus). ctx par défaut LM Studio, pas de thinking. |
+
+### Note — deux décodeurs indépendants, un même mode d'échec
+
+`9a829dc206d2` (Qwen, 8B, chinois) et `cc992cfe4dd6` (Ministral, 3B, français) n'ont en commun
+ni la famille, ni la taille, ni la langue d'origine. Tous deux franchissent les portes d'échelle
+— plancher et non-saturation — et tous deux s'effondrent sur l'ordonnancement fin : accord 0,583
+et 0,490 pour un seuil à 0,75, κ 0,171 et −0,017 pour un seuil à 0,40.
+
+Ce que ce parallèle autorise à dire : le facteur limitant n'est probablement **pas le choix du
+modèle**. Deux tirages ne font pas une loi, mais ils suffisent à déplacer le soupçon vers ce que
+les deux partagent — le prompt `decode-clue` v2, et la façon dont un verdict de préférence est
+dérivé de R̄ (un tiers des couples reste non tranché par le décodeur ou par le juge : 49 couples
+exploitables sur 85).
+
+Ce que ce parallèle **n'autorise pas** : conclure qu'un modèle francophone plus gros échouerait
+aussi. L'hypothèse de la langue d'origine n'est pas réfutée, elle est non testée à taille utile —
+`ministral-3-3b` échoue peut-être simplement par manque de capacité.
 
 ### Note — séance B du 2026-08-06, cohérence intra-juge contaminée
 
