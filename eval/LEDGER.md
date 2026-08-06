@@ -84,6 +84,30 @@ et retire à la piste 1 son argument le plus direct. **La piste 2 devient la seu
 expliquer la série** — et elle reste non mesurée. Le seuil ne se rediscute toujours pas avant
 cette mesure.
 
+### Note — rectification : v3 ne gagne rien en robustesse de format, il en perd un peu
+
+La ligne `3f40887c807d` affirme que la robustesse de format « passe à **0,006** d'échecs sur le
+plancher et **0,000** sur l'humain, contre ~4,2 % pour plusieurs empreintes v2 ». **La comparaison
+est trompeuse** : ces 4,2 % sont ceux des empreintes *ministral* (`661856eb18c6`, `27e36fefe975`),
+pas ceux de qwen. À modèle constant — la garde de la variable unique vaut pour la conformité comme
+pour le reste :
+
+| échecs `decode-clue` (N2) | v2 `dc38ea230804` | v3 `3f40887c807d` |
+|---|---|---|
+| plancher aléatoire | **0 / 480** | 3 / 480 |
+| pseudo-run humain | 0 / 117 | 0 / 117 |
+| lot de calibration | **17 / 1620** (1,0 %) | **32 / 1620** (2,0 %) |
+| dont `outOfVocabulary` | 15 | 29 |
+
+v3 **dégrade** donc légèrement la conformité au lieu de l'améliorer : deux fois plus de mots hors
+liste sur le lot de calibration. L'écart reste petit, très en dessous du garde-fou de 0,05, et ne
+change aucun verdict ni aucune porte — mais le gain revendiqué n'existe pas, et la ligne qui le
+revendique reste au registre : c'est cette note qui la corrige.
+
+Hypothèse plausible, non testée : v3 est plus long (632 tokens de prompt contre ~385) et demande
+explicitement de balayer les seize mots, ce qui expose davantage le modèle à recopier une variante
+d'un mot plutôt que le mot exact.
+
 ### Note — les sept calibrations sont compatibles avec un accord unique ≈ 0,58
 
 La septième ligne solde la dette et permet le calcul d'ensemble. Sur les sept calibrations
