@@ -89,11 +89,9 @@ public static class DecodeCommand
                 HarnessVersion: RunFile.HarnessVersion,
                 OperatorNotes: notes));
         }
-        else if (existing.Manifest.DecodesPerClue != decodesPerClue)
+        else
         {
-            throw new InvalidOperationException(
-                $"{decodedPath} porte decodesPerClue={existing.Manifest.DecodesPerClue}, " +
-                $"incompatible avec --decodes {decodesPerClue}. Utiliser --force pour repartir de zéro.");
+            RequireCompatibleResume(existing.Manifest, fingerprint, decodesPerClue, decodedPath);
         }
 
         var alreadyDecoded = existing is null
@@ -158,5 +156,38 @@ public static class DecodeCommand
 
         Console.WriteLine($"terminé en {stopwatch.Elapsed:hh\\:mm\\:ss}. Décodage : {decodedPath}");
         return 0;
+    }
+
+    /// <summary>
+    /// Reprendre un décodage n'est légitime que sous le <b>même décodeur</b> et le même nombre de
+    /// décodages par indice.
+    /// <para>
+    /// La garde ne comparait que <c>decodesPerClue</c> : changer de modèle, de prompt ou de
+    /// température entre deux passes ajoutait les nouvelles lignes sous un manifeste qui ne nomme
+    /// que le premier décodeur, et <c>DecoderFingerprint.FromManifest</c> rendait dès lors une
+    /// empreinte fausse pour la moitié du fichier. Rien, dans aucun chiffre publié, ne l'aurait
+    /// signalé.
+    /// </para>
+    /// <para>
+    /// Les deux vérifications restent <b>distinctes</b> : <c>decodesPerClue</c> est délibérément
+    /// hors de l'empreinte (granularité de R̄, pas décodeur), donc l'une ne couvre pas l'autre.
+    /// </para>
+    /// </summary>
+    internal static void RequireCompatibleResume(
+        DecodeManifest existing, string currentFingerprint, int decodesPerClue, string decodedPath)
+    {
+        var existingFingerprint = DecoderFingerprint.FromManifest(existing);
+        if (!string.Equals(existingFingerprint, currentFingerprint, StringComparison.Ordinal))
+            throw new InvalidOperationException(
+                $"{decodedPath} a été produit par le décodeur {existingFingerprint} " +
+                $"({existing.ModelId}, prompt v{existing.CluePromptVersion}, temp " +
+                $"{existing.Temperature}), le décodeur courant est {currentFingerprint}. " +
+                "Reprendre mélangerait deux décodeurs sous un manifeste qui n'en nomme qu'un. " +
+                "Charger le décodeur d'origine, ou --force pour repartir de zéro.");
+
+        if (existing.DecodesPerClue != decodesPerClue)
+            throw new InvalidOperationException(
+                $"{decodedPath} porte decodesPerClue={existing.DecodesPerClue}, " +
+                $"incompatible avec --decodes {decodesPerClue}. Utiliser --force pour repartir de zéro.");
     }
 }
