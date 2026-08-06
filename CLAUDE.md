@@ -146,132 +146,31 @@ npm run dev   # Proxy automatique vers localhost:5000
 
 ### Harnais d'évaluation des indices IA (`SoClover.Eval/`)
 
+> **⚠️ Toute phase de test de LLM pour les joueurs IA passe par la skill `soclover-eval`.**
+> Évaluer, comparer, calibrer ou régler un modèle — générateur comme décodeur —, lancer un verbe du
+> harnais, charger un modèle dans LM Studio pour un test, toucher aux prompts d'indices ou au prompt
+> décodeur, lire ou écrire une ligne de `eval/LEDGER.md`, interpréter un `recovery` / un accord /
+> un κ / les quatre portes, ou modifier le code de `SoClover.Eval` : **invoquer la skill d'abord**,
+> avant toute commande et avant toute question de clarification. Elle porte le protocole, les gardes
+> méthodologiques et les pièges d'artefacts qui ne sont plus répétés ici.
+
 - **Projet console hors ligne, jamais déployé.** Le `Dockerfile` ne restaure que
   `SoClover/SoClover.csproj` et `docs/deploy.md` fait `git archive HEAD … SoClover/` : ne jamais
   y ajouter `SoClover.Eval`. Le projet **est** en revanche dans `SoClover.sln` — `dotnet build` et
   `dotnet test` le couvrent (ses suites vivent dans `SoClover.Tests/Eval/`), la défense en
   profondeur passe par `.dockerignore` et `export-ignore`.
-- **Spécifications** : `Specs/AI_Clue_Eval_Loop/` (PRD `00_Overview.md`, design P0-P3
-  `01_Design_Harness_P0_P3.md`, design P4-P5 `02_Design_Human_P4_P5.md`, design P6-P7
-  `03_Design_Calibration_P6_P7.md`). Mode d'emploi : `SoClover.Eval/README.md`.
-- **Verbes** : `doctor | bench | generate | decode | score | compare | elicit | judge | human-run |
-  human-report | calibrate | analyze`. Générer et décoder sont **deux passes distinctes** séparées
-  par un rechargement manuel de modèle dans LM Studio (un seul modèle servi à la fois). Les deux
-  sont reprenables ; `--force` repart de zéro.
-- **Séances humaines (P4-P5)** : `elicit` (séance A, auteur, chronométrée) et `judge` (séance B,
-  juge, en aveugle) démarrent un `WebApplication` local — **c'est le serveur qui applique le
-  protocole**, pas la discipline de l'opérateur : verrou A-4 (`/api/candidates` → `409` avant
-  tentative), aucune API de saut (A-1), garde J+1 d'A-5 contournable seulement via `--force-early`
-  qui **stampe l'entorse dans le manifeste**, et aveuglement structurel (`/api/next` ne porte ni
-  `source` ni `runId`). `human-run` projette la séance A en pseudo-run scorable.
-- **`--subset` sur `score` / `compare`** : correction de dénominateur, jamais un confort.
-  `RunMetrics.Compute` attribue `R̄ = 0` aux directions absentes du run — juste pour un modèle,
-  faux pour un run humain couvrant 40 directions sur 160 (plafond divisé par quatre). Le drapeau
-  restreint **tous** les dénominateurs — `parse_failure_rate` compris, rapporté aux tentatives du
-  sous-ensemble — et inscrit `subset=<nom> (40/160)` dans la cellule *réglages* du registre.
-  `--subset-outcome solide,tiede` donne le plafond sur paires résolues (A-3). La provenance part
-  aussi dans le `.metrics.json` (`subsetFile`, `subsetOutcome`, **toujours** renseignés : « toutes
-  les issues » s'écrit `pass,solide,tiede`, jamais `null`) — c'est ce que relit la porte de
-  saturation.
-- **Effectifs derrière chaque taux** : `score` imprime `0,000   (0/22)`. Sur un petit dénominateur
-  un taux n'est parfois qu'un plancher d'estimateur (`strict_2of2` sur 22 items ne peut valoir que
-  0 ; 0,045 ; 0,091…). Dénominateur nul ⟹ **aucun taux imprimé** (`—`), jamais un `0,000` fabriqué.
-  `MetricCounts` est un objet d'affichage : **aucune colonne de registre n'est créée**.
-  `strict_2of2` s'affiche `strict_2of2_all_decodes` (affichage et en-tête du registre seulement —
-  la clé sérialisée `strict2Of2` des `.metrics.json` reste intacte) : la métrique exige l'unanimité
-  des trois décodages, pas « les 2 mots sur 2 », même piège que `board_solved_first_try`.
-- **Empreinte de décodeur (P6)** : `DecoderFingerprint` = 12 hex de `(modèle, prompt et sa version,
-  température, topP, maxOutputTokens)` — **`decodesPerClue` exclu** (granularité de R̄, pas
-  décodeur). Deux `recovery` d'empreintes différentes **ne se comparent pas**. `calibrate` refuse
-  des `.metrics.json` produits par un autre décodeur ; `score --calibration` refuse **bruyamment**
-  de publier une ligne `calibré` si une porte est tombée ou si l'empreinte diverge — jamais de
-  repli silencieux en `pré-calibration`. Les 18 colonnes du registre sont préservées : l'empreinte
-  vit dans la cellule *statut*.
-- **Ce que l'empreinte ne capture pas — et pourquoi `topP` n'est plus `null`** : `ChatOptions` ne
-  transmet que `ModelId`, `Temperature`, `TopP` et `MaxOutputTokens`, et `ClueDecoder` n'envoie
-  `TopP` **que s'il est non-null**. Un `topP: null` ne signifiait donc pas « défaut du provider »
-  mais « valeur des réglages LM Studio », **qui sont par modèle** : deux décodeurs pouvaient
-  différer par leur `top_p` sans qu'aucun artefact ne le montre, alors que l'empreinte affichait
-  honnêtement « topP : — ». D'où `Decoder.topP = 1.0` dans `evalsettings.json` — neutre (pas de
-  troncature nucleus), explicite, et dans l'empreinte. La température, elle, a toujours été
-  transmise : vérifié empiriquement (temp 0 → 1 réponse distincte sur 8, temp 2 → 8 sur 8), le
-  réglage de l'UI LM Studio n'est qu'un défaut, il **n'override pas** la requête.
-  **L'angle mort résiduel se documente, il ne se prétend pas résolu** : `top_k`, `repeat_penalty`
-  et `min_p` ne sont transmis par aucun `ChatOptions` ni exposés par aucun endpoint → `--notes`.
-  `quantization` et `loadedContextLength`, eux, sont lisibles sur l'API native
-  (`ModelRuntimeProbe`, `/api/v0/models`) et consignés dans `DecodeManifest` / `CalibrationManifest`
-  — **hors empreinte**, en champs nullables de fin de record (les artefacts antérieurs se relisent
-  inchangés). L'empreinte dit ce qu'on a *demandé* ; ces champs disent ce que la machine a *servi*.
-  Les y ajouter invaliderait tout l'historique : `ModelRuntimeProbeTests` verrouille l'invariant.
-- **L'empreinte est dans le nom des artefacts** : `<runId>.<empreinte>.decoded.jsonl` et
-  `<runId>.<empreinte>.metrics.json`. Un décodage **est** le produit d'un décodeur donné — deux
-  décodeurs sur le même run sont deux artefacts, pas deux versions d'un seul. L'empreinte est dans
-  les **deux** noms parce que `MetricsReport` n'en porte aucune dans son schéma :
-  `CalibrationGates.FingerprintOfMetrics` la lit dans le fichier **frère**, et casser cette fratrie
-  casse les portes. `score` écrit donc ses métriques à côté du décodage *qu'il a employé*, jamais
-  à côté du run seul. `DecodeFile.FindForRun` résout le décodage pour les verbes qui n'instancient
-  aucun décodeur (`score`, `compare`, `analyze`) : `null` si aucun, le chemin s'il n'y en a qu'un,
-  et **refus bruyant** dès qu'il y en a plusieurs — un score publié sous le mauvais décodeur ne se
-  voit sur aucun chiffre. La sortie est `--decoded <chemin>`. Les décodages antérieurs à la
-  convention (`<runId>.decoded.jsonl`) restent lisibles : ils coûtent des centaines d'appels LLM,
-  on ne les rend pas invisibles par un renommage.
-- **Reprise de `decode`** : `DecodeCommand.RequireCompatibleResume` vérifie l'**empreinte complète**
-  *et* `decodesPerClue` — deux contrôles distincts, puisque `decodesPerClue` est hors de l'empreinte
-  par construction. Sans le premier, reprendre après un changement de modèle ou de prompt ajoutait
-  les nouvelles lignes sous un manifeste ne nommant que le premier décodeur, et
-  `DecoderFingerprint.FromManifest` rendait une empreinte fausse pour la moitié du fichier.
-- **Les quatre portes, en un verdict** : accord ≥ 0,75, κ ≥ 0,40, non-saturation ≤ 0,95, plancher
-  ≤ 0,15. `calibrate` calcule les deux premières et **lit** les deux autres dans les `.metrics.json`
-  désignés. Sans cette agrégation, on franchit « une porte sur trois » portes sur quatre.
-  Le `--saturation-metrics` doit avoir été produit avec `--subset-outcome solide` **exactement** :
-  `score` écrit toujours au même chemin par run, donc un second `score` sans le drapeau écrase le
-  fichier en silence et la porte serait évaluée sur le plafond *joué* (`pass` compris, donc plus
-  bas), franchie pour la mauvaise raison. `CalibrationGates.RequireSaturationSubset` refuse
-  bruyamment — y compris un `.metrics.json` antérieur à la provenance, qui ne prouve rien.
-- **Reprise de `calibrate`** : `--decodes` ou `--epsilon` divergent du manifeste existant est
-  refusé (`RequireCompatibleResume`, symétrie avec `decode`) — ε se décide **avant** de lire
-  l'accord, le changer en cours de calibration est une faute de protocole.
-- **La granularité est dans le nom de la calibration** : `calibration.<date>-<empreinte>-d<N>.jsonl`
-  (`CalibrateCommand.CalibrationIdFor`). `decodesPerClue` est hors **empreinte** par construction,
-  mais il devait entrer dans le **nom** — sans quoi calibrer le même décodeur à deux granularités
-  le même jour vise le même chemin, `RequireCompatibleResume` refuse (à juste titre), et le seul
-  contournement est `--force`, qui écrase des milliers de décodages déjà payés. C'est le pendant
-  exact de l'empreinte dans le nom des décodages. La granularité vient **après** l'empreinte : les
-  artefacts de `eval/human/` se trient par date puis par décodeur, cet ordre de lecture survit à
-  l'ajout. Seule la fabrication du nom change — les artefacts antérieurs à la convention
-  (`calibration.20260806-9a829dc206d2.jsonl`, les six premiers) restent lus.
-- **Trois compteurs de couples, trois noms** : `AgreementReport.CoupleCount` (tous les couples
-  principaux, ancres exclues), `FamilyAgreement.ScorableCoupleCount` (non-scorables exclus),
-  `CalibrationManifest.CoupleAndAnchorCount` (ancres **incluses**). Le nom porte la sémantique :
-  les artefacts committés doivent rester lisibles sans ce contexte.
-- **Taxonomie (P7)** : ordre de priorité **`M2 → M3 → M4 → M1 → M?`** — et non l'ordre du design,
-  sous lequel `M4` est structurellement inatteignable (`R̄ = 0` ⟹ ≥ 4 mots faux distincts ⟹ `M1`).
-  `M6` se compte en **boards**. `M5` n'est **jamais** automatique. `analyze --review` valide
-  l'étiquetage contre 20 items lus à la main (seuil indicatif 0,70).
-- **D6 n'entre dans aucune part** : une direction sans décodage exploitable n'est pas un échec
-  *sémantique* — le vocabulaire `M0…M6` n'a aucun code pour « échec de format du décodeur ». Elle
-  sort du numérateur **et** du dénominateur (dénominateur = directions exploitables), sort de la
-  moyenne board de `M6` — un board qui perd ne serait-ce qu'une direction est écarté de `M6`
-  (`M6MinExploitableDirections = 4`), jamais imputé à 0, sinon faux négatifs — et sort du tirage
-  de `--sample`. Elle est rapportée à part (`UnscorableDirectionCount`). La règle des 5 % ne
-  s'imprime ni sur `M5` (`non extrapolé`) ni sur `M?` : elle n'y veut rien dire.
-- **Un seul bootstrap** : `Scoring/Bootstrap.Ci` sert le Δ`recovery`, l'accord et κ. Ne jamais en
-  écrire un second — deux IC différents pour la même raison, et personne ne sait lequel croire.
-- **Artefacts** : `eval/boards.dev.jsonl` (40 boards) et `eval/boards.test.jsonl` (60 boards)
-  sont **committés avec leur seed et leur hash** — un banc qui bouge invalide tout l'historique
-  du registre, et `BenchFile.Read` refuse de charger un banc dérivé. `eval/runs/` est gitignoré ;
-  `eval/human/` est **committé** (corpus humain : l'investissement irremplaçable du chantier).
-  `eval/LEDGER.md` est committé : une ligne par run, **jamais réécrite**.
-- **Discipline dev/test** : itérer exclusivement sur `boards.dev.jsonl`. Le test set se consulte
-  une fois par jalon, et chaque consultation se consigne dans le registre.
-- **Briques partagées avec la prod** (extraites en P0, ne pas dupliquer côté éval) :
-  `Domain/BoardGeometry.cs`, `Domain/ClueAcceptance.cs`, `Infrastructure/AI/AiClueLlmCaller.cs`,
+- **Où est quoi** : spécifications dans `Specs/AI_Clue_Eval_Loop/` (PRD + designs P0-P7), mode
+  d'emploi des verbes dans `SoClover.Eval/README.md`, mesures dans `eval/LEDGER.md` (append-only,
+  **jamais réécrit**), protocole et gardes dans la skill `soclover-eval`.
+- **Artefacts committés, à ne pas régénérer** : `eval/boards.dev.jsonl` (40 boards) et
+  `eval/boards.test.jsonl` (60) portent leur seed et leur hash — un banc qui bouge invalide tout
+  l'historique du registre. `eval/human/` est committé (corpus humain irremplaçable) ;
+  `eval/runs/` est gitignoré.
+- **Briques partagées avec la prod**, à ne pas dupliquer côté éval : `Domain/BoardGeometry.cs`,
+  `Domain/ClueAcceptance.cs`, `Infrastructure/AI/AiClueLlmCaller.cs`,
   `Infrastructure/AI/AiClueResponseParser.cs`, `Infrastructure/AI/LlmCallExceptions.cs`.
   `AiClueLlmCaller` **ne journalise pas** : il rend latence / version de prompt / modèle effectif /
   usage, et `AiCluesGeneratorBase` conserve ses messages de log inchangés.
-- **Gotcha LM Studio** : le toggle « enable thinking » est appliqué **au chargement du modèle** et
-  n'est capturé par aucun champ observable du manifeste. Le consigner via
-  `--notes "thinking OFF, ctx 16k"`, recopié dans la ligne du registre.
 
 ## Testing
 
