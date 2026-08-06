@@ -84,7 +84,11 @@ function renderItem() {
     '<div class="board">' + boardHtml() + "</div>" +
     '<div class="question">Pour un joueur qui ne connaît que les 16 mots, lequel de ces deux ' +
     'indices mène le plus directement à <span class="pair">' +
-    esc(view.referenceWords.join("</span> + <span class=\"pair\">")) + "</span> ?</div>" +
+    // Échapper CHAQUE mot, puis joindre avec le balisage. L'inverse (joindre puis échapper)
+    // fait passer le séparateur dans esc() : le juge lisait « à Marron</span> + <span
+    // class="pair">Collier ? » au lieu de la question du PRD.
+    view.referenceWords.map((w) => esc(w)).join("</span> + <span class=\"pair\">") +
+    "</span> ?</div>" +
     '<div class="options">' +
     '<div class="option" id="opt1">' + esc(view.position1Clue) + '<span class="k">← position 1</span></div>' +
     '<div class="option" id="opt2">' + esc(view.position2Clue) + '<span class="k">position 2 →</span></div>' +
