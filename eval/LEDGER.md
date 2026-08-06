@@ -32,6 +32,51 @@
 
 | 2026-08-06 | `27e36fefe975` | mistralai/ministral-3-14b-reasoning · clue v2 · temp 0,3 · **topP 1,0** · maxOut 512 | comparisons.dev.jsonl | 85 + 5 ancres | 0 | **0,521** [0,375 ; 0,667] ✗ | **0,038** [-0,250 ; 0,323] ✗ | 0,561 ✓ | 0,145 ✓ | **renvoyé en P3** | **9** décodages/indice, 48/85 couples tranchés. Première ligne de la **génération 2** : `topP` passe de `null` (= réglage LM Studio, non transmis) à 1,0 explicite — l'empreinte cesse de mentir, mais elle se déplace. **Deux variables bougent à la fois** (`topP` dans l'empreinte, `decodesPerClue` hors empreinte) : les effets ne sont pas séparables sur cette seule ligne, dette assumée et à solder. Le levier de granularité **fonctionne** — égalités décodeur 0,333 → 0,259, couples tranchés 42 → 48 — mais accord et κ s'effondrent (0,667 → 0,521 ; 0,332 → 0,038). La dilution seule ne l'explique pas : 28 accords sur 42 en gen1, les 6 nouveaux couples tranchés à pile ou face donneraient ~31/48 = 0,646, or on observe 25/48. Les couples déjà tranchés ont donc changé de verdict → **`topP 1,0` dégrade le décodeur**, hypothèse dominante. Cohérent avec le haut d'échelle : `strict` 2/22 → 3/22 mais `half` 14/22 → 9/22, signature d'un décodeur plus catégorique donc plus bruité. Ni le plancher (0,145, identique) ni la non-saturation (0,587 → 0,561, un quart de direction d'écart) ne bougent : l'effet porte sur l'**ordonnancement**, pas sur l'amplitude. Q4_K_M, ctx 4096, thinking vérifié inactif (`reasoning_tokens = 0`). `decode_failure_rate` 0,094 : ventilation N2 20/480 (4,2 %, tous `outOfVocabulary`) contre N3 29/40 (72,5 %) — l'alerte accuse encore `decode-clue`, c'est `decode-board` qui décroche. |
 
+| 2026-08-06 | `dc38ea230804` | qwen/qwen3-8b · clue v2 · temp 0,3 · **topP 1,0** · maxOut 512 | comparisons.dev.jsonl | 85 + 5 ancres | 0 | **0,620** [0,480 ; 0,760] ✗ | **0,245** [-0,027 ; 0,504] ✗ | 0,371 ✓ | 0,126 ✓ | **renvoyé en P3** | **9** décodages/indice, 50/85 couples tranchés, égalités décodeur 0,153 (contre 0,224 en gen1). Réplique gen2 de `9a829dc206d2`, mêmes réglages que `27e36fefe975`. **Va en sens inverse du 14B** : accord 0,583 → 0,620 et κ 0,171 → 0,245, quand le 14B faisait 0,667 → 0,521 et 0,332 → 0,038. Le même changement améliore l'un et dégrade l'autre → l'hypothèse « `topP 1,0` dégrade », avancée sur la seule ligne `27e36fefe975`, **n'est pas soutenue** (voir note ci-dessous). Le levier de granularité se confirme en revanche sur les deux (48 → 50 couples tranchés ici). Amplitude inchangée : plancher 0,128 → 0,126, non-saturation 0,341 → 0,371. `decode_failure_rate` 0,023, **sous le garde-fou** — qwen tient `decode-board` là où les deux Mistral décrochent (N3 : 12/520 tous niveaux confondus). Q4_K_M, ctx **4096** (contre 8k en gen1 — sans effet attendu, le prompt fait ~385 tokens, mais désormais consigné par la sonde runtime). Thinking vérifié inactif (`reasoning_tokens = 0`). |
+
+| 2026-08-06 | `6a97f056ae51` | mistralai/ministral-3-3b · clue v2 · temp 0,3 · **topP 1,0** · maxOut 512 | comparisons.dev.jsonl | 85 + 5 ancres | 0 | **0,569** [0,431 ; 0,706] ✗ | **0,149** [-0,118 ; 0,409] ✗ | 0,439 ✓ | 0,148 ✓ | **renvoyé en P3** | **9** décodages/indice, 51/85 couples tranchés, égalités décodeur 0,247. Réplique gen2 de `cc992cfe4dd6`. **Deuxième amélioration sur trois** : accord 0,490 → 0,569, κ -0,017 → 0,149. Avec qwen (+0,037) contre le 14B (-0,146), l'hypothèse « `topP 1,0` dégrade » est **abandonnée** — voir la note de synthèse. Plancher 0,148, la marge la plus fine des six calibrations (seuil 0,15) ; `decode_failure_rate` 0,044, sous le garde-fou. Q4_K_M, ctx 4096, thinking inactif (`reasoning_tokens = 0`). |
+
+### Note — synthèse des six calibrations : les trois décodeurs sont indiscernables
+
+Les six lignes ci-dessus couvrent trois modèles × deux générations. Le classement **s'inverse
+exactement** d'une génération à l'autre :
+
+| rang | gen1 (topP implicite, 5 décodages) | gen2 (topP 1,0, 9 décodages) |
+|---|---|---|
+| 1 | ministral-14b **0,667** | qwen3-8b **0,620** |
+| 2 | qwen3-8b 0,583 | ministral-3-3b 0,569 |
+| 3 | ministral-3-3b 0,490 | ministral-14b 0,521 |
+
+Les six intervalles de confiance se recouvrent tous ; ils partagent la plage [0,524 ; 0,633].
+**Aucun des trois décodeurs ne se distingue statistiquement des deux autres.**
+
+Ce que cela corrige, explicitement :
+
+1. **La note « le troisième point infirme en partie »** (ci-dessous) concluait que « le modèle
+   compte, et il compte beaucoup », sur la foi du seul `661856eb18c6`. Faux : ce 0,667 était une
+   fluctuation haute, et le même modèle rend 0,521 sous l'autre granularité. La note qu'elle
+   corrigeait — « le facteur limitant n'est probablement pas le choix du modèle », écrite sur deux
+   points — avait raison.
+2. **L'hypothèse « `topP 1,0` dégrade »** de la ligne `27e36fefe975` : le même changement améliore
+   qwen (+0,037) et le 3B (+0,079), et ne dégrade que le 14B (-0,146). Abandonnée.
+
+Ce qui résiste aux six lignes :
+
+- **Aucun décodeur ne franchit les portes.** Accord de 0,490 à 0,667 pour un seuil à 0,75 ; κ de
+  -0,017 à 0,332 pour un seuil à 0,40. C'est le seul constat que la série établit fermement.
+- **`decodesPerClue = 9` fait ce qu'on lui demande**, sur les trois modèles sans exception :
+  couples tranchés 42 → 48, 48 → 50, 49 → 51. Seul changement dont la direction soit constante.
+- **`topP` ne touche pas l'amplitude** : plancher 0,128 → 0,126, 0,139 → 0,148, 0,145 → 0,145 ;
+  non-saturation 0,341 → 0,371, 0,436 → 0,439, 0,587 → 0,561.
+
+**Le facteur limitant n'est plus le décodeur, c'est le corpus.** 85 couples dont ~50 tranchés ne
+suffisent pas à départager des instruments aussi proches : à ce dénominateur, l'écart-type de
+l'accord avoisine 0,07, donc ±0,14 à deux sigmas — soit exactement l'amplitude de tout ce qu'on a
+observé aujourd'hui. Continuer à comparer des modèles sur ce lot revient à courir après du bruit.
+
+Deux voies devant, et le **prompt `decode-clue` reste la variable jamais testée** — la seule que
+les six calibrations partagent.
+
 ### Note — deux décodeurs indépendants, un même mode d'échec
 
 `9a829dc206d2` (Qwen, 8B, chinois) et `cc992cfe4dd6` (Ministral, 3B, français) n'ont en commun
