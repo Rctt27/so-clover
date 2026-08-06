@@ -20,7 +20,7 @@
     "apiKey": "lm-studio",
     "defaultModel": "qwen/qwen3-8b",
     "defaultTemperature": 0.3,
-    "topP": null,
+    "topP": 1.0,
     "maxOutputTokens": 512,
     "maxRetries": 0,
     "timeoutSeconds": 300,

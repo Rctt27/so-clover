@@ -187,6 +187,22 @@ npm run dev   # Proxy automatique vers localhost:5000
   de publier une ligne `calibré` si une porte est tombée ou si l'empreinte diverge — jamais de
   repli silencieux en `pré-calibration`. Les 18 colonnes du registre sont préservées : l'empreinte
   vit dans la cellule *statut*.
+- **Ce que l'empreinte ne capture pas — et pourquoi `topP` n'est plus `null`** : `ChatOptions` ne
+  transmet que `ModelId`, `Temperature`, `TopP` et `MaxOutputTokens`, et `ClueDecoder` n'envoie
+  `TopP` **que s'il est non-null**. Un `topP: null` ne signifiait donc pas « défaut du provider »
+  mais « valeur des réglages LM Studio », **qui sont par modèle** : deux décodeurs pouvaient
+  différer par leur `top_p` sans qu'aucun artefact ne le montre, alors que l'empreinte affichait
+  honnêtement « topP : — ». D'où `Decoder.topP = 1.0` dans `evalsettings.json` — neutre (pas de
+  troncature nucleus), explicite, et dans l'empreinte. La température, elle, a toujours été
+  transmise : vérifié empiriquement (temp 0 → 1 réponse distincte sur 8, temp 2 → 8 sur 8), le
+  réglage de l'UI LM Studio n'est qu'un défaut, il **n'override pas** la requête.
+  **L'angle mort résiduel se documente, il ne se prétend pas résolu** : `top_k`, `repeat_penalty`
+  et `min_p` ne sont transmis par aucun `ChatOptions` ni exposés par aucun endpoint → `--notes`.
+  `quantization` et `loadedContextLength`, eux, sont lisibles sur l'API native
+  (`ModelRuntimeProbe`, `/api/v0/models`) et consignés dans `DecodeManifest` / `CalibrationManifest`
+  — **hors empreinte**, en champs nullables de fin de record (les artefacts antérieurs se relisent
+  inchangés). L'empreinte dit ce qu'on a *demandé* ; ces champs disent ce que la machine a *servi*.
+  Les y ajouter invaliderait tout l'historique : `ModelRuntimeProbeTests` verrouille l'invariant.
 - **L'empreinte est dans le nom des artefacts** : `<runId>.<empreinte>.decoded.jsonl` et
   `<runId>.<empreinte>.metrics.json`. Un décodage **est** le produit d'un décodeur donné — deux
   décodeurs sur le même run sont deux artefacts, pas deux versions d'un seul. L'empreinte est dans
