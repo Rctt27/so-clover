@@ -231,6 +231,15 @@ npm run dev   # Proxy automatique vers localhost:5000
 - **Reprise de `calibrate`** : `--decodes` ou `--epsilon` divergent du manifeste existant est
   refusé (`RequireCompatibleResume`, symétrie avec `decode`) — ε se décide **avant** de lire
   l'accord, le changer en cours de calibration est une faute de protocole.
+- **La granularité est dans le nom de la calibration** : `calibration.<date>-<empreinte>-d<N>.jsonl`
+  (`CalibrateCommand.CalibrationIdFor`). `decodesPerClue` est hors **empreinte** par construction,
+  mais il devait entrer dans le **nom** — sans quoi calibrer le même décodeur à deux granularités
+  le même jour vise le même chemin, `RequireCompatibleResume` refuse (à juste titre), et le seul
+  contournement est `--force`, qui écrase des milliers de décodages déjà payés. C'est le pendant
+  exact de l'empreinte dans le nom des décodages. La granularité vient **après** l'empreinte : les
+  artefacts de `eval/human/` se trient par date puis par décodeur, cet ordre de lecture survit à
+  l'ajout. Seule la fabrication du nom change — les artefacts antérieurs à la convention
+  (`calibration.20260806-9a829dc206d2.jsonl`, les six premiers) restent lus.
 - **Trois compteurs de couples, trois noms** : `AgreementReport.CoupleCount` (tous les couples
   principaux, ancres exclues), `FamilyAgreement.ScorableCoupleCount` (non-scorables exclus),
   `CalibrationManifest.CoupleAndAnchorCount` (ancres **incluses**). Le nom porte la sémantique :

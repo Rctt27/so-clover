@@ -114,7 +114,8 @@ public static class CalibrateCommand
         var saturationRecovery = ReadRecovery(saturationMetrics);
         var floorRecovery = ReadRecovery(floorMetrics);
 
-        var calibrationId = $"{DateTime.UtcNow:yyyyMMdd}-{fingerprint}";
+        var calibrationId = CalibrationIdFor(
+            DateTime.UtcNow.ToString("yyyyMMdd"), fingerprint, decodesPerClue);
         var path = CalibrationFile.PathFor(outDirectory, calibrationId);
         var existing = force ? null : CalibrationFile.ReadOrNull(path);
 
@@ -288,6 +289,25 @@ public static class CalibrateCommand
     }
 
     /// <summary>Score des ancres <b>par le décodeur</b> : diagnostic de l'instrument.</summary>
+    /// <summary>
+    /// Identifiant d'une calibration : date, empreinte du décodeur, <b>et granularité</b>.
+    /// <para>
+    /// <c>decodesPerClue</c> est hors empreinte par construction — il change la granularité de R̄,
+    /// pas le décodeur — mais il était aussi absent du <b>nom</b>. Conséquence rencontrée le
+    /// 2026-08-06 : après avoir calibré <c>27e36fefe975</c> à 9 décodages, recalibrer le même
+    /// décodeur à 5 pour départager l'effet de <c>topP</c> de celui de la granularité visait le
+    /// même chemin, et <c>RequireCompatibleResume</c> refusait à juste titre. Le seul
+    /// contournement était <c>--force</c>, qui écrase 1 620 décodages déjà payés.
+    /// </para>
+    /// <para>
+    /// La granularité vient <b>après</b> l'empreinte : les artefacts de <c>eval/human/</c> se
+    /// trient par date puis par décodeur, et cet ordre de lecture survit à l'ajout. Seule la
+    /// fabrication du nom change — les artefacts antérieurs à la convention restent lus.
+    /// </para>
+    /// </summary>
+    public static string CalibrationIdFor(string utcDate, string fingerprint, int decodesPerClue) =>
+        $"{utcDate}-{fingerprint}-d{decodesPerClue}";
+
     public const string DecoderAnchorLabel = "ancres (décodeur)";
 
     /// <summary>Score des ancres <b>par le juge</b> : c'est lui qui arme <c>AnchorSuspect</c>.</summary>
