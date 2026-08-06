@@ -187,6 +187,23 @@ npm run dev   # Proxy automatique vers localhost:5000
   de publier une ligne `calibré` si une porte est tombée ou si l'empreinte diverge — jamais de
   repli silencieux en `pré-calibration`. Les 18 colonnes du registre sont préservées : l'empreinte
   vit dans la cellule *statut*.
+- **L'empreinte est dans le nom des artefacts** : `<runId>.<empreinte>.decoded.jsonl` et
+  `<runId>.<empreinte>.metrics.json`. Un décodage **est** le produit d'un décodeur donné — deux
+  décodeurs sur le même run sont deux artefacts, pas deux versions d'un seul. L'empreinte est dans
+  les **deux** noms parce que `MetricsReport` n'en porte aucune dans son schéma :
+  `CalibrationGates.FingerprintOfMetrics` la lit dans le fichier **frère**, et casser cette fratrie
+  casse les portes. `score` écrit donc ses métriques à côté du décodage *qu'il a employé*, jamais
+  à côté du run seul. `DecodeFile.FindForRun` résout le décodage pour les verbes qui n'instancient
+  aucun décodeur (`score`, `compare`, `analyze`) : `null` si aucun, le chemin s'il n'y en a qu'un,
+  et **refus bruyant** dès qu'il y en a plusieurs — un score publié sous le mauvais décodeur ne se
+  voit sur aucun chiffre. La sortie est `--decoded <chemin>`. Les décodages antérieurs à la
+  convention (`<runId>.decoded.jsonl`) restent lisibles : ils coûtent des centaines d'appels LLM,
+  on ne les rend pas invisibles par un renommage.
+- **Reprise de `decode`** : `DecodeCommand.RequireCompatibleResume` vérifie l'**empreinte complète**
+  *et* `decodesPerClue` — deux contrôles distincts, puisque `decodesPerClue` est hors de l'empreinte
+  par construction. Sans le premier, reprendre après un changement de modèle ou de prompt ajoutait
+  les nouvelles lignes sous un manifeste ne nommant que le premier décodeur, et
+  `DecoderFingerprint.FromManifest` rendait une empreinte fausse pour la moitié du fichier.
 - **Les quatre portes, en un verdict** : accord ≥ 0,75, κ ≥ 0,40, non-saturation ≤ 0,95, plancher
   ≤ 0,15. `calibrate` calcule les deux premières et **lit** les deux autres dans les `.metrics.json`
   désignés. Sans cette agrégation, on franchit « une porte sur trois » portes sur quatre.
