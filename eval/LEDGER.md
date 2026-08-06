@@ -38,6 +38,52 @@
 
 | 2026-08-06 | `27e36fefe975` | mistralai/ministral-3-14b-reasoning · clue v2 · temp 0,3 · **topP 1,0** · maxOut 512 | comparisons.dev.jsonl | 85 + 5 ancres | 0 | **0,581** [0,442 ; 0,721] ✗ | **0,164** [-0,129 ; 0,445] ✗ | 0,561 ✓ | 0,145 ✓ | **renvoyé en P3** | **5** décodages/indice, 43/85 couples tranchés. Artefact `…-d5`, à côté du `…-d9` du **même décodeur** — la granularité est désormais dans le nom (correctif `a27bc98`), sans quoi cette ligne était impossible à produire sans écraser la précédente. **Solde la dette de `27e36fefe975`** : à granularité constante (5), `topP 1,0` coûte −0,086 au 14B (0,667 → 0,581) ; à `topP` constant, 5 → 9 décodages coûte −0,060 (0,581 → 0,521). Les deux moitiés de l'écart total. Mais les mêmes changements **améliorent** qwen et le 3B : aucun des deux n'a d'effet systématique. Voir la note de synthèse mise à jour. |
 
+| 2026-08-06 | `3f40887c807d` | qwen/qwen3-8b · **clue v3** · temp 0,3 · topP 1,0 · maxOut 512 | comparisons.dev.jsonl | 85 + 5 ancres | 0 | **0,608** [0,471 ; 0,745] ✗ | **0,234** [-0,025 ; 0,480] ✗ | 0,364 ✓ | 0,135 ✓ | **renvoyé en P3** | **9** décodages/indice, 51/85 couples tranchés, égalités décodeur 0,176. **Première variation du prompt `decode-clue`** — la seule variable que les sept calibrations précédentes partageaient. Une seule variable bouge : modèle, température, `topP`, `maxOut` et granularité sont identiques à `dc38ea230804`. v3 remplace le critère **marginal** de v2 (« les deux mots dont le lien avec l'indice est le plus fort ») par un critère **joint** (« la paire pour laquelle cet indice a été écrit » ; un mot fort accompagné d'un mot faible y est déclaré mauvaise réponse). Motivation — diagnostic agrégé sous v2 : 62,6 % des décodages à `r = 0,5` contre 6,1 % à `r = 1`, et 49 des 180 indices à R̄ exactement 0,5. **Le prompt n'a rien déplacé** : accord 0,620 → 0,608, κ 0,245 → 0,234, des écarts d'un ordre de grandeur sous le bruit d'échantillonnage. Voir la note de synthèse ci-dessous. Ancres décodeur 5/5 (discrimination grossière intacte), lot toujours `AnchorSuspect` (juge 3/5, même corpus). Gain réel mais hors portes : la robustesse de format de `decode-clue` passe à **0,006** d'échecs sur le plancher (3/480) et **0,000** sur l'humain (0/117), contre ~4,2 % pour plusieurs empreintes v2. Plancher et saturation re-mesurés sous v3 (0,135 et 0,364) — la marge du plancher se resserre, 0,126 → 0,135 pour un seuil à 0,15. Q4_K_M, ctx 4096, thinking vérifié inactif (`reasoning_tokens = 0`). |
+
+### Note — `decode-clue` v3 change 37,5 % des réponses sans rien changer à la qualité
+
+L'ordre de présentation des seize mots est déterministe (`ShuffleSeed.ForClue`), donc les 1620
+décodages de `dc38ea230804` et de `3f40887c807d` s'apparient **un à un** : même board, même
+direction, même indice, même ordre de présentation. C'est ce qui rend la comparaison ci-dessous
+possible.
+
+| | v2 `dc38ea230804` | v3 `3f40887c807d` |
+|---|---|---|
+| `r = 0` | 0,314 | 0,315 |
+| `r = 0,5` | 0,626 | 0,625 |
+| `r = 1` | 0,061 | 0,059 |
+| indices à R̄ = 0,5 exact | 49 / 180 | 49 / 180 |
+| accord | 0,620 | 0,608 |
+| κ | 0,245 | 0,234 |
+
+Et pourtant : **le décodeur change de paire sur 608 des 1620 décodages appariés — 37,5 %.**
+
+v3 mord donc réellement ; ce n'est pas un prompt ignoré. Mais son effet est **orthogonal à la
+qualité** : il redistribue les réponses sans déplacer d'un millième la distribution de `r`. Même
+signature que les deux runs gemma du 2026-08-04, `NEUTRE` entre eux et pourtant divergents sur
+62,4 % des directions.
+
+Ce que cela établit : **le pic à `r = 0,5` n'est pas un artefact de formulation du critère.**
+L'hypothèse « v2 demande la mauvaise chose — les deux meilleurs mots au lieu de la meilleure
+paire » est réfutée. On a demandé explicitement la paire, avec interdiction de compléter au jugé,
+et le décodeur retrouve exactement aussi souvent un seul mot sur deux. Retrouver la seconde moitié
+d'une paire parmi seize mots à partir d'un indice unique est un **plafond de la tâche** pour ce
+décodeur, pas un défaut d'énoncé.
+
+Ce que cela ne réfute pas : la piste du prompt n'est pas épuisée, elle a perdu sa variante la moins
+chère. Ce qui y reste est d'une autre nature — v2 comme v3 interdisent toute **délibération**
+(« sans justification, sans réflexion écrite », consigne qui inhibe aussi le reasoning natif :
+`reasoning_tokens = 0` mesuré ici encore). Changer l'énoncé de l'objectif ne change rien ; changer
+le **calcul disponible** pour l'atteindre reste non testé. C'est une v4, et c'est une variable
+distincte — ne pas l'agréger à celle-ci.
+
+**Conséquence sur la lecture d'ensemble.** La note « les sept calibrations sont compatibles avec un
+accord unique ≈ 0,58 » désignait le prompt comme piste 1 et le plafond humain inter-juges comme
+piste 2. La huitième calibration tombe dans le même intervalle (0,608 ; moyenne des huit **0,580**)
+et retire à la piste 1 son argument le plus direct. **La piste 2 devient la seule qui puisse encore
+expliquer la série** — et elle reste non mesurée. Le seuil ne se rediscute toujours pas avant
+cette mesure.
+
 ### Note — les sept calibrations sont compatibles avec un accord unique ≈ 0,58
 
 La septième ligne solde la dette et permet le calcul d'ensemble. Sur les sept calibrations
@@ -172,3 +218,5 @@ Effet sur la lecture : la cohérence servait à établir que la porte d'accord �
 l'IC 95 % entier de l'accord (0,438 ; 0,708) est sous le seuil, donc l'échec ne s'explique pas
 par un juge bruité — mais elle demandera une confirmation à la prochaine séance, dont les
 doublons sont désormais entrelacés (correctif `a8e74b3`).
+| 2026-08-06 | human-20260804-e59651fc | boards.dev.jsonl | — | — | human | — | temp 0 / topP — / maxTokens — / maxRetries 0 / reasoning False / subset=elicitation.dev.jsonl (40/160) | 0,975 | 0,975 | 0,346 | 0,026 | 0,538 | 0,000 | pré-calibration | neutre | — | gén. : séance A, 40 direction(s), seed 20260804002 ; déc. : qwen/qwen3-8b (decode-clue v3 (critere joint), qwen3-8b Q4_K_M ctx 4096, thinking OFF verifie (reasoning_tokens=0)) |
+| 2026-08-06 | 20260728-vnone-random-baseline-seed-20260727000-a45667bc | boards.dev.jsonl | — | — | random-baseline-seed-20260727000 | — | temp 0 / topP — / maxTokens — / maxRetries 0 / reasoning False | 1,000 | 1,000 | 0,135 | 0,000 | 0,238 | 0,000 | pré-calibration | neutre | — | déc. : qwen/qwen3-8b (decode-clue v3 (critere joint), qwen3-8b Q4_K_M ctx 4096, thinking OFF verifie (reasoning_tokens=0)) |
