@@ -40,6 +40,62 @@
 
 | 2026-08-06 | `3f40887c807d` | qwen/qwen3-8b · **clue v3** · temp 0,3 · topP 1,0 · maxOut 512 | comparisons.dev.jsonl | 85 + 5 ancres | 0 | **0,608** [0,471 ; 0,745] ✗ | **0,234** [-0,025 ; 0,480] ✗ | 0,364 ✓ | 0,135 ✓ | **renvoyé en P3** | **9** décodages/indice, 51/85 couples tranchés, égalités décodeur 0,176. **Première variation du prompt `decode-clue`** — la seule variable que les sept calibrations précédentes partageaient. Une seule variable bouge : modèle, température, `topP`, `maxOut` et granularité sont identiques à `dc38ea230804`. v3 remplace le critère **marginal** de v2 (« les deux mots dont le lien avec l'indice est le plus fort ») par un critère **joint** (« la paire pour laquelle cet indice a été écrit » ; un mot fort accompagné d'un mot faible y est déclaré mauvaise réponse). Motivation — diagnostic agrégé sous v2 : 62,6 % des décodages à `r = 0,5` contre 6,1 % à `r = 1`, et 49 des 180 indices à R̄ exactement 0,5. **Le prompt n'a rien déplacé** : accord 0,620 → 0,608, κ 0,245 → 0,234, des écarts d'un ordre de grandeur sous le bruit d'échantillonnage. Voir la note de synthèse ci-dessous. Ancres décodeur 5/5 (discrimination grossière intacte), lot toujours `AnchorSuspect` (juge 3/5, même corpus). Gain réel mais hors portes : la robustesse de format de `decode-clue` passe à **0,006** d'échecs sur le plancher (3/480) et **0,000** sur l'humain (0/117), contre ~4,2 % pour plusieurs empreintes v2. Plancher et saturation re-mesurés sous v3 (0,135 et 0,364) — la marge du plancher se resserre, 0,126 → 0,135 pour un seuil à 0,15. Q4_K_M, ctx 4096, thinking vérifié inactif (`reasoning_tokens = 0`). |
 
+### Note — sonde `decode-clue` v4 (scratchpad borné) : mesure arrêtée avant calibration
+
+**Aucune ligne de calibration** : la mesure s'est arrêtée sur un critère fixé d'avance, avant
+d'engager les ~3 h d'appels. Cette note tient lieu de résultat.
+
+v4 (commit `9d70e94`) = v3 + un scratchpad **dans le JSON**, émis avant le choix : `candidats`
+(4 mots du plateau) puis `lien` (une phrase de 15 mots max), puis `picked`. Motivation : v3 a
+établi que changer l'*énoncé* de l'objectif ne change rien ; restait à changer le *calcul
+disponible*. Le scratchpad doit vivre dans l'objet JSON — `ClueDecoder.TryParsePicked` fait
+`JsonDocument.Parse` sur la réponse entière, donc une délibération en texte libre avant le JSON
+serait `unparseable`.
+
+Deux sondes hors harnais (appels directs à LM Studio ; l'ordre de présentation de `ShuffleSeed`
+n'est pas répliqué, donc elles mesurent le **coût** et la **conformité**, jamais l'accord) :
+
+| | 20 indices × 5 (n=99) | 60 indices × 5 (n=298) |
+|---|---|---|
+| pic `r = 0,5` sous v4 | 0,525 | **0,631** |
+| pic `r = 0,5` sous v2, mêmes indices | 0,609 | 0,561 |
+| Δ | −0,084 | **+0,070** |
+
+**Le signe s'inverse entre les deux sondes.** Le premier lot suggérait que le scratchpad *disperse*
+R̄ — l'effet recherché : moins d'égalités, plus de couples tranchés. Le lot élargi dit l'inverse,
+il *concentre* : sur les 40 indices ajoutés, le pic vaut **0,684** contre 0,525 sur les 20
+premiers. C'est précisément pourquoi la sonde a été élargie avant d'engager la calibration.
+
+Le critère pré-enregistré (|Δ| ≥ 2 σ) tombe à **1,99 σ**, du mauvais côté au dernier chiffre.
+**Mais ce critère était mal spécifié, et dans le sens permissif** : les 5 décodages d'un même
+indice ne sont pas indépendants, donc le σ binomial calculé sur 298 décodages sous-estime la
+variance. Au σ corrigé de la corrélation intra-indice, l'écart vaut **0,9 à 1,2 σ** selon
+l'hypothèse retenue (ρ = 1 ⟹ 0,89 σ ; ρ = 0,5 ⟹ 1,15 σ). La conclusion ne change pas, elle se
+durcit : **effet non établi**.
+
+Ce qui est acquis, et qui n'est pas rien :
+
+- **Le scratchpad borné tient son budget.** Sortie médiane **60 tokens**, maximum 89, plafond 512,
+  **zéro troncature** sur 400 appels ; 2 échecs de format sur 300 (`outOfVocabulary`) ;
+  `picked ⊆ candidats` dans 292/298. Un scratchpad structuré dans le JSON est un mécanisme de
+  délibération **contrôlable** — contrairement au reasoning natif, que le harnais ne peut pas
+  borner côté décodeur (`ChatOptions` ne transmet ni budget ni effort ; le thinking ne dépend que
+  du toggle LM Studio, invisible).
+- **Le coût est linéaire en tokens de sortie**, à ~13 tokens/s en génération locale : 12 tokens
+  (v3) → 0,66 s ; 60 tokens (v4) → 4,8 s. Calibration + portes passeraient de 25 min à **~3 h**.
+  Décharger le second modèle de LM Studio n'y change rien (4881 → 4753 ms, 2,6 %) : le goulot n'est
+  pas la VRAM partagée.
+- Corollaire : le cran suivant envisagé (scratchpad noté, ~150 tokens) coûterait ~7 h à
+  iso-protocole. **L'échelle de délibération s'arrête ici pour des raisons de machine, pas de
+  méthode.**
+
+`decode-clue.md` revient donc à **v3**, la version calibrée ; v4 reste récupérable par
+`git revert 9d70e94`.
+
+**Ce que la série dit maintenant.** Deux leviers de prompt ont été essayés sur le décodeur —
+l'énoncé du critère (v3, calibré, sans effet) et la délibération écrite (v4, sondé, sans effet
+établi). Il reste le **plafond humain inter-juges, toujours non mesuré**, et il est désormais seul.
+
 ### Note — `decode-clue` v3 change 37,5 % des réponses sans rien changer à la qualité
 
 L'ordre de présentation des seize mots est déterministe (`ShuffleSeed.ForClue`), donc les 1620
