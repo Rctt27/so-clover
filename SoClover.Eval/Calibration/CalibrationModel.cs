@@ -40,7 +40,11 @@ public sealed record CalibrationManifest(
     int DecodesPerClue,
     double Epsilon,
     int HarnessVersion,
-    string? OperatorNotes);
+    string? OperatorNotes,
+    // Symétrique de DecodeManifest : ce que la machine a servi. Nullables et en fin de record,
+    // donc les calibrations déjà committées se relisent inchangées. Hors DecoderFingerprint.
+    string? Quantization = null,
+    int? LoadedContextLength = null);
 
 /// <summary>
 /// Un décodage de calibration. C'est <see cref="ClueDecodeLine"/> <b>plus le champ

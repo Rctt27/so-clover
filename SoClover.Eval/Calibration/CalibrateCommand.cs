@@ -123,6 +123,9 @@ public static class CalibrateCommand
             var providerModelListHash = await EvalLlmConfig
                 .FetchProviderModelListHashAsync(opts, ct).ConfigureAwait(false);
 
+            var runtime = await ModelRuntimeProbe
+                .FetchAsync(opts, opts.DefaultModel, ct).ConfigureAwait(false);
+
             CalibrationFile.WriteManifest(path, new CalibrationManifest(
                 Kind: "manifest",
                 CalibrationId: calibrationId,
@@ -146,7 +149,9 @@ public static class CalibrateCommand
                 DecodesPerClue: decodesPerClue,
                 Epsilon: epsilon,
                 HarnessVersion: CalibrationFile.HarnessVersion,
-                OperatorNotes: notes));
+                OperatorNotes: notes,
+                Quantization: runtime.Quantization,
+                LoadedContextLength: runtime.LoadedContextLength));
         }
         else
         {

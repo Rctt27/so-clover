@@ -66,6 +66,9 @@ public static class DecodeCommand
             var providerModelListHash = await EvalLlmConfig
                 .FetchProviderModelListHashAsync(opts, ct).ConfigureAwait(false);
 
+            var runtime = await ModelRuntimeProbe
+                .FetchAsync(opts, opts.DefaultModel, ct).ConfigureAwait(false);
+
             DecodeFile.WriteManifest(decodedPath, new DecodeManifest(
                 Kind: "manifest",
                 DecodeRunId: $"{run.Manifest.RunId}+decode-{DateTime.UtcNow:yyyyMMddHHmmss}",
@@ -87,7 +90,9 @@ public static class DecodeCommand
                 BoardPromptVersion: boardDecoder.PromptVersion,
                 DecodesPerClue: decodesPerClue,
                 HarnessVersion: RunFile.HarnessVersion,
-                OperatorNotes: notes));
+                OperatorNotes: notes,
+                Quantization: runtime.Quantization,
+                LoadedContextLength: runtime.LoadedContextLength));
         }
         else
         {

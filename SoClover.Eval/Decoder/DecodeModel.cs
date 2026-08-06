@@ -26,7 +26,13 @@ public sealed record DecodeManifest(
     int? BoardPromptVersion,
     int DecodesPerClue,
     int HarnessVersion,
-    string? OperatorNotes);
+    string? OperatorNotes,
+    // Ce que la machine a servi, par opposition aux champs ci-dessus qui disent ce qu'on a
+    // demandé. Nullables et en fin de record : les manifestes antérieurs se relisent inchangés,
+    // avec ces deux champs à null. Volontairement HORS DecoderFingerprint — voir
+    // ModelRuntimeProbe et ModelRuntimeProbeTests.
+    string? Quantization = null,
+    int? LoadedContextLength = null);
 
 /// <summary>
 /// Un décodage mono-indice (N2). <c>R = |picked ∩ referenceWords| / 2 ∈ {0, 0.5, 1}</c>.
