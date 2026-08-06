@@ -76,7 +76,9 @@ SoClover/wwwroot/
 dist/
 
 # AI tooling (local config, not project artifacts)
-.claude/
+# Exception : .claude/skills/ est un artefact de projet — méthode versionnée, pas config locale.
+.claude/*
+!.claude/skills/
 .serena/
 .playwright-mcp/
 
