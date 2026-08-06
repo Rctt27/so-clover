@@ -40,6 +40,90 @@
 
 | 2026-08-06 | `3f40887c807d` | qwen/qwen3-8b · **clue v3** · temp 0,3 · topP 1,0 · maxOut 512 | comparisons.dev.jsonl | 85 + 5 ancres | 0 | **0,608** [0,471 ; 0,745] ✗ | **0,234** [-0,025 ; 0,480] ✗ | 0,364 ✓ | 0,135 ✓ | **renvoyé en P3** | **9** décodages/indice, 51/85 couples tranchés, égalités décodeur 0,176. **Première variation du prompt `decode-clue`** — la seule variable que les sept calibrations précédentes partageaient. Une seule variable bouge : modèle, température, `topP`, `maxOut` et granularité sont identiques à `dc38ea230804`. v3 remplace le critère **marginal** de v2 (« les deux mots dont le lien avec l'indice est le plus fort ») par un critère **joint** (« la paire pour laquelle cet indice a été écrit » ; un mot fort accompagné d'un mot faible y est déclaré mauvaise réponse). Motivation — diagnostic agrégé sous v2 : 62,6 % des décodages à `r = 0,5` contre 6,1 % à `r = 1`, et 49 des 180 indices à R̄ exactement 0,5. **Le prompt n'a rien déplacé** : accord 0,620 → 0,608, κ 0,245 → 0,234, des écarts d'un ordre de grandeur sous le bruit d'échantillonnage. Voir la note de synthèse ci-dessous. Ancres décodeur 5/5 (discrimination grossière intacte), lot toujours `AnchorSuspect` (juge 3/5, même corpus). Gain réel mais hors portes : la robustesse de format de `decode-clue` passe à **0,006** d'échecs sur le plancher (3/480) et **0,000** sur l'humain (0/117), contre ~4,2 % pour plusieurs empreintes v2. Plancher et saturation re-mesurés sous v3 (0,135 et 0,364) — la marge du plancher se resserre, 0,126 → 0,135 pour un seuil à 0,15. Q4_K_M, ctx 4096, thinking vérifié inactif (`reasoning_tokens = 0`). |
 
+### Note — sonde v4 sur `ministral-3-14b` : R̄ bondit, le critère pré-enregistré dit non — calibration à faire
+
+**Aucune ligne de calibration** : la sonde a tourné le 2026-08-06 au soir, la calibration
+(≈ 2 h d'appels) est reportée au 2026-08-07. Cette note est le point de reprise.
+
+**Montage.** Reprise à l'identique de la sonde v4/qwen documentée ci-dessous — prompt v4 relu
+directement depuis le commit `9d70e94` (pas une retranscription), mêmes 60 indices (intersection
+v2 ∩ v3, seed `20260806`), 5 décodages, temp 0,3 · topP 1,0 · maxOut 512, thinking OFF. **Une
+seule variable bouge : le modèle.** Hypothèse testée : le nombre de paramètres a un effet fort sur
+la qualité du décodage (8 B → 14 B).
+
+| | r = 0 | r = 0,5 | r = 1 | R̄ |
+|---|---|---|---|---|
+| qwen3-8b v2, mêmes indices (n=537) | 0,371 | 0,561 | 0,069 | 0,350 |
+| qwen3-8b v3, mêmes indices (n=530) | 0,343 | 0,600 | 0,057 | 0,357 |
+| qwen3-8b **v4** (n=300) | — | 0,631 | — | *non conservé* |
+| **ministral-3-14b v4** (n=290) | **0,152** | 0,731 | **0,117** | **0,483** |
+
+**Le critère pré-enregistré n'est pas franchi.** Il portait sur le pic `r = 0,5` contre les 0,631
+de v4/qwen, seuil 2 σ, σ calculé sur l'**indice** comme unité d'analyse (écart-type des 60 moyennes
+par indice / √60 — la correction de corrélation intra-indice que la note ci-dessous avait dû
+appliquer *après coup*, cette fois intégrée dès l'énoncé). Résultat : Δ **+0,100**, σ 0,075, soit
+**1,33 σ**. Non établi — et de surcroît dans le sens *opposé* à l'hypothèse.
+
+**Mais ce critère est aveugle à ce qui s'est produit.** Le pic monte parce que le bas de la
+distribution s'effondre : `r = 0` passe de 0,343 à **0,152** et `r = 1` double, 0,057 → **0,117**.
+Le pic `r = 0,5` est une lecture en un point d'une distribution à trois : il monte aussi bien quand
+les échecs reculent que quand les réussites reculent. Hérité de la sonde v4/qwen — où il testait le
+levier *délibération* — il a été réutilisé pour un levier *différent* sans être réexaminé. C'est
+l'erreur de conception de cette sonde.
+
+**Ce que dit R̄, et pourquoi ça ne décide rien.** R̄ passe de ~0,36 à **0,483**, +35 % en relatif ;
+l'écart tient à **≥ 2,5 σ** même en supposant la corrélation intra-indice maximale. C'est le premier
+déplacement de cette ampleur de toute la série. Il reste **post-hoc** : changer de métrique après
+avoir vu les résultats est ce que la garde 6 interdit, et le verdict de cette sonde demeure
+« non établi ». Deux réserves s'y ajoutent :
+
+- **Dette de garde 1 — deux variables.** Le seul comparateur à distribution complète est qwen **v3**,
+  alors que ministral tourne sous **v4** : le R̄ de v4/qwen n'a jamais été conservé, seul son pic
+  l'a été. L'effet du modèle et celui du prompt ne sont donc pas séparables ici. La calibration les
+  sépare de fait, puisqu'elle mesure autre chose.
+- **R̄ n'est pas ce que les portes mesurent.** Le décodeur ne vise pas à maximiser le taux de
+  récupération mais à **imiter le jugement humain** (accord ≥ 0,75, κ ≥ 0,40), et une porte de
+  non-saturation à 0,95 sanctionne justement un décodeur trop fort. Un R̄ qui bondit peut améliorer
+  l'accord comme le dégrader : **aucune sonde ne peut trancher, seule la calibration le peut.**
+
+**Conformité et coût.** `reasoning_tokens = 0` sur **300/300** — le modèle porte « reasoning » dans
+son nom mais son thinking est inactif, toggle LM Studio OFF au chargement ; c'est *voulu*, la sonde
+de référence était elle aussi thinking OFF. Sortie médiane 67 tokens (max 93, plafond 512), zéro
+troncature. Échecs de format **10/300 (3,3 %)**, tous `outOfVocabulary`. Scratchpad : `picked ⊆
+candidats` 289/290, mais **4 candidats valides seulement 209/290 (72 %)** — ministral observe moins
+bien la contrainte de cardinalité que qwen. Latence médiane **3 250 ms**, soit **3,9×** qwen3-8b
+sous v3 → calibration + portes ≈ **2,0 h**.
+
+**NEXT STEP — reprise du 2026-08-07, dans cet ordre.** Décision prise : on calibre.
+
+1. Restaurer v4 sur disque (le fichier est en v3) :
+   `git show 9d70e94:SoClover.Eval/Decoder/Prompts/fr/decode-clue.md > SoClover.Eval/Decoder/Prompts/fr/decode-clue.md`.
+   Le frontmatter porte déjà `version: 4` — **garde 0 satisfaite, ne rien bumper**.
+2. `evalsettings.local.json` (gitignoré) : `Decoder.defaultModel = mistralai/ministral-3-14b-reasoning`.
+   temp 0,3 · topP 1,0 · maxOutputTokens 512 **inchangés** (ils entrent dans l'empreinte).
+3. LM Studio : ministral-3-14b-reasoning chargé, Q4_K_M, ctx 4096, **thinking OFF**. *Ne pas
+   l'activer* — ce serait une seconde variable, et le plafond de sortie à 512 ne bornerait pas le
+   thinking. Vérifier `reasoning_tokens = 0` au premier appel.
+4. `dotnet build -c Release`.
+5. **Re-décoder les deux runs d'ancrage**, sinon `CalibrationGates.RequireSameDecoder` refuse la
+   calibration (les `.metrics.json` existants portent l'empreinte qwen) — `--decodes 3`, la
+   granularité qu'ils portaient sous `3f40887c807d`, avec `--force` :
+   `decode --run eval/runs/human-20260804-e59651fc.jsonl --decodes 3 --force`
+   `decode --run eval/runs/20260728-vnone-random-baseline-seed-20260727000-a45667bc.jsonl --decodes 3 --force`
+6. `score --run eval/runs/human-20260804-e59651fc.jsonl --subset eval/human/elicitation.dev.jsonl --subset-outcome solide`
+   puis `score` du plancher, `--ledger eval/LEDGER.md`.
+7. `calibrate --comparisons eval/human/comparisons.dev.jsonl --decodes 9 --epsilon 0
+   --saturation-metrics … --floor-metrics … --notes "ministral-3-14b-reasoning Q4_K_M ctx 4096,
+   thinking OFF vérifié (reasoning_tokens=0), clue v4"`.
+   **`--decodes 9` et `--epsilon 0`** reprennent exactement `3f40887c807d` : la granularité est hors
+   empreinte mais dans le nom du fichier, et ε se décide avant de lire l'accord.
+8. Ligne de registre via `score --calibration`, puis commit. Le lot reste `AnchorSuspect` (juge 3/5)
+   et la cohérence intra-juge de la séance B est contaminée : **ne pas publier de statut `calibré`**
+   sans décision explicite de l'utilisateur (garde 12).
+
+Ce qui restera indécidable après cette calibration, quel qu'en soit le résultat : le **plafond
+humain inter-juges**, toujours non mesuré, et toujours la seule explication candidate à la série.
+
 ### Note — sonde `decode-clue` v4 (scratchpad borné) : mesure arrêtée avant calibration
 
 **Aucune ligne de calibration** : la mesure s'est arrêtée sur un critère fixé d'avance, avant
