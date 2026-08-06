@@ -39,12 +39,6 @@ public class BoardDecoderTests
     }
 
     [Fact]
-    public void Exposes_its_own_prompt_version()
-    {
-        Assert.Equal(1, Build(new FakeChatClient()).PromptVersion);
-    }
-
-    [Fact]
     public async Task A_perfect_assignment_scores_1_and_is_solved()
     {
         var board = Board();

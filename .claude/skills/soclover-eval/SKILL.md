@@ -97,6 +97,16 @@ tire `modelVsModel` **hors** des directions annotées par A, ajoute 5 ancres et 
 Ces règles existent parce que chacune a été enfreinte au moins une fois, avec une conclusion fausse
 à la clé.
 
+0. **Toucher au contenu d'un prompt décodeur ⟹ bumper son `version:` dans le même geste.** Aucun
+   test ne le vérifie : les deux assertions littérales qui existaient (`ClueDecoderTests`,
+   `BoardDecoderTests`) ne cassaient que sur un bump *volontaire*, jamais sur l'oubli, et ont été
+   supprimées comme cérémonie sans valeur. Le garde-fou est ici, et nulle part ailleurs. Ce qu'on
+   risque en l'oubliant est l'incident fondateur du cycle P6 : `DecoderFingerprint` ne hache que le
+   *chemin* du prompt et sa version **déclarée**, jamais son contenu — un prompt modifié sans bump
+   garde donc son empreinte, deux décodeurs différents écrivent sous la même identité, et les
+   `recovery` cessent d'être comparables sans qu'aucun artefact ne le signale. Vérifier le
+   frontmatter **avant** de lancer `decode` ou `calibrate` ; l'en-tête de sortie affiche
+   `prompt : clue vN`, le lire.
 1. **Une variable à la fois** (discipline P3) : prompt → modèle → température/maxOutputTokens →
    `decodesPerClue`. Si deux bougent malgré tout, les effets ne sont **pas séparables** : le
    déclarer comme une dette dans la note de registre, et la solder par une mesure dédiée.
