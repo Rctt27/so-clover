@@ -27,3 +27,21 @@
 | date | empreinte | décodeur | lot | couples | ε | accord (IC 95 %) | κ (IC 95 %) | non-sat. | plancher | verdict | notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | 2026-08-06 | `9a829dc206d2` | qwen/qwen3-8b · clue v2 · temp 0,3 · maxOut 512 | comparisons.dev.jsonl | 85 + 5 ancres | 0 | **0,583** [0,438 ; 0,708] ✗ | **0,171** [-0,106 ; 0,429] ✗ | 0,341 ✓ | 0,128 ✓ | **renvoyé en P3** | 5 décodages/indice. Lot marqué `AnchorSuspect` (juge 3/5 : 2 égalités, l'aléatoire n'a jamais gagné) ; cohérence intra-juge 0,900, donc porte d'accord *atteignable*. Décodeur 5/5 sur les ancres : discrimination grossière intacte, discrimination fine nulle — κ humainVsModèle 0,026 (n=25) contre modèleVsModèle 0,233 (n=23). L'IC entier de l'accord est sous le seuil : l'échec ne s'explique pas par le bruit du lot. thinking OFF, ctx 8k. |
+
+### Note — séance B du 2026-08-06, cohérence intra-juge contaminée
+
+Les dix doublons inversés occupaient les **dix derniers items** du lot : `ComparisonPlan` les
+concaténait en queue et `SpaceOut` ne les redistribuait pas. Le juge les a repérés en cours de
+séance et l'a signalé. La valeur `cohérence intra-juge = 0,900` de la ligne ci-dessus est donc
+**un plafond, pas une mesure** — un juge qui sait qu'on le teste sur la cohérence n'est plus
+mesuré sur elle.
+
+Portée de la réserve : **la cohérence intra-juge seule**. Les couples de contrôle sont exclus du
+calcul principal (85 couples + 5 ancres, doublons hors lot), donc ni l'accord ni κ ne s'en
+trouvent affectés — ce sont eux qui portent les deux portes tombées.
+
+Effet sur la lecture : la cohérence servait à établir que la porte d'accord était *atteignable*
+(0,900 > 0,75). Cette conclusion s'appuie sur une valeur surestimée. Elle reste défendable —
+l'IC 95 % entier de l'accord (0,438 ; 0,708) est sous le seuil, donc l'échec ne s'explique pas
+par un juge bruité — mais elle demandera une confirmation à la prochaine séance, dont les
+doublons sont désormais entrelacés (correctif `a8e74b3`).
