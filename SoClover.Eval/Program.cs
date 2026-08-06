@@ -515,7 +515,10 @@ internal static class EvalProgram
             Console.WriteLine($"  position 1 gagne       {N(report.Position1WinRate)}");
             Console.WriteLine($"  taux d'égalité         {N(report.TieRate)}");
             Console.WriteLine($"  cohérence intra-juge   {N(report.IntraJudgeAgreement)}   (sur {report.DuplicatePairCount} doublon(s) inversé(s))");
-            Console.WriteLine($"  ancres réussies        {report.AnchorCorrect} / {report.AnchorCount}");
+            // Même libellé que dans `calibrate`, où deux compteurs d'ancres cohabitent : les deux
+            // sorties doivent se lire l'une contre l'autre sans traduction.
+            Console.WriteLine(
+                $"  {CalibrateCommand.JudgeAnchorLabel,-20} {report.AnchorCorrect} / {report.AnchorCount}   réussies");
 
             if (report.Position1Suspect)
                 Console.WriteLine(

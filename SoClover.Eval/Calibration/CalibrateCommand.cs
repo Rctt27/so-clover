@@ -36,7 +36,12 @@ public sealed record CalibrationReport(
     bool IntraJudgeBelowGate,
     bool Position1Suspect,
     bool AnchorSuspect,
-    string? OperatorNotes);
+    string? OperatorNotes,
+    // Ajout additif : le rapport ne portait que le DRAPEAU d'ancres, jamais le score du juge qui
+    // le déclenche — alors qu'il imprimait, juste au-dessus, celui du décodeur sous le même mot.
+    // Un artefact committé doit rester lisible sans le contexte de la séance qui l'a produit.
+    int JudgeAnchorCorrect = 0,
+    int JudgeAnchorCount = 0);
 
 /// <summary>
 /// Verbe <c>calibrate</c> : re-décode les indices de <c>comparisons.dev.jsonl</c> avec le décodeur
@@ -228,7 +233,9 @@ public static class CalibrateCommand
                                  && humanReport.IntraJudgeAgreement < CalibrationGates.MinAgreement,
             Position1Suspect: humanReport.Position1Suspect,
             AnchorSuspect: humanReport.AnchorSuspect,
-            OperatorNotes: notes);
+            OperatorNotes: notes,
+            JudgeAnchorCorrect: humanReport.AnchorCorrect,
+            JudgeAnchorCount: humanReport.AnchorCount);
 
         var reportPath = CalibrationFile.ReportPathFor(path);
         File.WriteAllText(reportPath, EvalJson.Serialize(report));
@@ -275,6 +282,30 @@ public static class CalibrateCommand
         return metrics.Recovery;
     }
 
+    /// <summary>Score des ancres <b>par le décodeur</b> : diagnostic de l'instrument.</summary>
+    public const string DecoderAnchorLabel = "ancres (décodeur)";
+
+    /// <summary>Score des ancres <b>par le juge</b> : c'est lui qui arme <c>AnchorSuspect</c>.</summary>
+    public const string JudgeAnchorLabel = "ancres (juge)";
+
+    /// <summary>
+    /// Deux compteurs d'ancres, deux libellés. La sortie imprimait <c>ancres 5 / 5</c> — celui du
+    /// décodeur — juste au-dessus de <c>⚠ LOT SUSPECT (ancres ratées)</c>, qui découle de celui du
+    /// juge (3/5). Les deux lignes se contredisaient à la lecture, et rien ne disait laquelle
+    /// parlait de qui.
+    /// <para>
+    /// Le décodeur à 5/5 alors que le juge est à 3/5 n'est pas une anomalie : elle dit que
+    /// l'instrument sépare très bien un vrai indice d'un mot aléatoire. C'est une information —
+    /// à condition qu'on sache de qui elle parle.
+    /// </para>
+    /// </summary>
+    internal static IReadOnlyList<string> AnchorLines(
+        int decoderCorrect, int decoderCount, int judgeCorrect, int judgeCount) =>
+    [
+        $"{DecoderAnchorLabel,-24} {decoderCorrect} / {decoderCount}   (hors calcul principal)",
+        $"{JudgeAnchorLabel,-24} {judgeCorrect} / {judgeCount}   ← arme le drapeau de lot suspect",
+    ];
+
     private static void Print(CalibrationReport r, TimeSpan elapsed)
     {
         static string N(double v) => v.ToString("0.000", CultureInfo.GetCultureInfo("fr-FR"));
@@ -302,7 +333,9 @@ public static class CalibrateCommand
         Console.WriteLine($"  marginales humain      A {N(a.HumanMarginalA)} / B {N(a.HumanMarginalB)}");
         Console.WriteLine($"  marginales décodeur    A {N(a.DecoderMarginalA)} / B {N(a.DecoderMarginalB)}");
         Console.WriteLine();
-        Console.WriteLine($"ancres                   {a.AnchorCorrect} / {a.AnchorCount}   (hors calcul principal)");
+        foreach (var line in AnchorLines(
+                     a.AnchorCorrect, a.AnchorCount, r.JudgeAnchorCorrect, r.JudgeAnchorCount))
+            Console.WriteLine(line);
         Console.WriteLine($"cohérence intra-juge     {N(r.IntraJudgeAgreement)}   (sur {r.DuplicatePairCount} doublon(s))");
 
         // Exiger du décodeur un accord supérieur à celui du juge avec lui-même n'a aucun sens.
