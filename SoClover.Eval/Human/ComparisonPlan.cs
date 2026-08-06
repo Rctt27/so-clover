@@ -136,7 +136,9 @@ public static class ComparisonPlan
         // ── doublons inversés, autant depuis AB que depuis BA ────────────────────
         var duplicates = BuildDuplicates(basePlan, rng);
 
-        var full = basePlan.Concat(duplicates).ToList();
+        // Entrelacés dans la seconde moitié, jamais concaténés en queue : un contrôle de
+        // cohérence que le juge repère cesse d'en être un.
+        var full = Interleave(basePlan, duplicates, rng);
         return SpaceOut(full, MinimumSeparation, i => i.BoardId + "|" + i.Direction).AsReadOnly();
     }
 
@@ -253,6 +255,68 @@ public static class ComparisonPlan
         return items.Select((item, i) => item with { PresentedOrder = orders[i] }).ToList();
     }
 
+    /// <summary>
+    /// Dernière position du lot de base où un original peut être pris. Au-delà, son doublon ne
+    /// tiendrait plus la séparation minimale une fois placé dans la seconde moitié.
+    /// </summary>
+    internal static int DuplicateSourceLimit(int baseCount) =>
+        Math.Max(1, (baseCount + DuplicateCount) / 2 - MinimumSeparation);
+
+    /// <summary>
+    /// Répartit les doublons dans la <b>seconde moitié</b> du lot, un par créneau de largeur
+    /// égale, avec une gigue interne au créneau.
+    /// <para>
+    /// Le lot était auparavant <c>basePlan.Concat(duplicates)</c> : les dix doublons occupaient
+    /// les dix derniers items. <see cref="SpaceOut"/> ne les redistribuait pas — il garantit
+    /// qu'une clé ne réapparaît pas avant dix positions, contrainte déjà satisfaite d'emblée
+    /// puisque leurs originaux étaient loin derrière. Le juge de la séance du 2026-08-06 les a
+    /// repérés, et ses dix verdicts de contrôle sont devenus inexploitables.
+    /// </para>
+    /// <para>
+    /// Un créneau par doublon interdit structurellement trois doublons consécutifs : deux ne
+    /// peuvent se toucher qu'à cheval sur une frontière de créneau.
+    /// </para>
+    /// </summary>
+    internal static List<ComparisonPlanItem> Interleave(
+        List<ComparisonPlanItem> basePlan, List<ComparisonPlanItem> duplicates, Xoshiro256SS rng)
+    {
+        var total = basePlan.Count + duplicates.Count;
+        var regionStart = total / 2;
+        var regionLength = total - regionStart;
+
+        // Lot trop court pour entrelacer : la concaténation reste correcte, seulement moins
+        // discrète. Mieux vaut un lot lisible qu'une exception au milieu d'une séance.
+        if (duplicates.Count == 0 || regionLength < duplicates.Count)
+            return basePlan.Concat(duplicates).ToList();
+
+        var slot = regionLength / duplicates.Count;
+        var positions = new SortedSet<int>();
+        for (var i = 0; i < duplicates.Count; i++)
+        {
+            var candidate = regionStart + i * slot + (slot > 1 ? rng.NextInt(slot) : 0);
+            while (candidate < total && !positions.Add(candidate)) candidate++;
+            if (candidate >= total)
+            {
+                // Créneaux saturés en fin de lot : on redescend vers la première place libre.
+                candidate = total - 1;
+                while (candidate >= regionStart && !positions.Add(candidate)) candidate--;
+            }
+        }
+
+        var result = new List<ComparisonPlanItem>(total);
+        var nextBase = 0;
+        var nextDuplicate = 0;
+        for (var position = 0; position < total; position++)
+        {
+            if (positions.Contains(position) && nextDuplicate < duplicates.Count)
+                result.Add(duplicates[nextDuplicate++]);
+            else
+                result.Add(basePlan[nextBase++]);
+        }
+
+        return result;
+    }
+
     private static List<ComparisonPlanItem> BuildDuplicates(
         List<ComparisonPlanItem> basePlan, Xoshiro256SS rng)
     {
@@ -261,9 +325,14 @@ public static class ComparisonPlan
         var half = DuplicateCount / 2;
         var duplicates = new List<ComparisonPlanItem>(DuplicateCount);
 
+        // Les originaux se prennent dans le PRÉFIXE du lot : leurs doublons vivant dans la
+        // seconde moitié, c'est ce qui garantit la séparation minimale sans avoir à la rattraper
+        // après coup.
+        var eligible = basePlan.Take(DuplicateSourceLimit(basePlan.Count)).ToList();
+
         foreach (var order in new[] { PresentedOrders.Ab, PresentedOrders.Ba })
         {
-            var pool = basePlan.Where(i => i.PresentedOrder == order).ToList();
+            var pool = eligible.Where(i => i.PresentedOrder == order).ToList();
             rng.Shuffle(pool);
 
             foreach (var source in pool.Take(half))
