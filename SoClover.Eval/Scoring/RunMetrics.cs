@@ -25,7 +25,14 @@ public sealed record MetricCounts(
     int ScoredBoards,
     int SolvedBoards,
     int DecodeFailures,
-    int Decodes)
+    int Decodes,
+    // Ventilés par prompt décodeur : decode-clue (N2) porte les quatre portes de calibration,
+    // decode-board (N3) porte board_positions et M6. Un seul taux agrégé faisait accuser le
+    // premier quand c'est le second qui décrochait — voir DecodeFailureWarningTests.
+    int ClueDecodes = 0,
+    int ClueDecodeFailures = 0,
+    int BoardDecodes = 0,
+    int BoardDecodeFailures = 0)
 {
     public static readonly MetricCounts Zero = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 }
@@ -236,7 +243,11 @@ public static class RunMetrics
                 ScoredBoards: scoredBoards.Count,
                 SolvedBoards: scoredBoards.Count(b => b.BoardSolved == true),
                 DecodeFailures: decodeFailures,
-                Decodes: decodeAttempts),
+                Decodes: decodeAttempts,
+                ClueDecodes: scopedClueDecodes.Count,
+                ClueDecodeFailures: scopedClueDecodes.Count(d => d.DecodeFailureKind is not null),
+                BoardDecodes: scopedBoardDecodes.Count,
+                BoardDecodeFailures: scopedBoardDecodes.Count(b => b.DecodeFailureKind is not null)),
             SubsetFile: subsetFile,
             SubsetOutcome: subsetOutcome);
     }

@@ -187,11 +187,48 @@ public static class ScoreCommand
             : $"{value.ToString("0.000", CultureInfo.GetCultureInfo("fr-FR"))}   {counts}";
     }
 
+    private const double DecodeFailureThreshold = 0.05;
+
+    private static double Rate(int numerator, int denominator) =>
+        denominator == 0 ? 0.0 : numerator / (double)denominator;
+
+    private static string N(double v) => v.ToString("0.000", CultureInfo.GetCultureInfo("fr-FR"));
+
+    /// <summary>
+    /// Une alerte <b>par prompt décodeur</b>, jamais sur le taux agrégé.
+    /// <para>
+    /// <c>decode-clue</c> (N2) et <c>decode-board</c> (N3) sont deux prompts versionnés
+    /// séparément, aux conséquences disjointes : le premier porte les quatre portes de
+    /// calibration, le second <c>board_positions</c> et <c>M6</c>. Les additionner faisait
+    /// annoncer « le prompt décodeur est cassé, aucun recovery n'est lisible » alors que N2 tenait
+    /// à 4 % et que seul N3 décrochait — deux fois de suite le 2026-08-06, avec un diagnostic à
+    /// refaire à la main à chaque run. Un tel message invite à jeter une calibration valide.
+    /// </para>
+    /// <para>Dénominateur nul ⟹ aucune alerte : un board jamais décodé n'est pas un board cassé.</para>
+    /// </summary>
+    internal static IReadOnlyList<string> DecodeFailureWarnings(MetricCounts c)
+    {
+        var warnings = new List<string>();
+
+        var clue = Rate(c.ClueDecodeFailures, c.ClueDecodes);
+        if (c.ClueDecodes > 0 && clue > DecodeFailureThreshold)
+            warnings.Add(
+                $"  ⚠ decode-clue : {N(clue)} d'échecs ({c.ClueDecodeFailures}/{c.ClueDecodes}) > 0,05 — " +
+                "le décodage mono-indice est cassé, recovery et les quatre portes sont illisibles.");
+
+        var board = Rate(c.BoardDecodeFailures, c.BoardDecodes);
+        if (c.BoardDecodes > 0 && board > DecodeFailureThreshold)
+            warnings.Add(
+                $"  ⚠ decode-board : {N(board)} d'échecs ({c.BoardDecodeFailures}/{c.BoardDecodes}) > 0,05 — " +
+                "board_positions et M6 sont illisibles. recovery et les quatre portes ne sont PAS affectés.");
+
+        return warnings;
+    }
+
     private static void Print(
         MetricsReport m, string? operatorNotes, string? decoderModel,
         string? subsetName, int benchDirectionCount)
     {
-        static string N(double v) => v.ToString("0.000", CultureInfo.GetCultureInfo("fr-FR"));
 
         Console.WriteLine();
         Console.WriteLine($"run   : {m.RunId}");
@@ -220,6 +257,8 @@ public static class ScoreCommand
         Console.WriteLine();
         Console.WriteLine("santé");
         Console.WriteLine($"  decode_failure_rate    {FormatRate(m.DecodeFailureRate, c.DecodeFailures, c.Decodes)}");
+        Console.WriteLine($"    dont decode-clue     {FormatRate(Rate(c.ClueDecodeFailures, c.ClueDecodes), c.ClueDecodeFailures, c.ClueDecodes)}   ← porte les 4 portes");
+        Console.WriteLine($"    dont decode-board    {FormatRate(Rate(c.BoardDecodeFailures, c.BoardDecodes), c.BoardDecodeFailures, c.BoardDecodes)}   ← porte board_positions et M6");
         Console.WriteLine($"  items                  {m.ItemsCompleted} / {m.ItemsExpected}");
 
         if (m.ItemsCompleted < m.ItemsExpected)
@@ -230,12 +269,10 @@ public static class ScoreCommand
                 "Un chiffre calculé sur un banc incomplet doit être visiblement suspect, pas publié.");
         }
 
-        if (m.DecodeFailureRate > 0.05)
+        foreach (var warning in DecodeFailureWarnings(c))
         {
             Console.WriteLine();
-            Console.WriteLine(
-                $"  ⚠ decode_failure_rate = {N(m.DecodeFailureRate)} > 0,05 : le prompt décodeur est cassé, " +
-                "aucun recovery n'est lisible.");
+            Console.WriteLine(warning);
         }
 
         if (m.ConfusionTop.Count > 0)
