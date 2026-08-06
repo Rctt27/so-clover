@@ -2,6 +2,7 @@ using System.Diagnostics;
 using SoClover.Domain;
 using SoClover.Eval.Bench;
 using SoClover.Eval.Cli;
+using SoClover.Eval.Calibration;
 using SoClover.Eval.Config;
 using SoClover.Eval.Io;
 using SoClover.Infrastructure.AI.Prompts;
@@ -51,7 +52,13 @@ public static class DecodeCommand
             chatClient, loader, boardPromptPath, opts.DefaultModel,
             (float)opts.DefaultTemperature, (float?)opts.TopP, opts.MaxOutputTokens);
 
-        var decodedPath = DecodeFile.PathFor(runPath);
+        // L'empreinte détermine le CHEMIN : deux décodeurs sur le même run sont deux fichiers.
+        // Un décodage écrasé, ce sont plusieurs centaines d'appels au LLM perdus sans un mot.
+        var fingerprint = DecoderFingerprint.Compute(
+            opts.DefaultModel, cluePromptPath, clueDecoder.PromptVersion,
+            opts.DefaultTemperature, opts.TopP, opts.MaxOutputTokens);
+
+        var decodedPath = DecodeFile.PathFor(runPath, fingerprint);
         var existing = force ? null : DecodeFile.ReadOrNull(decodedPath);
 
         if (existing is null)

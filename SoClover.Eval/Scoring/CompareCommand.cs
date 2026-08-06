@@ -59,13 +59,16 @@ public static class CompareCommand
     private static MetricsReport Load(
         string path, IReadOnlySet<(string BoardId, string Direction)>? subset)
     {
-        var runPath = path.EndsWith(".decoded.jsonl", StringComparison.OrdinalIgnoreCase)
-            ? path[..^".decoded.jsonl".Length] + ".jsonl"
-            : path;
+        // Un décodage désigné nommément fait foi : c'est la voie de sortie quand plusieurs
+        // décodeurs coexistent et que FindForRun refuse — à juste titre — de choisir seul.
+        var namedDecode = path.EndsWith(".decoded.jsonl", StringComparison.OrdinalIgnoreCase);
+        var runPath = namedDecode ? DecodeFile.RunPathFor(path) : path;
 
         var run = RunFile.Read(runPath);
         var bench = BenchFile.Read(run.Manifest.BenchFile);
-        var decoded = DecodeFile.ReadOrNull(DecodeFile.PathFor(runPath));
+
+        var decodedPath = namedDecode ? path : DecodeFile.FindForRun(runPath);
+        var decoded = decodedPath is null ? null : DecodeFile.ReadOrNull(decodedPath);
 
         return RunMetrics.Compute(bench, run, decoded, run.Manifest.MaxRetries + 1, subset);
     }

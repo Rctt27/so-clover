@@ -17,7 +17,8 @@ public static class ScoreCommand
         var runPath = args.Require("run");
         var run = RunFile.Read(runPath);
         var bench = BenchFile.Read(run.Manifest.BenchFile);
-        var decoded = DecodeFile.ReadOrNull(args.Get("decoded") ?? DecodeFile.PathFor(runPath));
+        var decodedPath = args.Get("decoded") ?? DecodeFile.FindForRun(runPath);
+        var decoded = decodedPath is null ? null : DecodeFile.ReadOrNull(decodedPath);
 
         var maxAttempts = run.Manifest.MaxRetries + 1;
 
@@ -30,9 +31,10 @@ public static class ScoreCommand
             (subset, subsetName, subsetOutcome) =
                 SubsetSelector.FromFile(subsetPath, args.Get("subset-outcome"));
 
-        // La provenance part dans le .metrics.json : ce fichier vit à un chemin fixe par run et
-        // chaque `score` écrase le précédent. Sans elle, `calibrate --saturation-metrics` ne peut
-        // pas vérifier que le fichier désigné porte bien sur les seuls indices `solide`.
+        // La provenance part dans le .metrics.json : ce fichier vit à un chemin fixe par run ET
+        // PAR DÉCODEUR, et chaque `score` sous le même décodeur écrase le précédent. Sans elle,
+        // `calibrate --saturation-metrics` ne peut pas vérifier que le fichier désigné porte bien
+        // sur les seuls indices `solide`.
         var metrics = RunMetrics.Compute(
             bench, run, decoded, maxAttempts, subset, subsetName, subsetOutcome);
         var benchDirectionCount = bench.Manifest.BoardCount * BoardGeometry.AllDirections.Count;
@@ -41,7 +43,12 @@ public static class ScoreCommand
 
         // PerItemRBar est [JsonIgnore] : le détail par item se recalcule depuis les fichiers
         // de run, et n'a pas à figurer dans l'artefact de synthèse.
-        var metricsPath = Path.ChangeExtension(runPath, ".metrics.json");
+        // Frère du décodage employé, jamais du run seul : c'est par cette fratrie que
+        // CalibrationGates.FingerprintOfMetrics retrouve quel décodeur a produit ces chiffres.
+        // Un run sans décodage n'a pas de décodeur — le chemin retombe alors sur le run.
+        var metricsPath = decodedPath is null
+            ? Path.ChangeExtension(runPath, ".metrics.json")
+            : DecodeFile.MetricsPathFor(decodedPath);
         File.WriteAllText(metricsPath, EvalJson.Serialize(metrics));
         Console.WriteLine($"métriques écrites : {metricsPath}");
 

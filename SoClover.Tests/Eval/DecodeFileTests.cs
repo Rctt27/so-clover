@@ -111,13 +111,8 @@ public class DecodeFileTests : IDisposable
         Assert.StartsWith(afterFirst, File.ReadAllText(_path));
     }
 
-    [Fact]
-    public void PathFor_derives_the_decoded_path_from_the_run_path()
-    {
-        Assert.Equal(
-            Path.Combine("eval", "runs", "20260727-v5-gemma-a1b2c3d4.decoded.jsonl"),
-            DecodeFile.PathFor(Path.Combine("eval", "runs", "20260727-v5-gemma-a1b2c3d4.jsonl")));
-    }
+    // Le contrat de chemin vit désormais dans DecodePathFingerprintTests : il porte l'empreinte
+    // du décodeur, et se tester ici en double n'ajouterait rien.
 
     [Fact]
     public void Read_of_a_missing_file_yields_null_rather_than_throwing()

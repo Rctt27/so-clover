@@ -23,11 +23,11 @@ public static class AnalyzeCommand
         var bench = BenchFile.Read(run.Manifest.BenchFile);
 
         // La taxonomie se lit sur les DÉCODAGES, pas sur les indices.
-        var decodedPath = args.Get("decoded") ?? DecodeFile.PathFor(runPath);
-        var decoded = DecodeFile.ReadOrNull(decodedPath)
+        var decodedPath = args.Get("decoded") ?? DecodeFile.FindForRun(runPath);
+        var decoded = (decodedPath is null ? null : DecodeFile.ReadOrNull(decodedPath))
             ?? throw new InvalidOperationException(
-                $"{decodedPath} est absent : la taxonomie se lit sur les décodages, pas sur les " +
-                "indices. Lancer `decode` d'abord.");
+                $"Aucun décodage pour {runPath} : la taxonomie se lit sur les décodages, pas sur " +
+                "les indices. Lancer `decode` d'abord.");
 
         var taxonomy = FailureTaxonomy.Compute(bench, run, decoded);
 
