@@ -36,6 +36,46 @@
 
 | 2026-08-06 | `6a97f056ae51` | mistralai/ministral-3-3b · clue v2 · temp 0,3 · **topP 1,0** · maxOut 512 | comparisons.dev.jsonl | 85 + 5 ancres | 0 | **0,569** [0,431 ; 0,706] ✗ | **0,149** [-0,118 ; 0,409] ✗ | 0,439 ✓ | 0,148 ✓ | **renvoyé en P3** | **9** décodages/indice, 51/85 couples tranchés, égalités décodeur 0,247. Réplique gen2 de `cc992cfe4dd6`. **Deuxième amélioration sur trois** : accord 0,490 → 0,569, κ -0,017 → 0,149. Avec qwen (+0,037) contre le 14B (-0,146), l'hypothèse « `topP 1,0` dégrade » est **abandonnée** — voir la note de synthèse. Plancher 0,148, la marge la plus fine des six calibrations (seuil 0,15) ; `decode_failure_rate` 0,044, sous le garde-fou. Q4_K_M, ctx 4096, thinking inactif (`reasoning_tokens = 0`). |
 
+| 2026-08-06 | `27e36fefe975` | mistralai/ministral-3-14b-reasoning · clue v2 · temp 0,3 · **topP 1,0** · maxOut 512 | comparisons.dev.jsonl | 85 + 5 ancres | 0 | **0,581** [0,442 ; 0,721] ✗ | **0,164** [-0,129 ; 0,445] ✗ | 0,561 ✓ | 0,145 ✓ | **renvoyé en P3** | **5** décodages/indice, 43/85 couples tranchés. Artefact `…-d5`, à côté du `…-d9` du **même décodeur** — la granularité est désormais dans le nom (correctif `a27bc98`), sans quoi cette ligne était impossible à produire sans écraser la précédente. **Solde la dette de `27e36fefe975`** : à granularité constante (5), `topP 1,0` coûte −0,086 au 14B (0,667 → 0,581) ; à `topP` constant, 5 → 9 décodages coûte −0,060 (0,581 → 0,521). Les deux moitiés de l'écart total. Mais les mêmes changements **améliorent** qwen et le 3B : aucun des deux n'a d'effet systématique. Voir la note de synthèse mise à jour. |
+
+### Note — les sept calibrations sont compatibles avec un accord unique ≈ 0,58
+
+La septième ligne solde la dette et permet le calcul d'ensemble. Sur les sept calibrations
+(3 modèles × 2 `topP` × 2 granularités, corpus identique) :
+
+| | valeur |
+|---|---|
+| accord moyen | **0,576** |
+| écart-type **observé** entre les sept | **0,059** |
+| écart-type **attendu** si toutes mesuraient la même chose (binomial, n̄ = 47) | **0,072** |
+
+**La dispersion observée est inférieure à celle du pur hasard.** Il ne reste donc aucune variance
+à attribuer au modèle, au `topP` ou à la granularité : les sept mesures sont entièrement
+compatibles avec l'hypothèse d'un accord vrai unique, autour de 0,58, pour tous les décodeurs
+essayés. Ce n'est pas « on ne sait pas les départager » — c'est « il n'y a rien à départager ».
+
+**Conséquence contre-intuitive, à retenir avant d'investir dans une séance humaine plus longue :
+agrandir le corpus ne fera pas franchir la porte.** L'écart au seuil est de 0,174, soit ~2,4
+écarts-types d'échantillonnage. Plus de couples resserrera les intervalles **autour de 0,58** :
+l'échec deviendra plus net, pas moins. Un corpus plus grand sert à mesurer, pas à réussir.
+
+Ce que cela laisse comme pistes, par ordre de ce qu'elles engagent :
+
+1. **Le prompt `decode-clue`** — seule variable jamais testée, et la seule que les sept
+   calibrations partagent. Mais il lui faudrait produire +0,17, bien au-delà de tout ce que la
+   série a fait bouger.
+2. **Le plafond humain sur la tâche de jugement, jamais mesuré.** La porte à 0,75 suppose que deux
+   juges humains s'accorderaient au moins autant sur ces mêmes couples. Rien ne l'établit :
+   `intra-juge = 0,900` mesure la cohérence d'**un** juge avec lui-même (et se trouve contaminée,
+   cf. note du 2026-08-06), pas l'accord **inter-juges**. Si deux humains ne s'accordent qu'à 0,70
+   sur « lequel de ces deux indices mène le plus directement à la paire », alors 0,75 est
+   structurellement inatteignable pour n'importe quel décodeur, et c'est le **seuil** qui est mal
+   posé — pas l'instrument.
+
+> **Le seuil ne se baisse pas parce qu'il gêne.** La piste 2 n'est légitime que si l'accord
+> inter-juges est mesuré **avant** de rediscuter la porte, et sur le même corpus. Le décider après
+> avoir vu sept échecs serait la faute exacte qu'on a refusée sur les ancres le 2026-08-06.
+
 ### Note — synthèse des six calibrations : les trois décodeurs sont indiscernables
 
 Les six lignes ci-dessus couvrent trois modèles × deux générations. Le classement **s'inverse
