@@ -15,6 +15,9 @@ public sealed record AssistedRequest(string? AssistedClue, string? Notes);
 /// <summary>Corps de <c>POST /api/verdict</c> et <c>POST /api/rejudge</c>.</summary>
 public sealed record VerdictRequest(string PositionChoice, long ElapsedMs);
 
+/// <summary>Corps de <c>POST /api/guess</c> — les deux mots désignés, dans l'ordre du clic.</summary>
+public sealed record GuessRequest(IReadOnlyList<string> Picked, long ElapsedMs);
+
 /// <summary>
 /// Serveur des séances humaines. Écoute exclusivement sur la boucle locale : l'outil est un
 /// instrument de mesure personnel, jamais un service. C'est le serveur — et non la page — qui
@@ -87,6 +90,24 @@ public static class HumanServer
 
         app.MapPost("/api/rejudge", (VerdictRequest request) =>
             Map(session.ReJudgeLast(request.PositionChoice, request.ElapsedMs)));
+
+        return app;
+    }
+
+    /// <summary>
+    /// Séance D. Aucune API de révélation — ni paire de référence, ni score, ni historique : le
+    /// devineur ne doit rien apprendre en cours de séance qui puisse déplacer sa façon de jouer.
+    /// Aucune API de saut non plus, comme en séances A et B.
+    /// </summary>
+    public static WebApplication BuildGuessApp(GuessingSession session, string pagePath, int port)
+    {
+        var app = NewApp(port);
+
+        app.MapGet("/", () => Page(pagePath));
+        app.MapGet("/api/next", () => Results.Json(session.Next()));
+
+        app.MapPost("/api/guess", (GuessRequest request) =>
+            Map(session.SubmitGuess(request.Picked ?? [], request.ElapsedMs)));
 
         return app;
     }

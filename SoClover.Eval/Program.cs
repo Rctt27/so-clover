@@ -44,6 +44,7 @@ internal static class EvalProgram
                 "analyze" => AnalyzeCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "elicit" => Elicit(cliArgs, CancellationToken.None),
                 "judge" => Judge(cliArgs, CancellationToken.None),
+                "guess" => Guess(cliArgs, CancellationToken.None),
                 "human-report" => Task.FromResult(HumanReportCommand(cliArgs)),
                 "human-run" => Task.FromResult(HumanRunCommand(cliArgs)),
                 "" => Task.FromResult(Usage()),
@@ -73,6 +74,7 @@ internal static class EvalProgram
               compare   Δ recovery apparié + IC bootstrap + verdict de promotion (aucun appel LLM)
               elicit    Séance A (auteur) : serveur local de saisie chronométrée
               judge     Séance B (juge) : serveur local de comparaison en aveugle, J+1
+              guess     Séance D (devineur) : serveur local, 16 mots + 1 indice -> 2 mots
               human-run     Projette la séance A en pseudo-run décodable (aucun appel LLM)
               human-report  Agrégats des deux séances humaines (aucun appel LLM)
               calibrate     P6 : accord decodeur/humain, kappa, quatre portes, verdict unique
@@ -370,6 +372,98 @@ internal static class EvalProgram
         Console.WriteLine($"  écart séance A : {manifest.HoursSinceElicitation:0.0} h" +
                           (manifest.EarlyStart ? "  ⚠ earlyStart consigné dans le manifeste" : string.Empty));
         Console.WriteLine("  Ctrl+C pour arrêter. Reprise sûre : chaque verdict est écrit à la soumission.");
+
+        await app.WaitForShutdownAsync(ct);
+        return 0;
+    }
+
+    /// <summary>
+    /// Séance D « devineur » (P6). L'auteur devine à partir d'indices déjà générés : aucun appel
+    /// LLM, ni générateur ni décodeur.
+    /// <para>
+    /// Les boards éligibles sont ceux que l'auteur <b>n'a jamais vus</b>. Deux sources d'exclusion,
+    /// et il faut les deux : <c>--elicitation</c> retire les boards parcourus en séance A, que le
+    /// fichier consigne ; <c>--exclude-boards</c> retire ceux exposés <b>hors protocole</b>, que
+    /// rien ne consigne — le 2026-08-07, trois boards l'ont été pendant un diagnostic de
+    /// désaccords. La liste retenue part au manifeste : sans elle, un lecteur ne pourrait pas
+    /// savoir pourquoi le lot ne couvre pas le banc.
+    /// </para>
+    /// </summary>
+    private static async Task<int> Guess(Args args, CancellationToken ct)
+    {
+        var benchPath = args.Require("bench");
+        var runPath = args.Require("run");
+        var elicitationPath = args.Get("elicitation");
+        var outPath = args.Get("out") ?? Path.Combine("eval", "human", "guessing.dev.jsonl");
+        var port = args.GetInt("port", 5179);
+
+        var bench = BenchFile.Read(benchPath);
+        var run = RunFile.Read(runPath);
+
+        if (run.Manifest.BenchHash != bench.Manifest.BenchHash)
+            throw new InvalidOperationException(
+                $"{runPath} porte benchHash {run.Manifest.BenchHash}, incompatible avec {bench.Manifest.BenchHash}.");
+
+        var existing = HumanFile.ReadGuessingOrNull(outPath);
+        GuessingManifest manifest;
+
+        if (existing is null)
+        {
+            var excluded = new SortedSet<string>(StringComparer.Ordinal);
+
+            if (elicitationPath is not null)
+            {
+                var elicitation = HumanFile.ReadElicitation(elicitationPath);
+                HumanFile.RequireBench(elicitationPath, elicitation.Manifest.BenchHash, bench);
+                foreach (var line in elicitation.Elicitations)
+                    excluded.Add(line.BoardId);
+            }
+
+            foreach (var boardId in (args.Get("exclude-boards") ?? string.Empty)
+                     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                excluded.Add(boardId);
+
+            manifest = new GuessingManifest(
+                Kind: "manifest",
+                BenchFile: benchPath.Replace('\\', '/'),
+                BenchHash: bench.Manifest.BenchHash,
+                Seed: args.GetLong("seed", 0),
+                RunId: run.Manifest.RunId,
+                RunFile: runPath.Replace('\\', '/'),
+                ElicitationFile: elicitationPath?.Replace('\\', '/'),
+                ExcludedBoardIds: excluded.ToList().AsReadOnly(),
+                TargetCount: 0,
+                HarnessVersion: RunFile.HarnessVersion,
+                CreatedAtUtc: DateTime.UtcNow);
+
+            HumanFile.WriteGuessingManifest(outPath, manifest);
+            existing = HumanFile.ReadGuessing(outPath);
+        }
+        else
+        {
+            // Reprise : le manifeste fait foi, exclusions comprises. Les recalculer depuis la CLI
+            // laisserait un lot changer de composition en cours de séance, sans rien signaler.
+            manifest = existing.Manifest;
+            HumanFile.RequireBench(outPath, manifest.BenchHash, bench);
+        }
+
+        var plan = GuessingPlan.Build(
+            bench, run, manifest.ExcludedBoardIds.ToHashSet(StringComparer.Ordinal), manifest.Seed);
+
+        var session = new GuessingSession(
+            bench, plan, existing, outPath, sessionId: $"s-{DateTime.UtcNow:yyyyMMddHHmmss}");
+
+        var pagePath = Path.Combine(AppContext.BaseDirectory, "Web", "Pages", "guess.html");
+        var app = HumanServer.BuildGuessApp(session, pagePath, port);
+        await app.StartAsync(ct);
+
+        Console.WriteLine($"séance D : {HumanServer.ResolveUrl(app)}");
+        Console.WriteLine($"  fichier        : {outPath}");
+        Console.WriteLine($"  indices        : run {manifest.RunId}");
+        Console.WriteLine($"  lot            : {plan.Count} direction(s), seed {manifest.Seed}");
+        Console.WriteLine($"  boards exclus  : {manifest.ExcludedBoardIds.Count}");
+        Console.WriteLine($"  déjà devinées  : {session.CompletedCount}");
+        Console.WriteLine("  Ctrl+C pour arrêter. Reprise sûre : chaque réponse est écrite à la soumission.");
 
         await app.WaitForShutdownAsync(ct);
         return 0;
