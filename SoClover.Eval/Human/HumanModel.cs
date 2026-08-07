@@ -108,6 +108,51 @@ public sealed record ComparisonContents(
     ComparisonManifest Manifest,
     IReadOnlyList<ComparisonLine> Comparisons);
 
+// ── Séance D ────────────────────────────────────────────────────────────────
+
+/// <summary>
+/// Ligne 1 de <c>guessing.*.jsonl</c> : trace de reproductibilité de la séance D « devineur ».
+/// <see cref="ExcludedBoardIds"/> y figure parce que la sélection des boards éligibles est la
+/// seule chose que le plan ne peut pas recalculer — elle dépend de ce que l'auteur a déjà vu,
+/// séance A comprise, et d'expositions hors protocole que rien d'autre ne consigne.
+/// </summary>
+public sealed record GuessingManifest(
+    string Kind,
+    string BenchFile,
+    string BenchHash,
+    long Seed,
+    string RunId,
+    string RunFile,
+    string? ElicitationFile,
+    IReadOnlyList<string> ExcludedBoardIds,
+    int TargetCount,
+    int HarnessVersion,
+    DateTime CreatedAtUtc);
+
+/// <summary>
+/// Une direction devinée. Les champs <see cref="Picked"/>, <see cref="R"/> et
+/// <see cref="ShuffleSeed"/> portent <b>les mêmes noms et la même sémantique</b> que dans un
+/// <c>.decoded.jsonl</c> : c'est cette symétrie qui rend la comparaison humain / décodeur
+/// littérale plutôt qu'interprétée. <c>R = |picked ∩ referenceWords| / 2 ∈ {0 ; 0,5 ; 1}</c>.
+/// </summary>
+public sealed record GuessingLine(
+    string Kind,
+    string BoardId,
+    string Direction,
+    string Clue,
+    IReadOnlyList<string> ReferenceWords,
+    IReadOnlyList<string> Picked,
+    double R,
+    long ShuffleSeed,
+    long ElapsedMs,
+    string SessionId,
+    int ItemOrdinal,
+    DateTime GuessedAtUtc);
+
+public sealed record GuessingContents(
+    GuessingManifest Manifest,
+    IReadOnlyList<GuessingLine> Guesses);
+
 // ── Vocabulaires FERMÉS ─────────────────────────────────────────────────────
 
 /// <summary>

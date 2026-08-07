@@ -38,6 +38,11 @@ public static class HumanFile
 
     public static void AppendComparison(string path, ComparisonLine line) => AppendLine(path, line);
 
+    public static void WriteGuessingManifest(string path, GuessingManifest manifest) =>
+        WriteManifestLine(path, manifest);
+
+    public static void AppendGuess(string path, GuessingLine line) => AppendLine(path, line);
+
     private static void WriteManifestLine<T>(string path, T manifest)
     {
         var directory = Path.GetDirectoryName(Path.GetFullPath(path));
@@ -117,6 +122,35 @@ public static class HumanFile
         }
 
         return new ComparisonContents(manifest, comparisons.AsReadOnly());
+    }
+
+    public static GuessingContents? ReadGuessingOrNull(string path) =>
+        File.Exists(path) ? ReadGuessing(path) : null;
+
+    public static GuessingContents ReadGuessing(string path)
+    {
+        var lines = ReadNonEmptyLines(path);
+        var manifest = ReadManifest<GuessingManifest>(path, lines[0], m => m.Kind, m => m.HarnessVersion);
+
+        var guesses = new List<GuessingLine>();
+        for (var i = 1; i < lines.Count; i++)
+        {
+            var isLast = i == lines.Count - 1;
+            try
+            {
+                if (PeekKind(lines[i]) is not "guess")
+                    throw new HumanIntegrityException(
+                        $"{path} ligne {i + 1} : kind inconnu « {PeekKind(lines[i])} ».");
+
+                guesses.Add(EvalJson.Deserialize<GuessingLine>(lines[i]));
+            }
+            catch (JsonException) when (isLast)
+            {
+                WarnTruncated(path);
+            }
+        }
+
+        return new GuessingContents(manifest, guesses.AsReadOnly());
     }
 
     // ── Dérivations ─────────────────────────────────────────────────────────
