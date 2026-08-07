@@ -882,3 +882,70 @@ engagé ici.
 
 **Décision.** v6 et v7 sont écartées comme v5 ; `decode-clue.md` reste en **v4**. Les trois variantes
 sont archivées (`fa0d312`, `cce2c7e`, `8c33bea`) et rejouables.
+| 2026-08-07 | 20260728-v5-google-gemma-4-12b-qat-d79a63b9 | boards.dev.jsonl | board-clues-per-direction.md | v5 | google/gemma-4-12b-qat | 2026-07-28 | temp 1 / topP 0,95 / maxTokens 4096 / maxRetries 0 / reasoning False | 0,963 | 0,963 | 0,382 | 0,032 | 0,643 | 0,000 | pré-calibration | neutre | escalier des paires impossibles - reference clue v4 (mots a plat) sur qwen3-8b | gén. : gemma-4-12b-qat thinking OFF, LM Studio JIT ; déc. : qwen/qwen3-8b (reference v4 sur qwen3-8b pour la sonde v5 ; thinking OFF, reasoning_tokens=0 verifie) |
+| 2026-08-07 | 20260728-v5-google-gemma-4-12b-qat-d79a63b9 | boards.dev.jsonl | board-clues-per-direction.md | v5 | google/gemma-4-12b-qat | 2026-07-28 | temp 1 / topP 0,95 / maxTokens 4096 / maxRetries 0 / reasoning False | 0,963 | 0,963 | 0,345 | 0,006 | 0,565 | 0,000 | pré-calibration | neutre | escalier - clue v5 (groupe par carte + contrainte enoncee) : ECARTEE, intra_card_rate 0,245 > hasard | gén. : gemma-4-12b-qat thinking OFF, LM Studio JIT ; déc. : qwen/qwen3-8b (sonde v5 (mots groupes par carte, regle des deux cartes) sur qwen3-8b ; thinking OFF, reasoning_tokens=0 verifie) |
+| 2026-08-07 | 20260728-v5-google-gemma-4-12b-qat-d79a63b9 | boards.dev.jsonl | board-clues-per-direction.md | v5 | google/gemma-4-12b-qat | 2026-07-28 | temp 1 / topP 0,95 / maxTokens 4096 / maxRetries 0 / reasoning False | 0,963 | 0,963 | 0,370 | 0,013 | 0,695 | 0,000 | pré-calibration | neutre | escalier - clue v6 (groupe par carte, aucun texte) : la mise en page seule porte intra_card_rate a 0,485 | gén. : gemma-4-12b-qat thinking OFF, LM Studio JIT ; déc. : qwen/qwen3-8b (escalier v6 : presentation groupee seule, aucun texte sur les cartes ; qwen3-8b thinking OFF) |
+| 2026-08-07 | 20260728-v5-google-gemma-4-12b-qat-d79a63b9 | boards.dev.jsonl | board-clues-per-direction.md | v5 | google/gemma-4-12b-qat | 2026-07-28 | temp 1 / topP 0,95 / maxTokens 4096 / maxRetries 0 / reasoning False | 0,963 | 0,963 | 0,377 | 0,026 | 0,669 | 0,000 | pré-calibration | neutre | escalier - clue v7 (groupe + une phrase de cadrage constructif) : 0,453, le texte leger ne compense pas | gén. : gemma-4-12b-qat thinking OFF, LM Studio JIT ; déc. : qwen/qwen3-8b (escalier v7 : presentation groupee + une phrase de cadrage constructif ; qwen3-8b thinking OFF) |
+
+## Pistes ouvertes au 2026-08-07 — aucune n'est engagée
+
+Trois pistes sortent de la journée. Elles sont écrites ici pour ne pas être re-dérivées ; **aucune
+n'est décidée**, et chacune demandera son propre pré-enregistrement.
+
+### Piste 1 — refonder la porte d'accord sur la devinette (séance E)
+
+Discutée le 2026-08-07 et non consignée jusqu'ici. Elle découle de la séance D : la porte actuelle
+demande au décodeur de **reproduire le classement d'un juge** (« lequel de ces deux indices est le
+meilleur ? »), exercice que le jeu ne contient pas ; neuf calibrations donnent 0,57 pour un seuil à
+0,75, avec une dispersion **inférieure** au hasard d'échantillonnage — aucun réglage ne la déplacera.
+
+**Ce que la porte affirmerait à la place** : le décodeur est valide si son taux de récupération est
+**interchangeable avec celui d'un devineur humain**. C'est la seule propriété dont on a besoin pour
+que `recovery` veuille dire quelque chose.
+
+**Montage** : reprendre **les 42 mêmes directions** de la séance D, même page, même plan
+déterministe, avec une **seconde personne**. Rien à construire — le verbe `guess` et sa page
+existent. On en tire trois écarts appariés : Δ(H1, H2), **jamais mesuré** ; Δ(H1, D) = 0,000
+[−0,063 ; +0,063], déjà connu ; Δ(H2, D) en contrôle.
+
+**Critère** : le décodeur passe si son écart à un humain **n'excède pas** l'écart entre deux humains
+— il tombe *dans* la dispersion humaine. Critère **relatif**, donc sans nombre arbitraire : le 0,75
+actuel avait été posé sans jamais mesurer ce que deux humains atteignent, ce que la garde 6
+interdit précisément de contourner. Les portes de **plancher** et de **non-saturation** ne bougent
+pas ; ce sont l'accord et κ qui sortent.
+
+**Coût et limites, chiffrés.** La séance D a coûté **18 minutes** (42 devinettes, 21 s médianes).
+Mais à n = 42 chaque écart porte ±0,06 : comparer deux écarts de cette précision donne une lecture
+**grossière**, et une porte défendable en demandera sans doute deux ou trois personnes. Atteindre
+une demi-largeur de 0,05 demanderait ~67 directions, or **29 des 40 boards de `boards.dev.jsonl`
+sont brûlés** — ces 42 directions sont à peu près tout ce qui reste de vierge. Aller au-delà
+signifie entamer le test set, ce qui se consigne.
+
+### Piste 2 — porter l'appartenance de carte sans le bloc
+
+Ouverte par l'escalier v6/v7 ci-dessus : la mécanique d'élimination décrite par l'auteur est juste
+(le second mot se cherche parmi douze, pas quinze) mais elle n'a **jamais été évaluée sans le
+confond** — les trois variantes groupaient les mots en blocs, et le biais de proximité qui en résulte
+vaut deux fois et demie le hasard. La forme qui les sépare : liste **à plat**, mélangée exactement
+comme v4, chaque mot portant son étiquette en ligne (`- Volcan (carte C)`). Ordre de balayage de v4
+préservé, aucune adjacence créée, partition lisible.
+
+### Piste 3 — rendre la paire intra-carte impossible par une boucle de retry (demandée par l'auteur)
+
+**Demande de l'auteur, 2026-08-07, à investiguer — pas analysée ici.** L'idée : plutôt que de laisser
+le décodeur produire une paire intra-carte et de la compter, lui **renvoyer une réponse du harnais**
+qui l'invite à recommencer selon une boucle de retry précise, sur le modèle de **ce qui existe déjà
+en production** — quand le LLM générateur produit un indice invalide, le backend lui renvoie un
+retour structuré (`{{retryFeedback}}` / `{{rejectedAttemptsByDirection}}` des prompts
+`board-clues*.md`) qui cadre la nouvelle tentative.
+
+Ce qu'il s'agit d'investiguer : **peut-on intégrer un mécanisme équivalent au décodage côté Eval ?**
+La brique existe et est éprouvée côté jeu ; la question est de savoir ce qu'elle donnerait ici, à
+quel coût en appels, et sous quelle forme de retour.
+
+Un point sera à trancher **au moment de l'investigation, pas avant** : le harnais ne rejette
+aujourd'hui aucune paire intra-carte **par choix** — la note de la sonde v5 pose que rejeter en code
+garantirait `intra_card_rate = 0,000` sans rien mesurer. Une boucle de retry n'est pas un rejet sec,
+puisqu'elle rend la main au modèle ; savoir si elle change la **nature de l'instrument** (un
+décodeur assisté devine-t-il encore comme un humain devine ?) fait partie de ce qu'il faudra
+examiner. Aucune conclusion n'est tirée ici.
