@@ -40,6 +40,101 @@
 
 | 2026-08-06 | `3f40887c807d` | qwen/qwen3-8b · **clue v3** · temp 0,3 · topP 1,0 · maxOut 512 | comparisons.dev.jsonl | 85 + 5 ancres | 0 | **0,608** [0,471 ; 0,745] ✗ | **0,234** [-0,025 ; 0,480] ✗ | 0,364 ✓ | 0,135 ✓ | **renvoyé en P3** | **9** décodages/indice, 51/85 couples tranchés, égalités décodeur 0,176. **Première variation du prompt `decode-clue`** — la seule variable que les sept calibrations précédentes partageaient. Une seule variable bouge : modèle, température, `topP`, `maxOut` et granularité sont identiques à `dc38ea230804`. v3 remplace le critère **marginal** de v2 (« les deux mots dont le lien avec l'indice est le plus fort ») par un critère **joint** (« la paire pour laquelle cet indice a été écrit » ; un mot fort accompagné d'un mot faible y est déclaré mauvaise réponse). Motivation — diagnostic agrégé sous v2 : 62,6 % des décodages à `r = 0,5` contre 6,1 % à `r = 1`, et 49 des 180 indices à R̄ exactement 0,5. **Le prompt n'a rien déplacé** : accord 0,620 → 0,608, κ 0,245 → 0,234, des écarts d'un ordre de grandeur sous le bruit d'échantillonnage. Voir la note de synthèse ci-dessous. Ancres décodeur 5/5 (discrimination grossière intacte), lot toujours `AnchorSuspect` (juge 3/5, même corpus). Gain réel mais hors portes : la robustesse de format de `decode-clue` passe à **0,006** d'échecs sur le plancher (3/480) et **0,000** sur l'humain (0/117), contre ~4,2 % pour plusieurs empreintes v2. Plancher et saturation re-mesurés sous v3 (0,135 et 0,364) — la marge du plancher se resserre, 0,126 → 0,135 pour un seuil à 0,15. Q4_K_M, ctx 4096, thinking vérifié inactif (`reasoning_tokens = 0`). |
 
+| 2026-08-07 | `f5bad93aeed3` | mistralai/ministral-3-14b-reasoning · **clue v4** · temp 0,3 · topP 1,0 · maxOut 512 | comparisons.dev.jsonl | 85 + 5 ancres | 0 | **0,490** [0,347 ; 0,633] ✗ | **-0,027** [-0,304 ; 0,251] ✗ | 0,576 ✓ | 0,125 ✓ | **renvoyé en P3** (échec *démontré*) | **9** décodages/indice, 49/85 couples tranchés, égalités décodeur 0,235. Calibration annoncée par la note du 2026-08-06 au soir, tenue le lendemain. **Une seule variable contre `27e36fefe975`-d9** : modèle, température, `topP`, `maxOut`, granularité et corpus identiques — seul le prompt passe de v2 à v4. L'IC entier de l'accord est sous le seuil : échec **démontré**, à ne pas agréger avec `661856eb18c6`. κ humainVsModèle 0,110 (n=18), modèleVsModèle 0,004 (n=31) — contingence équilibrée (14/13/12/10), pas de paradoxe κ. Ancres décodeur **5/5** : discrimination grossière intacte, discrimination fine nulle, même signature que les huit précédentes. Lot toujours `AnchorSuspect` (juge 3/5, même corpus) et cohérence intra-juge 0,900 toujours contaminée (doublons en queue, cf. note du 2026-08-06) — aucun statut `calibré` n'est demandé ici, le verdict est un échec. Portes d'échelle re-mesurées sous cette empreinte : plancher 0,125 (valeur théorique exacte du hasard) et non-saturation 0,576. `decode_failure_rate` des ancrages : clue **0/66** sur l'humain, **7/480 (1,5 %)** sur le plancher, tous `outOfVocabulary` ; `decode-board` décroche à 26/40 comme sous toutes les empreintes ministral — sans effet sur les quatre portes, l'outil le ventile. Q4_K_M, ctx 4096, `reasoning_tokens = 0` vérifié — **inhibé par le prompt, pas par un toggle** (voir rectification ci-dessous). Latence médiane du lot **1 018 ms**. |
+
+### Note — v4 sur ministral : le prompt ne bouge ni l'accord ni R̄, il ne corrige que le format
+
+Cette calibration était le point de reprise laissé par la note du 2026-08-06. Elle répond à la
+question que cette note déclarait indécidable — « un R̄ qui bondit peut améliorer l'accord comme le
+dégrader : aucune sonde ne peut trancher, seule la calibration le peut ». Elle tranche : **il ne
+l'améliore pas.**
+
+**La dette de garde 1 est soldée, et dans un sens inattendu.** La note d'hier prévenait que l'effet
+du modèle et celui du prompt n'étaient pas séparables, faute d'avoir conservé le R̄ de v4/qwen. La
+séparation vient d'ailleurs — de `27e36fefe975`-d9, même modèle, même granularité, mêmes réglages,
+prompt v2 :
+
+| ministral-14b, d9, topP 1,0 | v2 `27e36fefe975` | v4 `f5bad93aeed3` |
+|---|---|---|
+| accord | 0,521 | **0,490** |
+| κ | 0,038 | **-0,027** |
+| R̄ du lot | 0,486 | **0,482** |
+| `r = 0` / `r = 0,5` / `r = 1` | 0,157 / 0,673 / 0,129 | 0,152 / **0,725** / 0,115 |
+| échecs de format | 67 / 1620 (4,1 %) | **12 / 1620 (0,7 %)** |
+| latence médiane | 418 ms | 1 018 ms |
+
+**Le bond de R̄ attribué hier au couple (modèle, prompt) revient au modèle seul.** Ministral rendait
+déjà 0,486 sous v2 ; v4 rend 0,482. L'hypothèse de la sonde — le nombre de paramètres a un effet
+fort sur la récupération — est **confirmée**, et le scratchpad n'y contribue pour rien. À l'inverse,
+la lecture « v4 fait bondir R̄ » qu'autorisait le tableau de la note d'hier est **fausse** : elle
+comparait ministral/v4 à qwen/v3 et lisait un effet de modèle comme un effet de prompt.
+
+**Ce que v4 fait réellement**, à modèle constant, et rien d'autre :
+
+1. **Il divise les échecs de format par six** (4,1 % → 0,7 %). C'est le premier gain de conformité
+   réel et mesuré *à modèle constant* de toute la série — contrairement à celui revendiqué pour v3,
+   que la note du 2026-08-06 a dû rétracter parce qu'il comparait deux modèles. Le scratchpad borné
+   force le modèle à énumérer quatre mots de la liste avant de choisir, ce qui réduit les
+   `outOfVocabulary`.
+2. **Il concentre encore le pic `r = 0,5`** (0,673 → 0,725), en prenant surtout sur `r = 1`
+   (0,129 → 0,115). Le décodeur devient plus régulièrement moyen, moins souvent parfait.
+3. **Il coûte 2,4× la latence** (418 → 1 018 ms) pour ce seul gain de format.
+
+Accord et κ, eux, ne bougent pas : Δ accord = -0,031, soit **0,44 σ**. Sous le bruit, comme v3.
+
+**Troisième levier de prompt, troisième échec.** Les trois versions du décodeur ont maintenant été
+essayées : l'énoncé marginal (v2), l'énoncé joint (v3), la délibération bornée (v4). Aucune ne
+déplace l'accord. Sur les **neuf** calibrations :
+
+| | valeur |
+|---|---|
+| accord moyen | **0,570** |
+| écart-type **observé** entre les neuf | **0,060** |
+| écart-type **attendu** si toutes mesuraient la même chose (binomial, n̄ = 48) | **0,071** |
+
+La dispersion observée reste inférieure à celle du pur hasard. Neuf mesures — trois modèles, deux
+`topP`, deux granularités, trois prompts — demeurent **entièrement compatibles avec un accord vrai
+unique ≈ 0,57**. L'écart au seuil vaut 0,180, soit ~2,5 σ.
+
+**La piste 1 (le prompt `decode-clue`) est épuisée par l'expérience.** Elle était déjà, depuis la
+note du 2026-08-06, la seule variable que toutes les calibrations partageaient ; elle a maintenant
+varié trois fois sans rien produire. Il reste la **piste 2 — le plafond humain inter-juges,
+toujours non mesuré** — et elle est désormais seule au sens fort : ce n'est plus « la seule qui
+puisse encore expliquer la série », c'est la seule qui n'ait pas été essayée. Le seuil de 0,75 ne
+se rediscute toujours pas avant cette mesure (garde 6).
+
+Ce que cette calibration **ne dit pas** : que ministral-14b serait un mauvais décodeur. Son R̄ est
+le plus haut de la série (0,482 contre 0,373 pour qwen) et sa conformité sous v4 est la meilleure
+jamais mesurée. Il récupère mieux et classe aussi mal — **mieux récupérer n'est pas mieux classer**,
+constat déjà posé le 2026-08-06 sur le 3B et que ce point confirme à l'autre bout de l'échelle.
+
+### Note — rectification : le `reasoning_tokens = 0` de ministral vient du prompt, pas d'un toggle
+
+La note de sonde du 2026-08-06 écrit : « le modèle porte "reasoning" dans son nom mais son thinking
+est inactif, **toggle LM Studio OFF au chargement** ; c'est *voulu* ». **L'attribution est fausse.**
+Vérifié au lancement de la présente calibration : LM Studio **n'expose aucun toggle « enable
+thinking » pour ce modèle**, et interrogé sans consigne particulière (« réponds uniquement par le
+mot OK »), il consomme **149 `reasoning_tokens`** — son thinking est actif par défaut et rien dans
+l'interface ne le désarme.
+
+Réinterrogé avec le **système `decode-clue` v4 réel** et un board du banc, il rend
+`reasoning_tokens = 0` sur 3/3, sorties de 61 à 66 tokens, aucune troncature — puis 0 sur les 1620
+décodages du lot. C'est donc la **contrainte de format du prompt** qui inhibe le mode, exactement
+ce qu'avançait la ligne `661856eb18c6` (« le prompt clue v2 inhibe le mode par sa consigne ») et
+que la note de sonde avait ré-attribué au matériel.
+
+Portée : **aucune sur les mesures**. Les runs ministral du 2026-08-06 et du 2026-08-07 ont bien
+tourné thinking inactif, ce que leur `reasoning_tokens = 0` établit directement — seule la *cause*
+était mal nommée. Ce qui change est opérationnel : il est inutile de chercher un toggle avant de
+charger ce modèle, et surtout **un futur prompt décodeur plus permissif sur la forme pourrait
+réveiller le thinking sans qu'on l'ait demandé**, avec un `maxOutputTokens` de 512 qui ne le
+bornerait pas. Sonder `reasoning_tokens` au premier appel de toute nouvelle version de prompt.
+
+Note annexe, sans conséquence sur les portes : la latence médiane du lot v4 est de **1 018 ms**,
+contre les **3 250 ms** annoncés par la sonde d'hier pour le même modèle sous le même prompt. La
+sonde tournait vraisemblablement avec un second modèle chargé ou des appels concurrents — biais
+déjà consigné pour `661856eb18c6`. La calibration a coûté 28 min, non les ~2 h estimées.
+
 ### Note — sonde v4 sur `ministral-3-14b` : R̄ bondit, le critère pré-enregistré dit non — calibration à faire
 
 **Aucune ligne de calibration** : la sonde a tourné le 2026-08-06 au soir, la calibration
@@ -384,3 +479,5 @@ par un juge bruité — mais elle demandera une confirmation à la prochaine sé
 doublons sont désormais entrelacés (correctif `a8e74b3`).
 | 2026-08-06 | human-20260804-e59651fc | boards.dev.jsonl | — | — | human | — | temp 0 / topP — / maxTokens — / maxRetries 0 / reasoning False / subset=elicitation.dev.jsonl (40/160) | 0,975 | 0,975 | 0,346 | 0,026 | 0,538 | 0,000 | pré-calibration | neutre | — | gén. : séance A, 40 direction(s), seed 20260804002 ; déc. : qwen/qwen3-8b (decode-clue v3 (critere joint), qwen3-8b Q4_K_M ctx 4096, thinking OFF verifie (reasoning_tokens=0)) |
 | 2026-08-06 | 20260728-vnone-random-baseline-seed-20260727000-a45667bc | boards.dev.jsonl | — | — | random-baseline-seed-20260727000 | — | temp 0 / topP — / maxTokens — / maxRetries 0 / reasoning False | 1,000 | 1,000 | 0,135 | 0,000 | 0,238 | 0,000 | pré-calibration | neutre | — | déc. : qwen/qwen3-8b (decode-clue v3 (critere joint), qwen3-8b Q4_K_M ctx 4096, thinking OFF verifie (reasoning_tokens=0)) |
+| 2026-08-07 | human-20260804-e59651fc | boards.dev.jsonl | — | — | human | — | temp 0 / topP — / maxTokens — / maxRetries 0 / reasoning False / subset=elicitation.dev.jsonl (22/160) | 1,000 | 1,000 | 0,576 | 0,045 | 0,773 | 0,000 | pré-calibration | neutre | ancrage porte de non-saturation pour la calibration ministral-14b sous clue v4 | gén. : séance A, 40 direction(s), seed 20260804002 ; déc. : mistralai/ministral-3-14b-reasoning (ministral-3-14b-reasoning Q4_K_M ctx 4096, thinking natif inactif verifie (reasoning_tokens=0) - inhibe par le prompt, ce modele n'expose pas de toggle LM Studio ; clue v4) |
+| 2026-08-07 | 20260728-vnone-random-baseline-seed-20260727000-a45667bc | boards.dev.jsonl | — | — | random-baseline-seed-20260727000 | — | temp 0 / topP — / maxTokens — / maxRetries 0 / reasoning False | 1,000 | 1,000 | 0,125 | 0,000 | 0,213 | 0,000 | pré-calibration | neutre | ancrage porte du plancher aleatoire pour la calibration ministral-14b sous clue v4 | déc. : mistralai/ministral-3-14b-reasoning (ministral-3-14b-reasoning Q4_K_M ctx 4096, thinking natif inactif verifie (reasoning_tokens=0) - inhibe par le prompt, ce modele n'expose pas de toggle LM Studio ; clue v4) |
