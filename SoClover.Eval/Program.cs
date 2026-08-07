@@ -45,6 +45,7 @@ internal static class EvalProgram
                 "elicit" => Elicit(cliArgs, CancellationToken.None),
                 "judge" => Judge(cliArgs, CancellationToken.None),
                 "guess" => Guess(cliArgs, CancellationToken.None),
+                "guess-report" => Task.FromResult(GuessReportCommand(cliArgs)),
                 "human-report" => Task.FromResult(HumanReportCommand(cliArgs)),
                 "human-run" => Task.FromResult(HumanRunCommand(cliArgs)),
                 "" => Task.FromResult(Usage()),
@@ -75,6 +76,7 @@ internal static class EvalProgram
               elicit    Séance A (auteur) : serveur local de saisie chronométrée
               judge     Séance B (juge) : serveur local de comparaison en aveugle, J+1
               guess     Séance D (devineur) : serveur local, 16 mots + 1 indice -> 2 mots
+              guess-report  Δ R̄ humain vs décodeur, apparié + IC (aucun appel LLM)
               human-run     Projette la séance A en pseudo-run décodable (aucun appel LLM)
               human-report  Agrégats des deux séances humaines (aucun appel LLM)
               calibrate     P6 : accord decodeur/humain, kappa, quatre portes, verdict unique
@@ -374,6 +376,33 @@ internal static class EvalProgram
         Console.WriteLine("  Ctrl+C pour arrêter. Reprise sûre : chaque verdict est écrit à la soumission.");
 
         await app.WaitForShutdownAsync(ct);
+        return 0;
+    }
+
+    /// <summary>
+    /// Verdict de la séance D. Aucun appel LLM : les deux fichiers existent déjà.
+    /// </summary>
+    private static int GuessReportCommand(Args args)
+    {
+        var guessing = HumanFile.ReadGuessing(args.Require("guessing"));
+        var decodedPath = args.Require("decoded");
+        var decoded = DecodeFile.ReadOrNull(decodedPath)
+            ?? throw new InvalidOperationException($"Décodage illisible : {decodedPath}");
+
+        var result = GuessingComparison.Compare(guessing, decoded);
+
+        Console.WriteLine("séance D — humain devineur vs décodeur");
+        Console.WriteLine($"  directions appariées : {result.PairedDirectionCount}");
+        Console.WriteLine($"  R̄ humain             : {result.HumanRecovery:0.000}");
+        Console.WriteLine($"  R̄ décodeur           : {result.DecoderRecovery:0.000}");
+        Console.WriteLine(
+            $"  Δ (humain − décodeur) : {result.Delta:+0.000;-0.000;0.000}   " +
+            $"IC 95 % [{result.CiLow:+0.000;-0.000;0.000} ; {result.CiHigh:+0.000;-0.000;0.000}]");
+        Console.WriteLine();
+        Console.WriteLine($"VERDICT : {result.Verdict}");
+        foreach (var reason in result.Reasons)
+            Console.WriteLine($"    — {reason}");
+
         return 0;
     }
 
