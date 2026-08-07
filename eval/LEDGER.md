@@ -652,3 +652,71 @@ doublons sont désormais entrelacés (correctif `a8e74b3`).
 | 2026-08-06 | 20260728-vnone-random-baseline-seed-20260727000-a45667bc | boards.dev.jsonl | — | — | random-baseline-seed-20260727000 | — | temp 0 / topP — / maxTokens — / maxRetries 0 / reasoning False | 1,000 | 1,000 | 0,135 | 0,000 | 0,238 | 0,000 | pré-calibration | neutre | — | déc. : qwen/qwen3-8b (decode-clue v3 (critere joint), qwen3-8b Q4_K_M ctx 4096, thinking OFF verifie (reasoning_tokens=0)) |
 | 2026-08-07 | human-20260804-e59651fc | boards.dev.jsonl | — | — | human | — | temp 0 / topP — / maxTokens — / maxRetries 0 / reasoning False / subset=elicitation.dev.jsonl (22/160) | 1,000 | 1,000 | 0,576 | 0,045 | 0,773 | 0,000 | pré-calibration | neutre | ancrage porte de non-saturation pour la calibration ministral-14b sous clue v4 | gén. : séance A, 40 direction(s), seed 20260804002 ; déc. : mistralai/ministral-3-14b-reasoning (ministral-3-14b-reasoning Q4_K_M ctx 4096, thinking natif inactif verifie (reasoning_tokens=0) - inhibe par le prompt, ce modele n'expose pas de toggle LM Studio ; clue v4) |
 | 2026-08-07 | 20260728-vnone-random-baseline-seed-20260727000-a45667bc | boards.dev.jsonl | — | — | random-baseline-seed-20260727000 | — | temp 0 / topP — / maxTokens — / maxRetries 0 / reasoning False | 1,000 | 1,000 | 0,125 | 0,000 | 0,213 | 0,000 | pré-calibration | neutre | ancrage porte du plancher aleatoire pour la calibration ministral-14b sous clue v4 | déc. : mistralai/ministral-3-14b-reasoning (ministral-3-14b-reasoning Q4_K_M ctx 4096, thinking natif inactif verifie (reasoning_tokens=0) - inhibe par le prompt, ce modele n'expose pas de toggle LM Studio ; clue v4) |
+
+### PRÉ-ENREGISTREMENT — `decode-clue` v5, les paires structurellement impossibles
+
+Écrit le 2026-08-07 **avant toute mesure**, à la suite de la « Limite 6 » relevée par l'auteur
+après la séance D. Rappel du défaut : une direction est une arête entre deux cartes, donc les deux
+mots visés viennent **toujours de deux cartes distinctes** — or ni la page de séance ni le prompt
+`decode-clue` ne présentaient la structure en cartes. Le décodeur désignait des paires intra-carte
+au **taux exact du hasard** (0,190 mesuré, 0,200 attendu) et **aucune de ces paires ne peut valoir
+`r = 1`**. Un cinquième des tirages était condamné d'avance.
+
+v5 se distingue de v2, v3 et v4 sur un point décisif, et c'est la raison pour laquelle elle est
+tentée après trois échecs de prompt : sa motivation est **structurelle — une règle du jeu que
+l'instrument ignorait** — et non un ajustement lu dans les données.
+
+**Montage.** Banc `boards.dev.jsonl` (hash `416b819a41a1`), run générateur
+`20260728-v5-google-gemma-4-12b-qat-d79a63b9` (154 indices valides sur 160). Décodeur
+`qwen/qwen3-8b`, thinking OFF, temp 0,3 · topP 1,0 · maxOut 512, `--decodes 3`. **Deux décodages
+du même run, prompt v4 puis prompt v5 — une seule variable, le prompt.** Le couple (qwen3-8b, v4)
+n'existait pas sur ce run : il est produit exprès comme référence, plutôt que de comparer à travers
+deux modèles. Les deux décodages s'apparient direction par direction (même graine de présentation,
+dérivée par deux instances de PRNG distinctes pour que le mélange à plat de v4 reste inchangé au
+bit près).
+
+Ce que v5 change, et rien d'autre : les seize mots sont présentés **groupés en quatre cartes** et
+la contrainte des deux cartes est énoncée. Le **schéma JSON est identique à v4** (`candidats`,
+`lien`, `picked`). La position de la carte sur le plateau et la face que porte chaque mot restent
+cachées — cartes mélangées entre elles, puis mots à l'intérieur, étiquettes ordinales neutres.
+Ce n'est pas une fuite : dans une partie réelle le devineur tient les quatre cartes physiques.
+
+**Mesure principale — `intra_card_rate`.** Part des décodages exploitables dont les deux mots
+sortent d'une seule et même carte. Hasard = 24/120 = **0,200**. **Critère : v5 franchit si
+`intra_card_rate` ≤ 0,05.** C'est une mesure de conformité, quasi déterministe, sur n ≈ 460
+décodages : entre 0,19 et 0,05 l'écart vaut plus de 7 σ, le critère ne dépend pas du bruit. Le code
+**ne rejette pas** les paires intra-carte — rejeter garantirait 0,000 et ne mesurerait plus rien.
+
+**Mesure secondaire — Δ R̄, avec sa prédiction chiffrée d'avance.** Sous ministral/v4, la
+sous-population intra-carte rendait R̄ = 0,403 (n = 93, dont **0** à `r = 1`) contre 0,529 en
+inter-cartes (n = 367). Si v5 se contente de réallouer ~19 % des décodages vers le comportement
+inter-cartes déjà observé, le gain attendu vaut 0,19 × (0,529 − 0,403) ≈ **+0,024**. Sur 154
+directions appariées, la demi-largeur de l'IC bootstrap 95 % sera de l'ordre de ±0,03 :
+**l'effet prédit est au bord de la détectabilité, et il est déclaré tel avant la mesure.** Un
+Δ R̄ non significatif ne réfute donc pas v5 ; un Δ R̄ **négatif hors bruit** le réfute.
+
+**Règle d'interprétation, fixée d'avance.** Trois issues, et une seule sera lue :
+
+1. `intra_card_rate` ≤ 0,05 **et** Δ R̄ ≥ 0 → **v5 devient le décodeur par défaut**. L'instrument
+   cesse de gaspiller un cinquième de ses tirages.
+2. `intra_card_rate` ≤ 0,05 **et** Δ R̄ < 0 hors bruit → la contrainte est respectée mais elle
+   coûte : **v5 est rejeté**, et il restera à expliquer pourquoi un décodeur mieux informé devine
+   moins bien.
+3. `intra_card_rate` > 0,05 → v5 **n'obtient pas** la conformité qu'elle demande. Le prompt ne
+   suffit pas, et la question devient structurelle (schéma JSON par carte, ou contrainte imposée
+   au décodage plutôt qu'énoncée).
+
+**Ce que ce montage ne mesure pas — déclaré d'avance.**
+
+1. **Aucune des quatre portes**, ni accord ni κ. La séance D a montré que la porte d'accord juge
+   l'instrument sur autre chose que ce que le jeu contient ; sa refondation sur la devinette
+   demande son propre pré-enregistrement et **n'est pas engagée ici**.
+2. **La qualité des indices ne bouge pas** : même run, mêmes 154 indices. Ce qui change est
+   l'instrument qui les lit. Tous les `recovery` déjà publiés restent donc mesurés par un décodeur
+   qui gaspillait un cinquième de ses tirages — v5 ne les corrige pas rétroactivement, elle
+   empêche seulement la suite de traîner le défaut.
+3. **La page de séance humaine reste à plat.** `guess.html` présente toujours les seize mots sans
+   structure. La séance D reste valide — l'humain et le décodeur y voyaient tous deux à plat — mais
+   elle **cesse d'être rejouable à l'identique** contre un décodeur v5. Dette explicite, à solder
+   avant toute nouvelle séance devineur.
+4. **Un seul modèle, une seule langue** : qwen3-8b, FR. Rien ne sera dit des autres.
