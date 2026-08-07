@@ -101,6 +101,25 @@ mémoire, le décodeur rend R̄ ≈ 0,37 sur ce run.
    l'identité avec un mot du plateau (vérifié : **0 violation sur 309 indices**) — c'est l'existence
    du mot, et elle seule, qui n'est pas contrôlée. Marginal en fréquence, non corrigé pour l'instant.
 
+#### Amendement au pré-enregistrement, même jour, avant toute mesure
+
+Cinquième limite, omise à la première rédaction et ajoutée avant d'écrire la moindre ligne de code
+— donc avant qu'aucune donnée n'existe : **l'humain garde la mémoire des boards, le décodeur non.**
+Prendre les 4 directions de chaque board expose ses 16 mots quatre fois au même joueur, qui peut
+écarter les paires déjà vues. Chaque appel du décodeur est au contraire indépendant : aucune
+mémoire d'une direction à l'autre.
+
+Le biais joue **en faveur de l'humain**, dans le même sens que l'asymétrie d'effort de la limite 3
+joue en faveur du décodeur. Il n'est pas supprimable sans tomber à 11 directions (une par board),
+dénominateur trop faible pour la mesure. Mitigation retenue : les items sont **dispersés**
+(`ComparisonPlan.SpaceOut`, séparation visée de 8 positions), de sorte que deux directions d'un même
+board ne se suivent jamais et que la mémoire soit la plus froide possible.
+
+Conséquence sur la lecture, fixée ici : si Δ ressort **en faveur de l'humain**, une part non
+mesurable en revient à cet avantage de mémoire — la conclusion « le décodeur est un joueur plus
+faible » devra le mentionner comme surestimation possible. Si Δ **contient 0** malgré cet avantage,
+la conclusion s'en trouve au contraire renforcée.
+
 ### Note — v4 sur ministral : le prompt ne bouge ni l'accord ni R̄, il ne corrige que le format
 
 Cette calibration était le point de reprise laissé par la note du 2026-08-06. Elle répond à la
