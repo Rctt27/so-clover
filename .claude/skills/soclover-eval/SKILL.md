@@ -80,6 +80,19 @@ doctor → generate → [rechargement manuel du modèle] → decode → score �
 - **Contrainte pratique** : `-c Release` verrouille `bin/Release` pendant toute la séquence — on ne
   peut ni éditer ni recompiler tant qu'un run tourne. Prévoir les correctifs de code *avant* de
   lancer, ou attendre la fin.
+- **Horodater tout lancement qui appelle le LLM** (`generate`, `decode`, `calibrate`). L'en-tête du
+  harnais dit *quoi* tourne, jamais *depuis quand* : y adosser l'heure de début — relevée par
+  `date +%H:%M` au moment du lancement — et, quand une latence par appel est déjà observée,
+  l'heure de fin attendue. Un run se pilote à l'heure à laquelle on le retrouvera, pas à une durée
+  relative que plus rien ne rattache à l'horloge une fois la séance en cours :
+
+  ```
+  lancé      : 14:32          fin estimée : ~15:02 (1620 × ~1,1 s)
+  artefact   : calibration.<date>-<empreinte>-d<N>.jsonl
+  couples    : 85 principaux + 5 ancres
+  décodages  : 180 indices × 9 = 1620
+  prompt     : clue v4     ε : 0
+  ```
 
 ## Séances humaines (P4-P5)
 
