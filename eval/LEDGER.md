@@ -42,6 +42,99 @@
 
 | 2026-08-07 | `f5bad93aeed3` | mistralai/ministral-3-14b-reasoning · **clue v4** · temp 0,3 · topP 1,0 · maxOut 512 | comparisons.dev.jsonl | 85 + 5 ancres | 0 | **0,490** [0,347 ; 0,633] ✗ | **-0,027** [-0,304 ; 0,251] ✗ | 0,576 ✓ | 0,125 ✓ | **renvoyé en P3** (échec *démontré*) | **9** décodages/indice, 49/85 couples tranchés, égalités décodeur 0,235. Calibration annoncée par la note du 2026-08-06 au soir, tenue le lendemain. **Une seule variable contre `27e36fefe975`-d9** : modèle, température, `topP`, `maxOut`, granularité et corpus identiques — seul le prompt passe de v2 à v4. L'IC entier de l'accord est sous le seuil : échec **démontré**, à ne pas agréger avec `661856eb18c6`. κ humainVsModèle 0,110 (n=18), modèleVsModèle 0,004 (n=31) — contingence équilibrée (14/13/12/10), pas de paradoxe κ. Ancres décodeur **5/5** : discrimination grossière intacte, discrimination fine nulle, même signature que les huit précédentes. Lot toujours `AnchorSuspect` (juge 3/5, même corpus) et cohérence intra-juge 0,900 toujours contaminée (doublons en queue, cf. note du 2026-08-06) — aucun statut `calibré` n'est demandé ici, le verdict est un échec. Portes d'échelle re-mesurées sous cette empreinte : plancher 0,125 (valeur théorique exacte du hasard) et non-saturation 0,576. `decode_failure_rate` des ancrages : clue **0/66** sur l'humain, **7/480 (1,5 %)** sur le plancher, tous `outOfVocabulary` ; `decode-board` décroche à 26/40 comme sous toutes les empreintes ministral — sans effet sur les quatre portes, l'outil le ventile. Q4_K_M, ctx 4096, `reasoning_tokens = 0` vérifié — **inhibé par le prompt, pas par un toggle** (voir rectification ci-dessous). Latence médiane du lot **1 018 ms**. |
 
+### RÉSULTAT — séance D : l'humain et le décodeur devinent **exactement** aussi bien
+
+Séance tenue le 2026-08-07, 42 directions, 18 min. Aucun appel LLM générateur ; le décodeur comparé
+est `f5bad93aeed3` (ministral-14b, clue v4), run baseline re-décodé sous cette empreinte à
+`--decodes 3`. **Aucune ligne dans les deux tables ci-dessus** : la séance D ne mesure ni un run
+générateur ni une calibration, mais l'instrument lui-même. Ses artefacts sont
+`eval/human/guessing.dev.jsonl` et le décodage apparié.
+
+| | valeur |
+|---|---|
+| directions appariées | 42 |
+| R̄ **humain** | **0,583** |
+| R̄ **décodeur** | **0,583** |
+| Δ (humain − décodeur), apparié | **0,000** IC 95 % [-0,063 ; +0,063] |
+| verdict pré-enregistré atteint | **instrument valide — la cible est en cause** |
+
+**L'IC observé (±0,063) est deux fois plus étroit que la puissance annoncée (~0,15).** L'appariement
+a mieux fonctionné que prévu : humain et décodeur échouent sur les *mêmes* directions, ce qui
+élimine la variance inter-items. La séance aurait donc détecté un écart de 0,07 — elle n'en trouve
+aucun. Cela ne transforme pas pour autant l'absence de preuve en preuve d'équivalence, comme le
+pré-enregistrement l'exigeait, mais l'absence de preuve est ici obtenue à une résolution deux fois
+meilleure que promise.
+
+**Le pic à `r = 0,5` est un plafond de la tâche, et la question est close.** Profils comparés :
+
+| | `r = 0` | `r = 0,5` | `r = 1` |
+|---|---|---|---|
+| humain (n=42) | 0,024 | **0,786** | 0,190 |
+| décodeur (n=460) | 0,124 | **0,746** | 0,130 |
+
+Trois versions du prompt décodeur ont tenté de corriger ce pic — v2 marginal, v3 joint, v4 délibéré
+— pour un total de zéro effet. On sait maintenant pourquoi : **un humain placé devant la même tâche
+produit le même pic, plus prononcé encore.** Retrouver un seul mot sur deux à partir d'un indice
+unique parmi seize mots n'est pas une faiblesse du décodeur, c'est le régime normal de l'exercice.
+La note du 2026-08-06 l'avançait « pour ce décodeur » ; ce point l'établit sans restriction, et
+ferme définitivement la piste du prompt comme moyen de déplacer R̄.
+
+**Ce que le verdict autorise, et ce qu'il n'autorise pas.** Il établit que le décodeur devine comme
+un humain devine — donc qu'il est un instrument valide pour *la tâche du jeu*. Il **n'établit pas**
+que les neuf calibrations étaient mal conduites : elles mesuraient fidèlement ce qu'elles
+mesuraient. Ce qu'il établit, c'est que **la porte d'accord jugeait l'instrument sur autre chose que
+ce que le jeu contient** — comparer deux indices est un exercice de justesse, deviner en est un
+d'efficacité, et le décodeur n'a jamais échoué qu'au premier. La refondation de la porte sur la
+devinette **ne se décide pas ici** : le pré-enregistrement l'exigeait, elle demandera le sien.
+
+### Limite 6 — les paires structurellement impossibles, relevée par l'auteur après la séance
+
+Relevée par l'auteur **après** avoir joué, donc jamais déclarée d'avance : dans une partie réelle,
+les deux mots visés par un indice appartiennent **toujours à deux cartes distinctes** — une
+direction est une arête entre deux cartes adjacentes. Or ni la page de la séance D, ni le prompt
+`decode-clue`, ne présentent la structure en cartes : les seize mots sont une liste plate. Humain
+comme décodeur peuvent donc désigner une paire que le jeu interdit.
+
+| paires intra-carte | taux |
+|---|---|
+| humain (3/42) | **0,071** |
+| décodeur (24/126 sur les mêmes directions) | **0,190** |
+| attendu au pur hasard (24 paires sur 120) | 0,200 |
+
+**Le décodeur produit des paires impossibles au taux exact du hasard** — il n'a aucune notion de la
+contrainte, ce qui est attendu puisque rien ne la lui donne. L'humain les évite 2,7 fois mieux
+(~2,2 σ) sans voir les cartes davantage : il a une intuition que la machine n'a pas.
+
+Ce que cela coûte au décodeur, sur l'ensemble du run baseline (460 décodages exploitables) :
+
+| | n | R̄ | dont `r = 1` |
+|---|---|---|---|
+| inter-cartes (possible) | 367 (79,8 %) | 0,529 | 60 |
+| intra-carte (impossible) | 93 (20,2 %) | 0,403 | **0** |
+
+**Aucun décodage intra-carte ne peut valoir 1**, par construction : un cinquième des tirages du
+décodeur est condamné d'avance à ne jamais donner une réponse complète. C'est un plafond mécanique
+sur `strict_2of2` et une part du pic à `r = 0,5`.
+
+**Portée sur le verdict de la séance D : aucune, et plutôt dans le sens favorable.** Les deux
+joueurs subissent la contrainte, mais le décodeur bien plus que l'humain (0,190 contre 0,071) : il
+atteint le score humain **malgré** ce handicap. Le verdict n'en est pas menacé. Cette lecture est
+toutefois **post-hoc** — elle n'était pas pré-enregistrée, elle ne peut donc pas être portée au
+crédit du résultat, seulement empêcher qu'on l'attaque par cet angle.
+
+**Portée sur le reste du registre : réelle et non mesurée.** Tous les `recovery` publiés — les neuf
+calibrations, tous les runs — reposent sur un décodeur qui gaspille ~20 % de ses tirages. `R̄` a
+donc toujours **sous-estimé** la qualité des indices, de façon vraisemblablement homogène (la
+contrainte ne dépend ni du modèle ni du prompt), ce qui préserve les comparaisons *entre* lignes
+mais fausse toute lecture en valeur absolue.
+
+**Ce que cela ouvre.** Une variante `decode-clue` v5 qui présente les seize mots **groupés par
+carte** et énonce la contrainte. Elle se distingue de v2, v3 et v4 sur un point décisif : sa
+motivation est **structurelle — une règle du jeu que l'instrument ignorait** — et non un ajustement
+lu dans les données. C'est la première piste de prompt depuis le début de la série dont on puisse
+dire à l'avance *pourquoi* elle devrait mordre, et le mécanisme est chiffré : 20 % de tirages
+actuellement perdus, dont 0 % peut valoir 1.
+
 ### PRÉ-ENREGISTREMENT — séance D « devineur » : le décodeur imite-t-il la bonne tâche ?
 
 **Écrit le 2026-08-07, avant tout code et avant toute mesure** (garde 6). Rien de ce qui suit ne
