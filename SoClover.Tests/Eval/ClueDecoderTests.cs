@@ -226,6 +226,80 @@ public class ClueDecoderTests
         Assert.All(BenchBoardMapper.AllWords(board), w => Assert.Contains(w, prompt));
     }
 
+    // v5 : le prompt reçoit les seize mots groupés par carte. Le placeholder est distinct de
+    // {{shuffledBoardWords}} — les deux cohabitent, une version de prompt n'en emploie qu'un.
+    [Fact]
+    public async Task Fills_the_card_grouped_placeholder_with_the_four_cards()
+    {
+        var board = Board();
+        var reference = BenchBoardMapper.ReferenceWords(board, Direction.Top);
+        var capturing = new CapturingChatClient(Picked(reference[0], reference[1]));
+        var promptFile = WriteTemporaryPrompt("{{cardGroupedBoardWords}}");
+
+        try
+        {
+            var decoder = new ClueDecoder(
+                capturing, new FilePromptLoader(), promptFile, "m", 0.3f, null, 512);
+            await decoder.DecodeAsync(board, Direction.Top, "Hôpital", 0, BenchHash, default);
+
+            var expected = ShuffleSeed.RenderByCard(ShuffleSeed.ShuffleByCard(
+                board.Cards, ShuffleSeed.ForClue(BenchHash, board.BoardId, 0)));
+            Assert.Contains(expected, capturing.LastUserPrompt!);
+            Assert.DoesNotContain("{{", capturing.LastUserPrompt!);
+        }
+        finally
+        {
+            File.Delete(promptFile);
+        }
+    }
+
+    // Le mélange à plat de v4 ne bouge pas d'un iota quand le rendu groupé est calculé à côté.
+    [Fact]
+    public async Task Leaves_the_flat_placeholder_untouched_for_earlier_prompt_versions()
+    {
+        var board = Board();
+        var reference = BenchBoardMapper.ReferenceWords(board, Direction.Top);
+        var capturing = new CapturingChatClient(Picked(reference[0], reference[1]));
+        var promptFile = WriteTemporaryPrompt("{{shuffledBoardWords}}");
+
+        try
+        {
+            var decoder = new ClueDecoder(
+                capturing, new FilePromptLoader(), promptFile, "m", 0.3f, null, 512);
+            await decoder.DecodeAsync(board, Direction.Top, "Hôpital", 0, BenchHash, default);
+
+            var expected = string.Join("\n", ShuffleSeed
+                .Shuffle(BenchBoardMapper.AllWords(board), ShuffleSeed.ForClue(BenchHash, board.BoardId, 0))
+                .Select(w => $"- {w}"));
+            Assert.Contains(expected, capturing.LastUserPrompt!);
+        }
+        finally
+        {
+            File.Delete(promptFile);
+        }
+    }
+
+    private static string WriteTemporaryPrompt(string wordsPlaceholder)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"decode-clue-{Guid.NewGuid():N}.md");
+        File.WriteAllText(path, """
+            ---
+            version: 99
+            language: fr
+            description: prompt de test
+            ---
+
+            # SYSTEM
+            Tu décodes.
+
+            # USER
+            __WORDS__
+
+            Indice : **{{clueWord}}**
+            """.Replace("__WORDS__", wordsPlaceholder));
+        return path;
+    }
+
     /// <summary>Client de test qui capture le dernier prompt utilisateur envoyé.</summary>
     private sealed class CapturingChatClient : Microsoft.Extensions.AI.IChatClient
     {
