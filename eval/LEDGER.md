@@ -720,3 +720,66 @@ directions appariées, la demi-largeur de l'IC bootstrap 95 % sera de l'ordre de
    elle **cesse d'être rejouable à l'identique** contre un décodeur v5. Dette explicite, à solder
    avant toute nouvelle séance devineur.
 4. **Un seul modèle, une seule langue** : qwen3-8b, FR. Rien ne sera dit des autres.
+
+### RÉSULTAT — `decode-clue` v5, 2026-08-07 — **issue 3, et pire que prévu**
+
+Les deux décodages du pré-enregistrement ci-dessus ont été produits le 2026-08-07 (16:38 et
+16:45), 6 min 25 et 6 min 42, banc `416b819a41a1`, run `20260728-…-d79a63b9`, `qwen/qwen3-8b`
+thinking OFF (`reasoning_tokens = 0` vérifié sur 3 appels avec le système v5), temp 0,3 · topP 1,0
+· maxOut 512, 3 décodages par indice. Empreintes `e46ee636933a` (v4) et `964eec39fd3d` (v5).
+
+| | v4 `e46ee636933a` | v5 `964eec39fd3d` |
+|---|---|---|
+| `recovery` | **0,382** | **0,345** |
+| `intra_card_rate` | **0,196** (90/460) | **0,245** (113/462) |
+| `half_rate` | 0,643 | 0,565 |
+| `strict_2of2` | 0,032 (5/154) | 0,006 (1/154) |
+| distribution `r` — 0 / 0,5 / 1 | 0,285 / 0,635 / 0,080 | **0,353** / 0,578 / 0,069 |
+| R̄ des paires **inter-cartes** | **0,405** | **0,348** |
+| R̄ des paires **intra-carte** | 0,367 (0 × `r = 1`) | 0,389 (0 × `r = 1`) |
+| échecs de format `decode-clue` | 2/462 | 0/462 |
+
+**Δ `recovery` apparié = −3,8 pts, IC 95 % [−6,8 ; −0,7]** — l'intervalle entier est sous zéro.
+Verdict de `compare` : **ÉCARTÉ**.
+
+**Le critère principal n'est pas franchi, et il échoue dans le sens opposé.** Il demandait
+`intra_card_rate ≤ 0,05` ; on mesure **0,245**, soit **au-dessus du hasard** (0,200). Montré la
+structure en cartes et averti deux fois que la paire est à cheval, le décodeur enfreint la règle
+**plus souvent** que lorsqu'on ne lui disait rien. C'est l'issue 3 du pré-enregistrement, dans sa
+forme la plus dure : le prompt n'obtient pas la conformité qu'il demande, il l'éloigne.
+
+**Le critère secondaire échoue aussi, et il départage les mécanismes.** La prédiction écrite
+d'avance était **+0,024** par simple réallocation ; on observe **−0,038**, hors bruit. Surtout,
+la perte n'est **pas** imputable aux seules paires intra-carte : R̄ **inter-cartes** — celles où la
+contrainte est respectée — tombe de **0,405 à 0,348**. v5 dégrade le décodeur *sur la tâche
+elle-même*, indépendamment de la contrainte. La part de `r = 0` monte de 6,8 pts. Le décodeur n'est
+pas devenu plus obéissant, il est devenu **plus bruité** — et le nombre de directions où les trois
+décodages tombent tous en intra-carte s'effondre de 8 à 2, signature d'une dispersion accrue et
+non d'un biais systématique vers une carte.
+
+**Ce que la sonde établit quand même, et qui vaut la dépense.** Les deux mesures indépendantes du
+taux intra-carte encadrent le hasard sur un **second modèle** : 0,196 sous v4 contre 0,200 attendu.
+Et `r = 1` reste à **0 sur 203** décodages intra-carte, toutes versions confondues — l'impossibilité
+structurelle relevée par l'auteur après la séance D n'est plus une déduction, elle est vérifiée sur
+qwen comme sur ministral. Le défaut est réel ; c'est le remède par le prompt qui ne marche pas.
+
+**Dette de la garde 1 — deux composantes bougent dans une seule version.** v5 change à la fois la
+**présentation** (seize mots groupés en quatre cartes) et le **texte de la contrainte** (règle
+énoncée, rappel dans le message utilisateur, sixième contrainte absolue). Les deux ne sont pas
+séparables sur cette mesure : on ne sait pas si c'est le groupement qui induit la proximité fautive,
+ou l'allongement du prompt qui dilue le critère joint. Le **verdict** ne dépend pas de cette
+séparation — les deux composantes partent ensemble — mais tout diagnostic sur la *cause* reste une
+hypothèse.
+
+**Décision.** v5 est **écartée**. `decode-clue.md` repasse en **v4**, qui reste le décodeur par
+défaut ; v5 est archivée au commit `fa0d312` et reproductible telle quelle. Sont **conservés** :
+`ShuffleSeed.ShuffleByCard` et le placeholder `{{cardGroupedBoardWords}}` (sans quoi v5 ne serait
+plus rejouable), et surtout `intra_card_rate`, qui devient un témoin permanent de `score` — c'est
+lui qui a rendu ce résultat lisible, et il ne coûte rien.
+
+**Ce qui reste indécidable.** Que la contrainte des deux cartes soit **imposée au décodage** plutôt
+qu'énoncée dans le prompt n'a pas été essayé : ce serait un rejet côté code, et il garantirait
+`intra_card_rate = 0` sans rien mesurer — mais il rendrait au décodeur les 24 paires qu'il gaspille,
+au prix d'un décodeur qui ne devine plus tout à fait comme un humain devine. Cette voie ne se décide
+pas ici. Et la troisième piste de prompt consécutive qui ne déplace rien — v3, v4 sur ministral,
+v5 — dit surtout que **le prompt n'est pas le levier** de ce décodeur.
