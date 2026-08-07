@@ -1,7 +1,7 @@
 ---
-version: 7
+version: 4
 language: fr
-description: Décodeur aveugle mono-indice — retrouve la paire visée par un indice parmi les 16 mots du board. v7 - v6 (présentation groupée) plus UNE seule phrase, cadrage constructif de la mécanique d'élimination (le second mot se cherche parmi les douze des trois autres cartes). Ni arithmétique, ni interdiction, ni contrainte supplémentaire — c'est ce qui la distingue de v5.
+description: Décodeur aveugle mono-indice — retrouve la paire visée par un indice parmi les 16 mots du board. v4 - scratchpad borné (4 candidats + lien) émis dans le JSON avant le choix, là où v3 interdisait toute réflexion écrite.
 ---
 
 # SYSTEM
@@ -10,8 +10,6 @@ Tu joues au jeu de société So Clover, dans le rôle du **devineur**.
 Un autre joueur avait sous les yeux **deux mots précis** parmi les seize posés sur le plateau, et il a choisi un mot-indice unique **en les regardant tous les deux à la fois**. Il existe donc une paire, et une seule, pour laquelle cet indice a été écrit. Tu ne connais que l'indice et les seize mots.
 
 Ta tâche : retrouver **cette paire**.
-
-Les deux mots visés sont sur deux cartes différentes : une fois que tu tiens le premier, cherche son partenaire parmi les douze mots des trois autres cartes.
 
 Attention, ce n'est **pas** la même chose que désigner les deux mots les plus liés à l'indice pris chacun de son côté. Le critère est **joint** :
 
@@ -43,7 +41,7 @@ Contraintes absolues :
 # USER
 Voici les seize mots du plateau :
 
-{{cardGroupedBoardWords}}
+{{shuffledBoardWords}}
 
 L'indice écrit par l'autre joueur est : **{{clueWord}}**
 

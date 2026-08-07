@@ -826,3 +826,59 @@ Les deux issues sont informatives ; c'est ce qui manquait à v5.
 **Lecture, fixée d'avance.** `intra_card_rate` reste le témoin principal (hasard 0,200), Δ`recovery`
 apparié le témoin secondaire, sur les trois comparaisons v4→v6, v6→v7 et v4→v7. Aucune porte de
 calibration n'est engagée. Aucun statut `calibré` n'est demandé.
+
+### RÉSULTAT — escalier v6 / v7, 2026-08-07 — **c'est la mise en page, et mon diagnostic était faux**
+
+Décodages lancés à 17:20 (v6, 6 min 10) et 17:27 (v7, 6 min 03), même montage que la sonde v5.
+Empreintes `1ddcae98c15a` (v6) et `78777a58b54e` (v7).
+
+| | présentation | texte sur les cartes | `intra_card_rate` | `recovery` | R̄ inter-cartes | part de `r = 1` | `strict_2of2` |
+|---|---|---|---|---|---|---|---|
+| **v4** `e46ee636933a` | à plat | aucun | **0,196** | 0,382 | 0,405 | 0,080 | 0,032 |
+| **v5** `964eec39fd3d` | groupée | lourd (6 ajouts, +31 % de prompt) | **0,245** | 0,345 | 0,348 | 0,069 | 0,006 |
+| **v6** `1ddcae98c15a` | groupée | **aucun** | **0,485** | 0,370 | 0,388 | 0,046 | 0,013 |
+| **v7** `78777a58b54e` | groupée | une phrase constructive | **0,453** | 0,377 | 0,425 | 0,074 | 0,026 |
+
+Δ`recovery` appariés : v4→v6 **−1,2 pts** [−4,0 ; +1,5] `NEUTRE` · v6→v7 **+0,7 pts** [−1,0 ; +2,3]
+`NEUTRE` · v4→v7 **−0,5 pts** [−3,3 ; +2,3] `NEUTRE`.
+
+**La prédiction pré-enregistrée tranche, et elle tranche contre moi.** Elle disait : si la mise en
+page est en cause, `v6` monte au-dessus de 0,196 *alors qu'aucun mot ne parle de cartes*. v6 monte
+à **0,485** — deux fois et demie le hasard, deux fois le taux de v5. Grouper les seize mots en
+quatre blocs suffit à faire choisir deux mots de la même carte **une fois sur deux**, sans qu'aucune
+ligne du prompt n'ait mentionné l'existence des cartes. La proximité typographique est un attracteur
+massif, et c'est **moi** qui l'ai introduit dans v5.
+
+**Mon diagnostic « c'est ma rédaction » est réfuté, et exactement à l'envers.** Le texte lourd de v5
+— celui que j'avais qualifié d'interdiction mal formulée, avec sa contrainte impossible et son
+arithmétique — est le **plus efficace des trois** à contenir la violation : 0,485 → **0,245**, une
+division par deux. La phrase légère et « bien cadrée » de v7 ne fait que 0,485 → 0,453. Plus le
+texte insiste, plus il contient l'attracteur ; aucun ne le ramène au niveau de la présentation à
+plat. Ce qui était présenté comme trois défauts de rédaction était en réalité trois compensations
+d'un défaut de présentation.
+
+**Le coût de v5 n'était donc pas le groupement.** v6 et v7 sont `NEUTRE` en `recovery` contre v4 ;
+seule v5 perdait (−3,8 pts, IC entier sous zéro). La perte est imputable à ce qui est **propre à
+v5** — +31 % de prompt, six ajouts, une consigne inexécutable — et non au fait de grouper.
+
+**Le piège que R̄ ne voit pas, et qui compte.** v6 est `NEUTRE` en `recovery` tout en faisant
+**chuter les récupérations exactes** : `r = 1` passe de 0,080 à **0,046**, `strict_2of2` de 0,032 à
+0,013. R̄ tient parce que `r = 0,5` monte en compensation (0,635 → 0,675). Mécaniquement attendu :
+la moitié des tirages étant intra-carte, la moitié des tirages **ne peut pas** valoir 1. Une
+présentation peut donc décapiter le haut de l'échelle de l'instrument sans que la métrique
+principale bronche — à lire avec `intra_card_rate` à côté, désormais.
+
+**Ce que l'objection de l'auteur devient.** Sa mécanique est juste et n'est pas en cause : une fois
+le premier mot tenu, le second se cherche parmi douze. Ce que l'escalier établit, c'est que **ce
+modèle ne peut pas exploiter la partition tant qu'elle lui est présentée en blocs** — le gain
+d'information (un cinquième du champ) est englouti par un biais de proximité qui vaut, lui, deux
+fois et demie le hasard. Le levier n'est pas mort : il n'a **jamais été testé sans le confond**.
+
+**Ce que cela ouvre.** Porter l'appartenance de carte **sans le bloc** — une liste à plat, mélangée
+comme dans v4, où chaque mot porte son étiquette en ligne (`- Volcan (carte C)`). L'ordre de
+balayage de v4 est préservé, aucune proximité n'est créée, et la partition reste lisible. C'est la
+seule forme dans laquelle la mécanique d'élimination peut être évaluée pour ce qu'elle vaut. Non
+engagé ici.
+
+**Décision.** v6 et v7 sont écartées comme v5 ; `decode-clue.md` reste en **v4**. Les trois variantes
+sont archivées (`fa0d312`, `cce2c7e`, `8c33bea`) et rejouables.
