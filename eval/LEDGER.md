@@ -783,3 +783,46 @@ qu'énoncée dans le prompt n'a pas été essayé : ce serait un rejet côté co
 au prix d'un décodeur qui ne devine plus tout à fait comme un humain devine. Cette voie ne se décide
 pas ici. Et la troisième piste de prompt consécutive qui ne déplace rien — v3, v4 sur ministral,
 v5 — dit surtout que **le prompt n'est pas le levier** de ce décodeur.
+
+### PRÉ-ENREGISTREMENT — escalier v6 / v7, séparer la mise en page du cadrage
+
+Écrit le 2026-08-07 **avant toute mesure**, à la demande de l'auteur, qui conteste la lecture de
+la sonde v5. Son objection, et elle est fondée : la mécanique d'élimination est réelle et vaut un
+cinquième du champ — le second mot se cherche parmi **12** et non 15, soit 96 paires au lieu de 120
+— donc un décodeur informé devrait faire *mieux*, pas moins bien. Ce que la sonde v5 a établi est
+que la dégradation est réelle (IC entier sous zéro) ; ce qu'elle n'a **pas** établi est sa cause.
+La dette de garde 1 déclarée dans la note v5 est ici soldée.
+
+**Six choses bougeaient dans v5 à la fois** : un paragraphe d'interdiction, une arithmétique
+(120/24/96), un point de critère enrichi, une contrainte sur `candidats`, une sixième contrainte
+absolue demandant de « vérifier et recommencer », et la présentation groupée. Prompt de **916 à
+1 204 tokens** (+31 %, mesuré). Trois défauts de rédaction identifiés a posteriori : (a) le cadrage
+est une **interdiction** (« ne prends jamais ») là où la mécanique du jeu est une **élimination
+constructive** (« cherche parmi les douze ») ; (b) la contrainte 5 demande une opération que le
+format rend impossible — vérifier et recommencer, alors qu'aucun texte n'est autorisé hors du JSON
+et que `picked` s'écrit une fois ; (c) la mise en page **induit peut-être l'erreur qu'elle
+interdit**, en posant les quatre mots d'une carte sur des lignes consécutives.
+
+**Montage.** Identique à celui de la sonde v5, banc `416b819a41a1`, run `20260728-…-d79a63b9`,
+`qwen/qwen3-8b` thinking OFF, temp 0,3 · topP 1,0 · maxOut 512, 3 décodages par indice. Escalier à
+**une variable par marche** :
+
+| | ce qui change | ce que ça isole |
+|---|---|---|
+| **v4** (mesuré, `e46ee636933a`) | — | référence : `intra_card_rate` 0,196, R̄ 0,382 |
+| **v6** | présentation groupée **seule**, pas un mot de texte changé | l'effet de **mise en page** |
+| **v7** | v6 **+ une seule phrase**, cadrage constructif | l'effet du **cadrage** |
+
+La phrase de v7, et rien d'autre : « Les deux mots visés sont sur deux cartes différentes : une fois
+que tu tiens le premier, cherche son partenaire parmi les douze mots des trois autres cartes. » Pas
+d'arithmétique, pas de sixième contrainte, pas de « recommence », pas de consigne sur `candidats`.
+
+**Prédiction posée d'avance, et elle discrimine.** Si la **mise en page** est en cause, `v6` monte
+déjà au-dessus de 0,196 **alors qu'aucun mot ne parle de cartes** — un prompt qui ne mentionne pas
+la contrainte ne peut pas la faire violer, seule la disposition le peut. Si c'est la **rédaction de
+v5**, `v6` reste à 0,196 ou descend, et c'est `v7` qui doit mordre, cette fois dans le bon sens.
+Les deux issues sont informatives ; c'est ce qui manquait à v5.
+
+**Lecture, fixée d'avance.** `intra_card_rate` reste le témoin principal (hasard 0,200), Δ`recovery`
+apparié le témoin secondaire, sur les trois comparaisons v4→v6, v6→v7 et v4→v7. Aucune porte de
+calibration n'est engagée. Aucun statut `calibré` n'est demandé.

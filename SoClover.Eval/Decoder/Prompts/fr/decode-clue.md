@@ -1,7 +1,7 @@
 ---
-version: 4
+version: 6
 language: fr
-description: Décodeur aveugle mono-indice — retrouve la paire visée par un indice parmi les 16 mots du board. v4 - scratchpad borné (4 candidats + lien) émis dans le JSON avant le choix, là où v3 interdisait toute réflexion écrite.
+description: Décodeur aveugle mono-indice — retrouve la paire visée par un indice parmi les 16 mots du board. v6 - identique à v4 au mot près, seule la PRÉSENTATION change (seize mots groupés en quatre cartes). Aucun texte ne mentionne les cartes. Isole l'effet de mise en page, que v5 confondait avec celui de la contrainte énoncée.
 ---
 
 # SYSTEM
@@ -41,7 +41,7 @@ Contraintes absolues :
 # USER
 Voici les seize mots du plateau :
 
-{{shuffledBoardWords}}
+{{cardGroupedBoardWords}}
 
 L'indice écrit par l'autre joueur est : **{{clueWord}}**
 
