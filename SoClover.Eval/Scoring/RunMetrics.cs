@@ -32,7 +32,11 @@ public sealed record MetricCounts(
     int ClueDecodes = 0,
     int ClueDecodeFailures = 0,
     int BoardDecodes = 0,
-    int BoardDecodeFailures = 0)
+    int BoardDecodeFailures = 0,
+    // Conformité à la règle des deux cartes : dénominateur = décodages exploitables,
+    // numérateur = ceux dont les deux mots viennent d'une seule carte.
+    int IntraCardPicks = 0,
+    int ScoredPicks = 0)
 {
     public static readonly MetricCounts Zero = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 }
@@ -66,7 +70,13 @@ public sealed record MetricsReport(
     IReadOnlyDictionary<(string BoardId, string Direction), double> PerItemRBar,
     MetricCounts Counts,
     string? SubsetFile = null,
-    string? SubsetOutcome = null);
+    string? SubsetOutcome = null,
+    // Part des décodages exploitables dont les deux mots viennent d'une SEULE carte. Une
+    // direction est une arête entre deux cartes : la paire de référence est toujours à cheval,
+    // donc une paire intra-carte ne peut pas valoir r = 1 — elle est perdue d'avance. Témoin de
+    // conformité, hors des neuf indicateurs et hors des colonnes de registre. Le hasard vaut
+    // 3/15 = 0,200 quand la structure en cartes n'est pas présentée au décodeur.
+    double IntraCardRate = 0.0);
 
 public static class RunMetrics
 {
@@ -197,6 +207,27 @@ public static class RunMetrics
             .ToList()
             .AsReadOnly();
 
+        // ---- conformité : paires intra-carte ---------------------------------
+        var cardOfWord = bench.Boards.ToDictionary(
+            b => b.BoardId,
+            b => b.Cards
+                .SelectMany((card, index) => card.Select(w => (Word: w, Card: index)))
+                .ToDictionary(x => x.Word, x => x.Card, StringComparer.Ordinal),
+            StringComparer.Ordinal);
+
+        var scoredPicks = 0;
+        var intraCardPicks = 0;
+        foreach (var decode in scopedClueDecodes)
+        {
+            if (decode.DecodeFailureKind is not null || decode.Picked is not { Count: 2 }) continue;
+            if (!cardOfWord.TryGetValue(decode.BoardId, out var cards)) continue;
+            if (!cards.TryGetValue(decode.Picked[0], out var first)) continue;
+            if (!cards.TryGetValue(decode.Picked[1], out var second)) continue;
+
+            scoredPicks++;
+            if (first == second) intraCardPicks++;
+        }
+
         // ---- N3 -------------------------------------------------------------
         var scoredBoards = scopedBoardDecodes
             .Where(b => b.DecodeFailureKind is null && b.BoardPositions is not null)
@@ -247,9 +278,12 @@ public static class RunMetrics
                 ClueDecodes: scopedClueDecodes.Count,
                 ClueDecodeFailures: scopedClueDecodes.Count(d => d.DecodeFailureKind is not null),
                 BoardDecodes: scopedBoardDecodes.Count,
-                BoardDecodeFailures: scopedBoardDecodes.Count(b => b.DecodeFailureKind is not null)),
+                BoardDecodeFailures: scopedBoardDecodes.Count(b => b.DecodeFailureKind is not null),
+                IntraCardPicks: intraCardPicks,
+                ScoredPicks: scoredPicks),
             SubsetFile: subsetFile,
-            SubsetOutcome: subsetOutcome);
+            SubsetOutcome: subsetOutcome,
+            IntraCardRate: Ratio(intraCardPicks, scoredPicks));
     }
 
     private static double Ratio(int numerator, int denominator) =>

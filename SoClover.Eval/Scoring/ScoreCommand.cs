@@ -250,6 +250,7 @@ public static class ScoreCommand
         Console.WriteLine($"  recovery               {N(m.Recovery)}   sur {m.DirectionCount} direction(s)   ← métrique principale");
         Console.WriteLine($"  strict_2of2_all_decodes {FormatRate(m.Strict2Of2, c.StrictItems, c.DecodedItems)}   ← unanimité des 3 décodages");
         Console.WriteLine($"  half_rate              {FormatRate(m.HalfRate, c.HalfItems, c.DecodedItems)}");
+        Console.WriteLine($"  intra_card_rate        {FormatRate(m.IntraCardRate, c.IntraCardPicks, c.ScoredPicks)}   ← paires perdues d'avance (hasard 0,200)");
         Console.WriteLine();
         Console.WriteLine("N3 — cohérence board");
         Console.WriteLine($"  board_positions        {N(m.BoardPositions)}   sur {c.ScoredBoards} board(s)   ← pilotage N3");
