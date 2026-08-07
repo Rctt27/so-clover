@@ -42,6 +42,65 @@
 
 | 2026-08-07 | `f5bad93aeed3` | mistralai/ministral-3-14b-reasoning · **clue v4** · temp 0,3 · topP 1,0 · maxOut 512 | comparisons.dev.jsonl | 85 + 5 ancres | 0 | **0,490** [0,347 ; 0,633] ✗ | **-0,027** [-0,304 ; 0,251] ✗ | 0,576 ✓ | 0,125 ✓ | **renvoyé en P3** (échec *démontré*) | **9** décodages/indice, 49/85 couples tranchés, égalités décodeur 0,235. Calibration annoncée par la note du 2026-08-06 au soir, tenue le lendemain. **Une seule variable contre `27e36fefe975`-d9** : modèle, température, `topP`, `maxOut`, granularité et corpus identiques — seul le prompt passe de v2 à v4. L'IC entier de l'accord est sous le seuil : échec **démontré**, à ne pas agréger avec `661856eb18c6`. κ humainVsModèle 0,110 (n=18), modèleVsModèle 0,004 (n=31) — contingence équilibrée (14/13/12/10), pas de paradoxe κ. Ancres décodeur **5/5** : discrimination grossière intacte, discrimination fine nulle, même signature que les huit précédentes. Lot toujours `AnchorSuspect` (juge 3/5, même corpus) et cohérence intra-juge 0,900 toujours contaminée (doublons en queue, cf. note du 2026-08-06) — aucun statut `calibré` n'est demandé ici, le verdict est un échec. Portes d'échelle re-mesurées sous cette empreinte : plancher 0,125 (valeur théorique exacte du hasard) et non-saturation 0,576. `decode_failure_rate` des ancrages : clue **0/66** sur l'humain, **7/480 (1,5 %)** sur le plancher, tous `outOfVocabulary` ; `decode-board` décroche à 26/40 comme sous toutes les empreintes ministral — sans effet sur les quatre portes, l'outil le ventile. Q4_K_M, ctx 4096, `reasoning_tokens = 0` vérifié — **inhibé par le prompt, pas par un toggle** (voir rectification ci-dessous). Latence médiane du lot **1 018 ms**. |
 
+### PRÉ-ENREGISTREMENT — séance D « devineur » : le décodeur imite-t-il la bonne tâche ?
+
+**Écrit le 2026-08-07, avant tout code et avant toute mesure** (garde 6). Rien de ce qui suit ne
+peut être modifié après avoir vu un résultat ; une révision se fait par note ajoutée, qui nomme ce
+qu'elle change et pourquoi.
+
+**Ce qui motive la séance.** Neuf calibrations échouent à la porte d'accord, et les trois leviers
+disponibles ont été épuisés (modèle, réglages, prompt). Le diagnostic autorisé de dix désaccords a
+fait apparaître une hypothèse qu'aucune des neuf ne teste : **la porte demande peut-être au
+décodeur d'imiter une tâche que le jeu ne contient pas.** En séance B le juge *compare* deux
+indices — un jugement de justesse. En partie, personne ne compare : un joueur *devine*, et l'indice
+est bon s'il fait tomber juste. Exemple du diagnostic (`dev-024 Right`, paire Récipient + Bateau) :
+le juge retient `Coque` parce qu'il couvre les deux mots, le décodeur préfère `Navire` parce qu'il
+retrouve la paire plus souvent. Si c'est la devinette qui compte, c'est le décodeur qui a raison.
+
+**Montage, figé ici.**
+
+| | |
+|---|---|
+| Directions | les 4 de chacun des **11 boards dev jamais vus** par l'auteur : dev-001, 005, 008, 011, 013, 015, 016, 017, 028, 029, 036 — soit **44**, moins les directions sans indice valide |
+| Indices | run **`20260728-v5-google-gemma-4-12b-qat-d79a63b9`** (baseline officiel, temp 1,0), indices déjà générés — **aucun appel LLM générateur** |
+| Décodeur comparé | empreinte **`f5bad93aeed3`** (ministral-14b, clue v4), la dernière calibrée. Le run baseline sera re-décodé sous cette empreinte à `--decodes 3` (~10 min) — les décodages existants portent `9a829dc206d2`, une autre empreinte, et **deux empreintes ne se comparent pas** |
+| Ordre de présentation | `ShuffleSeed.ForClue(benchHash, boardId, 0)` — **exactement** l'ordre vu par le décodage `decodeIndex 0` |
+| Tâche | 16 mots mélangés + 1 indice → l'auteur désigne 2 mots. Un seul essai. Ni mots de référence, ni explication du modèle, ni score affichés |
+| Mesure | `r = |picked ∩ referenceWords| / 2 ∈ {0 ; 0,5 ; 1}`, identique au décodeur ; R̄ = moyenne sur les directions |
+
+**Comparaison** : Δ = R̄ humain − R̄ décodeur, **apparié par direction**, IC 95 % par
+`Scoring/Bootstrap.Ci` — le bootstrap déjà en place, aucun second à écrire.
+
+**Règle d'interprétation, fixée avant la mesure :**
+
+| Résultat | Conclusion pré-enregistrée |
+|---|---|
+| IC de Δ **contient 0** | Humain et décodeur devinent de façon indistinguable. Le décodeur **est** un instrument valide pour la tâche du jeu, et l'échec des neuf calibrations est imputable à la **cible** — la porte d'accord jugerait le décodeur sur une tâche que le jeu ne contient pas. La porte devrait alors être refondée sur la devinette, ce qui **ne se décidera pas dans cette note** mais demandera son propre pré-enregistrement. |
+| IC **entièrement > 0** (humain meilleur) | Le décodeur est un joueur plus faible qu'un humain : il sous-estime les bons indices. L'instrument est bien en cause, les neuf échecs sont mérités, et le retour en P3 reste la bonne lecture. |
+| IC **entièrement < 0** | Résultat inattendu ; le montage est réexaminé **avant** toute conclusion, aucune interprétation n'est pré-autorisée. |
+
+**Puissance déclarée d'avance.** Sur ~44 directions et un `r` à trois valeurs, l'erreur-type de Δ
+vaut ≈ 0,075 : la séance ne peut détecter qu'un écart **supérieur à ~0,15**. Un IC contenant 0 sera
+donc une *absence de preuve d'écart*, jamais une preuve d'équivalence — à écrire comme tel. Pour
+mémoire, le décodeur rend R̄ ≈ 0,37 sur ce run.
+
+**Limites déclarées, décidées et assumées :**
+
+1. **Aucune ancre.** Choix explicite de l'auteur : la séance ne porte que des indices du modèle. Une
+   baisse d'attention en fin de séance ne serait donc pas détectable — la séance est courte
+   (~22 min), le risque est accepté, il est consigné ici et non découvert après coup.
+2. **Trois boards perdus par ma faute.** `dev-019`, `dev-020` et `dev-032` étaient vierges ; ils ont
+   été exposés à l'auteur pendant le diagnostic des dix désaccords, avec quatre de leurs paires et
+   les indices associés. Ils sont **exclus** du vivier. Le banc test reste intact.
+3. **Asymétrie d'effort.** L'humain devine une fois par direction, le décodeur trois. On compare
+   donc un tirage unique à une moyenne de trois — ce qui **avantage le décodeur en stabilité**, pas
+   en niveau. À rappeler en lisant Δ.
+4. **Dette lexicale non traitée, sur décision de l'auteur.** Rien ne vérifie qu'un indice est un mot
+   existant : `Subterrain` et `Puncture` (2 sur 213 indices modèle, 0,9 %) passent aujourd'hui la
+   validation, en éval comme en partie réelle. La règle R1 de `SubstringClueValidator` couvre bien
+   l'identité avec un mot du plateau (vérifié : **0 violation sur 309 indices**) — c'est l'existence
+   du mot, et elle seule, qui n'est pas contrôlée. Marginal en fréquence, non corrigé pour l'instant.
+
 ### Note — v4 sur ministral : le prompt ne bouge ni l'accord ni R̄, il ne corrige que le format
 
 Cette calibration était le point de reprise laissé par la note du 2026-08-06. Elle répond à la
