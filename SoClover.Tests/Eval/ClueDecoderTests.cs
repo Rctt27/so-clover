@@ -253,6 +253,36 @@ public class ClueDecoderTests
         }
     }
 
+    // v8 : les seize mots à plat, chacun étiqueté par sa carte. Troisième placeholder, distinct
+    // des deux autres — l'ordre est celui de v4, seule l'étiquette s'ajoute.
+    [Fact]
+    public async Task Fills_the_labeled_placeholder_keeping_the_flat_order_of_v4()
+    {
+        var board = Board();
+        var reference = BenchBoardMapper.ReferenceWords(board, Direction.Top);
+        var capturing = new CapturingChatClient(Picked(reference[0], reference[1]));
+        var promptFile = WriteTemporaryPrompt("{{labeledBoardWords}}");
+
+        try
+        {
+            var decoder = new ClueDecoder(
+                capturing, new FilePromptLoader(), promptFile, "m", 0.3f, null, 512);
+            await decoder.DecodeAsync(board, Direction.Top, "Hôpital", 0, BenchHash, default);
+
+            var seed = ShuffleSeed.ForClue(BenchHash, board.BoardId, 0);
+            var expected = ShuffleSeed.RenderLabeled(
+                ShuffleSeed.Shuffle(BenchBoardMapper.AllWords(board), seed),
+                ShuffleSeed.ShuffleByCard(board.Cards, seed));
+
+            Assert.Contains(expected, capturing.LastUserPrompt!);
+            Assert.DoesNotContain("{{", capturing.LastUserPrompt!);
+        }
+        finally
+        {
+            File.Delete(promptFile);
+        }
+    }
+
     // Le mélange à plat de v4 ne bouge pas d'un iota quand le rendu groupé est calculé à côté.
     [Fact]
     public async Task Leaves_the_flat_placeholder_untouched_for_earlier_prompt_versions()

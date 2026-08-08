@@ -58,14 +58,16 @@ public sealed class ClueDecoder
         var presented = ShuffleSeed.Shuffle(BenchBoardMapper.AllWords(board), seed);
         var byNormalized = presented.ToDictionary(TextNormalizer.Normalize, w => w);
 
-        // Deux rendus des mêmes seize mots, dérivés de la même graine par deux instances de PRNG
-        // distinctes : à plat (v2-v4) et groupés par carte (v5). Une version de prompt n'emploie
-        // qu'un seul des deux placeholders ; substituer les deux garde les anciennes versions
+        // Trois rendus des mêmes seize mots, dérivés de la même graine : à plat (v2-v4), groupés
+        // par carte (v5-v7), et à plat étiquetés (v8). Une version de prompt n'emploie qu'un seul
+        // des trois placeholders ; substituer les trois garde les anciennes versions
         // reproductibles à l'identique.
         var userPrompt = new StringBuilder(_sections.User)
             .Replace("{{shuffledBoardWords}}", string.Join("\n", presented.Select(w => $"- {w}")))
             .Replace("{{cardGroupedBoardWords}}", ShuffleSeed.RenderByCard(
                 ShuffleSeed.ShuffleByCard(board.Cards, seed)))
+            .Replace("{{labeledBoardWords}}", ShuffleSeed.RenderLabeled(
+                presented, ShuffleSeed.ShuffleByCard(board.Cards, seed)))
             .Replace("{{clueWord}}", clue)
             .ToString()
             .Trim();
