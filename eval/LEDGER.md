@@ -1606,3 +1606,48 @@ diverger davantage que l'humain ne diverge du décodeur, puisque la séance D a 
 décodeur échouent sur les *mêmes* directions — l'appariement y était plus serré que prévu. Issue
 alternative à ne pas écarter : |Δ(H1, H2)| ≈ 0,02, auquel cas les deux écarts sont indiscernables et
 la séance **ne tranche pas** — c'est l'issue « il faut un troisième devineur ».
+
+### Limite 7 — la présentation de la séance D : **l'affichage est disculpé, mais il fuit ailleurs**
+
+Soulevé par l'auteur le 2026-08-08, avant la séance E : *« je soupçonne que l'UI affiche les mots
+selon l'ordre des cartes ; un humain pourrait s'y adapter implicitement et ne jamais sélectionner
+deux mots d'une même carte »*. Vérification faite, et elle donne deux réponses distinctes.
+
+**L'affichage est disculpé — par construction, pas par échantillonnage.**
+`GuessingSession.Presented()` rend `ShuffleSeed.Shuffle(BenchBoardMapper.AllWords(board),
+ShuffleSeed.ForClue(benchHash, boardId, 0))` : `AllWords` aplatit les quatre cartes, puis
+`Xoshiro256SS.Shuffle` applique un Fisher-Yates complet sur les seize. L'ordre des cartes ne
+survit à aucun chemin de code. Et c'est **exactement** la présentation servie au décodeur à son
+décodage 0 — condition explicite du protocole D, sans quoi la comparaison serait approximative.
+Corroboration empirique : l'humain a produit **3 paires intra-carte sur 42** (0,071) ; une partition
+lisible à l'écran l'aurait mis à zéro.
+
+**Mais la présentation est FIXE par board, et c'est un canal jamais déclaré.** La graine ne dépend
+que de `(benchHash, boardId)`, l'index de décodage étant figé (`PresentationDecodeIndex = 0`). Or
+les 42 directions ne couvrent que **11 boards** — 4 directions pour neuf d'entre eux, 3 pour deux.
+Le devineur humain voit donc **les mêmes seize mots, dans le même ordre, jusqu'à quatre fois**.
+
+L'ordre ne porte toujours aucun signal de carte. Ce qu'il ouvre est autre chose : après plusieurs
+directions d'un même plateau, un humain sait quels mots ont déjà servi de paire de référence et
+lesquels restent disponibles. **Chaque décodage machine est indépendant et sans mémoire ; l'humain
+ne l'est pas.** C'est un avantage **en faveur de l'humain**, non mesuré, dans la séance qui ancre
+tout le reste du chantier.
+
+Trois éléments de portée :
+
+- **Atténuation** : le plan **entrelace** les boards — écart médian de 8 items entre deux directions
+  d'un même plateau, **une seule** paire consécutive sur 31 transitions. Ce n'est pas quatre
+  d'affilée.
+- **Sens de l'effet** : il joue contre le décodeur. Si l'humain bénéficiait de ce canal et fait
+  malgré tout **exactement** jeu égal (0,583 contre 0,583), le verdict de la séance D est
+  **conservateur**, pas menacé. Même structure d'argument que la limite 6, et même réserve : lecture
+  **post-hoc**, elle ne se porte pas au crédit du résultat, elle empêche seulement qu'on l'attaque
+  par cet angle.
+- **Sur la séance E : aucune.** H2 hérite du même canal que H1, donc Δ(H1, H2) reste une comparaison
+  propre — c'est la vertu du critère relatif de la piste 1.
+
+**Décision : la présentation n'est PAS modifiée avant la séance E.** Même motif que le blocage
+intra-carte reporté plus haut : changer la présentation entre D et E mettrait **deux variables** dans
+la même comparaison (la personne *et* la présentation), et les 42 devinettes de H1 sont figées.
+Fermer ce canal un jour signifierait faire dépendre la graine de `(boardId, direction)` plutôt que du
+seul `boardId` — et **rejouer H1**. Consigné, non engagé.
