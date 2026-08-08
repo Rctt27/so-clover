@@ -1483,3 +1483,126 @@ pré-enregistrée, elle repose sur **six** items lus, et surtout P7 vient d'éta
 niveau du plafond humain — améliorer l'indice n'a pas de gain démontré à aller chercher. Toute
 reprise devrait commencer par mesurer si le plafond lui-même bouge, pas par écrire une ligne de
 prompt.
+
+### RECTIFICATION — 2026-08-08 — **la séance D portait sur les indices de v5, pas sur des indices humains**
+
+Corrige la dernière phrase de la note « RÉSULTAT — P7 » ci-dessus, qui rangeait parmi les
+indécidables : « *la séance D portait sur des indices humains, rien n'établit qu'un humain devineur
+placé devant les indices de v5 obtiendrait 0,504* ». **C'est faux.** Le manifeste de
+`eval/human/guessing.dev.jsonl` porte `runId: 20260728-v5-google-gemma-4-12b-qat-d79a63b9` et
+`runFile` pointe le run baseline ; vérification faite ligne à ligne, **42/42 des indices devinés en
+séance D sont exactement ceux de v5**. Le fichier d'élicitation n'y servait qu'à **exclure** les 29
+boards déjà brûlés par la séance A.
+
+Ce que la correction rend : ce point n'était pas indécidable, il était **déjà mesuré, et
+favorablement**. Sur ces 42 directions, un **humain devineur récupère les indices de v5 à 0,583** —
+exactement le taux du décodeur, Δ = 0,000 IC 95 % [−0,063 ; +0,063] (recalculé ce jour sous
+l'empreinte `f5bad93aeed3`, valeur identique au 2026-08-07).
+
+**P7 dispose donc de deux lectures indépendantes, sur deux lots disjoints du même banc, qui disent
+la même chose** — et je ne l'avais pas vu :
+
+| lecture | items | ce qui est comparé | résultat |
+|---|---|---|---|
+| plafond humain (séance A + P7) | 40 directions | indices de v5 **contre** indices d'un auteur humain, décodés par la machine | v5 à **106 %** du plafond |
+| séance D | 42 directions **disjointes** | indices de v5 devinés par une **machine** contre devinés par un **humain** | **0,583 des deux côtés** |
+
+La première dit que v5 écrit aussi bien qu'un humain ; la seconde dit que ce que v5 écrit se devine
+aussi bien par un humain que par la machine. C'est l'objectif de fond du chantier — *des indices
+d'IA pertinents pour des devineurs humains* — et il est atteint sur le banc dev, aux réserves de
+puissance près.
+
+Note de méthode : cette erreur est **de ma lecture**, pas du registre, qui portait le bon `runId`
+depuis le 2026-08-07. Conformément à la garde 9, la note d'origine n'est pas réécrite.
+
+---
+
+### CLÔTURE DE P7 — 2026-08-08 — issue retenue : **élargir le corpus humain (séance E)**
+
+Décision de l'auteur, prise sur le §5.6 du design. Les deux signatures identifiées tiraient
+ensemble ; l'issue **« instrument à bout »** est retenue plutôt que **« plafond atteint »**.
+
+**Ce que la décision engage.** Aucune optimisation du prompt générateur — ni best-of-N, ni few-shot,
+ni contexte inter-directions, ni RAG, ni SFT. Les deux issues coïncidaient sur ce point, il n'est
+pas rouvert. La piste qualitative de la relecture (hyperonyme contre pivot polysémique) reste
+consignée et **non engagée**.
+
+**Ce qu'elle ouvre.** La piste 1 du 2026-08-07 : refonder la porte d'accord sur la devinette plutôt
+que sur le classement. Motif de la retenir malgré « plafond atteint » : les IC de P7 valent ±0,10 à
+n = 40 et la porte d'accord n'a jamais été franchie en neuf calibrations — un instrument qui ne
+départage pas ne peut pas non plus démontrer qu'il n'y a rien à départager. La conclusion « v5 est
+au niveau du plafond » n'est défendable que si l'instrument a la résolution de le dire.
+
+**Statut du registre à la clôture.** Toutes les lignes restent `pré-calibration` ; aucune ligne
+`calibré` n'existe et aucune n'a été demandée. `eval/boards.test.jsonl` n'a pas été ouvert.
+`CommittedBenchIntegrityTests` vert, `dotnet test` 1000/1000, aucun octet d'éval en prod.
+
+---
+
+### PROCHAINE SÉANCE — séance E, à tenir le 2026-08-09 — **pré-enregistrée ce jour**
+
+Écrite maintenant pour que la séance de demain se lance sans rien re-dériver. **Rien ici ne se
+renégocie après avoir vu un chiffre.**
+
+**Question.** L'écart entre le décodeur et un humain devineur excède-t-il l'écart entre **deux**
+humains devineurs ?
+
+**Critère de succès, relatif et sans nombre arbitraire.** Le décodeur passe si |Δ(H1, D)| ≤
+|Δ(H1, H2)| — il tombe *dans* la dispersion humaine. Δ(H1, D) = **0,000** [−0,063 ; +0,063] est
+**déjà connu et ne sera pas recalculé**. Δ(H2, D) sert de contrôle. Le 0,75 de la porte d'accord
+n'est pas rediscuté : il est remplacé par une mesure, ce que la garde 6 exige au lieu d'un
+abaissement de seuil.
+
+**Montage — reproduire la séance D à l'identique, une seule variable : la personne.**
+
+```bash
+dotnet run --project SoClover.Eval -c Release -- guess \
+  --bench eval/boards.dev.jsonl \
+  --run   eval/runs/20260728-v5-google-gemma-4-12b-qat-d79a63b9.jsonl \
+  --elicitation eval/human/elicitation.dev.jsonl \
+  --seed 20260807001 \
+  --out   eval/human/guessing.e.dev.jsonl
+```
+
+`--seed 20260807001` et `--elicitation` sont **ceux du manifeste de la séance D** : mêmes 29 boards
+exclus, même plan déterministe, mêmes **42 directions**, mêmes indices de v5. `--out` est
+**obligatoire** : sans lui le verbe écrirait dans `guessing.dev.jsonl` et détruirait la séance D.
+Durée attendue : **~18 min** (42 devinettes, 21 s médianes en séance D).
+
+Puis, aucun appel LLM :
+
+```bash
+dotnet run --project SoClover.Eval -c Release -- guess-report \
+  --guessing eval/human/guessing.e.dev.jsonl \
+  --decoded  eval/runs/20260728-v5-google-gemma-4-12b-qat-d79a63b9.f5bad93aeed3.decoded.jsonl
+```
+
+Δ(H1, H2) demandera un appariement H1 ↔ H2 que `guess-report` ne sait pas faire aujourd'hui — il
+compare un humain à un décodage. **À écrire avant la séance**, en TDD, sur le modèle de
+`GuessingComparison` : c'est la seule ligne de code que la séance E réclame.
+
+**Trois pièges, déclarés d'avance.**
+
+1. **La page `guess.html` ne doit PAS être modifiée d'ici là.** L'auteur avait demandé, le
+   2026-08-08, que les UI de test empêchent la sélection de deux mots d'une même carte. La demande
+   reste ouverte, mais **l'appliquer entre D et E mettrait deux variables dans la même comparaison**
+   (la personne *et* la règle), ce que la garde 1 interdit ; H1 a devine sans contrainte et produit
+   d'ailleurs 3 paires intra-carte sur 42 (0,071). Si le blocage est ajouté un jour, **H1 devra être
+   rejoué**. Le report est un choix, pas un oubli.
+2. **H2 ne doit avoir lu ni le registre, ni `eval/analysis/*.sample.md`.** Vérifié ce jour :
+   **7 des 42 directions de la séance E** ont leur paire cible publiée en clair dans l'échantillon
+   relu — `dev-001/Bottom`, `dev-001/Right`, `dev-016/Top`, `dev-036/Right`, `dev-028/Right`,
+   `dev-011/Right`, `dev-005/Left`. Soit **17 % du lot**. L'auteur les a toutes lues aujourd'hui :
+   **il ne peut donc pas être H2**, ce qui n'était qu'une préférence de la piste 1 et devient une
+   exigence.
+3. **La puissance est faible et c'est admis d'avance.** À n = 42 chaque Δ porte ±0,06 ; comparer
+   deux Δ de cette précision donne une lecture **grossière**. Une porte réellement défendable
+   demandera vraisemblablement un troisième devineur. Aller chercher une demi-largeur de 0,05
+   demanderait ~67 directions, or **29 des 40 boards dev sont brûlés** — au-delà, c'est le test set,
+   et cela se consigne.
+
+**Prédiction.** |Δ(H1, H2)| ≈ 0,08, donc **critère franchi** (0,000 ≤ 0,08) : deux humains devraient
+diverger davantage que l'humain ne diverge du décodeur, puisque la séance D a montré que humain et
+décodeur échouent sur les *mêmes* directions — l'appariement y était plus serré que prévu. Issue
+alternative à ne pas écarter : |Δ(H1, H2)| ≈ 0,02, auquel cas les deux écarts sont indiscernables et
+la séance **ne tranche pas** — c'est l'issue « il faut un troisième devineur ».
