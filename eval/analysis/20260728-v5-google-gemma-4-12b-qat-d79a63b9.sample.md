@@ -20,7 +20,7 @@
 - décodage 1 : Collier + Fable   (R = 0,500)
 - décodage 2 : Collier + Paradis   (R = 0,500)
 - étiquette auto : M2  (n'attrape qu'une face)
-- étiquette humaine :
+- étiquette humaine : M2
 
 ## 2 — dev-001 / Right
 
@@ -32,7 +32,7 @@
 - décodage 1 : Tarte + Membre   (R = 0,500)
 - décodage 2 : Tarte + Fable   (R = 0,500)
 - étiquette auto : M2  (n'attrape qu'une face)
-- étiquette humaine :
+- étiquette humaine : M2
 
 ## 3 — dev-016 / Top
 
@@ -44,7 +44,7 @@
 - décodage 1 : Radeau + Bouillotte   (R = 0,500)
 - décodage 2 : Grenade + Radeau   (R = 0,500)
 - étiquette auto : M2  (n'attrape qu'une face)
-- étiquette humaine :
+- étiquette humaine : M0 (c'est un bon indice: on sauve des gens sur un radeau, tout comme on sauve des gens d'un incendie)
 
 ## 4 — dev-003 / Left
 
@@ -56,7 +56,7 @@
 - décodage 1 : Clé + Couvert   (R = 0,500)
 - décodage 2 : Couvert + Clé   (R = 0,500)
 - étiquette auto : M2  (n'attrape qu'une face)
-- étiquette humaine :
+- étiquette humaine : M2
 
 ## 5 — dev-036 / Right
 
@@ -68,7 +68,7 @@
 - décodage 1 : Toilettes + Tampon   (R = 0,500)
 - décodage 2 : Toilettes + Tampon   (R = 0,500)
 - étiquette auto : M2  (n'attrape qu'une face)
-- étiquette humaine :
+- étiquette humaine : M2
 
 ## 6 — dev-026 / Left
 
@@ -80,7 +80,7 @@
 - décodage 1 : Courrier + Caverne   (R = 0,000)
 - décodage 2 : Caverne + Roi   (R = 0,000)
 - étiquette auto : M3  (collision avec un distracteur)
-- étiquette humaine :
+- étiquette humaine : M4 (un indice comme "Police" aurait été beaucoup plus pertinent, la police dispose d'un uniforme bleu et représente l'ordre)
 
 ## 7 — dev-028 / Right
 
@@ -92,7 +92,7 @@
 - décodage 1 : Souris + Louche   (R = 0,500)
 - décodage 2 : Souris + Nourriture   (R = 0,500)
 - étiquette auto : M2  (n'attrape qu'une face)
-- étiquette humaine :
+- étiquette humaine : M3 (un chat peut être considéré paresseux, tout comme il chasse des oiseaux, et mange de la nourriture)
 
 ## 8 — dev-002 / Top
 
@@ -104,7 +104,7 @@
 - décodage 1 : Club + Collier   (R = 0,500)
 - décodage 2 : Collier + Boucle   (R = 0,500)
 - étiquette auto : M2  (n'attrape qu'une face)
-- étiquette humaine :
+- étiquette humaine : M4 (Bande est un terme très large pour évoquer un collier, et il n'évoque aucune couleur)
 
 ## 9 — dev-040 / Bottom
 
@@ -116,7 +116,7 @@
 - décodage 1 : Aile + Orage   (R = 0,500)
 - décodage 2 : Acteur + Aile   (R = 0,500)
 - étiquette auto : M2  (n'attrape qu'une face)
-- étiquette humaine :
+- étiquette humaine : M2
 
 ## 10 — dev-027 / Top
 
@@ -128,7 +128,7 @@
 - décodage 1 : Carte + Trésor   (R = 0,500)
 - décodage 2 : Carte + Trésor   (R = 0,500)
 - étiquette auto : M2  (n'attrape qu'une face)
-- étiquette humaine :
+- étiquette humaine : M2 (Trésor aurait éte parfait en tant qu'indice, mais malheuresement pour le codeur, il faisait déjà parti des mots à éviter)
 
 ## 11 — dev-006 / Bottom
 
@@ -140,7 +140,7 @@
 - décodage 1 : Corde + Canal   (R = 0,500)
 - décodage 2 : Pile + Sport   (R = 0,000)
 - étiquette auto : M2  (n'attrape qu'une face)
-- étiquette humaine :
+- étiquette humaine : M0 (Un canal fait penser à un courant d'eau, et une tornade est bien un courant d'air)
 
 ## 12 — dev-011 / Right
 
@@ -152,7 +152,7 @@
 - décodage 1 : Bière + Plastique   (R = 0,500)
 - décodage 2 : Billet + Porte   (R = 0,000)
 - étiquette auto : M3  (collision avec un distracteur)
-- étiquette humaine :
+- étiquette humaine : M2 (Verre fonctionne très bien avec Bière, mais absolument pas avec Cimetière)
 
 ## 13 — dev-006 / Right
 
@@ -164,7 +164,7 @@
 - décodage 1 : Papier + Pile   (R = 0,500)
 - décodage 2 : Papier + Pile   (R = 0,500)
 - étiquette auto : M3  (collision avec un distracteur)
-- étiquette humaine :
+- étiquette humaine : M2 (une pile accumule de l'énergie, mais le rapport avec tradition est vraiment éloigné. Note: Batterie aurait peut-être été un bon indice: une batterie accumule de l'énerge telle une pile, et une batterie représente aussi un instrument de musique qui peut évoquer des percussions musicales inhérentes à certaines traditions)
 
 ## 14 — dev-019 / Left
 
@@ -176,7 +176,7 @@
 - décodage 1 : Puits + Pelle   (R = 0,500)
 - décodage 2 : Puits + Pelle   (R = 0,500)
 - étiquette auto : M2  (n'attrape qu'une face)
-- étiquette humaine :
+- étiquette humaine : M2 (Note: Volcan aurait été un bon indice, si seulement "Lave" ne faisait pas partie des mots interdits)
 
 ## 15 — dev-021 / Right
 
@@ -188,7 +188,7 @@
 - décodage 1 : Patin + Rapide   (R = 0,500)
 - décodage 2 : Patin + Rapide   (R = 0,500)
 - étiquette auto : M2  (n'attrape qu'une face)
-- étiquette humaine :
+- étiquette humaine : M2 (l'indice "Sport" aurait probablement été meilleur ici: un sportif court vite, et le sport accompagne souvent les individus faisant un régime alimentaire)
 
 ## 16 — dev-033 / Right
 
@@ -200,7 +200,7 @@
 - décodage 1 : Cloche + Robe   (R = 0,500)
 - décodage 2 : Carrefour + Cloche   (R = 0,500)
 - étiquette auto : M2  (n'attrape qu'une face)
-- étiquette humaine :
+- étiquette humaine : M2
 
 ## 17 — dev-039 / Right
 
@@ -212,7 +212,7 @@
 - décodage 1 : Pétard + Sang   (R = 0,500)
 - décodage 2 : Sang + Pétard   (R = 0,500)
 - étiquette auto : M2  (n'attrape qu'une face)
-- étiquette humaine :
+- étiquette humaine : M2 (Un indice comme "Chaud" aurait été meilleur: on pense à l'expression "avoir le sang chaud", et le désert est un endroit chaud)
 
 ## 18 — dev-005 / Left
 
@@ -224,7 +224,7 @@
 - décodage 1 : Tableau + Manuel   (R = 0,500)
 - décodage 2 : Tableau + Manuel   (R = 0,500)
 - étiquette auto : M2  (n'attrape qu'une face)
-- étiquette humaine :
+- étiquette humaine : M2 (Ici en tant qu'humain j'aurais tenté l'indice "Morte": référence à la nature morte pour tableau, et un cadavre froid)
 
 ## 19 — dev-023 / Right
 
@@ -236,7 +236,7 @@
 - décodage 1 : Sapin + Bouquet   (R = 0,500)
 - décodage 2 : Sapin + Bouquet   (R = 0,500)
 - étiquette auto : M2  (n'attrape qu'une face)
-- étiquette humaine :
+- étiquette humaine : M0 (Je suis très surpris de l'étiquette auto car l'indice "Noël" est absolument parfait ici)
 
 ## 20 — dev-022 / Bottom
 
@@ -248,5 +248,5 @@
 - décodage 1 : Bois + Fil   (R = 0,500)
 - décodage 2 : Bois + Fil   (R = 0,500)
 - étiquette auto : M2  (n'attrape qu'une face)
-- étiquette humaine :
+- étiquette humaine : M2 (Ici en tant qu'humain j'aurais peut-être essayé l'indice "Ile": une ile est souvent boisée, et entouré d'un océan bleu)
 

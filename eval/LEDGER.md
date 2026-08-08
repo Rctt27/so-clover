@@ -1393,3 +1393,93 @@ entre modèle et humain, à n = 39. Et la question de fond que P7 ne pouvait pas
 récupère **comme** un humain devineur, mais rien n'établit qu'un humain devineur *placé devant les
 indices de v5 en conditions de jeu* obtiendrait 0,504 — la séance D portait sur des indices
 humains.
+
+### RELECTURE DES 20 ÉCHECS — 2026-08-08 — **l'étiquetage automatique échoue à 0,600, et les désaccords sont structurés**
+
+Échantillon `eval/analysis/20260728-v5-google-gemma-4-12b-qat-d79a63b9.sample.md`, seed 20260808,
+20 items tirés parmi les directions à `R̄ < 0,750`. Relu par l'auteur, qui a **annoté entre
+parenthèses** la majorité de ses étiquettes — le parseur ne retenant que le premier mot, ces
+commentaires sont conservés dans l'artefact committé et constituent le seul matériau qualitatif du
+chantier.
+
+| auto → humain | n |
+|---|---|
+| `M2` → `M2` ✓ | 12 |
+| `M2` → `M0` | 3 |
+| `M2` → `M3` | 1 |
+| `M2` → `M4` | 1 |
+| `M3` → `M2` | 2 |
+| `M3` → `M4` | 1 |
+
+**Accord 0,600** pour un seuil indicatif à 0,700. **La taxonomie de P7 n'est pas validée** : sa
+distribution ne doit pas servir à orienter une intervention. Les huit désaccords ne sont pas du
+bruit, ils se rangent en **trois causes distinctes**.
+
+**Cause 1 — le vocabulaire n'a pas de code pour « bon indice, paire non récupérée » (3 items).** Les
+trois `M2` → `M0` (items 3 « Sauvetage » → Radeau + Incendie, 11 « Courant » → Canal + Tornade, 19
+« Noël » → Fête + Sapin) partagent une signature exacte : le décodeur manque systématiquement la
+même face, et l'auteur juge que l'indice **couvrait parfaitement cette face**. Sur l'item 19 il
+écrit « je suis très surpris de l'étiquette auto, l'indice est absolument parfait ici ». `M0` est
+pourtant défini de façon opératoire par `R̄ ≥ 0,75` : l'auteur a dû le détourner faute de code
+adéquat. **La taxonomie confond un défaut de l'indice avec une non-récupération** — et depuis la
+séance D on sait que la non-récupération à `r = 0,5` est le régime *normal* de la tâche, donc cette
+confusion est systématique, pas accidentelle. 3/20 = **15 %** des échecs échantillonnés ne sont pas
+des échecs d'indice ; à n = 20, σ ≈ 0,08, l'ordre de grandeur seul est lisible.
+
+**Cause 2 — `M2` et `M3` ne se séparent pas proprement (3 items, dans les deux sens).** Un `M2` →
+`M3` et deux `M3` → `M2`. C'est exactement le recouvrement que l'auteur avait pressenti en cours de
+relecture, et qui avait motivé sa question sur la double étiquette. Les deux signatures se
+déclenchent ensemble dès que le décodeur retombe sur le même distracteur ; l'ordre de priorité
+`M2 → M3` tranche, et l'humain le contredit dans les deux directions. Ce n'est donc pas l'ordre qui
+est mal choisi, ce sont les **signatures qui ne sont pas disjointes**.
+
+**Cause 3 — `M4` ne se déclenche jamais automatiquement alors que l'humain l'emploie (2 items).**
+Sa signature exige `R̄ = 0` **et** aucun mot commun entre les paires choisies : sur les 154
+directions exploitables du run, elle a produit **zéro** étiquette. L'auteur en pose deux (items 6
+« Naval » et 8 « Bande »), sur des cas où l'indice lui paraît sémantiquement trop lointain
+indépendamment du score obtenu. **La signature de `M4` est calibrée bien trop strictement** ; ce
+que l'humain nomme « relation trop indirecte » est un jugement sur l'indice, pas un motif de
+décodage.
+
+#### Décision : les signatures **ne sont pas révisées**, et c'est délibéré
+
+Le design prescrit, sous 0,70, de revoir les seuils des signatures « de façon datée ». Cette
+révision est **refusée ici**, pour deux raisons qui se cumulent :
+
+1. **Elle surajusterait 20 items.** Huit désaccords sur vingt ne portent pas de quoi recalibrer
+   trois signatures ; ajuster `M4` pour qu'il attrape les items 6 et 8 fabriquerait une règle qui
+   s'accorde avec cet échantillon et avec rien d'autre — la faute que la garde 5 interdit côté
+   calibration, et qui n'est pas moins fautive ici.
+2. **La taxonomie n'a plus de consommateur.** P7 conclut de ne pas intervenir sur le prompt
+   générateur ; une taxonomie validée servirait à orienter des interventions qui n'auront pas lieu.
+   Payer sa révision serait entretenir un instrument que rien n'utilise.
+
+Ce qui est acquis en revanche, et réutilisable si le chantier reprend un jour : **les trois causes
+ci-dessus sont diagnostiquées, pas seulement constatées**. Une reprise commencerait par ajouter un
+code « indice correct, paire non récupérée », disjoindre `M2` et `M3`, et desserrer `M4` — dans cet
+ordre, et sur un échantillon neuf.
+
+#### Deux observations de l'auteur qui ne sortent d'aucune métrique
+
+**Le meilleur indice est parfois interdit par la règle du jeu.** Items 10 et 14 : sur `dev-027`
+(Carte + Bague) l'indice évident est « Trésor », sur `dev-019` (Puits + Plateau) c'est « Volcan »
+via « Lave » — et dans les deux cas le mot est **présent sur le plateau**, donc rejeté par
+`ClueAcceptance`. Certaines directions sont ainsi **structurellement handicapées pour tout le
+monde**, humain compris. Non quantifié : 2 cas sur 20 relus, aucune mesure systématique. C'est une
+limite du plafond lui-même, pas du générateur.
+
+**Hypothèse qualitative — l'hyperonyme contre le pivot polysémique.** Sur six items l'auteur propose
+l'indice qu'il aurait écrit : « Police » (uniforme bleu / ordre), « Batterie » (accumule l'énergie /
+instrument à percussions traditionnelles), « Sport », « Chaud » (« avoir le sang chaud » / désert),
+« Morte » (nature morte / cadavre froid), « Île » (boisée / océan bleu). Le motif est constant :
+**l'humain choisit un mot dont deux sens ou deux usages distincts couvrent chacun une cible**, quand
+v5 choisit un **hyperonyme qui couvre bien une seule** cible — « Bande » pour Collier, « Matière »
+pour Bois, « Musée » pour Tableau, « Accumulation » pour Pile. Cela décrit exactement la signature
+`M2` telle qu'elle domine la distribution.
+
+C'est la piste d'intervention la plus concrète que le chantier ait produite. Elle est écrite ici
+pour ne pas être perdue, et elle est **explicitement non engagée** : elle n'était pas
+pré-enregistrée, elle repose sur **six** items lus, et surtout P7 vient d'établir que v5 est déjà au
+niveau du plafond humain — améliorer l'indice n'a pas de gain démontré à aller chercher. Toute
+reprise devrait commencer par mesurer si le plafond lui-même bouge, pas par écrire une ligne de
+prompt.
