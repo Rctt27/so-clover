@@ -1241,3 +1241,60 @@ expliqué — taille, entraînement, quantization identique (Q4_K_M) mais archit
 question n'est pas nécessaire à la suite du chantier et n'est pas ouverte comme piste. Reste
 entière, en revanche, la décision sur le resampling : son gain est de +0,015 sur R̄ et +25 % en
 relatif sur `r = 1`, et rien dans cette séance ne l'a rendue plus urgente ni moins risquée.
+
+## P7 — baseline officielle, plafond humain, taxonomie
+
+### DÉCISION D'OUVERTURE — 2026-08-08 — **on entre en P7 avec un instrument non calibré, et on l'écrit**
+
+Écrite **avant toute commande de P7**. Elle fixe le décodeur, le statut des lignes à venir, la règle
+d'arbitrage et ce qui n'est pas consulté. Rien ici n'est négociable après avoir vu un chiffre.
+
+**Décodeur de référence : `f5bad93aeed3`** — `mistralai/ministral-3-14b-reasoning`, `decode-clue`
+v4, temp 0,3, topP 1,0, maxOut 512, 3 décodages/indice. Motif : c'est le **seul décodeur dont la
+devinette a été montrée interchangeable avec celle d'un humain** (séance D du 2026-08-07, 42
+directions appariées, Δ = 0,000 IC 95 % [−0,063 ; +0,063]). Les trois runs dev — baseline v5,
+plancher aléatoire, pseudo-run humain — sont **déjà décodés sous cette empreinte** : P7 ne coûte
+**aucun appel LLM**, et les trois lectures portent structurellement sur le même instrument.
+
+**Statut des lignes : `pré-calibration`, et c'est un résultat, pas un oubli.** Les quatre portes ne
+sont pas franchies. Sur **neuf** calibrations, l'accord brut va de 0,490 à 0,667 pour un seuil à
+0,75, et κ n'a jamais atteint 0,40. Les deux portes d'échelle le sont, elles, sous cette empreinte
+même : plancher 0,125 ✓ et non-saturation 0,576 ✓. **Aucun statut `calibré` n'est donc demandé** :
+`score --calibration` n'est pas passé, le harnais refuserait de toute façon. Le design le prévoit
+nommément — §10, critère 3 : « ou, si les portes sont tombées, une ligne consignant l'échec ».
+
+**Ce que ce statut coûte, exactement.** Aucun `recovery` de ce registre n'est défendable **en valeur
+absolue**. Ce qui le reste, ce sont les lectures **appariées, sur les mêmes items, sous la même
+empreinte** — et c'est précisément la forme du plafond humain et de la taxonomie. P7 est donc
+conduit **en lecture relative uniquement**, et toute phrase de la forme « v5 récupère 48 % » est
+hors registre.
+
+**Ce qui autorise à avancer malgré une porte tombée — et pourquoi ce n'est pas la contourner.** La
+séance D établit que la porte d'accord demandait au décodeur de **classer** deux indices, exercice
+que le jeu ne contient pas, alors qu'il **devine** aussi bien qu'un humain. Le seuil n'est pas
+baissé : il reste inscrit en échec dans la table des calibrations, et la garde 6 est respectée à la
+lettre — on ne rediscute pas 0,75, on avance sur une propriété **mesurée séparément**. Ce que la
+séance D ne fait pas non plus : refonder la porte. Il y manque Δ(H1, H2), l'écart entre deux
+humains, jamais mesuré ; la piste 1 (séance E) reste ouverte et **P7 ne la consomme pas**.
+
+**Règle d'arbitrage, pré-enregistrée avant tout calcul.** L'arbitre de §5.6 est le **Δ apparié**
+baseline v5 ↔ humain sur les **40 directions de la séance A, toutes issues** (`pass` compris, A-1),
+avec son IC bootstrap. Lecture secondaire sur les 22 `solide` (A-3). Seuil du design : v5 à **≥ 90 %
+du plafond** ⟹ « plafond atteint, arrêter d'investir » ; nettement en dessous avec un mode d'échec
+≥ 5 % ⟹ « marge réelle » ; portes de justesse ou plafond humain lui-même bas ⟹ « instrument à bout ».
+
+**Ce que je sais déjà, et qui ne décide rien.** Les `.metrics.json` sous cette empreinte portent
+`recovery` v5 = 0,483 sur 160 directions et plafond `solide` = 0,576 sur 22. Leur rapport (0,84)
+**n'est pas une lecture valide** : dénominateurs différents, items différents, aucun appariement.
+Il est écrit ici pour qu'on ne puisse pas le présenter plus tard comme une prédiction confirmée.
+
+**Prédiction.** Plafond humain **joué** ≈ 0,55 (sous qwen v2 il valait 0,333 pour un `solide` à
+0,341 : les deux lectures se tiennent de près). Δ apparié humain − v5 sur les 40 directions ≈ **+0,07
+pt**, soit v5 à ~87 % du plafond — donc issue « **marge réelle** ». Réserve déclarée d'avance : à
+n = 40 l'IC vaudra environ ±0,10, il **recouvrira vraisemblablement le seuil des 90 %**, et dans ce
+cas l'issue ne sera pas départagée par le chiffre seul — elle le sera par la taxonomie, qui a son
+propre critère à 5 %.
+
+**Test set non consulté.** `eval/boards.test.jsonl` n'est pas ouvert en P7 : aucune variante n'a été
+promue, il n'y a rien à généraliser, et le premier ancrage test se mesurera **apparié** à la première
+variante promue, sur les mêmes items. Décision datée, conforme à §5.5.
