@@ -1171,3 +1171,73 @@ thinking** et pense par défaut ; sous les prompts décodeurs il rend pourtant `
 inhibé par leur contrainte de format. v8 ne relâche pas cette contrainte, mais il en change le bloc
 de données : **sonder `reasoning_tokens` au premier appel**. Un réveil du thinking invaliderait la
 comparaison à `f5bad93aeed3`, `maxOutputTokens = 512` ne le bornant pas.
+| 2026-08-08 | 20260728-v5-google-gemma-4-12b-qat-d79a63b9 | boards.dev.jsonl | board-clues-per-direction.md | v5 | google/gemma-4-12b-qat | 2026-07-28 | temp 1 / topP 0,95 / maxTokens 4096 / maxRetries 0 / reasoning False | 0,963 | 0,963 | 0,455 | 0,039 | 0,688 | 0,000 | pré-calibration | neutre | replication v4 -> v8 sur ministral : intra_card_rate 0,232 contre 0,202, soit 1,6 sigma - NON etabli. L'amorcage massif observe sur qwen (+0,118, 6,3 sigma) est une propriete du modele, pas de la tache | gén. : gemma-4-12b-qat thinking OFF, LM Studio JIT ; déc. : mistralai/ministral-3-14b-reasoning |
+
+### RÉSULTAT — réplication sur ministral, 2026-08-08 — **l'amorçage est propre au modèle, mais la piste 2 reste close**
+
+Décodage lancé à 19:19, terminé en **10 min 07**, empreinte `f777466a03b6`. Sonde préalable sur le
+prompt v8 réel : `reasoning_tokens = 0`, 902 tokens de prompt — le thinking natif reste inhibé par
+la contrainte de format, la comparaison à `f5bad93aeed3` est valide. Prompt v8 inchangé au
+caractère près, seule la surcharge `DECODER__DEFAULTMODEL` diffère du run qwen.
+
+| modèle | prompt | `intra_card_rate` | `recovery` | `half_rate` | `strict_2of2` | part de `r = 1` |
+|---|---|---|---|---|---|---|
+| ministral | v4 `f5bad93aeed3` | **0,202** (93/460) | 0,483 | 0,792 | 0,052 | 0,130 |
+| ministral | v8 `f777466a03b6` | **0,232** (107/462) | 0,455 | 0,688 | 0,039 | 0,128 |
+| qwen | v4 `e46ee636933a` | 0,196 (90/460) | 0,382 | 0,635 | 0,032 | 0,080 |
+| qwen | v8 `1143466d9456` | 0,314 (145/462) | 0,369 | 0,610 | 0,039 | 0,082 |
+
+**La grille pré-enregistrée range le résultat en deuxième case, et ma prédiction est fausse.**
+J'avais écrit 0,27, donc troisième case (« l'amorçage est une propriété de la tâche ») ; on mesure
+**0,232**, qui tombe dans l'intervalle 0,165 – 0,239, soit **« l'amorçage est une propriété de
+qwen »**. La prédiction se trompe de 2 σ. Elle avait tenu sur qwen, elle tombe ici : une sur deux.
+
+**Réserve à ne pas taire : c'est un cas limite.** 0,232 n'est qu'à 0,007 du seuil de la troisième
+case (0,239), soit **0,4 σ**. La grille tranche parce qu'elle était écrite d'avance et qu'on
+l'applique telle quelle — mais les données, elles, ne séparent pas nettement les cases 2 et 3. Ce
+qui *est* établi tient dans la comparaison des deux modèles, pas dans le placement d'un seuil :
+
+- sur **qwen**, l'étiquette porte la violation de 0,196 à 0,314 — **+0,118, soit 6,3 σ**, massif ;
+- sur **ministral**, de 0,202 à 0,232 — **+0,030, soit 1,6 σ, non établi**.
+
+Un facteur **quatre** entre les deux amplitudes, à prompt rigoureusement identique. L'attracteur
+typographique est donc très largement une propriété du **modèle** : le 14B y résiste là où le 8B y
+succombe. C'est un acquis réutilisable au-delà de cette marche — un décodeur plus gros est plus
+robuste aux artefacts de présentation, et une conclusion de prompt tirée sur qwen seul ne se
+transporte pas.
+
+**Mais la piste 2 ne rouvre pas, et c'est le point qui compte.** La première case demandait
+`intra_card_rate ≤ 0,165` pour conclure que ministral **exploite** la partition. Il ne l'exploite
+pas : il monte, faiblement mais il monte. Aucun des deux modèles ne tire profit de l'information de
+carte. La conclusion de la marche v8 se généralise donc — **pour des raisons différentes** selon le
+modèle, ce qui n'était pas prévisible : qwen est amorcé vers la structure, ministral y est
+indifférent.
+
+**Et v8 coûte à ministral, plus nettement qu'à qwen.** Δ`recovery` apparié **−2,8 pts, IC 95 %
+[−5,2 ; −0,4]** : l'intervalle est **entièrement sous zéro**. Le verdict `NEUTRE` rendu par le
+harnais est un seuil **pratique** (3 pts) et non statistique — à ne pas lire comme « pas d'effet ».
+Sur qwen l'IC contenait zéro ; ici non. Le dégât se voit surtout au milieu de l'échelle :
+`half_rate` chute de **0,792 à 0,688** (−10,4 pts) tandis que la part de `r = 1` ne bouge pas
+(0,130 → 0,128). L'étiquette ne coûte pas des récupérations exactes à ministral, elle transforme
+des demi-récupérations en échecs francs.
+
+**Deux contrôles tenus.** `decode_failure_rate` côté `decode-clue` vaut **0,000** (0/462), contre
+0,004 sous v4 — la précision de format tient sur ce modèle aussi. Et l'invariant reste intact :
+**0 décodage intra-carte à `r = 1`** sur les 107 de ce lot, portant le cumul à **455 sur 455**,
+trois modèles et six prompts.
+
+**Post-stratification, pour mémoire** : v8 ministral gagnerait +0,015 sur R̄ et passerait de 0,128 à
+0,166 sur `r = 1` — même profil que v4 ministral (+0,017 et 0,130 → 0,163). Le resampling ne
+rattrape pas ce que la présentation coûte.
+
+**Décision.** v8 est écartée sur ministral comme sur qwen ; `decode-clue.md` **reste en v4**, v8
+archivée au commit `71967fa` et rejouable. **La piste 2 est close sur les deux modèles.** Avec
+elle, la série des prompts décodeurs : v3, v4, v5, v6, v7, v8 — six versions, **deux modèles**,
+aucune ne déplace ni l'accord, ni la conformité, ni le `recovery` dans le bon sens. Il n'y a plus
+de raison de chercher un levier du côté du prompt décodeur.
+
+**Ce qui reste indécidable.** Pourquoi ministral résiste à l'attracteur que qwen subit n'est pas
+expliqué — taille, entraînement, quantization identique (Q4_K_M) mais architecture différente. La
+question n'est pas nécessaire à la suite du chantier et n'est pas ouverte comme piste. Reste
+entière, en revanche, la décision sur le resampling : son gain est de +0,015 sur R̄ et +25 % en
+relatif sur `r = 1`, et rien dans cette séance ne l'a rendue plus urgente ni moins risquée.
