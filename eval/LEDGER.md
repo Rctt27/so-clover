@@ -1069,3 +1069,66 @@ bornerait pas. Bumper `version:` à 8 dans le frontmatter **dans le même geste*
 contenu — `DecoderFingerprint` ne hache que la version déclarée.
 
 Aucune porte de calibration n'est engagée. Aucun statut `calibré` n'est demandé.
+| 2026-08-08 | 20260728-v5-google-gemma-4-12b-qat-d79a63b9 | boards.dev.jsonl | board-clues-per-direction.md | v5 | google/gemma-4-12b-qat | 2026-07-28 | temp 1 / topP 0,95 / maxTokens 4096 / maxRetries 0 / reasoning False | 0,963 | 0,963 | 0,369 | 0,039 | 0,610 | 0,000 | pré-calibration | neutre | escalier - clue v8 (a plat + etiquette de carte en ligne) : ECARTEE, intra_card_rate 0,314 contre critere 0,159 ; la prediction pre-enregistree 0,28 tient | gén. : gemma-4-12b-qat thinking OFF, LM Studio JIT ; déc. : qwen/qwen3-8b |
+
+
+### RÉSULTAT — marche v8, 2026-08-08 — **l'étiquette est un attracteur intermédiaire, la piste 2 est fermée**
+
+Décodage lancé à 18:58, terminé en **6 min 26**, empreinte `1143466d9456`. Montage conforme au
+pré-enregistrement, amendement de format compris.
+
+| | présentation | texte sur les cartes | `intra_card_rate` | `recovery` | part de `r = 1` | `strict_2of2` |
+|---|---|---|---|---|---|---|
+| **v4** `e46ee636933a` | à plat, nue | aucun | **0,196** | 0,382 | 0,080 | 0,032 |
+| **v8** `1143466d9456` | à plat, **étiquetée** | aucun | **0,314** | 0,369 | 0,082 | 0,039 |
+| **v6** `1ddcae98c15a` | groupée | aucun | **0,485** | 0,370 | 0,046 | 0,013 |
+| **v7** `78777a58b54e` | groupée | une phrase | **0,453** | 0,377 | 0,074 | 0,026 |
+| **v5** `964eec39fd3d` | groupée | lourd (6 ajouts) | **0,245** | 0,345 | 0,069 | 0,006 |
+
+Δ`recovery` apparié v4 → v8 : **−1,4 pts, IC [−3,9 ; +1,0]**, `NEUTRE` — comme v6 et v7.
+
+**Le critère pré-enregistré tombe, et la prédiction tient.** Succès demandait
+`intra_card_rate ≤ 0,159` ; on mesure **0,314**, soit au-dessus du hasard et **dans la zone
+« attracteur réel »** annoncée d'avance (> 0,233). La prédiction écrite avant la mesure disait
+0,28 ; observé 0,314, à 1,8 σ. **C'est la première prédiction pré-enregistrée de la série qui se
+vérifie** — les précédentes s'étaient trompées de signe (v5) ou de cause (v6/v7).
+
+**La série se lit maintenant sur deux axes additifs et opposés.** v8 fournit le point qui manquait
+au premier :
+
+- **à texte constant (aucun), la saillance de la partition fait monter la violation** :
+  rien 0,196 → étiquette en ligne 0,314 → bloc 0,485 ;
+- **à présentation constante (bloc), le texte de contrainte la fait descendre** :
+  nu 0,485 → une phrase 0,453 → texte lourd 0,245.
+
+Aucune des cinq formes ne ramène la violation sous le niveau de v4, qui **ne dit rien du tout**. La
+conclusion est nette et elle est structurelle : **ce modèle ne peut pas recevoir l'information de
+partition sans être amorcé vers elle**. Plus la structure est saillante, plus il choisit deux mots
+de la même carte — exactement l'inverse de ce que l'information devrait produire.
+
+**Ce que devient l'objection de l'auteur.** Sa mécanique d'élimination — une fois le premier mot
+tenu, le second se cherche parmi douze et non quinze — était juste, et l'escalier v6/v7 l'avait
+laissée indécidable parce que toutes les variantes créaient une adjacence. v8 la teste **sans le
+confond** : ordre de balayage de v4 préservé au mot près, aucune adjacence, partition lisible. Elle
+ne se matérialise pas. Cela ne réfute pas la mécanique — elle reste vraie du jeu — mais établit que
+**ce décodeur ne l'exécute pas**, quelle que soit la forme sous laquelle on la lui donne.
+
+**Deux acquis secondaires.** (1) La précision de format a fonctionné au-delà du nécessaire :
+`decode_failure_rate` côté `decode-clue` vaut **0,000** (0/462), meilleur que v4 — le modèle n'a
+jamais recopié l'étiquette dans `picked`. L'amendement déclaré n'a donc pas pollué la mesure.
+(2) L'invariant tient toujours : **0 décodage intra-carte à `r = 1`** sur les 145 de v8, ce qui
+porte le cumul à **348 sur 348** décodages intra-carte, trois modèles et cinq prompts.
+
+**Post-stratification, pour mémoire** : v8 gagnerait +0,001 sur R̄ et passerait de 0,082 à 0,120 sur
+`r = 1` — même profil que les autres variantes, le filtrage ne répare pas ce que la présentation
+a coûté.
+
+**Décision.** v8 est écartée comme v5, v6 et v7 ; `decode-clue.md` **repasse en v4**, archivée et
+rejouable. **La piste 2 est close.** Avec elle se clôt la série des prompts décodeurs : v3, v4, v5,
+v6, v7 et v8 — six versions, deux modèles — dont aucune ne déplace ni l'accord ni la conformité.
+**Le prompt n'est pas le levier de ce décodeur**, et il faut cesser d'en chercher un là.
+
+**Ce qui reste indécidable.** Que l'information de partition soit inexploitable par *ce modèle* ne
+dit rien d'un autre : l'escalier entier a tourné sur qwen3-8b, et le décodeur validé par la séance D
+est ministral. Rejouer la seule marche v4 → v8 sur ministral coûterait deux décodages et dirait si
+l'amorçage vers la structure est une propriété du modèle ou de la tâche. Non engagé.

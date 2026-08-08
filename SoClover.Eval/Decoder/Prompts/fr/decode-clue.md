@@ -1,7 +1,7 @@
 ---
-version: 8
+version: 4
 language: fr
-description: Décodeur aveugle mono-indice — retrouve la paire visée par un indice parmi les 16 mots du board. v8 - v4 au mot près, mais les seize mots sont présentés à plat dans l'ordre exact de v4, chacun portant son étiquette de carte en ligne. Porte l'information de partition sans créer l'adjacence typographique qui, sous v6, portait intra_card_rate à 0,485. Aucune consigne ne mentionne la règle des deux cartes — l'étiquette est la seule variable.
+description: Décodeur aveugle mono-indice — retrouve la paire visée par un indice parmi les 16 mots du board. v4 - scratchpad borné (4 candidats + lien) émis dans le JSON avant le choix, là où v3 interdisait toute réflexion écrite.
 ---
 
 # SYSTEM
@@ -34,14 +34,14 @@ Tu réponds UNIQUEMENT au format JSON strict suivant, sans aucun texte additionn
 Contraintes absolues :
 1. Les trois champs, dans cet ordre, `picked` en dernier.
 2. Exactement deux mots dans `picked`, quatre dans `candidats`.
-3. Tous les mots doivent être copiés **à l'identique** depuis la liste des seize mots fournie, sans l'étiquette entre parenthèses qui les suit.
+3. Tous les mots doivent être copiés **à l'identique** depuis la liste des seize mots fournie.
 4. Les deux mots de `picked` doivent être différents l'un de l'autre, et tous deux présents dans `candidats`.
 5. Aucun texte hors du JSON. La seule réflexion autorisée est celle des champs `candidats` et `lien`.
 
 # USER
 Voici les seize mots du plateau :
 
-{{labeledBoardWords}}
+{{shuffledBoardWords}}
 
 L'indice écrit par l'autre joueur est : **{{clueWord}}**
 
