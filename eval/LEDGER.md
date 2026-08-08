@@ -1298,3 +1298,98 @@ propre critère à 5 %.
 **Test set non consulté.** `eval/boards.test.jsonl` n'est pas ouvert en P7 : aucune variante n'a été
 promue, il n'y a rien à généraliser, et le premier ancrage test se mesurera **apparié** à la première
 variante promue, sur les mêmes items. Décision datée, conforme à §5.5.
+| 2026-08-08 | 20260728-v5-google-gemma-4-12b-qat-d79a63b9 | boards.dev.jsonl | board-clues-per-direction.md | v5 | google/gemma-4-12b-qat | 2026-07-28 | temp 1 / topP 0,95 / maxTokens 4096 / maxRetries 0 / reasoning False | 0,963 | 0,963 | 0,483 | 0,052 | 0,792 | 0,000 | pré-calibration | neutre | P7 baseline officielle - prompt FR PerDirection v5 sous le decodeur de reference f5bad93aeed3 (le seul valide par la seance D). Lecture relative uniquement : portes P6 non franchies | gén. : gemma-4-12b-qat thinking OFF, LM Studio JIT ; déc. : mistralai/ministral-3-14b-reasoning (ministral-3-14b-reasoning Q4_K_M ctx 4096, thinking natif inactif verifie (reasoning_tokens=0) ; clue v4 ; ancrage de la seance D) |
+| 2026-08-08 | human-20260804-e59651fc | boards.dev.jsonl | — | — | human | — | temp 0 / topP — / maxTokens — / maxRetries 0 / reasoning False / subset=elicitation.dev.jsonl (40/160) | 0,975 | 0,975 | 0,475 | 0,026 | 0,718 | 0,000 | pré-calibration | neutre | P7 plafond humain JOUE (toutes issues, pass compris - A-1) sous le decodeur de reference f5bad93aeed3 | gén. : séance A, 40 direction(s), seed 20260804002 ; déc. : mistralai/ministral-3-14b-reasoning (ministral-3-14b-reasoning Q4_K_M ctx 4096, thinking natif inactif verifie (reasoning_tokens=0) - inhibe par le prompt, ce modele n'expose pas de toggle LM Studio ; clue v4) |
+| 2026-08-08 | human-20260804-e59651fc | boards.dev.jsonl | — | — | human | — | temp 0 / topP — / maxTokens — / maxRetries 0 / reasoning False / subset=elicitation.dev.jsonl (22/160) | 1,000 | 1,000 | 0,576 | 0,045 | 0,773 | 0,000 | pré-calibration | neutre | P7 plafond humain sur PAIRES RESOLUES (solide seuls - A-3) sous le decodeur de reference f5bad93aeed3 ; restaure aussi le .metrics.json dans l'etat qu'exige la porte de non-saturation | gén. : séance A, 40 direction(s), seed 20260804002 ; déc. : mistralai/ministral-3-14b-reasoning (ministral-3-14b-reasoning Q4_K_M ctx 4096, thinking natif inactif verifie (reasoning_tokens=0) - inhibe par le prompt, ce modele n'expose pas de toggle LM Studio ; clue v4) |
+
+### RÉSULTAT — P7, 2026-08-08 — **le modèle est déjà au niveau du plafond humain, et ma prédiction se trompe de signe**
+
+Quatre mesures, **zéro appel LLM** : les trois runs dev étaient déjà décodés sous `f5bad93aeed3`.
+Écrit **avant** la relecture manuelle des 20 échecs, qui reste à faire.
+
+#### Baseline officielle — prompt FR PerDirection v5, décodeur de référence
+
+`valid_rate` 0,963 · **`recovery` 0,483** (160 directions) · `half_rate` 0,792 · `strict_2of2`
+0,052 · `intra_card_rate` 0,202 · `decode-clue` en échec de format **2/462**. `board_positions`
+0,476 est **illisible** : `decode-board` échoue à 13/34 (0,382), comme sous toutes les empreintes
+ministral. Cela ne touche ni `recovery` ni les quatre portes ; cela rend **`M6` inexploitable**.
+
+#### Plafond humain — deux lectures publiées, et une décomposition
+
+| lecture | n apparié | v5 | humain | Δ apparié (H − M) | IC 95 % |
+|---|---|---|---|---|---|
+| **toutes issues** (arbitre pré-enregistré) | 40 | **0,504** | **0,475** | **−2,9 pts** | [−12,5 ; +6,7] |
+| `solide` seuls (A-3) | 22 | 0,492 | 0,576 | +8,3 pts | [−3,8 ; +20,5] |
+| `tiède` seuls (*post-hoc*) | 17 | 0,529 | 0,373 | **−15,7 pts** | [−27,5 ; −2,9] |
+
+**La règle pré-enregistrée rend « plafond atteint ».** Sur les 40 mêmes directions, v5 vaut **106 %**
+du plafond humain joué — le seuil du design est 90 %, et il est franchi *par le haut*. Ma prédiction
+(+0,07 pt en faveur de l'humain, issue « marge réelle ») est fausse **de signe**, pas seulement
+d'amplitude. La réserve que j'avais déclarée — « l'IC recouvrira vraisemblablement le seuil » — est
+en revanche exacte : ±0,096 à n = 40.
+
+**Le taux de `pass` est de 1/40 = 0,025.** Mesuré, pas estimé. L'intervention de rang 4 du PRD
+(contexte inter-directions), que ce taux était censé arbitrer, vise donc **2,5 % du plateau**. Elle
+est sans objet. Corollaire : l'écart entre plafond joué (0,475) et plafond `solide` (0,576) ne vient
+**pas** des `pass` mais des **17 directions `tiède`** — 42,5 % du lot, où l'auteur a écrit un indice
+en le jugeant lui-même faible.
+
+**La décomposition, et son statut.** Sur les `solide` l'humain mène de 8,3 pts ; sur les `tiède` le
+modèle mène de 15,7. Lecture : *l'humain écrit de meilleurs indices quand il en trouve un bon, le
+modèle ne s'effondre pas quand la paire est ingrate*. Les deux effets se compensent presque
+exactement à l'échelle du lot. **Ce découpage est post-hoc** : la stratification par issue est
+prévue par le design (A-3), mais seule la lecture « toutes issues » était pré-enregistrée comme
+arbitre. Et sur trois sous-ensembles testés, un IC nominal à 95 % qui exclut zéro **de justesse**
+(borne haute −2,9) ne survivrait pas à une correction de multiplicité. **Aucun des trois écarts
+n'est établi** ; le seul énoncé solide est que le modèle n'est pas en dessous.
+
+#### Taxonomie chiffrée — et son contrôle humain
+
+Distribution automatique sur les directions **exploitables** (D6 exclues : 6 pour v5, 121 pour le
+pseudo-run humain qui n'en couvre que 40) :
+
+| mode | v5 (n = 154) | humain (n = 39) | écart | σ de l'écart | verdict |
+|---|---|---|---|---|---|
+| `M0` réussi | 0,091 | 0,103 | −0,012 | 0,054 | 0,2 σ — rien |
+| `M2` n'attrape qu'une face | **0,721** | **0,590** | +0,131 | 0,087 | 1,5 σ — **non établi** |
+| `M3` collision avec un distracteur | 0,156 | 0,282 | −0,126 | 0,078 | 1,6 σ — **non établi** |
+| `M1` trop générique | 0,006 | 0,000 | — | — | sous les 5 % |
+| `M4` relation trop indirecte | 0,000 | 0,000 | — | — | sous les 5 % |
+| `M?` non classé | 0,026 | 0,026 | 0,000 | — | identique |
+| `M6` (boards) | 0,050 (2/40) | 0,000 | — | — | **illisible**, cf. `decode-board` |
+
+**Le contrôle humain est le résultat le plus important de P7, et il n'était pas au programme.** Le
+design prévoyait de chiffrer les modes d'échec de v5 ; il ne prévoyait pas de les comparer à ceux
+d'un humain sur le même banc et le même décodeur. Cette comparaison ne coûtait rien et elle change
+la lecture : **`M2` domine chez l'humain aussi** (0,590), et **aucun des deux écarts n'atteint 2 σ**.
+Le profil d'échec de v5 est **indiscernable** de celui d'un auteur humain à cette taille de lot.
+
+**Ce que `M2` à 72 % ne veut donc pas dire.** La règle des 5 % le déclare mécaniquement « ≥ 5 % →
+intervention justifiée », et prise au pied de la lettre elle enverrait écrire une ligne de prompt
+contre la face manquée. Ce serait une faute : la séance D a établi que le pic à `r = 0,5` est le
+**régime normal de la tâche** — un humain *devineur* le produit à 0,786 — et le contrôle ci-dessus
+l'établit maintenant du côté des indices. `M2` mesure la difficulté de l'exercice, pas un défaut de
+v5. La règle des 5 % suppose un mode d'échec **spécifique au générateur** ; elle n'a pas de garde
+contre un mode partagé avec le plafond. C'est une limite de la taxonomie, relevée ici et non
+corrigée.
+
+#### Issue de §5.6 — deux signatures tirent ensemble
+
+- **« Plafond atteint »** par la règle pré-enregistrée : 106 % du plafond, très au-delà des 90 %.
+- **« Instrument à bout »** par la signature du design : le plafond humain est lui-même **bas**
+  (0,475), les IC valent ±0,10 à n = 40, et les portes d'accord n'ont jamais été franchies en neuf
+  calibrations.
+
+Les deux conduites **coïncident sur le point qui engage un coût** : ne pas investir dans
+l'optimisation du prompt générateur — ni best-of-N, ni few-shot, ni RAG, ni SFT. Elles divergent sur
+la suite : arrêter le chantier, ou élargir le corpus humain (piste 1 / séance E) pour savoir si
+l'instrument peut départager quoi que ce soit. **Cette divergence n'est pas tranchée ici** : elle
+demande la relecture des 20 échecs, et c'est une décision de l'auteur.
+
+#### Ce qui reste indécidable
+
+`M6` et `board_positions`, tant que `decode-board` échoue à 38 %. L'écart de profil `M2` / `M3`
+entre modèle et humain, à n = 39. Et la question de fond que P7 ne pouvait pas poser : le décodeur
+récupère **comme** un humain devineur, mais rien n'établit qu'un humain devineur *placé devant les
+indices de v5 en conditions de jeu* obtiendrait 0,504 — la séance D portait sur des indices
+humains.
