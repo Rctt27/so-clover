@@ -949,3 +949,123 @@ garantirait `intra_card_rate = 0,000` sans rien mesurer. Une boucle de retry n'e
 puisqu'elle rend la main au modèle ; savoir si elle change la **nature de l'instrument** (un
 décodeur assisté devine-t-il encore comme un humain devine ?) fait partie de ce qu'il faudra
 examiner. Aucune conclusion n'est tirée ici.
+
+### ANALYSE À COÛT NUL — 2026-08-08 — ce que vaudrait un resampling inter-cartes
+
+Instruit la piste 3 ci-dessus **sans payer un seul appel**. Méthode : post-stratification sur les
+`.decoded.jsonl` déjà produits — pour chaque direction on ne retient que les décodages
+**inter-cartes** observés, et on recalcule R̄ (moyenne par item, puis moyenne des items) et la part
+de `r = 1`. Deux contrôles de validité du calcul : `intra_card_rate` est reproduit **à la troisième
+décimale** sur les quatre variantes du registre, et le Δ apparié humain/décodeur de la séance D est
+reproduit à **+0,000**. Banc `416b819a41a1`, run `20260728-…-d79a63b9`, 154 directions, 460
+décodages par variante.
+
+| décodeur | `intra` | R̄ obs | R̄ post-strat | Δ | `r=1` obs | `r=1` post-strat | dir. sans tirage valide |
+|---|---|---|---|---|---|---|---|
+| **ministral v4** `f5bad93aeed3` | 0,202 | 0,502 | 0,519 | **+0,017** | 0,130 | **0,163** | 10 |
+| qwen v4 `e46ee636933a` | 0,196 | 0,397 | 0,400 | +0,003 | 0,080 | 0,100 | 8 |
+| qwen v5 `964eec39fd3d` | 0,245 | 0,358 | 0,360 | +0,002 | 0,069 | 0,092 | 2 |
+| qwen v6 `1ddcae98c15a` | 0,485 | 0,385 | 0,395 | +0,010 | 0,046 | 0,089 | 26 |
+| qwen v7 `78777a58b54e` | 0,453 | 0,392 | 0,431 | +0,040 | 0,074 | 0,135 | 23 |
+| humain, séance D | 0,071 | 0,583 | 0,590 | +0,007 | 0,190 | 0,205 | 3 |
+
+**RECTIFICATION — la colonne « R̄ inter-cartes » du registre n'est pas le gain d'un resampling.**
+Elle avait été lue comme tel (0,382 → 0,405 sur qwen v4, soit +2,3 pts annoncés). C'est faux : ce
+chiffre **re-pondère les items**, une direction où le modèle pioche souvent intra-carte y pesant
+moins. À composition d'items constante, le gain vaut **+0,3 pt sur qwen** et **+1,7 pt sur
+ministral**. La colonne reste juste pour ce qu'elle décrit — le rendement des tirages inter-cartes —
+mais ne doit plus servir à estimer un resampling.
+
+**Le gain sur R̄ est marginal ; il est concentré sur le haut de l'échelle.** Sur le décodeur validé
+(ministral), R̄ ne bouge que de +1,7 pt, mais `r = 1` passe de 0,130 à 0,163 — **+25 % en relatif**.
+C'est la seule justification sérieuse d'un resampling : `recovery` sature et ne discriminera pas des
+prompts générateurs, `r = 1` si.
+
+**Le dégât de v6 n'est pas réparable par filtrage.** Malgré 48,5 % des tirages retirés, R̄ ne remonte
+que de +0,010 et `r = 1` reste à 0,089, **sous** v4 (0,100). La présentation groupée n'a pas
+seulement pollué le support du tirage : elle a dégradé le raisonnement lui-même. La lecture de
+l'escalier v6/v7 en sort durcie, et la présentation en blocs est close.
+
+**Renversement — le risque est l'inverse de celui qu'on redoutait.** Sur les 42 directions de la
+séance D, à conditions égales :
+
+| | `r = 0` | `r = 0,5` | `r = 1` | `intra` | R̄ |
+|---|---|---|---|---|---|
+| humain | 0,024 | 0,786 | **0,190** | 0,071 | 0,583 |
+| ministral v4 | 0,056 | 0,722 | **0,222** | 0,190 | 0,583 |
+
+Le décodeur touche **déjà** la cible exacte plus souvent qu'un humain, tout en violant la règle 2,7×
+plus souvent. Sous resampling il monterait à ~0,274 contre ~0,205 pour l'humain corrigé. L'hypothèse
+« le décodeur est handicapé par des paires impossibles » est donc à retourner : ce bruit est
+peut-être ce qui le **maintient** au niveau humain. Corriger le support risque de le rendre
+**sur-humain sur `r = 1`** tout en le laissant équivalent en moyenne — une perte de validité, dans
+l'autre sens. Sur R̄ l'équivalence tiendrait (Δ passerait de 0,000 à ~+0,010, très en deçà de
+l'IC ±0,063).
+
+**Limites, à ne pas escamoter.** (1) L'estimateur est **optimiste** : il suppose que le tirage de
+remplacement ressemblerait aux tirages inter-cartes du même item, alors que piocher intra-carte est
+vraisemblablement le symptôme d'un item où le modèle est perdu — le +0,003 de qwen appuie cette
+lecture. Le gain réel sera ≤ à l'estimation. (2) 10 directions (ministral) n'ont **aucun** décodage
+inter-carte et sortent de l'estimation. (3) **Aucun des écarts ci-dessus n'est établi** : tous sont
+sous 1,5 σ. Ce sont des ordres de grandeur pour décider s'il vaut la peine de mesurer, pas des
+mesures.
+
+**Ce que la piste 3 devient.** Le **retry avec feedback** est écarté : il rendrait la main au modèle
+et détruirait la seule preuve de validité qu'on possède (séance D, décodeur en un coup) ; et v5/v7
+ont déjà montré qu'énoncer la contrainte n'aide pas ce modèle. Lui est substitué le **resampling
+sans feedback** — relancer le même appel inchangé jusqu'à obtenir une paire inter-cartes —, qui
+échantillonne la distribution du modèle conditionnée à son support valide, ne dit rien au modèle, et
+**conserve `intra_card_rate` intégralement** puisque la violation est comptée avant correction. La
+note de la sonde v5 (« rejeter en code garantirait 0,000 et ne mesurerait rien ») reste vraie du
+rejet **sec**, et se trouve ici **partiellement rétractée** : compter et corriger ne s'excluent pas.
+Coût estimé : ×1,25 d'appels sous `intra = 0,20`.
+
+### PRÉ-ENREGISTREMENT — marche v8, l'appartenance de carte sans le bloc
+
+Écrit le 2026-08-08 **avant toute mesure**. Ouvre la piste 2, et elle seule : l'escalier v6/v7 a
+établi que grouper les seize mots en blocs porte `intra_card_rate` à 0,485, soit deux fois et demie
+le hasard, **sans qu'aucun mot du prompt ne mentionne les cartes**. La mécanique d'élimination
+décrite par l'auteur — une fois le premier mot tenu, le second se cherche parmi douze et non quinze
+— n'a donc **jamais été évaluée sans ce confond**.
+
+**Montage.** Banc `416b819a41a1`, run `20260728-…-d79a63b9`, `qwen/qwen3-8b` thinking OFF, temp 0,3 ·
+topP 1,0 · maxOut 512, 3 décodages par indice. **Le modèle reste qwen** : v8 prolonge l'escalier
+v4/v6/v7, tous mesurés sur qwen, et la garde 1 interdit de changer le modèle dans la même série. La
+validation d'instrument (resampling, séance humaine) se fera sur ministral et fait l'objet d'un
+pré-enregistrement séparé.
+
+**v8 = v4 au mot près.** Liste **à plat**, mélangée par le `ShuffleSeed` habituel (pas
+`ShuffleByCard`), aucune adjacence créée, ordre de balayage de v4 préservé. Seul ajout : chaque mot
+porte son étiquette de carte en ligne (`- Volcan (carte C)`). **Aucun texte du prompt ne mentionne
+les cartes** — même discipline que v6, pour que l'étiquette soit la seule variable. Une éventuelle
+marche v9 (v8 + phrase de cadrage) n'est pas engagée ici.
+
+**Amendement écrit à l'implémentation, toujours avant la moindre mesure.** Une seule dérogation au
+« v4 au mot près » : la contrainte 3 de v4 demande de copier les mots « à l'identique depuis la
+liste », et chaque mot portant désormais son étiquette, elle inviterait littéralement à écrire
+`"Volcan (carte C)"` dans `picked`. Cinq mots sont ajoutés — « sans l'étiquette entre parenthèses
+qui les suit » — **purement de format** : ils ne disent rien de la partition, rien de la règle des
+deux cartes, et n'invitent pas à exploiter l'information. Sans eux la marche mesurerait surtout
+l'aptitude du modèle à ne pas recopier une parenthèse, ce qui n'est pas la question posée. La
+dérogation est déclarée ici pour que le verdict soit lu avec elle ; `decode_failure_rate` reste à
+surveiller, un décrochage signalerait que la précision n'a pas suffi.
+
+**Critère de succès de la piste, fixé d'avance.** `intra_card_rate` témoin principal. La piste 2
+n'est retenue que si v8 descend **sous** v4 d'au moins 2 σ : σ = √(0,2 × 0,8 / 460) = 0,0186, donc
+succès si `intra_card_rate ≤ 0,159`. Entre 0,159 et 0,196, l'étiquette est neutre — la partition est
+lisible mais inexploitée. Au-dessus de 0,233, l'étiquette est elle-même un attracteur, plus faible
+que le bloc mais réel. Δ`recovery` apparié en témoin secondaire, sur v4 → v8.
+
+**Prédiction posée d'avance, et elle est pessimiste : `intra_card_rate ≈ 0,28`, donc échec du
+critère.** Raison : la leçon de v6 est que ce modèle ne sait pas *exploiter* une partition, il la
+*subit* — et l'étiquette, quoique moins saillante qu'un bloc, reste une structure. Deux forces
+s'opposent (information de partition à la baisse, saillance à la hausse) et rien dans la série ne
+laisse croire que la première l'emporte sur ce modèle. Si v8 descend malgré tout sous 0,159, la
+prédiction est réfutée et la piste 2 devient la voie principale.
+
+**Contrôle obligatoire.** Sonder `reasoning_tokens` au premier appel : v8 change la forme du bloc de
+mots, et un prompt plus permissif peut réveiller un thinking natif que `maxOutputTokens = 512` ne
+bornerait pas. Bumper `version:` à 8 dans le frontmatter **dans le même geste** que l'édition du
+contenu — `DecoderFingerprint` ne hache que la version déclarée.
+
+Aucune porte de calibration n'est engagée. Aucun statut `calibré` n'est demandé.
