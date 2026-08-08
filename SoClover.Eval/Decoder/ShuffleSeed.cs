@@ -58,6 +58,27 @@ public static class ShuffleSeed
         string.Join("\n\n", cards.Select((card, i) =>
             $"Carte {i + 1} :\n" + string.Join("\n", card.Select(w => $"- {w}"))));
 
+    /// <summary>
+    /// Rend les seize mots <b>à plat, chacun étiqueté par sa carte</b> (prompt clue v8).
+    /// <para>
+    /// L'ordre est celui de <paramref name="presentedFlat"/> — le mélange à plat de v4 — donc
+    /// aucune adjacence intra-carte n'est créée : c'est tout l'objet de cette présentation. Les
+    /// étiquettes sont tirées de <paramref name="shuffledCards"/> et non de l'ordre du board,
+    /// sans quoi « carte A » désignerait toujours la première carte et la géométrie fuiterait par
+    /// l'étiquette.
+    /// </para>
+    /// </summary>
+    public static string RenderLabeled(
+        IReadOnlyList<string> presentedFlat,
+        IReadOnlyList<IReadOnlyList<string>> shuffledCards)
+    {
+        var labelOf = shuffledCards
+            .SelectMany((card, index) => card.Select(word => (Word: word, Label: (char)('A' + index))))
+            .ToDictionary(x => x.Word, x => x.Label, StringComparer.Ordinal);
+
+        return string.Join("\n", presentedFlat.Select(w => $"- {w} (carte {labelOf[w]})"));
+    }
+
     private static long Derive(string material)
     {
         var digest = SHA256.HashData(Encoding.UTF8.GetBytes(material));
