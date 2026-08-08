@@ -446,18 +446,3 @@ correspond à rien fait échouer le premier appel.
    Si elle n'est pas franchie, le décodeur devine à partir de rien : consigner l'échec au registre
    (`--decision écarté`) et reprendre `decode-clue.md` avant de publier le moindre `recovery`.
 6. `compare --baseline <runA> --variant <runB>` pour le Δ apparié et son IC.
-
-## Ce que les cycles livrés ne livrent pas
-
-L'outillage P0-P7 est livré. Le code ne produit rien tant que l'opérateur n'a pas saisi : **la
-séance B reste à tenir**, et sans elle il n'existe aucun corpus de comparaisons.
-
-- **Séance B (P5)** — ~100 couples, ≈ 45 min. Ses deux prérequis sont réunis : deux runs
-  générateurs distincts sur le banc dev, et la séance A tenue depuis plus de 24 h (garde A-5).
-- **P6** — accord décodeur/humain et κ de Cohen, portes ≥ 75 % et ≥ 0,40, réunies aux deux portes
-  déjà mesurées. `calibrate` ne peut pas s'exécuter sans `--comparisons`. **Aucun chiffre de
-  décodeur ne devient défendable avant**, et toutes les lignes du registre restent
-  `pré-calibration`.
-- **P7** — run baseline officiel promu `calibré`, plafond humain publié, taxonomie chiffrée des
-  modes d'échec avec son échantillon relu à la main.
-- Le pack few-shot (`fewshot/pack.fr.json`), qui dérive de la séance A.

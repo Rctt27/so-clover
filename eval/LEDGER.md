@@ -1132,3 +1132,42 @@ v6, v7 et v8 — six versions, deux modèles — dont aucune ne déplace ni l'ac
 dit rien d'un autre : l'escalier entier a tourné sur qwen3-8b, et le décodeur validé par la séance D
 est ministral. Rejouer la seule marche v4 → v8 sur ministral coûterait deux décodages et dirait si
 l'amorçage vers la structure est une propriété du modèle ou de la tâche. Non engagé.
+
+### PRÉ-ENREGISTREMENT — réplication de la marche v4 → v8 sur ministral
+
+Écrit le 2026-08-08 **avant toute mesure**, à la demande de l'auteur, et lève l'indécidable que la
+note ci-dessus venait d'ouvrir. Toute la série des prompts décodeurs a tourné sur `qwen/qwen3-8b`,
+alors que **le décodeur dont l'équivalence humaine est démontrée** (séance D, Δ apparié 0,000) est
+`mistralai/ministral-3-14b-reasoning`. Conclure « la partition est inexploitable » sur le seul qwen
+serait conclure sur un modèle qu'on n'utilise pas.
+
+**Un seul décodage à payer.** La référence v4 sur ministral **existe déjà** : `f5bad93aeed3`,
+mêmes paramètres, `intra_card_rate` **0,202**, R̄ 0,502. Il ne manque que v8.
+
+**Montage — une seule variable, le modèle.** Banc `416b819a41a1`, run `20260728-…-d79a63b9`, prompt
+`decode-clue` **v8 inchangé** (celui du commit `71967fa`, amendement de format compris), temp 0,3 ·
+topP 1,0 · maxOut 512, 3 décodages par indice. Le modèle est surchargé par
+`DECODER__DEFAULTMODEL`, `evalsettings.json` restant sur qwen — la surcharge est tracée au
+manifeste et n'engage pas la configuration du dépôt.
+
+**Lecture, fixée d'avance**, relative à la base ministral de 0,202 et à σ = √(0,2 × 0,8 / 460) =
+0,0186 :
+
+| `intra_card_rate` mesuré | lecture |
+|---|---|
+| **≤ 0,165** | ministral **exploite** la partition. La piste 2 rouvre — et elle rouvre sur le décodeur qui compte. Résultat majeur. |
+| **0,165 – 0,239** | l'étiquette n'amorce pas ministral. L'amorçage observé est une propriété de **qwen**, pas de la tâche. |
+| **≥ 0,239** | l'amorçage est une propriété de **la tâche**. La conclusion de la marche v8 se généralise, la piste 2 est close pour de bon. |
+
+**Prédiction posée d'avance : `intra_card_rate ≈ 0,27`, donc troisième case.** Raison : sur qwen
+l'étiquette a multiplié la violation par 1,60 (0,196 → 0,314) ; appliqué tel quel à 0,202 cela
+donnerait 0,323. J'attends un effet **atténué** — ministral est plus gros, mieux noté sur la tâche
+(R̄ 0,502 contre 0,397) et devrait résister davantage à un attracteur typographique — mais de même
+signe, car rien dans la série ne montre un modèle tirant profit de la structure. Δ`recovery`
+apparié contre `f5bad93aeed3` en témoin secondaire.
+
+**Contrôle obligatoire, propre à ce modèle.** `ministral-3-14b-reasoning` **n'expose aucun toggle
+thinking** et pense par défaut ; sous les prompts décodeurs il rend pourtant `reasoning_tokens = 0`,
+inhibé par leur contrainte de format. v8 ne relâche pas cette contrainte, mais il en change le bloc
+de données : **sonder `reasoning_tokens` au premier appel**. Un réveil du thinking invaliderait la
+comparaison à `f5bad93aeed3`, `maxOutputTokens = 512` ne le bornant pas.
