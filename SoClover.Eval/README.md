@@ -298,6 +298,13 @@ dotnet run --project SoClover.Eval -c Release -- guess-report \
   --guessing   eval/human/guessing.dev.jsonl \
   --guessing-b eval/human/guessing.e.dev.jsonl \
   --decoded    eval/runs/<runId>.<empreinte>.decoded.jsonl
+
+# K devineurs — le drapeau se répète, le premier est H1 (la séance servie)
+dotnet run --project SoClover.Eval -c Release -- guess-report \
+  --guessing eval/human/guessing.dev.jsonl \
+  --guessing eval/human/guessing.marie.jsonl \
+  --guessing eval/human/guessing.paul.jsonl \
+  --decoded  eval/runs/<runId>.<empreinte>.decoded.jsonl
 ```
 
 > **`--out` est obligatoire pour toute séance après la première.** Sans lui, `guess` écrit dans
@@ -311,6 +318,16 @@ Avec `--guessing-b`, le verbe applique le critère **relatif** de la séance E �
 doivent concorder sur `benchHash`, `seed` et `runId` : la seule variable autorisée entre D et E est
 *la personne*, et un montage divergent est refusé (`MismatchedBenchException`) plutôt qu'apparié
 approximativement.
+
+**À partir de trois devineurs**, la règle d'agrégation pré-enregistrée le 2026-08-09 gouverne :
+**S** = moyenne des |Δ| sur les K(K−1)/2 paires humaines (*l'échelle*), **E** = moyenne des |Δ| sur les
+K écarts humain↔décodeur (*la quantité*), critère **E ≤ S**. Des *moyennes* et non des maxima : un
+maximum croîtrait mécaniquement avec K et ferait de « plus de devineurs » un moyen de passer le
+critère. L'étage de résolution teste les paires **signées** au niveau corrigé de Bonferroni (α = 0,05/m)
+— on ne teste pas S directement, parce que |Δ| a une espérance positive sous bruit pur et que « S > 0 »
+serait vrai trivialement. À K = 2, la règle ancrée sur H1 reste celle qui tranche, et l'agrégat n'est
+affiché que pour la continuité. Le rapport ajoute **S_kit**, restreint aux paires kit ↔ kit : écart
+personne-à-personne pur, **diagnostic et jamais décisionnel**.
 
 ### Faire deviner quelqu'un d'ailleurs — `guess-kit` et `guess-import`
 

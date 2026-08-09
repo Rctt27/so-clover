@@ -83,7 +83,8 @@ internal static class EvalProgram
               guess-import  Reinjecte le rapport de ce devineur au format d'une seance servie
                             --guessing <seance de reference> --kit-result <rapport recu>
               guess-report  Δ R̄ humain vs décodeur, apparié + IC (aucun appel LLM)
-                            --guessing-b <guessing.e.jsonl> : séance E, dispersion H1/H2/décodeur
+                            --guessing repetable : 1 = seance D, 2 = seance E (regle ancree),
+                            3+ = regle d'agregation E <= S. --guessing-b reste accepte
               human-run     Projette la séance A en pseudo-run décodable (aucun appel LLM)
               human-report  Agrégats des deux séances humaines (aucun appel LLM)
               calibrate     P6 : accord decodeur/humain, kappa, quatre portes, verdict unique
@@ -391,17 +392,33 @@ internal static class EvalProgram
     /// </summary>
     private static int GuessReportCommand(Args args)
     {
-        var guessing = HumanFile.ReadGuessing(args.Require("guessing"));
         var decodedPath = args.Require("decoded");
         var decoded = DecodeFile.ReadOrNull(decodedPath)
             ?? throw new InvalidOperationException($"Décodage illisible : {decodedPath}");
 
-        // Séance E : deux devineurs humains et le décodeur, appariés sur le MÊME sous-ensemble de
-        // directions. Sans --guessing-b, le verbe reste celui de la séance D, inchangé.
-        if (args.Get("guessing-b") is { } secondPath)
-            return GuessDispersionReport(guessing, HumanFile.ReadGuessing(secondPath), decoded);
+        // Le premier --guessing est H1, la séance de référence : la seule passée sur l'instrument
+        // servi. `--guessing-b` reste accepté — c'est la forme écrite au registre le 2026-08-08.
+        var humanPaths = args.GetAll("guessing").Concat(args.GetAll("guessing-b")).ToList();
+        if (humanPaths.Count == 0)
+            throw new ArgumentException("Argument requis manquant : --guessing");
 
-        var result = GuessingComparison.Compare(guessing, decoded);
+        var humans = humanPaths.Select(HumanFile.ReadGuessing).ToList();
+
+        // K = 2 : la règle ancrée sur H1, pré-enregistrée le 2026-08-08, GOUVERNE — la règle
+        // générale est rapportée en regard. K ≥ 3 : la règle d'agrégation du 2026-08-09 gouverne
+        // seule. Aucune généralisation symétrique ne se réduit exactement à une règle ancrée sur
+        // un humain particulier ; laquelle gouverne est déclarée d'avance, pas choisie après coup.
+        if (humans.Count == 2)
+        {
+            GuessDispersionReport(humans[0], humans[1], decoded);
+            Console.WriteLine();
+            return GuessCohortReport(humans, decoded, governing: false);
+        }
+
+        if (humans.Count > 2)
+            return GuessCohortReport(humans, decoded, governing: true);
+
+        var result = GuessingComparison.Compare(humans[0], decoded);
 
         Console.WriteLine("séance D — humain devineur vs décodeur");
         Console.WriteLine($"  directions appariées : {result.PairedDirectionCount}");
@@ -450,6 +467,70 @@ internal static class EvalProgram
             $"  critère |Δ(H1,D)| ≤ |Δ(H1,H2)| : {(result.CriterionMet ? "vérifié" : "en défaut")}");
         Console.WriteLine();
         Console.WriteLine($"VERDICT : {result.Verdict}");
+        foreach (var reason in result.Reasons)
+            Console.WriteLine($"    — {reason}");
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Règle d'agrégation pour K devineurs, pré-enregistrée au registre le 2026-08-09 avant le
+    /// premier import. <paramref name="governing"/> distingue le verdict qui tranche de celui qui
+    /// n'est rapporté que pour la continuité (K = 2) — sans quoi deux verdicts s'afficheraient
+    /// sans qu'on sache lequel fait foi.
+    /// </summary>
+    private static int GuessCohortReport(
+        IReadOnlyList<GuessingContents> humans, DecodeContents decoded, bool governing)
+    {
+        var result = GuessingCohort.Compare(humans, decoded);
+
+        static string Ci(double low, double high) =>
+            $"[{low:+0.000;-0.000;0.000} ; {high:+0.000;-0.000;0.000}]";
+
+        Console.WriteLine(
+            $"cohorte — {result.HumanCount} devineurs humains" +
+            (governing ? string.Empty : "   (continuité ; à K = 2 la règle ancrée gouverne)"));
+        Console.WriteLine($"  directions appariées : {result.PairedDirectionCount}");
+
+        foreach (var human in result.Humans)
+            Console.WriteLine(
+                $"    R̄ {human.SessionId,-24} : {human.Recovery:0.000}" +
+                (human.ViaKit ? "   (kit)" : "   (servie)"));
+
+        Console.WriteLine($"    R̄ décodeur                 : {result.DecoderRecovery:0.000}");
+        Console.WriteLine();
+        Console.WriteLine(
+            $"  paires humaines — IC au niveau corrigé {result.CorrectedAlpha:0.####} (Bonferroni)");
+
+        foreach (var pair in result.HumanPairs)
+            Console.WriteLine(
+                $"    {pair.LeftSessionId} − {pair.RightSessionId} : " +
+                $"{pair.Delta:+0.000;-0.000;0.000} {Ci(pair.CiLow, pair.CiHigh)}" +
+                (pair.Separated ? "   ← séparée" : string.Empty));
+
+        Console.WriteLine();
+        Console.WriteLine("  écarts au décodeur — IC 95 %");
+        foreach (var gap in result.DecoderGaps)
+            Console.WriteLine(
+                $"    {gap.LeftSessionId} − décodeur : " +
+                $"{gap.Delta:+0.000;-0.000;0.000} {Ci(gap.CiLow, gap.CiHigh)}");
+
+        Console.WriteLine();
+        Console.WriteLine(
+            $"  S (échelle, moyenne des {result.HumanPairs.Count} paires humaines) : " +
+            $"{result.HumanDispersion:0.000}");
+        Console.WriteLine(
+            $"  E (quantité, moyenne des {result.DecoderGaps.Count} écarts au décodeur) : " +
+            $"{result.DecoderDistance:0.000}");
+
+        if (result.KitOnlyDispersion is { } kitOnly)
+            Console.WriteLine(
+                $"  S_kit ({result.KitOnlyPairCount} paire(s) kit ↔ kit, diagnostic) : {kitOnly:0.000}");
+
+        Console.WriteLine();
+        Console.WriteLine($"  critère E ≤ S : {(result.CriterionMet ? "vérifié" : "en défaut")}");
+        Console.WriteLine();
+        Console.WriteLine($"{(governing ? "VERDICT" : "verdict (non gouvernant)")} : {result.Verdict}");
         foreach (var reason in result.Reasons)
             Console.WriteLine($"    — {reason}");
 

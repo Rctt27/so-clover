@@ -79,4 +79,34 @@ public class ArgsTests
 
         Assert.Equal(string.Empty, args.Verb);
     }
+
+    /// <summary>
+    /// Un drapeau répété désigne plusieurs valeurs — c'est ce dont la règle d'agrégation a besoin
+    /// pour recevoir K corpus de devineurs. <c>Get</c> continue de rendre la dernière : aucun verbe
+    /// existant ne change de comportement.
+    /// </summary>
+    [Fact]
+    public void GetAll_collects_repeated_flags_in_command_line_order()
+    {
+        var args = Args.Parse(
+            ["guess-report", "--guessing", "a.jsonl", "--guessing", "b.jsonl", "--guessing", "c.jsonl"]);
+
+        Assert.Equal(["a.jsonl", "b.jsonl", "c.jsonl"], args.GetAll("guessing"));
+        Assert.Equal("c.jsonl", args.Get("guessing"));
+    }
+
+    [Fact]
+    public void GetAll_yields_nothing_for_an_absent_flag()
+    {
+        Assert.Empty(Args.Parse(["guess-report"]).GetAll("guessing"));
+    }
+
+    /// <summary>Un drapeau nu n'apporte aucune valeur : il ne doit pas se compter comme un corpus.</summary>
+    [Fact]
+    public void GetAll_ignores_valueless_occurrences()
+    {
+        var args = Args.Parse(["guess-report", "--guessing", "--guessing", "b.jsonl"]);
+
+        Assert.Equal(["b.jsonl"], args.GetAll("guessing"));
+    }
 }

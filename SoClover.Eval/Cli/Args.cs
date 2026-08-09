@@ -9,9 +9,9 @@ namespace SoClover.Eval.Cli;
 /// </summary>
 public sealed class Args
 {
-    private readonly Dictionary<string, string?> _values;
+    private readonly Dictionary<string, List<string?>> _values;
 
-    private Args(string verb, Dictionary<string, string?> values)
+    private Args(string verb, Dictionary<string, List<string?>> values)
     {
         Verb = verb;
         _values = values;
@@ -25,7 +25,7 @@ public sealed class Args
             ? argv[0]
             : string.Empty;
 
-        var values = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        var values = new Dictionary<string, List<string?>>(StringComparer.OrdinalIgnoreCase);
         for (var i = verb.Length > 0 ? 1 : 0; i < argv.Length; i++)
         {
             if (!argv[i].StartsWith("--", StringComparison.Ordinal))
@@ -33,7 +33,14 @@ public sealed class Args
 
             var name = argv[i][2..];
             var hasValue = i + 1 < argv.Length && !argv[i + 1].StartsWith("--", StringComparison.Ordinal);
-            values[name] = hasValue ? argv[++i] : null;
+
+            // Les occurrences s'ACCUMULENT au lieu de s'écraser : `--guessing a --guessing b`
+            // désigne deux corpus. `Get` continue de rendre la dernière, donc rien de ce qui
+            // existait ne change de comportement.
+            if (!values.TryGetValue(name, out var list))
+                values[name] = list = [];
+
+            list.Add(hasValue ? argv[++i] : null);
         }
 
         return new Args(verb, values);
@@ -41,7 +48,17 @@ public sealed class Args
 
     public bool Has(string name) => _values.ContainsKey(name);
 
-    public string? Get(string name) => _values.TryGetValue(name, out var v) ? v : null;
+    public string? Get(string name) =>
+        _values.TryGetValue(name, out var v) && v.Count > 0 ? v[^1] : null;
+
+    /// <summary>
+    /// Toutes les valeurs d'un drapeau répété, dans l'ordre de la ligne de commande. Les
+    /// occurrences sans valeur (drapeau nu) sont écartées.
+    /// </summary>
+    public IReadOnlyList<string> GetAll(string name) =>
+        _values.TryGetValue(name, out var v)
+            ? v.Where(x => x is not null).Select(x => x!).ToList().AsReadOnly()
+            : [];
 
     public string Require(string name) =>
         Get(name) ?? throw new ArgumentException($"Argument requis manquant : --{name}");

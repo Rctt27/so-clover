@@ -30,14 +30,28 @@ public static class Bootstrap
     /// à l'identique après l'extraction.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Niveau par défaut : IC à 95 %, soit les percentiles 2,5 % et 97,5 %. Le rendre
+    /// paramétrable — et non écrire un second bootstrap — est ce qu'exige la règle d'agrégation
+    /// pour K devineurs, qui teste m paires humaines au niveau corrigé de Bonferroni. À la valeur
+    /// par défaut, les percentiles sont <b>inchangés au bit près</b> : les IC déjà publiés au
+    /// registre restent reproductibles.
+    /// </summary>
+    public const double DefaultAlpha = 0.05;
+
     public static (double Low, double High) Ci<T>(
         IReadOnlyList<T> sample,
         Func<IReadOnlyList<T>, double> statistic,
         int iterations,
-        long seed)
+        long seed,
+        double alpha = DefaultAlpha)
     {
         ArgumentNullException.ThrowIfNull(sample);
         ArgumentNullException.ThrowIfNull(statistic);
+
+        if (alpha is <= 0 or >= 1)
+            throw new ArgumentOutOfRangeException(
+                nameof(alpha), alpha, "Le niveau doit être strictement compris entre 0 et 1.");
 
         if (sample.Count == 0)
             throw new ArgumentException(
@@ -60,7 +74,7 @@ public static class Bootstrap
         }
 
         Array.Sort(values);
-        return (Percentile(values, 0.025), Percentile(values, 0.975));
+        return (Percentile(values, alpha / 2), Percentile(values, 1 - alpha / 2));
     }
 
     internal static double Percentile(double[] sorted, double p)
