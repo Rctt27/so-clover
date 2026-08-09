@@ -1777,3 +1777,62 @@ par plusieurs personnes chacune de son côté. Deux points, déclarés avant tou
    d'agrégation devra être écrite ici **avant** le premier import. Rien n'est décidé à ce jour.
 
 `dotnet test` **1042/1042** à l'écriture.
+
+---
+
+### RÈGLE D'AGRÉGATION POUR K DEVINEURS — 2026-08-09 — **écrite avant le premier import**
+
+L'addendum précédent laissait ouvert le cas de trois devineurs ou plus. Voici la règle, pré-enregistrée
+avant qu'aucun rapport ne soit reçu, et **valable pour un K quelconque** (K = nombre de corpus humains,
+K ≥ 2).
+
+**Corpus et sous-ensemble.** H1 désigne la séance de référence — la seule passée sur l'instrument
+*servi* ; les autres arrivent par kit hors ligne. Toutes les quantités portent sur l'**intersection** :
+les directions présentes dans les K corpus **et** portant au moins un décodage exploitable. Un seul
+dénominateur, comme au premier avenant ; n est rapporté.
+
+**Quantités.** R̄_a = moyenne de r sur ce sous-ensemble, pour chaque agent.
+- Pour chaque paire humaine non ordonnée (i,j) : Δ_ij, moyenne appariée de (r_i − r_j), et |Δ_ij|.
+- **S = moyenne des |Δ_ij| sur les K(K−1)/2 paires** — *l'échelle*.
+- Pour chaque humain i : Δ_iD, et |Δ_iD|.
+- **E = moyenne des |Δ_iD| sur les K humains** — *la quantité*.
+
+**Étage 1 — résolution.** La dispersion humaine est **établie** ssi au moins une paire (i,j) a un IC
+bootstrap de Δ_ij excluant zéro, **au niveau corrigé de Bonferroni** (α = 0,05 / m, m = K(K−1)/2).
+Sinon → **« ne tranche pas — la dispersion humaine n'est pas établie »**, quel que soit le résultat
+littéral du critère (qui reste rapporté). Deux motifs : (a) retenir la paire la plus séparée puis la
+tester *est* une sélection, et Bonferroni en est la correction, choisie d'avance et conservatrice ;
+(b) on ne teste **pas** S directement, parce que |Δ| a une espérance strictement positive sous bruit
+pur — « S > 0 » serait vrai trivialement et ne prouverait rien.
+
+**Étage 2 — critère.** **E ≤ S** → « le décodeur tombe dans la dispersion humaine » ; sinon → « le
+décodeur s'écarte des humains plus qu'ils ne s'écartent entre eux ». Aucune interprétation n'est
+pré-autorisée au-delà du constat, et l'absence de preuve d'écart n'est jamais une preuve
+d'équivalence.
+
+**Cas K = 2 : la règle du 2026-08-09 GOUVERNE, inchangée** — |Δ(H1,D)| ≤ |Δ(H1,H2)|, ancrée sur H1,
+avec son étage de résolution à une seule paire (Bonferroni sur m = 1 est l'identité). La règle
+générale est alors rapportée en regard, pour la continuité. **Motif de l'exception, déclaré :** aucune
+généralisation symétrique sur les humains ne se réduit *exactement* à une règle ancrée sur un humain
+particulier. Plutôt que de tordre l'une ou l'autre après coup, on déclare d'avance laquelle gouverne
+dans chaque cas.
+
+**Pourquoi des moyennes et non des maxima.** S est la moyenne des écarts par paire, pas leur maximum :
+un maximum croîtrait mécaniquement avec K et ferait de « plus de devineurs » un moyen de *passer* le
+critère — ce que la garde 7 refuse. E est symétriquement une moyenne sur les K humains. Ajouter un
+devineur resserre l'estimation ; cela ne desserre pas la barre.
+
+**Diagnostic déclaré, non décisionnel : S_kit.** Dès que deux devineurs au moins ont joué le kit, on
+rapporte S restreint aux paires *kit ↔ kit* : écart personne-à-personne **pur**, là où toute paire
+impliquant H1 mêle la personne et le transport. **Aucun verdict ne peut être re-décidé sur S_kit** ;
+un écart marqué entre S et S_kit est un fait à consigner — et le premier élément de preuve sur le coût
+réel de la concession hors ligne — jamais un levier.
+
+**Puissance, et pourquoi aucun seuil sur n.** L'intersection ne peut que rétrécir quand K croît ; les
+IC s'élargissent d'autant et l'étage 1 devient plus difficile à franchir. C'est le comportement voulu :
+« ne tranche pas » est la conséquence honnête d'un corpus trop mince. Aucun plancher arbitraire sur n
+n'est introduit — le bootstrap le dit déjà.
+
+**Gardes de montage.** `benchHash`, `seed` et `runId` doivent concorder entre **tous** les corpus, et
+les `sessionId` être deux à deux distincts sur l'ensemble — la seule variable autorisée reste *la
+personne*.
