@@ -77,6 +77,7 @@ internal static class EvalProgram
               judge     Séance B (juge) : serveur local de comparaison en aveugle, J+1
               guess     Séance D (devineur) : serveur local, 16 mots + 1 indice -> 2 mots
               guess-report  Δ R̄ humain vs décodeur, apparié + IC (aucun appel LLM)
+                            --guessing-b <guessing.e.jsonl> : séance E, dispersion H1/H2/décodeur
               human-run     Projette la séance A en pseudo-run décodable (aucun appel LLM)
               human-report  Agrégats des deux séances humaines (aucun appel LLM)
               calibrate     P6 : accord decodeur/humain, kappa, quatre portes, verdict unique
@@ -389,6 +390,11 @@ internal static class EvalProgram
         var decoded = DecodeFile.ReadOrNull(decodedPath)
             ?? throw new InvalidOperationException($"Décodage illisible : {decodedPath}");
 
+        // Séance E : deux devineurs humains et le décodeur, appariés sur le MÊME sous-ensemble de
+        // directions. Sans --guessing-b, le verbe reste celui de la séance D, inchangé.
+        if (args.Get("guessing-b") is { } secondPath)
+            return GuessDispersionReport(guessing, HumanFile.ReadGuessing(secondPath), decoded);
+
         var result = GuessingComparison.Compare(guessing, decoded);
 
         Console.WriteLine("séance D — humain devineur vs décodeur");
@@ -398,6 +404,44 @@ internal static class EvalProgram
         Console.WriteLine(
             $"  Δ (humain − décodeur) : {result.Delta:+0.000;-0.000;0.000}   " +
             $"IC 95 % [{result.CiLow:+0.000;-0.000;0.000} ; {result.CiHigh:+0.000;-0.000;0.000}]");
+        Console.WriteLine();
+        Console.WriteLine($"VERDICT : {result.Verdict}");
+        foreach (var reason in result.Reasons)
+            Console.WriteLine($"    — {reason}");
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Séance E : |Δ(H1,D)| ≤ |Δ(H1,H2)| ? Le critère et ses trois issues sont pré-enregistrés au
+    /// registre le 2026-08-08 ; ce rapport les affiche, il ne les choisit pas.
+    /// </summary>
+    private static int GuessDispersionReport(
+        GuessingContents h1, GuessingContents h2, DecodeContents decoded)
+    {
+        var result = GuessingDispersion.Compare(h1, h2, decoded);
+
+        static string Ci(double low, double high) =>
+            $"IC 95 % [{low:+0.000;-0.000;0.000} ; {high:+0.000;-0.000;0.000}]";
+
+        Console.WriteLine("séance E — dispersion entre deux devineurs humains");
+        Console.WriteLine($"  directions appariées : {result.PairedDirectionCount}");
+        Console.WriteLine($"  R̄ H1                 : {result.H1Recovery:0.000}");
+        Console.WriteLine($"  R̄ H2                 : {result.H2Recovery:0.000}");
+        Console.WriteLine($"  R̄ décodeur           : {result.DecoderRecovery:0.000}");
+        Console.WriteLine();
+        Console.WriteLine(
+            $"  Δ (H1 − H2)  : {result.DeltaH1H2:+0.000;-0.000;0.000}   " +
+            Ci(result.CiLowH1H2, result.CiHighH1H2) + "   ← l'échelle");
+        Console.WriteLine(
+            $"  Δ (H1 − D)   : {result.DeltaH1Decoder:+0.000;-0.000;0.000}   " +
+            Ci(result.CiLowH1Decoder, result.CiHighH1Decoder) + "   ← rappel séance D");
+        Console.WriteLine(
+            $"  Δ (H2 − D)   : {result.DeltaH2Decoder:+0.000;-0.000;0.000}   " +
+            Ci(result.CiLowH2Decoder, result.CiHighH2Decoder) + "   ← contrôle");
+        Console.WriteLine();
+        Console.WriteLine(
+            $"  critère |Δ(H1,D)| ≤ |Δ(H1,H2)| : {(result.CriterionMet ? "vérifié" : "en défaut")}");
         Console.WriteLine();
         Console.WriteLine($"VERDICT : {result.Verdict}");
         foreach (var reason in result.Reasons)

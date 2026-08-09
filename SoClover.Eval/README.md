@@ -276,6 +276,42 @@ Un `pass` reste au dénominateur (`failureKind: "pass"`, `valid: false`) : retir
 c'est retirer la résolution de l'instrument. `decode` saute N3 tout seul sur ce pseudo-run, aucun
 board n'ayant ses 4 directions annotées.
 
+### Le devineur humain — `guess` et `guess-report` (séances D et E)
+
+Les séances A et B font écrire et comparer des indices ; la séance D fait **deviner**, c'est-à-dire
+exactement la tâche du décodeur. C'est ce qui valide l'instrument sur ce que le jeu contient.
+
+```bash
+# Séance D — un humain devine, 16 mots à plat + 1 indice -> 2 mots, ≈ 18 min
+dotnet run --project SoClover.Eval -c Release -- guess \
+  --bench eval/boards.dev.jsonl --run eval/runs/<runId>.jsonl \
+  --elicitation eval/human/elicitation.dev.jsonl \
+  --seed 20260807001 --out eval/human/guessing.dev.jsonl
+
+# Δ R̄ humain vs décodeur, apparié par direction (aucun appel LLM)
+dotnet run --project SoClover.Eval -c Release -- guess-report \
+  --guessing eval/human/guessing.dev.jsonl \
+  --decoded  eval/runs/<runId>.<empreinte>.decoded.jsonl
+
+# Séance E — un SECOND devineur, même montage, puis la dispersion H1 / H2 / décodeur
+dotnet run --project SoClover.Eval -c Release -- guess-report \
+  --guessing   eval/human/guessing.dev.jsonl \
+  --guessing-b eval/human/guessing.e.dev.jsonl \
+  --decoded    eval/runs/<runId>.<empreinte>.decoded.jsonl
+```
+
+> **`--out` est obligatoire pour toute séance après la première.** Sans lui, `guess` écrit dans
+> `guessing.dev.jsonl` et **détruit** la séance déjà tenue — la seule preuve de validité de
+> l'instrument. Le rapport pose un second garde-fou : deux fichiers partageant un `sessionId` sont
+> refusés comme « la même séance, pas deux devineurs ».
+
+Avec `--guessing-b`, le verbe applique le critère **relatif** de la séance E — `|Δ(H1,D)| ≤
+|Δ(H1,H2)|`, « le décodeur tombe dans la dispersion humaine » — et rapporte les **trois** Δ sur le
+**même** sous-ensemble de directions, celles communes aux deux séances et au décodage. Les manifestes
+doivent concorder sur `benchHash`, `seed` et `runId` : la seule variable autorisée entre D et E est
+*la personne*, et un montage divergent est refusé (`MismatchedBenchException`) plutôt qu'apparié
+approximativement.
+
 ## Ce que le harnais ne peut pas observer
 
 `providerModelListHash` capture la liste de modèles servie par le provider, mais **pas** le toggle
