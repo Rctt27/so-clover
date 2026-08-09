@@ -635,9 +635,14 @@ internal static class EvalProgram
     private static int GuessImportCommand(Args args)
     {
         var (bench, manifest, plan, payload) = ResolveKit(args);
-        var outPath = args.Get("out") ?? Path.Combine("eval", "human", "guessing.e.dev.jsonl");
-
         var result = KitResultFile.Read(args.Require("kit-result"));
+
+        // Défaut dérivé de la séance, jamais fixe : quand plusieurs personnes jouent le même kit
+        // chacune de son côté, un défaut constant ferait échouer le deuxième import — ou pire,
+        // inviterait à écraser le premier.
+        var outPath = args.Get("out") ?? Path.Combine(
+            "eval", "human",
+            $"guessing.{result.Manifest.Label ?? result.Manifest.SessionId}.jsonl");
         var lines = GuessKitImport.BuildLines(bench, plan, payload, result);
 
         // Le manifeste de la séance de référence, à la date de création près : les deux corpus
@@ -646,6 +651,7 @@ internal static class EvalProgram
 
         var answered = lines.Count;
         Console.WriteLine($"import du kit : {outPath}");
+        Console.WriteLine($"  devineur       : {result.Manifest.Label ?? "— (non étiqueté)"}");
         Console.WriteLine($"  session        : {result.Manifest.SessionId}");
         Console.WriteLine($"  navigateur     : {result.Manifest.UserAgent ?? "—"}");
         Console.WriteLine($"  kitHash        : {payload.KitHash} (concordant)");

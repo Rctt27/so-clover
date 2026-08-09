@@ -15,7 +15,14 @@ public sealed record KitResultManifest(
     string SessionId,
     DateTime StartedAtUtc,
     DateTime DownloadedAtUtc,
-    string? UserAgent);
+    string? UserAgent,
+    /// <summary>
+    /// Étiquette libre saisie par le devineur après sa dernière direction, ou <c>null</c>. Confort
+    /// de classement quand plusieurs personnes jouent la même séance chacune de son côté : elle
+    /// n'entre dans <b>aucun</b> calcul, et l'unicité des fichiers ne dépend jamais d'elle — c'est
+    /// le rôle du <c>sessionId</c>.
+    /// </summary>
+    string? Label = null);
 
 /// <summary>
 /// Une réponse rapportée. <c>itemIndex</c> est la position dans le plan — la provenance

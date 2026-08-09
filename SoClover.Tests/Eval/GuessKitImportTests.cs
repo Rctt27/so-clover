@@ -375,6 +375,58 @@ public class GuessKitImportTests : IDisposable
         Assert.Contains("Enregistrer mes réponses", ex.Message, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// L'étiquette est un confort de classement quand plusieurs personnes jouent le même kit. Elle
+    /// est facultative des deux côtés : absente du fichier, elle vaut <c>null</c> sans faire échouer
+    /// la lecture — et elle n'entre dans aucun calcul.
+    /// </summary>
+    [Fact]
+    public void L_etiquette_du_devineur_est_facultative()
+    {
+        var sans = TempPath(".jsonl");
+        var avec = TempPath(".jsonl");
+        const string Entete =
+            "{\"kind\":\"kit-manifest\",\"benchHash\":\"aaaaaaaaaaaa\",\"seed\":1,\"runId\":\"r\"," +
+            "\"kitHash\":\"k\",\"harnessVersion\":1,\"itemCount\":1,\"sessionId\":\"e-1-ab\"," +
+            "\"startedAtUtc\":\"2026-08-09T14:00:00Z\",\"downloadedAtUtc\":\"2026-08-09T14:18:00Z\"," +
+            "\"userAgent\":\"UA\"";
+
+        File.WriteAllText(sans, Entete + "}\n");
+        File.WriteAllText(avec, Entete + ",\"label\":\"marie\"}\n");
+
+        Assert.Null(KitResultFile.Read(sans).Manifest.Label);
+        Assert.Equal("marie", KitResultFile.Read(avec).Manifest.Label);
+    }
+
+    /// <summary>
+    /// Deux devineurs qui joueraient le même kit produisent le même <c>kitHash</c> — c'est
+    /// l'empreinte du MONTAGE, pas de la personne. Ce qui les distingue est le <c>sessionId</c>, et
+    /// c'est de lui seul que doit dépendre l'unicité des fichiers reçus.
+    /// </summary>
+    [Fact]
+    public void Deux_devineurs_du_meme_kit_partagent_le_kitHash_et_pas_la_session()
+    {
+        var bench = Bench();
+        var plan = Plan(bench);
+        var payload = Payload(bench, plan);
+
+        var marie = Reported(payload) with { SessionId = "e-20260809140000-ab12", Label = "marie" };
+        var paul = Reported(payload) with { SessionId = "e-20260809181500-3f7c", Label = "paul" };
+
+        Assert.Equal(marie.KitHash, paul.KitHash);
+        Assert.NotEqual(marie.SessionId, paul.SessionId);
+
+        var lignesMarie = GuessKitImport.BuildLines(
+            bench, plan, payload, new KitResultContents(marie, [Answer(0, Cible(bench, plan[0]))]));
+        var lignesPaul = GuessKitImport.BuildLines(
+            bench, plan, payload, new KitResultContents(paul, [Answer(0, Cible(bench, plan[0]))]));
+
+        // Le sessionId part dans chaque ligne : c'est ce que RequireDistinctSessions relit pour
+        // refuser « la même séance, pas deux devineurs ».
+        Assert.Equal("e-20260809140000-ab12", lignesMarie[0].SessionId);
+        Assert.Equal("e-20260809181500-3f7c", lignesPaul[0].SessionId);
+    }
+
     [Fact]
     public void Le_rapport_produit_par_le_kit_se_relit_en_entier()
     {

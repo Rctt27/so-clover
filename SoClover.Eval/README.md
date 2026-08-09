@@ -328,9 +328,19 @@ dotnet run --project SoClover.Eval -c Release -- guess-kit \
 # Au retour : réinjecte le rapport au format d'une séance servie
 dotnet run --project SoClover.Eval -c Release -- guess-import \
   --guessing   eval/human/guessing.dev.jsonl \
-  --kit-result seance-e-<kitHash>.jsonl \
+  --kit-result seance-e-<kitHash>-<étiquette>-<session>.jsonl \
   --out        eval/human/guessing.e.dev.jsonl
 ```
+
+**Plusieurs devineurs, chacun de son côté.** Le `kitHash` identifie le *montage* : il est le même
+pour tout le monde, et ne peut donc pas distinguer deux fichiers reçus. C'est le `sessionId`, tiré au
+chargement de la page (`e-<horodatage UTC>-<4 hex>`), qui porte l'unicité — il apparaît dans le nom du
+fichier téléchargé et dans chaque ligne du corpus, où `RequireDistinctSessions` s'en sert pour refuser
+« la même séance, pas deux devineurs ». Le devineur peut en outre saisir un prénom, **facultatif et
+demandé seulement après sa dernière direction** : il préfixe le nom du fichier et remplit le champ
+`label`, sans jamais entrer dans un calcul. Sans `--out`, `guess-import` écrit dans
+`eval/human/guessing.<étiquette ou session>.jsonl` — un défaut fixe ferait échouer le deuxième import,
+ou inviterait à écraser le premier.
 
 **`--guessing` désigne la séance de référence, et son manifeste fait foi** — banc, run, graine et
 boards exclus en sont relus tels quels. Recalculer ces exclusions depuis la ligne de commande a

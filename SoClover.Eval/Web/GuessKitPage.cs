@@ -190,14 +190,35 @@ public static class GuessKitPage
 
         // ── Enregistrement du résultat ──────────────────────────────────────────
 
+        // Étiquette libre et FACULTATIVE, saisie après la dernière direction — jamais avant, sans
+        // quoi elle deviendrait un écran de plus que la séance D n'avait pas. Elle ne sert qu'au
+        // classement des fichiers reçus : l'unicité du nom, elle, ne dépend jamais d'elle.
+        function label() {
+          return labelInput.value
+            .trim().toLowerCase()
+            .normalize("NFD").replace(/\p{M}/gu, "")
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "")
+            .slice(0, 20);
+        }
+
         function resultText() {
           const header = {
             kind: "kit-manifest", benchHash: KIT.benchHash, seed: KIT.seed, runId: KIT.runId,
             kitHash: KIT.kitHash, harnessVersion: KIT.harnessVersion, itemCount: KIT.items.length,
-            sessionId: state.sessionId, startedAtUtc: state.startedAtUtc,
+            sessionId: state.sessionId, label: label() || null, startedAtUtc: state.startedAtUtc,
             downloadedAtUtc: new Date().toISOString(), userAgent: navigator.userAgent,
           };
           return [header].concat(state.answers).map((o) => JSON.stringify(o)).join("\n") + "\n";
+        }
+
+        // Le kitHash identifie le MONTAGE, il est donc le même pour tous les devineurs : à lui seul
+        // il ferait collision entre deux fichiers reçus. Le sessionId, tiré au chargement, identifie
+        // la SÉANCE — c'est lui qui garantit l'unicité, l'étiquette n'étant qu'un confort de tri.
+        function fileName() {
+          const etiquette = label();
+          return "seance-e-" + KIT.kitHash + "-" + (etiquette ? etiquette + "-" : "")
+            + state.sessionId.replace(/^e-/, "") + ".jsonl";
         }
 
         function download() {
@@ -206,7 +227,7 @@ public static class GuessKitPage
             const url = URL.createObjectURL(new Blob([text], { type: "application/x-ndjson" }));
             const anchor = document.createElement("a");
             anchor.href = url;
-            anchor.download = "seance-e-" + KIT.kitHash + ".jsonl";
+            anchor.download = fileName();
             document.body.appendChild(anchor);
             anchor.click();
             anchor.remove();
@@ -230,7 +251,7 @@ public static class GuessKitPage
           box.focus();
           box.select();
           alert("Le téléchargement automatique a échoué. Copiez tout le texte affiché et "
-            + "collez-le dans un fichier nommé seance-e-" + KIT.kitHash + ".jsonl");
+            + "collez-le dans un fichier nommé " + fileName());
         }
 
         function warnVolatile() {
@@ -245,11 +266,20 @@ public static class GuessKitPage
         }
 
         const bar = document.createElement("div");
-        bar.style.cssText = "position:fixed;right:1rem;bottom:1rem;z-index:10";
+        bar.style.cssText = "position:fixed;right:1rem;bottom:1rem;z-index:10;display:flex;"
+          + "gap:.5rem;align-items:center";
+        const labelInput = document.createElement("input");
+        labelInput.placeholder = "votre prénom (facultatif)";
+        labelInput.maxLength = 20;
+        labelInput.value = state.label || "";
+        labelInput.style.cssText = "background:#232830;color:var(--fg);border:1px solid var(--line);"
+          + "border-radius:6px;padding:.55rem .8rem;font:inherit;width:14rem";
+        labelInput.addEventListener("input", () => { state.label = labelInput.value; save(); });
         const saveButton = document.createElement("button");
         saveButton.style.cssText = "background:#232830;color:var(--fg);border:1px solid var(--target);"
           + "border-radius:6px;padding:.55rem 1rem;font:inherit;cursor:pointer";
         saveButton.addEventListener("click", download);
+        bar.appendChild(labelInput);
         bar.appendChild(saveButton);
         document.body.appendChild(bar);
 
@@ -267,6 +297,12 @@ public static class GuessKitPage
           // une séance entière peut se perdre par inadvertance.
           saveButton.style.background = pending && fini ? "var(--target)" : "#232830";
           saveButton.style.color = pending && fini ? "var(--bg)" : "var(--fg)";
+
+          // L'étiquette n'apparaît qu'une fois la séance finie : demander un prénom AVANT
+          // ajouterait à la page un élément que la séance D n'avait pas, au moment précis où le
+          // devineur devine. Après la dernière direction, plus aucune réponse ne peut s'en trouver
+          // déplacée.
+          labelInput.style.display = fini ? "" : "none";
         }
 
         window.addEventListener("beforeunload", (event) => {

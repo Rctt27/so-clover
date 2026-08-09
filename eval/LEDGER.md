@@ -1757,3 +1757,23 @@ en bout dans un navigateur sur le kit réel — 42 directions, `kitHash fdf83148
 rechargement, rapport importé et consommé par `guess-report --guessing-b`. Ce qui manque à la séance
 E n'est toujours pas du code : c'est **H2**, qui ne peut être ni l'auteur, ni quiconque a lu ce
 registre ou `eval/analysis/*.sample.md`.
+
+**Addendum au second avenant — 2026-08-09, plusieurs devineurs envisagés.** Le kit peut être joué
+par plusieurs personnes chacune de son côté. Deux points, déclarés avant toute donnée :
+
+1. **Identité des fichiers.** Le `kitHash` est l'empreinte du *montage* : identique pour tous, il ne
+   distingue pas deux rapports. L'unicité vient du `sessionId` (`e-<horodatage UTC>-<4 hex>`, tiré au
+   chargement), désormais présent dans le nom du fichier téléchargé, et déjà relu par
+   `RequireDistinctSessions`. S'y ajoute une **étiquette libre facultative** (`label`), demandée
+   **seulement après la dernière direction** — jamais avant, sans quoi la page porterait un champ de
+   plus au moment précis où l'on devine. Elle sert au classement, n'entre dans **aucun** calcul, et
+   l'unicité ne dépend jamais d'elle : une saisie vide ou absurde retombe sur l'horodatage seul.
+   Concession de présentation : un champ de saisie apparaît en fin de séance, en plus du bouton déjà
+   déclaré ci-dessus.
+2. **Ce qui n'est PAS arbitré.** Le critère pré-enregistré et sa règle de lecture portent sur
+   **deux** devineurs (H1, H2). À trois ou plus, ni l'application deux à deux ni une dispersion
+   agrégée ne sont couvertes par le pré-enregistrement, et **choisir entre elles après avoir vu les
+   fichiers serait la faute que la garde 6 refuse**. Si plusieurs séances sont tenues, la règle
+   d'agrégation devra être écrite ici **avant** le premier import. Rien n'est décidé à ce jour.
+
+`dotnet test` **1042/1042** à l'écriture.
