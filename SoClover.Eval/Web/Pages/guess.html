@@ -43,6 +43,11 @@ const el = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
+// transport:start
+// Tout ce que la page sait du monde extérieur tient entre ces deux marqueurs. GuessKitPage y
+// substitue un transport hors ligne pour produire le kit de la séance E : ce qui est EN DEHORS
+// des marqueurs — CSS, render(), toggle(), la touche Entrée — reste identique octet pour octet,
+// et GuessKitPageTests le vérifie. C'est la seule garantie que H2 voit ce que H1 a vu.
 async function api(path, options) {
   const response = await fetch(path, options);
   let body = null;
@@ -55,6 +60,7 @@ const post = (path, payload) => api(path, {
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify(payload),
 });
+// transport:end
 
 function render() {
   if (view.finished) {

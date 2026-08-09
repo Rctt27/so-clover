@@ -33,7 +33,7 @@ public sealed class GuessingSession
     /// pré-enregistrement : l'humain devine une fois, le décodeur trois — on lui donne l'ordre du
     /// premier de ses tirages, pas un ordre qui lui serait propre.
     /// </summary>
-    private const int PresentationDecodeIndex = 0;
+    public const int PresentationDecodeIndex = 0;
 
     private readonly IReadOnlyList<GuessPlanItem> _plan;
     private readonly IReadOnlyDictionary<string, BenchBoard> _boards;
@@ -149,10 +149,19 @@ public sealed class GuessingSession
         }
     }
 
-    private IReadOnlyList<string> Presented(GuessPlanItem item) =>
+    /// <summary>
+    /// Les seize mots tels que le devineur les voit. <b>Point d'entrée unique</b> : le kit hors
+    /// ligne de la séance E le rappelle pour graver sa présentation, et l'import s'en sert pour
+    /// vérifier que les mots désignés étaient bien à l'écran. Recopier la formule ailleurs
+    /// laisserait H2 deviner sur un autre ordre que H1 sans que rien ne le signale.
+    /// </summary>
+    public static IReadOnlyList<string> PresentedWords(BenchBoard board, string benchHash) =>
         ShuffleSeed.Shuffle(
-            BenchBoardMapper.AllWords(_boards[item.BoardId]),
-            ShuffleSeed.ForClue(_benchHash, item.BoardId, PresentationDecodeIndex));
+            BenchBoardMapper.AllWords(board),
+            ShuffleSeed.ForClue(benchHash, board.BoardId, PresentationDecodeIndex));
+
+    private IReadOnlyList<string> Presented(GuessPlanItem item) =>
+        PresentedWords(_boards[item.BoardId], _benchHash);
 
     private void SkipGuessed()
     {
