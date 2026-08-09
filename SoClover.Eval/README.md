@@ -312,6 +312,50 @@ doivent concorder sur `benchHash`, `seed` et `runId` : la seule variable autoris
 *la personne*, et un montage divergent est refusé (`MismatchedBenchException`) plutôt qu'apparié
 approximativement.
 
+### Faire deviner quelqu'un d'ailleurs — `guess-kit` et `guess-import`
+
+Le second devineur n'est presque jamais dans la pièce, et l'instrument ne se met pas en ligne pour
+autant. `guess-kit` grave la séance dans **un fichier HTML autonome** : le devineur l'ouvre dans son
+navigateur, sans serveur, sans réseau, sans rien installer, puis renvoie le `.jsonl` que la page lui
+fait enregistrer.
+
+```bash
+# Grave le lot de la séance D dans un HTML de ~20 Kio, à envoyer tel quel
+dotnet run --project SoClover.Eval -c Release -- guess-kit \
+  --guessing eval/human/guessing.dev.jsonl \
+  --out      eval/human/seance-e.html
+
+# Au retour : réinjecte le rapport au format d'une séance servie
+dotnet run --project SoClover.Eval -c Release -- guess-import \
+  --guessing   eval/human/guessing.dev.jsonl \
+  --kit-result seance-e-<kitHash>.jsonl \
+  --out        eval/human/guessing.e.dev.jsonl
+```
+
+**`--guessing` désigne la séance de référence, et son manifeste fait foi** — banc, run, graine et
+boards exclus en sont relus tels quels. Recalculer ces exclusions depuis la ligne de commande a
+produit 53 directions là où H1 en avait devinées 42 : trois boards avaient été exclus à la main
+pendant un diagnostic, et aucun argument de la CLI ne s'en souvient.
+
+Ce que le kit garantit :
+
+- **la même page** — il est assemblé par substitution de la seule région `// transport:start` …
+  `// transport:end` de `guess.html`, qui ne contient que `api()` et `post()`. Tout le reste — CSS,
+  `render()`, `toggle()`, la touche Entrée — est recopié octet pour octet, et `GuessKitPageTests` le
+  vérifie ;
+- **le même aveuglement** — ni `boardId`, ni paire de référence, ni score dans le fichier : `r` naît
+  à l'import, sur la machine de l'opérateur ;
+- **le même montage au retour** — `kitHash` (empreinte des items, indices *et* ordre de
+  présentation) est confronté au plan reconstruit, et chaque mot rapporté doit avoir été présenté.
+  Un rapport venu d'un autre kit est refusé, en-tête recopié ou non ;
+- **rien d'écrasé** — `guess-import` refuse un `--out` qui existe déjà.
+
+Ce que le kit **ne** garantit pas, et qui doit être consigné : le plan entier est dans la page. Un
+devineur qui ouvrirait les outils de développement verrait les items à venir — jamais les réponses,
+mais assez pour défaire la dispersion des directions d'un même board (`SpaceOut`). C'est la seule
+chose que le serveur assurait et que le hors-ligne ne peut pas assurer. Sauvegarde par
+`localStorage` (reprise après fermeture d'onglet), avec repli visible si le navigateur la refuse.
+
 ## Ce que le harnais ne peut pas observer
 
 `providerModelListHash` capture la liste de modèles servie par le provider, mais **pas** le toggle

@@ -45,6 +45,8 @@ internal static class EvalProgram
                 "elicit" => Elicit(cliArgs, CancellationToken.None),
                 "judge" => Judge(cliArgs, CancellationToken.None),
                 "guess" => Guess(cliArgs, CancellationToken.None),
+                "guess-kit" => Task.FromResult(GuessKitCommand(cliArgs)),
+                "guess-import" => Task.FromResult(GuessImportCommand(cliArgs)),
                 "guess-report" => Task.FromResult(GuessReportCommand(cliArgs)),
                 "human-report" => Task.FromResult(HumanReportCommand(cliArgs)),
                 "human-run" => Task.FromResult(HumanRunCommand(cliArgs)),
@@ -76,6 +78,10 @@ internal static class EvalProgram
               elicit    Séance A (auteur) : serveur local de saisie chronométrée
               judge     Séance B (juge) : serveur local de comparaison en aveugle, J+1
               guess     Séance D (devineur) : serveur local, 16 mots + 1 indice -> 2 mots
+              guess-kit     Grave la seance decrite par --guessing dans un HTML autonome, a
+                            envoyer a un devineur distant (hors ligne, sans serveur)
+              guess-import  Reinjecte le rapport de ce devineur au format d'une seance servie
+                            --guessing <seance de reference> --kit-result <rapport recu>
               guess-report  Δ R̄ humain vs décodeur, apparié + IC (aucun appel LLM)
                             --guessing-b <guessing.e.jsonl> : séance E, dispersion H1/H2/décodeur
               human-run     Projette la séance A en pseudo-run décodable (aucun appel LLM)
@@ -466,7 +472,6 @@ internal static class EvalProgram
     {
         var benchPath = args.Require("bench");
         var runPath = args.Require("run");
-        var elicitationPath = args.Get("elicitation");
         var outPath = args.Get("out") ?? Path.Combine("eval", "human", "guessing.dev.jsonl");
         var port = args.GetInt("port", 5179);
 
@@ -482,33 +487,7 @@ internal static class EvalProgram
 
         if (existing is null)
         {
-            var excluded = new SortedSet<string>(StringComparer.Ordinal);
-
-            if (elicitationPath is not null)
-            {
-                var elicitation = HumanFile.ReadElicitation(elicitationPath);
-                HumanFile.RequireBench(elicitationPath, elicitation.Manifest.BenchHash, bench);
-                foreach (var line in elicitation.Elicitations)
-                    excluded.Add(line.BoardId);
-            }
-
-            foreach (var boardId in (args.Get("exclude-boards") ?? string.Empty)
-                     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                excluded.Add(boardId);
-
-            manifest = new GuessingManifest(
-                Kind: "manifest",
-                BenchFile: benchPath.Replace('\\', '/'),
-                BenchHash: bench.Manifest.BenchHash,
-                Seed: args.GetLong("seed", 0),
-                RunId: run.Manifest.RunId,
-                RunFile: runPath.Replace('\\', '/'),
-                ElicitationFile: elicitationPath?.Replace('\\', '/'),
-                ExcludedBoardIds: excluded.ToList().AsReadOnly(),
-                TargetCount: 0,
-                HarnessVersion: RunFile.HarnessVersion,
-                CreatedAtUtc: DateTime.UtcNow);
-
+            manifest = NewGuessingManifest(args, bench, run, benchPath, runPath);
             HumanFile.WriteGuessingManifest(outPath, manifest);
             existing = HumanFile.ReadGuessing(outPath);
         }
@@ -539,6 +518,147 @@ internal static class EvalProgram
         Console.WriteLine("  Ctrl+C pour arrêter. Reprise sûre : chaque réponse est écrite à la soumission.");
 
         await app.WaitForShutdownAsync(ct);
+        return 0;
+    }
+
+    /// <summary>
+    /// Manifeste d'une séance D neuve : c'est <b>le seul moment</b> où les exclusions se calculent
+    /// depuis la ligne de commande. Ensuite — reprise, kit hors ligne, import — le manifeste écrit
+    /// fait foi, sans quoi le lot pourrait changer de composition sans que rien ne le signale.
+    /// </summary>
+    internal static GuessingManifest NewGuessingManifest(
+        Args args, BenchContents bench, RunContents run, string benchPath, string runPath)
+    {
+        var elicitationPath = args.Get("elicitation");
+        var excluded = new SortedSet<string>(StringComparer.Ordinal);
+
+        if (elicitationPath is not null)
+        {
+            var elicitation = HumanFile.ReadElicitation(elicitationPath);
+            HumanFile.RequireBench(elicitationPath, elicitation.Manifest.BenchHash, bench);
+            foreach (var line in elicitation.Elicitations)
+                excluded.Add(line.BoardId);
+        }
+
+        foreach (var boardId in (args.Get("exclude-boards") ?? string.Empty)
+                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            excluded.Add(boardId);
+
+        return new GuessingManifest(
+            Kind: "manifest",
+            BenchFile: benchPath.Replace('\\', '/'),
+            BenchHash: bench.Manifest.BenchHash,
+            Seed: args.GetLong("seed", 0),
+            RunId: run.Manifest.RunId,
+            RunFile: runPath.Replace('\\', '/'),
+            ElicitationFile: elicitationPath?.Replace('\\', '/'),
+            ExcludedBoardIds: excluded.ToList().AsReadOnly(),
+            TargetCount: 0,
+            HarnessVersion: RunFile.HarnessVersion,
+            CreatedAtUtc: DateTime.UtcNow);
+    }
+
+    /// <summary>
+    /// Reconstruit le plan et la charge utile du kit <b>depuis le manifeste de la séance de
+    /// référence</b>, jamais depuis la ligne de commande. Appelé à l'identique par
+    /// <see cref="GuessKitCommand"/> (pour graver) et par <see cref="GuessImportCommand"/> (pour
+    /// vérifier) : c'est cette symétrie qui donne son sens au <c>kitHash</c>.
+    /// <para>
+    /// La leçon est datée. Le 2026-08-09, recalculer les exclusions depuis <c>--elicitation</c> a
+    /// rendu 53 directions là où H1 en avait devinées 42 : trois boards avaient été exclus à la
+    /// main pendant un diagnostic, et aucun argument de la CLI ne s'en souvient. Le manifeste, lui,
+    /// s'en souvient — c'est déjà la règle de la reprise dans <see cref="Guess"/>, elle vaut
+    /// a fortiori quand la séance part chez quelqu'un d'autre.
+    /// </para>
+    /// </summary>
+    private static (BenchContents Bench, GuessingManifest Manifest,
+                    IReadOnlyList<GuessPlanItem> Plan, GuessKitPayload Payload) ResolveKit(Args args)
+    {
+        var guessingPath = args.Require("guessing");
+        var manifest = HumanFile.ReadGuessing(guessingPath).Manifest;
+
+        // Les chemins du manifeste font défaut ; --bench / --run ne servent qu'à rattraper un
+        // fichier déplacé, et les gardes ci-dessous refusent alors tout ce qui n'est pas le même.
+        var bench = BenchFile.Read(args.Get("bench") ?? manifest.BenchFile);
+        var run = RunFile.Read(args.Get("run") ?? manifest.RunFile);
+
+        HumanFile.RequireBench(guessingPath, manifest.BenchHash, bench);
+
+        if (run.Manifest.RunId != manifest.RunId)
+            throw new MismatchedBenchException(
+                $"{guessingPath} porte runId {manifest.RunId}, le run relu {run.Manifest.RunId} : " +
+                "les deux devineurs ne verraient pas les mêmes indices.");
+
+        var plan = GuessingPlan.Build(
+            bench, run, manifest.ExcludedBoardIds.ToHashSet(StringComparer.Ordinal), manifest.Seed);
+
+        return (bench, manifest, plan,
+            GuessKit.BuildPayload(bench, plan, manifest, DateTime.UtcNow));
+    }
+
+    /// <summary>
+    /// Grave la séance dans un HTML autonome. Le fichier produit s'ouvre sans serveur et sans
+    /// réseau : c'est le seul moyen de faire deviner quelqu'un d'autre que soi sans mettre
+    /// l'instrument en ligne.
+    /// </summary>
+    private static int GuessKitCommand(Args args)
+    {
+        var (_, manifest, plan, payload) = ResolveKit(args);
+        var outPath = args.Get("out") ?? Path.Combine("eval", "human", "seance-e.html");
+
+        var pagePath = Path.Combine(AppContext.BaseDirectory, "Web", "Pages", "guess.html");
+        var kit = GuessKitPage.Build(File.ReadAllText(pagePath), payload);
+
+        var directory = Path.GetDirectoryName(Path.GetFullPath(outPath));
+        if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+        File.WriteAllText(outPath, kit);
+
+        Console.WriteLine($"kit de séance : {outPath}");
+        Console.WriteLine($"  indices        : run {manifest.RunId}");
+        Console.WriteLine($"  lot            : {plan.Count} direction(s), seed {manifest.Seed}");
+        Console.WriteLine($"  boards exclus  : {manifest.ExcludedBoardIds.Count}");
+        Console.WriteLine($"  kitHash        : {payload.KitHash}");
+        Console.WriteLine($"  poids          : {new FileInfo(outPath).Length / 1024} Kio");
+        Console.WriteLine();
+        Console.WriteLine("  À transmettre tel quel. Le devineur ouvre le fichier dans son");
+        Console.WriteLine("  navigateur, répond, puis clique « Enregistrer mes réponses » et");
+        Console.WriteLine($"  renvoie seance-e-{payload.KitHash}.jsonl.");
+        Console.WriteLine("  Aucune paire de référence n'est présente dans ce fichier ; le plan");
+        Console.WriteLine("  complet, lui, y est — concession déclarée au registre.");
+        return 0;
+    }
+
+    /// <summary>
+    /// Réinjecte le rapport rapporté. Le fichier écrit est celui d'une séance servie :
+    /// <c>guess-report --guessing-b</c> le consomme sans savoir qu'il vient d'un kit.
+    /// </summary>
+    private static int GuessImportCommand(Args args)
+    {
+        var (bench, manifest, plan, payload) = ResolveKit(args);
+        var outPath = args.Get("out") ?? Path.Combine("eval", "human", "guessing.e.dev.jsonl");
+
+        var result = KitResultFile.Read(args.Require("kit-result"));
+        var lines = GuessKitImport.BuildLines(bench, plan, payload, result);
+
+        // Le manifeste de la séance de référence, à la date de création près : les deux corpus
+        // doivent déclarer le même montage, c'est ce que RequireSameMontage vérifiera au report.
+        GuessKitImport.Write(outPath, manifest with { CreatedAtUtc = DateTime.UtcNow }, lines);
+
+        var answered = lines.Count;
+        Console.WriteLine($"import du kit : {outPath}");
+        Console.WriteLine($"  session        : {result.Manifest.SessionId}");
+        Console.WriteLine($"  navigateur     : {result.Manifest.UserAgent ?? "—"}");
+        Console.WriteLine($"  kitHash        : {payload.KitHash} (concordant)");
+        Console.WriteLine($"  réponses       : {answered} / {plan.Count}");
+
+        if (answered > 0)
+            Console.WriteLine($"  R̄             : {lines.Average(l => l.R):0.000}");
+
+        if (answered < plan.Count)
+            Console.WriteLine(
+                $"  AVERTISSEMENT : séance incomplète ({plan.Count - answered} direction(s) sans " +
+                "réponse). L'appariement de guess-report les écartera des trois séries.");
+
         return 0;
     }
 
