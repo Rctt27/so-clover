@@ -9,6 +9,7 @@ using SoClover.Infrastructure;
 using SoClover.Infrastructure.AI;
 using SoClover.Infrastructure.AI.Prompts;
 using SoClover.Infrastructure.Validation;
+using SoClover.Tests.Helpers;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.AI;
 using SoClover.UseCases.Gameplay;
@@ -32,10 +33,7 @@ internal static class AiTestProvider
         services.AddSingleton<IGameRepository, InMemoryGameRepository>();
         services.AddSingleton<InMemoryEventPublisher>();
         services.AddSingleton<IEventPublisher>(sp => sp.GetRequiredService<InMemoryEventPublisher>());
-        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
-            "SoClover", "Infrastructure", "Dictionaries");
-        services.AddSingleton<IWordDictionary>(_ =>
-            new FileWordDictionary(Path.GetFullPath(dictionaryPath)));
+        services.AddSingleton<IWordDictionary>(_ => new DeterministicWordDictionary());
         services.AddSingleton<IClock>(_ => new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
         services.AddSingleton<IGameSettingsProvider>(_ => new TestGameSettingsProvider());
         services.AddSingleton<IWordsPoolCache, InMemoryWordsPoolCache>();
@@ -70,20 +68,19 @@ internal static class AiTestProvider
         return services.BuildServiceProvider();
     }
 
-    public static ServiceProvider BuildWithLogger(
+    public static ServiceProvider BuildWithLogger<THandler>(
         IChatClient chatClient,
-        ILogger<GenerateAIClues.Handler> logger,
+        ILogger<THandler> logger,
         int budgetMaxCallsPerGame = 50,
-        Func<BoardCluesPromptContext, AiCluePromptBundle>? promptBuild = null)
+        Func<BoardCluesPromptContext, AiCluePromptBundle>? promptBuild = null,
+        AiClueGenerationMode generationMode = AiClueGenerationMode.PerBoard)
+        where THandler : class
     {
         var services = new ServiceCollection();
         services.AddSingleton<IGameRepository, InMemoryGameRepository>();
         services.AddSingleton<InMemoryEventPublisher>();
         services.AddSingleton<IEventPublisher>(sp => sp.GetRequiredService<InMemoryEventPublisher>());
-        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
-            "SoClover", "Infrastructure", "Dictionaries");
-        services.AddSingleton<IWordDictionary>(_ =>
-            new FileWordDictionary(Path.GetFullPath(dictionaryPath)));
+        services.AddSingleton<IWordDictionary>(_ => new DeterministicWordDictionary());
         services.AddSingleton<IClock>(_ => new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
         services.AddSingleton<IGameSettingsProvider>(_ => new TestGameSettingsProvider());
         services.AddSingleton<IWordsPoolCache, InMemoryWordsPoolCache>();
@@ -96,6 +93,7 @@ internal static class AiTestProvider
             DefaultModel = "test-model",
             MaxRetries = 2,
             MaxCallsPerGame = Math.Max(1, budgetMaxCallsPerGame),
+            GenerationMode = generationMode,
         }));
         services.AddSingleton(sp => new GameLlmBudget(
             sp.GetRequiredService<IOptions<LlmOptions>>().Value.MaxCallsPerGame));
@@ -103,12 +101,16 @@ internal static class AiTestProvider
             new TestInlinePromptProviderFactory("Français_OFF", promptBuild));
         services.AddSingleton<IAiClueExplanationStore, InMemoryAiClueExplanationStore>();
 
-        services.AddSingleton(logger);
+        services.AddSingleton<ILogger<THandler>>(logger);
 
         services.AddTransient<IStartWritingPhaseUseCase, StartWritingPhase.Handler>();
         services.AddTransient<IStartGuessingPhaseUseCase, StartGuessingPhase.Handler>();
         services.AddTransient<ISubmitBoardUseCase, SubmitBoard.Handler>();
-        services.AddTransient<IGenerateAICluesUseCase, GenerateAIClues.Handler>();
+
+        if (generationMode == AiClueGenerationMode.PerDirection)
+            services.AddTransient<IGenerateAICluesUseCase, GenerateAICluesPerDirection.Handler>();
+        else
+            services.AddTransient<IGenerateAICluesUseCase, GenerateAIClues.Handler>();
 
         return services.BuildServiceProvider();
     }

@@ -165,4 +165,46 @@ public class GenerateAICluesLoggingTests
             FinishReason = ChatFinishReason.Length,
             Usage = new UsageDetails { InputTokenCount = 1200, OutputTokenCount = 2900 },
         };
+
+    [Fact]
+    public async Task Emits_a_recognizable_warning_with_the_raw_text_excerpt_when_the_LLM_returns_invalid_JSON()
+    {
+        // AiClueResponseParser.ParseBoard encapsule tout JsonException dans
+        // UnparseableLlmResponseException (dérive d'InvalidOperationException) : le catch générique
+        // "AI clue LLM call failed" gagnerait sur un ancien catch(JsonException) sans cette distinction
+        // explicite dans GenerateAIClues.Handler.FillRemainingAsync — ce test verrouille le message
+        // de diagnostic distinct et le rawTextExcerpt qui remplacent l'ancien log "unparseable JSON".
+        var fake = new FakeChatClient();
+        var capturing = new CapturingLogger<GenerateAIClues.Handler>();
+
+        var sp = AiTestProvider.BuildWithLogger(fake, capturing);
+        var (gameId, aiPids) = await AiTestProvider.SetupGameWithAis(sp);
+        var aiPid = aiPids[0];
+
+        // PerBoard : maxRetries=2 → 3 tentatives, 1 appel chacune.
+        for (var i = 0; i < 3; i++)
+            fake.Enqueue("pas du JSON du tout");
+
+        var useCase = sp.GetRequiredService<IGenerateAICluesUseCase>();
+        await useCase.Handle(new GenerateAIClues.Request(gameId, aiPid));
+
+        var unparseableWarnings = capturing.Records.Where(r =>
+            r.Level == LogLevel.Warning &&
+            r.Message.Contains("unparseable JSON", StringComparison.OrdinalIgnoreCase)).ToList();
+        Assert.NotEmpty(unparseableWarnings);
+
+        var w = unparseableWarnings[0];
+        Assert.True(w.Properties.ContainsKey("GameId"));
+        Assert.True(w.Properties.ContainsKey("PlayerId"));
+        Assert.True(w.Properties.ContainsKey("Attempt"));
+        Assert.True(w.Properties.ContainsKey("RawTextExcerpt"));
+        Assert.Contains("pas du JSON", w.Properties["RawTextExcerpt"] as string);
+
+        // Le générique "AI clue LLM call failed" ne doit plus apparaître pour ce cas précis :
+        // il ne couvre désormais que les autres InvalidOperationException (ex. non-UnparseableLlmResponseException).
+        var genericWarnings = capturing.Records.Where(r =>
+            r.Level == LogLevel.Warning &&
+            r.Message.Contains("AI clue LLM call failed", StringComparison.OrdinalIgnoreCase)).ToList();
+        Assert.Empty(genericWarnings);
+    }
 }

@@ -1,5 +1,6 @@
 using SoClover.Domain;
 using SoClover.Infrastructure;
+using SoClover.Tests.Helpers;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.GameLogics;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,9 +16,7 @@ public class CreateAIPlayerTests
         var services = new ServiceCollection();
         services.AddSingleton<IGameRepository, InMemoryGameRepository>();
         services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
-        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "Infrastructure", "Dictionaries");
-        services.AddSingleton<IWordDictionary>(sp =>
-            new FileWordDictionary(Path.GetFullPath(dictionaryPath)));
+        services.AddSingleton<IWordDictionary>(_ => new DeterministicWordDictionary());
         services.AddSingleton<IClock>(sp => new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
         services.AddSingleton<IGameSettingsProvider>(sp => new TestGameSettingsProvider());
         services.AddSingleton<IWordsPoolCache, InMemoryWordsPoolCache>();
@@ -134,8 +133,7 @@ public class CreateAIPlayerTests
         var services = new ServiceCollection();
         services.AddSingleton<IGameRepository, InMemoryGameRepository>();
         services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
-        var dictionaryPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "Infrastructure", "Dictionaries");
-        services.AddSingleton<IWordDictionary>(_ => new FileWordDictionary(Path.GetFullPath(dictionaryPath)));
+        services.AddSingleton<IWordDictionary>(_ => new DeterministicWordDictionary());
         services.AddSingleton<IClock>(_ => new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
         services.AddSingleton<IGameSettingsProvider>(_ => new TestGameSettingsProvider());
         services.AddSingleton<IWordsPoolCache, InMemoryWordsPoolCache>();

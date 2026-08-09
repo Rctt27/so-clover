@@ -1,0 +1,32 @@
+{
+  "Generator": {
+    "provider": "OpenAI",
+    "baseUrl": "http://localhost:1234/v1",
+    "apiKey": "lm-studio",
+    "defaultModel": "google/gemma-4-12b-qat",
+    "defaultTemperature": 1.0,
+    "topP": 0.95,
+    "maxOutputTokens": 4096,
+    "maxRetries": 0,
+    "timeoutSeconds": 600,
+    "maxConcurrency": 1,
+    "maxCallsPerGame": 100000,
+    "generationMode": "PerDirection",
+    "reasoningEnabled": false
+  },
+  "Decoder": {
+    "provider": "OpenAI",
+    "baseUrl": "http://localhost:1234/v1",
+    "apiKey": "lm-studio",
+    "defaultModel": "qwen/qwen3-8b",
+    "defaultTemperature": 0.3,
+    "topP": 1.0,
+    "maxOutputTokens": 512,
+    "maxRetries": 0,
+    "timeoutSeconds": 300,
+    "maxConcurrency": 1,
+    "maxCallsPerGame": 100000,
+    "generationMode": "PerDirection",
+    "reasoningEnabled": false
+  }
+}

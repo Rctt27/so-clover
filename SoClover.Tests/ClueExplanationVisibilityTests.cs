@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SoClover.Domain;
 using SoClover.Infrastructure;
 using SoClover.Infrastructure.AI;
+using SoClover.Tests.Helpers;
 using SoClover.UseCases.Abstractions;
 using SoClover.UseCases.Gameplay;
 using SoClover.UseCases.GameLogics;
@@ -11,15 +12,12 @@ namespace SoClover.Tests;
 
 public class ClueExplanationVisibilityTests
 {
-    private static string DictionariesPath =>
-        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SoClover", "Infrastructure", "Dictionaries"));
-
     private static ServiceProvider BuildProvider()
     {
         var services = new ServiceCollection();
         services.AddSingleton<IGameRepository, InMemoryGameRepository>();
         services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
-        services.AddSingleton<IWordDictionary>(_ => new FileWordDictionary(DictionariesPath));
+        services.AddSingleton<IWordDictionary>(_ => new DeterministicWordDictionary());
         services.AddSingleton<IClock>(_ => new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
         services.AddSingleton<IGameSettingsProvider>(_ => new TestGameSettingsProvider());
         services.AddSingleton<IWordsPoolCache, InMemoryWordsPoolCache>();

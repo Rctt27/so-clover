@@ -1,0 +1,422 @@
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
+using SoClover.Domain;
+using SoClover.Infrastructure.AI;
+using SoClover.Infrastructure.AI.Prompts;
+using SoClover.Infrastructure.AI.Reasoning;
+using Xunit;
+
+namespace SoClover.Tests.AI;
+
+public class AiClueLlmCallerTests
+{
+    private static readonly IReadOnlyList<BoardCardSnapshot> Cards =
+    [
+        new(BoardPosition.TopLeft,     "Lune",    "Route",  "Plage",    "Ciel"),
+        new(BoardPosition.TopRight,    "Vague",   "Rocher", "Sable",    "Île"),
+        new(BoardPosition.BottomRight, "Oiseau",  "Forêt",  "Montagne", "Vent"),
+        new(BoardPosition.BottomLeft,  "Rivière", "Pont",   "Ville",    "Village"),
+    ];
+
+    private static ClueCallRequest Request(
+        string? modelOverride = null, double? temperatureOverride = null) =>
+        new("Français_OFF", Cards, [Direction.Top],
+            new Dictionary<Direction, IReadOnlyList<RejectedAttempt>>(),
+            modelOverride, temperatureOverride);
+
+    private static AiClueLlmCaller Build(
+        FakeChatClient chat,
+        Action<LlmOptions>? configure = null,
+        IReasoningRequestConfigurator? reasoning = null)
+    {
+        var opts = new LlmOptions
+        {
+            DefaultModel = "default-model",
+            DefaultTemperature = 0.7,
+            ReasoningEnabled = false,
+        };
+        configure?.Invoke(opts);
+        return new AiClueLlmCaller(chat, Options.Create(opts), reasoning);
+    }
+
+    private static AiCluePromptBundle Bundle(BoardCluesPromptContext ctx) =>
+        new("SYSTEM TEXT", "USER TEXT", "{}", PromptVersion: 5);
+
+    private static Task<ClueCallResult> Call(
+        AiClueLlmCaller caller, ClueCallRequest? request = null) =>
+        caller.CallAsync(
+            request ?? Request(),
+            new InlinePromptProvider("Français_OFF", _ => Bundle(default)),
+            static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+            AiClueResponseParser.ParseSingleDirection,
+            CancellationToken.None);
+
+    [Fact]
+    public async Task Returns_draft_prompt_version_effective_model_and_latency()
+    {
+        var chat = new FakeChatClient();
+        chat.Enqueue("""{"direction":"Top","clueWord":"Rivage","explanation":"x"}""");
+
+        var result = await Call(Build(chat));
+
+        Assert.Equal("Rivage", result.Draft.Clues[0].ClueWord);
+        Assert.Equal(5, result.PromptVersion);
+        Assert.Equal("default-model", result.EffectiveModel);
+        Assert.True(result.LatencyMs >= 0);
+    }
+
+    [Fact]
+    public async Task Model_and_temperature_overrides_win_over_the_defaults()
+    {
+        var chat = new FakeChatClient();
+        chat.Enqueue("""{"direction":"Top","clueWord":"Rivage","explanation":"x"}""");
+
+        var result = await Call(Build(chat), Request(modelOverride: "player-model", temperatureOverride: 1.0));
+
+        Assert.Equal("player-model", chat.LastOptions!.ModelId);
+        Assert.Equal(1.0f, chat.LastOptions.Temperature);
+        Assert.Equal("player-model", result.EffectiveModel);
+    }
+
+    [Fact]
+    public async Task TopP_and_MaxOutputTokens_are_applied_only_when_set()
+    {
+        var chat = new FakeChatClient();
+        chat.Enqueue("""{"direction":"Top","clueWord":"Rivage","explanation":"x"}""");
+
+        await Call(Build(chat, o => { o.TopP = 0.95; o.MaxOutputTokens = 4096; }));
+
+        Assert.Equal(0.95f, chat.LastOptions!.TopP);
+        Assert.Equal(4096, chat.LastOptions.MaxOutputTokens);
+
+        var chat2 = new FakeChatClient();
+        chat2.Enqueue("""{"direction":"Top","clueWord":"Rivage","explanation":"x"}""");
+
+        await Call(Build(chat2));
+
+        Assert.Null(chat2.LastOptions!.TopP);
+        Assert.Null(chat2.LastOptions.MaxOutputTokens);
+    }
+
+    [Fact]
+    public async Task Empty_response_throws_EmptyLlmResponseException_carrying_finish_reason_and_usage()
+    {
+        var chat = new FakeChatClient();
+        chat.EnqueueResponse(new ChatResponse(new ChatMessage(ChatRole.Assistant, ""))
+        {
+            FinishReason = ChatFinishReason.Length,
+            Usage = new UsageDetails { InputTokenCount = 2100, OutputTokenCount = 4096 },
+        });
+
+        var ex = await Assert.ThrowsAsync<EmptyLlmResponseException>(() => Call(Build(chat)));
+
+        Assert.Equal(ChatFinishReason.Length, ex.FinishReason);
+        Assert.Equal(2100, ex.InputTokens);
+        Assert.Equal(4096, ex.OutputTokens);
+        Assert.Equal(5, ex.PromptVersion);
+        Assert.Equal("default-model", ex.EffectiveModel);
+        Assert.True(ex.LatencyMs >= 0);
+    }
+
+    [Fact]
+    public async Task Invalid_json_throws_UnparseableLlmResponseException_carrying_observability()
+    {
+        var chat = new FakeChatClient();
+        chat.Enqueue("pas du JSON du tout");
+
+        var ex = await Assert.ThrowsAsync<UnparseableLlmResponseException>(() => Call(Build(chat)));
+
+        Assert.Contains("pas du JSON", ex.RawTextExcerpt);
+        Assert.Equal(5, ex.PromptVersion);
+        Assert.Equal("default-model", ex.EffectiveModel);
+    }
+
+    // Finding Mineur #3 : le catch d'origine ne rattrapait que UnparseableLlmResponseException — toute
+    // autre exception levée par parseResponse (ex. un parseResponse custom du harnais d'éval qui lève
+    // FormatException/NotSupportedException) traversait sans observabilité (LatencyMs/PromptVersion/
+    // EffectiveModel/PreambleWarning perdus) ni typage reconnaissable.
+    [Fact]
+    public async Task A_non_UnparseableLlmResponseException_thrown_by_parseResponse_is_wrapped_with_observability()
+    {
+        var chat = new FakeChatClient();
+        chat.Enqueue("peu importe le contenu");
+        var custom = new FormatException("custom parse failure");
+
+        var ex = await Assert.ThrowsAsync<UnparseableLlmResponseException>(() =>
+            Build(chat).CallAsync(Request(), new InlinePromptProvider("Français_OFF", _ => Bundle(default)),
+                static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                _ => throw custom,
+                CancellationToken.None));
+
+        Assert.Same(custom, ex.InnerException);
+        Assert.Equal(5, ex.PromptVersion);
+        Assert.Equal("default-model", ex.EffectiveModel);
+    }
+
+    // Une annulation (Task.Delay/CancellationToken côté modèle réel) ne doit jamais être ré-emballée en
+    // échec « JSON invalide » — le caller de l'appel a besoin de voir l'OperationCanceledException brute.
+    [Fact]
+    public async Task OperationCanceledException_from_parseResponse_is_not_swallowed()
+    {
+        var chat = new FakeChatClient();
+        chat.Enqueue("peu importe le contenu");
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            Build(chat).CallAsync(Request(), new InlinePromptProvider("Français_OFF", _ => Bundle(default)),
+                static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                _ => throw new OperationCanceledException(),
+                CancellationToken.None));
+    }
+
+    [Theory]
+    [InlineData("<think>réflexion interne</think>{\"direction\":\"Top\",\"clueWord\":\"Rivage\",\"explanation\":\"x\"}")]
+    [InlineData("[THINK]bla[/THINK]{\"direction\":\"Top\",\"clueWord\":\"Rivage\",\"explanation\":\"x\"}")]
+    [InlineData("```json\n{\"direction\":\"Top\",\"clueWord\":\"Rivage\",\"explanation\":\"x\"}\n```")]
+    public async Task Strips_think_tags_and_json_fences_before_parsing(string raw)
+    {
+        var chat = new FakeChatClient();
+        chat.Enqueue(raw);
+
+        var result = await Call(Build(chat));
+
+        Assert.Equal("Rivage", result.Draft.Clues[0].ClueWord);
+        Assert.Equal(raw, result.RawText);
+    }
+
+    [Fact]
+    public async Task Reasoning_configurator_is_invoked_only_when_reasoning_is_enabled()
+    {
+        var spy = new SpyReasoningConfigurator();
+
+        var chatOff = new FakeChatClient();
+        chatOff.Enqueue("""{"direction":"Top","clueWord":"Rivage","explanation":"x"}""");
+        await Call(Build(chatOff, reasoning: spy));
+        Assert.Equal(0, spy.Invocations);
+
+        var chatOn = new FakeChatClient();
+        chatOn.Enqueue("""{"direction":"Top","clueWord":"Rivage","explanation":"x"}""");
+        await Call(Build(chatOn, o => o.ReasoningEnabled = true, spy));
+        Assert.Equal(1, spy.Invocations);
+    }
+
+    [Fact]
+    public async Task Reasoning_preamble_file_is_prefixed_to_the_system_prompt()
+    {
+        var preamblePath = Path.Combine(Path.GetTempPath(), $"preamble-{Guid.NewGuid():N}.txt");
+        await File.WriteAllTextAsync(preamblePath, "PRÉAMBULE MODÈLE");
+        try
+        {
+            var spy = new CapturingChatClient("""{"direction":"Top","clueWord":"Rivage","explanation":"x"}""");
+            var caller = new AiClueLlmCaller(spy, Options.Create(new LlmOptions
+            {
+                DefaultModel = "default-model",
+                ReasoningEnabled = true,
+                ReasoningSystemPromptPathEnabler = preamblePath,
+            }));
+
+            await caller.CallAsync(Request(), new InlinePromptProvider("Français_OFF", _ => Bundle(default)),
+                static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                AiClueResponseParser.ParseSingleDirection, CancellationToken.None);
+
+            Assert.StartsWith("PRÉAMBULE MODÈLE", spy.LastSystemPrompt);
+            Assert.Contains("SYSTEM TEXT", spy.LastSystemPrompt!);
+        }
+        finally
+        {
+            if (File.Exists(preamblePath)) File.Delete(preamblePath);
+        }
+    }
+
+    // Le cache est indexé par (path, LastWriteTimeUtc). Preuve correcte du cache-hit : on modifie le
+    // CONTENU sur disque mais on restaure LastWriteTimeUtc à sa valeur d'origine — la clé de cache
+    // reste identique, donc le contenu PÉRIMÉ doit continuer d'être servi (le second appel ne relit
+    // pas le disque). Supprimer le fichier ne prouverait rien sur cette clé : c'est un scénario différent,
+    // couvert par A_missing_preamble_file_is_reported_and_does_not_abort_the_call.
+    [Fact]
+    public async Task Reasoning_preamble_is_cached_by_last_write_time()
+    {
+        var preamblePath = Path.Combine(Path.GetTempPath(), $"preamble-{Guid.NewGuid():N}.txt");
+        await File.WriteAllTextAsync(preamblePath, "PRÉAMBULE ORIGINAL");
+        var originalWriteTimeUtc = File.GetLastWriteTimeUtc(preamblePath);
+        try
+        {
+            var spy = new CapturingChatClient("""{"direction":"Top","clueWord":"Rivage","explanation":"x"}""");
+            var caller = new AiClueLlmCaller(spy, Options.Create(new LlmOptions
+            {
+                DefaultModel = "default-model",
+                ReasoningEnabled = true,
+                ReasoningSystemPromptPathEnabler = preamblePath,
+            }));
+
+            var provider = new InlinePromptProvider("Français_OFF", _ => Bundle(default));
+            await caller.CallAsync(Request(), provider,
+                static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                AiClueResponseParser.ParseSingleDirection, CancellationToken.None);
+            Assert.StartsWith("PRÉAMBULE ORIGINAL", spy.LastSystemPrompt);
+
+            await File.WriteAllTextAsync(preamblePath, "PRÉAMBULE MODIFIÉ SUR DISQUE");
+            File.SetLastWriteTimeUtc(preamblePath, originalWriteTimeUtc);
+
+            await caller.CallAsync(Request(), provider,
+                static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                AiClueResponseParser.ParseSingleDirection, CancellationToken.None);
+
+            Assert.StartsWith("PRÉAMBULE ORIGINAL", spy.LastSystemPrompt);
+        }
+        finally
+        {
+            if (File.Exists(preamblePath)) File.Delete(preamblePath);
+        }
+    }
+
+    // Symétrique du test précédent : un vrai hot-reload (contenu ET LastWriteTimeUtc changent) doit
+    // invalider le cache.
+    [Fact]
+    public async Task Reasoning_preamble_cache_is_invalidated_when_last_write_time_changes()
+    {
+        var preamblePath = Path.Combine(Path.GetTempPath(), $"preamble-{Guid.NewGuid():N}.txt");
+        await File.WriteAllTextAsync(preamblePath, "PRÉAMBULE V1");
+        try
+        {
+            var spy = new CapturingChatClient("""{"direction":"Top","clueWord":"Rivage","explanation":"x"}""");
+            var caller = new AiClueLlmCaller(spy, Options.Create(new LlmOptions
+            {
+                DefaultModel = "default-model",
+                ReasoningEnabled = true,
+                ReasoningSystemPromptPathEnabler = preamblePath,
+            }));
+
+            var provider = new InlinePromptProvider("Français_OFF", _ => Bundle(default));
+            await caller.CallAsync(Request(), provider,
+                static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                AiClueResponseParser.ParseSingleDirection, CancellationToken.None);
+            Assert.StartsWith("PRÉAMBULE V1", spy.LastSystemPrompt);
+
+            await Task.Delay(20); // laisse l'horodatage du FS avancer perceptiblement
+            await File.WriteAllTextAsync(preamblePath, "PRÉAMBULE V2");
+
+            await caller.CallAsync(Request(), provider,
+                static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                AiClueResponseParser.ParseSingleDirection, CancellationToken.None);
+
+            Assert.StartsWith("PRÉAMBULE V2", spy.LastSystemPrompt);
+        }
+        finally
+        {
+            if (File.Exists(preamblePath)) File.Delete(preamblePath);
+        }
+    }
+
+    [Fact]
+    public async Task A_missing_preamble_file_is_reported_and_does_not_abort_the_call()
+    {
+        var spy = new CapturingChatClient("""{"direction":"Top","clueWord":"Rivage","explanation":"x"}""");
+        var missing = Path.Combine(Path.GetTempPath(), $"absent-{Guid.NewGuid():N}.txt");
+        var caller = new AiClueLlmCaller(spy, Options.Create(new LlmOptions
+        {
+            DefaultModel = "default-model",
+            ReasoningEnabled = true,
+            ReasoningSystemPromptPathEnabler = missing,
+        }));
+
+        var result = await caller.CallAsync(Request(), new InlinePromptProvider("Français_OFF", _ => Bundle(default)),
+            static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+            AiClueResponseParser.ParseSingleDirection, CancellationToken.None);
+
+        Assert.Equal("Rivage", result.Draft.Clues[0].ClueWord);
+        Assert.NotNull(result.PreambleWarning);
+        Assert.Equal(missing, result.PreambleWarning!.Path);
+        Assert.Null(result.PreambleWarning.Cause);
+        Assert.StartsWith("SYSTEM TEXT", spy.LastSystemPrompt);
+    }
+
+    [Fact]
+    public async Task Preamble_warning_is_still_surfaced_when_the_call_fails()
+    {
+        var missing = Path.Combine(Path.GetTempPath(), $"absent-{Guid.NewGuid():N}.txt");
+        var chat = new FakeChatClient();
+        chat.EnqueueResponse(new ChatResponse(new ChatMessage(ChatRole.Assistant, ""))
+        {
+            FinishReason = ChatFinishReason.Length,
+            Usage = new UsageDetails { InputTokenCount = 10, OutputTokenCount = 20 },
+        });
+        var caller = new AiClueLlmCaller(chat, Options.Create(new LlmOptions
+        {
+            DefaultModel = "default-model",
+            ReasoningEnabled = true,
+            ReasoningSystemPromptPathEnabler = missing,
+        }));
+
+        var ex = await Assert.ThrowsAsync<EmptyLlmResponseException>(() =>
+            caller.CallAsync(Request(), new InlinePromptProvider("Français_OFF", _ => Bundle(default)),
+                static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                AiClueResponseParser.ParseSingleDirection, CancellationToken.None));
+
+        Assert.NotNull(ex.PreambleWarning);
+        Assert.Equal(missing, ex.PreambleWarning!.Path);
+        Assert.Null(ex.PreambleWarning.Cause);
+    }
+
+    [Fact]
+    public async Task An_unreadable_preamble_file_reports_a_distinct_warning_with_the_exception()
+    {
+        var preamblePath = Path.Combine(Path.GetTempPath(), $"locked-{Guid.NewGuid():N}.txt");
+        await File.WriteAllTextAsync(preamblePath, "PRÉAMBULE VERROUILLÉ");
+        using var lockStream = new FileStream(preamblePath, FileMode.Open, FileAccess.Read, FileShare.None);
+        try
+        {
+            var spy = new CapturingChatClient("""{"direction":"Top","clueWord":"Rivage","explanation":"x"}""");
+            var caller = new AiClueLlmCaller(spy, Options.Create(new LlmOptions
+            {
+                DefaultModel = "default-model",
+                ReasoningEnabled = true,
+                ReasoningSystemPromptPathEnabler = preamblePath,
+            }));
+
+            var result = await caller.CallAsync(Request(), new InlinePromptProvider("Français_OFF", _ => Bundle(default)),
+                static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
+                AiClueResponseParser.ParseSingleDirection, CancellationToken.None);
+
+            Assert.NotNull(result.PreambleWarning);
+            Assert.Equal(preamblePath, result.PreambleWarning!.Path);
+            Assert.IsType<IOException>(result.PreambleWarning.Cause);
+            Assert.StartsWith("SYSTEM TEXT", spy.LastSystemPrompt);
+        }
+        finally
+        {
+            lockStream.Dispose();
+            if (File.Exists(preamblePath)) File.Delete(preamblePath);
+        }
+    }
+
+    private sealed class SpyReasoningConfigurator : IReasoningRequestConfigurator
+    {
+        public int Invocations { get; private set; }
+        public void Configure(ChatOptions options) => Invocations++;
+    }
+
+    /// <summary>Client de test qui capture le system prompt réellement envoyé.</summary>
+    private sealed class CapturingChatClient : IChatClient
+    {
+        private readonly string _response;
+        public CapturingChatClient(string response) => _response = response;
+        public string? LastSystemPrompt { get; private set; }
+
+        public Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            LastSystemPrompt = messages.First().Text;
+            return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, _response)));
+        }
+
+        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+        public void Dispose() { }
+    }
+}

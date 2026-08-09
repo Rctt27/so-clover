@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <LangVersion>latestmajor</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SoClover.Eval</RootNamespace>
+    <AssemblyName>SoClover.Eval</AssemblyName>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SoClover\SoClover.csproj" />
+  </ItemGroup>
+
+  <!--
+    evalsettings.json, et NON appsettings.json : les items Content d'un projet se propagent
+    TRANSITIVEMENT à ses référençants (c'est ce mécanisme qui apporte ici les prompts et les
+    dictionnaires de SoClover). Sous le nom appsettings.json, ce fichier gagnait la course de
+    copie contre celui de SoClover dans l'output de SoClover.Tests et faisait disparaître
+    GameDefaults / Llm / AIPlayers des tests d'intégration HTTP (WebApplicationFactory<Program>),
+    silencieusement. Un nom distinct supprime la collision à la racine.
+  -->
+  <ItemGroup>
+    <Content Include="evalsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!--
+    Prompts décodeurs : sous Decoder/Prompts/<lang>/, copiés dans l'output du projet ET, par
+    propagation transitive des items Content, dans celui de SoClover.Tests — c'est ce qui permet
+    aux tests de les charger depuis AppContext.BaseDirectory.
+  -->
+  <ItemGroup>
+    <Content Include="Decoder\Prompts\**\*.md">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!--
+    Pages des séances humaines : même mécanisme que les prompts décodeurs — copiées dans
+    l'output du projet ET, par propagation transitive des items Content, dans celui de
+    SoClover.Tests. C'est ce qui permet de les charger depuis AppContext.BaseDirectory.
+  -->
+  <ItemGroup>
+    <Content Include="Web\Pages\**\*.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SoClover.Tests" />
+  </ItemGroup>
+
+</Project>

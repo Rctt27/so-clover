@@ -128,6 +128,11 @@ npm run dev   # Proxy automatique vers localhost:5000
 - **Feature flag** : `AIPlayers.Enabled` dans `appsettings*.json`. Quand désactivé, endpoint `POST /api/games/{id}/ai-players` renvoie 403 et le bouton lobby est grisé. Frontend lit le flag via `GET /api/config` au boot (slice `appConfigSlice`).
 - **Provider** : Development = LM Studio (`localhost:1234/v1`, `MaxConcurrency=1`), Production = Anthropic (`claude-haiku-4-5`, `MaxConcurrency=4`). Switch via `DOTNET_ENVIRONMENT`. Docker : utiliser `compose.dev.yaml` (injecte `LLM__BASEURL=http://host.docker.internal:1234/v1`). Binding via `ChatClientFactory`.
 - **Secret** : `LLM__APIKEY` uniquement dans `.env` — jamais committé. Dev Anthropic : `dotnet user-secrets set "Llm:ApiKey" "sk-ant-..." --project SoClover`.
+- **Champ `candidates`** : `AiClueDraft.Candidates` conserve le scratchpad structuré demandé par le
+  prompt FR v5 (`"Mot (fort, faible)"`). Nullable et **non `[]` par défaut** — « champ absent » doit
+  rester distinguable de « liste vide » — et volontairement **hors du `required`** du schéma JSON
+  mono-clue, sinon le modèle n'aurait plus le droit de ne pas l'émettre. Aucun impact runtime : ce
+  schéma n'est branché sur aucun `ChatOptions.ResponseFormat` à ce jour.
 - **Structured logs** : log "AI clue LLM call completed" par appel (`LatencyMs`, `Provider`, `Model`, `PromptVersion`, `Attempt`, `RemainingDirections`) + log par clue (`IsValid`, `RejectionRules`). `PromptVersion` = champ `version:` du frontmatter du fichier prompt.
 - **Mode reasoning** : flag `Llm.ReasoningEnabled` (défaut `false`). OFF = prompt prescriptif, JSON uniquement. ON = section `# REASONING` appendée au system prompt + paramètres natifs provider injectés via `IReasoningRequestConfigurator` (`ReasoningEffort` OpenAI, `ThinkingBudgetTokens` Anthropic). Certains modèles nécessitent un system prompt trigger (`Llm.ReasoningSystemPromptPathEnabler`) pour activer leur reasoning natif.
 - **Mode de génération** : flag `Llm.GenerationMode` (défaut `PerBoard`, surcharge `LLM__GENERATIONMODE`). `PerBoard` = 1 appel LLM par board couvrant les 4 directions restantes (pipeline historique). `PerDirection` = 1 appel par direction (jusqu'à 4 appels séquentiels par board). Sélection câblée dans `Program.cs` via `ActivatorUtilities.CreateInstance` selon `IOptions<LlmOptions>.GenerationMode` → résout `GenerateAIClues.Handler` ou `GenerateAICluesPerDirection.Handler`. Motivation : `PerDirection` fiabilise la convergence des modèles reasoning locaux (ministral 14B) qui n'émettaient pas le JSON final en `PerBoard`.
@@ -139,6 +144,34 @@ npm run dev   # Proxy automatique vers localhost:5000
   - `board-clues-per-direction.reasoning.md` — **variante reasoning-only** du pipeline `PerDirection`, co-localisée par langue. Chargée **uniquement** quand `Llm.ReasoningEnabled=true` ET `Llm.GenerationMode=PerDirection` ET que le provider de langue injecte un path non-null (FR et EN aujourd'hui). Le fichier **EST** la variante reasoning : aucune section `# REASONING` n'y est appendée (une section `# REASONING` présente serait ignorée). Sections requises : `# SYSTEM`, `# USER` (placeholders `{{boardLayout}}`, `{{directionToResolve}}`, `{{allBoardWordsList}}`, `{{retryFeedback}}`), `# RETRY_FEEDBACK` (`{{rejectedAttemptsByDirection}}`). Politique **fail-fast** : si le path est injecté mais le fichier absent du disque, `BuildSingleDirectionCluePrompt` throw `FileNotFoundException`. Convention **opt-in** pour les langues futures (path `null` → voie legacy : charge `board-clues-per-direction.md` et appende `# REASONING`). Le `PromptVersion` du log « AI clue LLM call completed » reflète le `version:` du fichier chargé — utile pour A/B reasoning vs non-reasoning.
   Convention : **le pipeline détermine le prompt** (jamais déduit du `remaining.Count`) → pas de fuite cross-mode lors d'un retry partiel PerBoard. La traçabilité est dans `PromptVersion` du log structuré « AI clue LLM call completed ».
 
+### Harnais d'évaluation des indices IA (`SoClover.Eval/`)
+
+> **⚠️ Toute phase de test de LLM pour les joueurs IA passe par la skill `soclover-eval`.**
+> Évaluer, comparer, calibrer ou régler un modèle — générateur comme décodeur —, lancer un verbe du
+> harnais, charger un modèle dans LM Studio pour un test, toucher aux prompts d'indices ou au prompt
+> décodeur, lire ou écrire une ligne de `eval/LEDGER.md`, interpréter un `recovery` / un accord /
+> un κ / les quatre portes, ou modifier le code de `SoClover.Eval` : **invoquer la skill d'abord**,
+> avant toute commande et avant toute question de clarification. Elle porte le protocole, les gardes
+> méthodologiques et les pièges d'artefacts qui ne sont plus répétés ici.
+
+- **Projet console hors ligne, jamais déployé.** Le `Dockerfile` ne restaure que
+  `SoClover/SoClover.csproj` et `docs/deploy.md` fait `git archive HEAD … SoClover/` : ne jamais
+  y ajouter `SoClover.Eval`. Le projet **est** en revanche dans `SoClover.sln` — `dotnet build` et
+  `dotnet test` le couvrent (ses suites vivent dans `SoClover.Tests/Eval/`), la défense en
+  profondeur passe par `.dockerignore` et `export-ignore`.
+- **Où est quoi** : spécifications dans `Specs/AI_Clue_Eval_Loop/` (PRD + designs P0-P7), mode
+  d'emploi des verbes dans `SoClover.Eval/README.md`, mesures dans `eval/LEDGER.md` (append-only,
+  **jamais réécrit**), protocole et gardes dans la skill `soclover-eval`.
+- **Artefacts committés, à ne pas régénérer** : `eval/boards.dev.jsonl` (40 boards) et
+  `eval/boards.test.jsonl` (60) portent leur seed et leur hash — un banc qui bouge invalide tout
+  l'historique du registre. `eval/human/` est committé (corpus humain irremplaçable) ;
+  `eval/runs/` est gitignoré.
+- **Briques partagées avec la prod**, à ne pas dupliquer côté éval : `Domain/BoardGeometry.cs`,
+  `Domain/ClueAcceptance.cs`, `Infrastructure/AI/AiClueLlmCaller.cs`,
+  `Infrastructure/AI/AiClueResponseParser.cs`, `Infrastructure/AI/LlmCallExceptions.cs`.
+  `AiClueLlmCaller` **ne journalise pas** : il rend latence / version de prompt / modèle effectif /
+  usage, et `AiCluesGeneratorBase` conserve ses messages de log inchangés.
+
 ## Testing
 
 Key test files:
@@ -148,6 +181,7 @@ Key test files:
 
 Tests use `TestClock` for time control and `InMemoryGameRepository` for isolation.
 
+- **Déterminisme du tirage de mots** : les suites IA et `ClueExplanationVisibilityTests` sont câblées sur `DeterministicWordDictionary` (`SoClover.Tests/Helpers/`), pas sur `FileWordDictionary`. Motif : les mots de carte sont tirés au hasard (`WordsPool.DrawWords` instancie un `Random` non seedé à chaque tirage) et le vrai dictionnaire ne garantit pas les propriétés dont ces tests dépendent — la racine R2 de « Botte » (« bott ») est une sous-chaîne de `admin-bottom`, ce qui fait rejeter l'indice littéral et laisse le board incomplet. Tout test qui pose un indice codé en dur, ou qui attend qu'un mot du board soit rejeté comme indice, doit utiliser ce dictionnaire — et déclarer son littéral dans `DeterministicWordDictionaryTests.ClueLiteralsUsedByTests`. Les suites qui exercent volontairement le vrai dictionnaire (`DictionaryIntegrityTests`, `SetClueWithValidationTests`, `CreateGameCodeTests`, `WordsPoolPersistenceTests`) restent sur `FileWordDictionary`.
 - **Avant de passer à la suite** : après chaque tâche/commit, lancer toute la suite de tests et vérifier un build propre (`dotnet test`, et côté front `npm run lint && npm run build && npm run test`).
 
 ## Configuration
@@ -211,6 +245,14 @@ SignalR hub at `/hubs/game`.
 - **HTTP endpoint double-mapping (généralisé)** : plusieurs endpoints HTTP dans `Program.cs` re-mappent manuellement les DTOs des UseCases vers des objets anonymes (notamment `/api/games/{id}/scoring` ↔ `GetScoring.cs:BoardResultDto`, et `/api/games/{id}/state` ↔ `GetGameState.cs:Response/ClueInfo/etc.`). Ajouter un champ au DTO **n'apparaîtra pas dans la réponse HTTP** tant que le mapping anonyme n'est pas mis à jour. Par contre la diffusion SignalR (`SignalREventPublisher.cs`) sérialise directement le record typé — pas de double-mapping côté events.
 - **Dépendance UseCase → RealTime interdite** : Ne jamais référencer `GameHub` directement depuis un UseCase. Utiliser une interface injectable (ex. `IConnectionTracker` dans `SoClover/RealTime/`) avec injection optionnelle (`= null`) — les tests passent sans l'enregistrer, le runtime injecte l'implémentation réelle.
 - **`ActivePlayers` vs `Players`** : `game.ActivePlayers` exclut les joueurs déconnectés (`IsDisconnected = true`). Toute logique de flux (SubmitBoard, StartGuessingPhase, MoveToNextBoard, MoveToNextGuessingBoard) doit utiliser `ActivePlayers`. `game.Players` reste pour le scoring et l'affichage complet.
+- **Deux seuils de longueur dans `SubstringClueValidator`** : `MinWordLength = 3` s'applique à
+  l'**indice** (garde contre les sous-chaînes triviales : « bo » dans « bondir ») et sert de
+  longueur minimale de racine aux heuristiques morphologiques ; `MinBoardWordLength = 2` s'applique
+  aux **mots de carte**, volontairement plus bas — « Or », « Os », « Nu » sont de vrais mots FR, et
+  les ignorer laissait un joueur donner comme indice un mot présent sur son propre plateau.
+- **`Game.SetClueWithValidation` ne valide plus lui-même** : la séquence trim → plafond de longueur
+  → `ClueText` → validateur vit dans `Domain/ClueAcceptance.cs`, appelée sans `Game` par le harnais
+  d'évaluation. Toute évolution de la règle d'acceptation se fait là, pas dans `Game`.
 - **Revision protocol (sync)** : `Game.Revision` est monotone (bumpée lors des mutations). Les events `BoardRotated` et `GameStateUpdated` la portent. Le client drop les events de révision ≤ celle déjà appliquée — remplace l'ancien anti-echo timing-based de 500ms. Toute nouvelle mutation domaine touchant un board doit bumper Revision et les events doivent la propager.
 
 ### Frontend – Design & Assets

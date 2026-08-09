@@ -16,5 +16,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SoClover\SoClover.csproj" />
+    <ProjectReference Include="..\SoClover.Eval\SoClover.Eval.csproj" />
   </ItemGroup>
 </Project>

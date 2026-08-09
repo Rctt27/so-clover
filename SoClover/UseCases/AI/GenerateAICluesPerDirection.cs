@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -59,34 +58,26 @@ public static class GenerateAICluesPerDirection
                         (draft, _) = await CallLlmAsync(
                             game, player, single, rejectedHistory, promptProvider, attempt, ct,
                             buildBundle: static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
-                            parseResponse: static text =>
-                            {
-                                // Tolérance : accepte le format mono-clue (canonique pour PerDirection) OU
-                                // le format wrapped { clues: [...] } (compat tests + modèles non-strict).
-                                using var doc = JsonDocument.Parse(text);
-                                if (doc.RootElement.ValueKind == JsonValueKind.Object
-                                    && doc.RootElement.TryGetProperty("clues", out _))
-                                {
-                                    return JsonSerializer.Deserialize<AiBoardCluesDraft>(text, JsonOptions)
-                                        ?? throw new InvalidOperationException("LLM returned invalid JSON.");
-                                }
-                                var item = JsonSerializer.Deserialize<AiClueDraft>(text, JsonOptions)
-                                    ?? throw new InvalidOperationException("LLM returned invalid mono-clue JSON.");
-                                return new AiBoardCluesDraft(new[] { item });
-                            });
+                            parseResponse: AiClueResponseParser.ParseSingleDirection);
                     }
                     catch (InvalidOperationException ex)
                     {
-                        _logger.LogWarning(ex,
-                            "AI clue LLM call failed (direction={Direction}, attempt={Attempt}): game={GameId} player={PlayerId}",
-                            dir, attempt, game.Id.Value, player.Id.Value);
-                        continue;
-                    }
-                    catch (System.Text.Json.JsonException ex)
-                    {
-                        _logger.LogWarning(ex,
-                            "AI clue LLM returned unparseable JSON (direction={Direction}, attempt={Attempt}): game={GameId} player={PlayerId}",
-                            dir, attempt, game.Id.Value, player.Id.Value);
+                        // UnparseableLlmResponseException dérive d'InvalidOperationException (cf.
+                        // AiClueResponseParser.ParseSingleDirection) : ce catch capte donc aussi le cas JSON invalide.
+                        // On distingue ce cas pour conserver un message de diagnostic reconnaissable —
+                        // le texte brut tronqué (RawTextExcerpt) était auparavant perdu avec le JsonException.
+                        if (ex is UnparseableLlmResponseException unparseable)
+                        {
+                            _logger.LogWarning(ex,
+                                "AI clue LLM returned unparseable JSON (direction={Direction}, attempt {Attempt}): game={GameId} player={PlayerId} rawTextExcerpt={RawTextExcerpt}",
+                                dir, attempt, game.Id.Value, player.Id.Value, unparseable.RawTextExcerpt);
+                        }
+                        else
+                        {
+                            _logger.LogWarning(ex,
+                                "AI clue LLM call failed (direction={Direction}, attempt={Attempt}): game={GameId} player={PlayerId}",
+                                dir, attempt, game.Id.Value, player.Id.Value);
+                        }
                         continue;
                     }
 

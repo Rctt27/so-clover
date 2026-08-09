@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -17,27 +15,20 @@ namespace SoClover.UseCases.AI;
 
 public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
 {
-    protected static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-    };
-
     protected readonly IGameRepository _repo;
     protected readonly IClueValidatorFactory _validatorFactory;
-    protected readonly IChatClient _chatClient;
     protected readonly IAiCluePromptProviderFactory _promptProviderFactory;
     protected readonly IAiClueExplanationStore _explanationStore;
     protected readonly IEventPublisher _events;
     protected readonly IOptions<LlmOptions> _llmOptions;
     protected readonly GameLlmBudget _budget;
     protected readonly ISubmitBoardUseCase _submitBoard;
-    protected readonly IReasoningRequestConfigurator _reasoningConfigurator;
     protected readonly ILogger _logger;
 
     // État par requête : valable uniquement parce que le use case est enregistré en DI transient (1 instance par appel Handle). _llmCalls est remis à 0 en tête de Handle ; ne pas passer ce type en Scoped/Singleton.
     private int _llmCalls;
     private int? _lastPromptVersion;
-    private (string Path, DateTime LastWriteTimeUtc, string Content)? _reasoningPreambleCache;
+    private readonly AiClueLlmCaller _caller;
 
     // Les sous-classes concrètes doivent exposer un ILogger<LeurType>? dans leur ctor et le passer ici,
     // sinon la catégorie de log est perdue (fallback NullLogger).
@@ -56,15 +47,17 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
     {
         _repo = repo;
         _validatorFactory = validatorFactory;
-        _chatClient = chatClient;
         _promptProviderFactory = promptProviderFactory;
         _explanationStore = explanationStore;
         _events = events;
         _llmOptions = llmOptions;
         _budget = budget;
         _submitBoard = submitBoard;
-        _reasoningConfigurator = reasoningConfigurator ?? new NullReasoningConfigurator();
         _logger = logger ?? NullLogger.Instance;
+
+        // Composé ici plutôt qu'injecté : aucune signature de ctor de sous-classe ne change,
+        // donc aucun câblage DI ni aucun test existant à toucher.
+        _caller = new AiClueLlmCaller(chatClient, llmOptions, reasoningConfigurator ?? new NullReasoningConfigurator());
     }
 
     // Nombre maximal de tentatives d'appel LLM par direction (1 essai + MaxRetries).
@@ -280,137 +273,87 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
         Func<string, AiBoardCluesDraft>? parseResponse = null)
     {
         buildBundle ??= static (p, ctx) => p.BuildBoardCluesPrompt(ctx);
-        parseResponse ??= static text => JsonSerializer.Deserialize<AiBoardCluesDraft>(text, JsonOptions)
-            ?? throw new InvalidOperationException("LLM returned invalid JSON.");
+        parseResponse ??= AiClueResponseParser.ParseBoard;
 
-        var cards = BuildBoardCardSnapshots(player.Board);
-        var rejectedRO = rejectedHistory.ToDictionary(
-            kv => kv.Key,
-            kv => (IReadOnlyList<RejectedAttempt>)kv.Value.AsReadOnly());
-        var reasoningEnabled = _llmOptions.Value.ReasoningEnabled;
-        var context = new BoardCluesPromptContext(
-            game.Language, cards, remaining.ToList().AsReadOnly(), rejectedRO,
-            IncludeReasoning: reasoningEnabled);
-        var bundle = buildBundle(promptProvider, context);
+        var request = new ClueCallRequest(
+            game.Language,
+            BuildBoardCardSnapshots(player.Board),
+            remaining.ToList().AsReadOnly(),
+            rejectedHistory.ToDictionary(
+                kv => kv.Key,
+                kv => (IReadOnlyList<RejectedAttempt>)kv.Value.AsReadOnly()),
+            player.AIConfig?.Model,
+            player.AIConfig?.Temperature);
 
-        var systemPrompt = bundle.SystemPrompt;
-        if (reasoningEnabled)
-        {
-            var preamble = ReadReasoningPreamble(_llmOptions.Value.ReasoningSystemPromptPathEnabler);
-            if (!string.IsNullOrWhiteSpace(preamble))
-                systemPrompt = $"{preamble.Trim()}\n\n{systemPrompt}";
-        }
-
-        var messages = new[]
-        {
-            new ChatMessage(ChatRole.System, systemPrompt),
-            new ChatMessage(ChatRole.User, bundle.UserPrompt),
-        };
-
-        var opts = _llmOptions.Value;
-        var effectiveModel = player.AIConfig?.Model ?? opts.DefaultModel;
-
-        var chatOptions = new ChatOptions
-        {
-            ModelId = effectiveModel,
-            Temperature = (float)(player.AIConfig?.Temperature ?? opts.DefaultTemperature),
-        };
-        if (opts.TopP is { } topP)
-            chatOptions.TopP = (float)topP;
-        if (opts.MaxOutputTokens is { } maxOutputTokens)
-            chatOptions.MaxOutputTokens = maxOutputTokens;
-
-        if (reasoningEnabled)
-            _reasoningConfigurator.Configure(chatOptions);
-
-        var sw = Stopwatch.StartNew();
-        var response = await _chatClient.GetResponseAsync(messages, options: chatOptions, ct)
-            .ConfigureAwait(false);
-        sw.Stop();
-
-        _logger.LogInformation(
-            "AI clue LLM call completed: game={GameId} player={PlayerId} attempt={Attempt} latencyMs={LatencyMs} provider={LlmProvider} model={LlmModel} promptVersion={PromptVersion} remainingDirections={RemainingDirections}",
-            game.Id.Value, player.Id.Value, attempt, sw.ElapsedMilliseconds,
-            _llmOptions.Value.Provider, effectiveModel, bundle.PromptVersion,
-            string.Join(",", remaining));
-
-        var text = response.Text;
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            // Cas typique d'un modèle reasoning (ex. gemma) dont la réflexion native sature la fenêtre de
-            // contexte / le budget de sortie : la complétion est tronquée (finish_reason=length) AVANT
-            // l'émission du JSON. response.Text est alors vide. On loggue finish_reason + usage pour rendre
-            // ce diagnostic immédiat, au lieu du générique « empty response » qui se répète en silence
-            // jusqu'à épuisement des retries (board bloqué à 0/4).
-            _logger.LogWarning(
-                "AI clue LLM returned empty content (native reasoning likely overflowed the context/output budget before emitting the answer): game={GameId} player={PlayerId} attempt={Attempt} finishReason={FinishReason} inputTokens={InputTokens} outputTokens={OutputTokens} model={LlmModel}. Increase the model's context window / maxOutputTokens, or enable ReasoningEnabled to load the concise reasoning prompt.",
-                game.Id.Value, player.Id.Value, attempt,
-                response.FinishReason, response.Usage?.InputTokenCount, response.Usage?.OutputTokenCount,
-                effectiveModel);
-            throw new InvalidOperationException("LLM returned an empty response.");
-        }
-        text = StripThinkTags(text);
-        text = StripJsonFences(text);
-        var draft = parseResponse(text);
-        _lastPromptVersion = bundle.PromptVersion;
-        return (draft, bundle.PromptVersion);
-    }
-
-    private static string StripJsonFences(string text)
-    {
-        var t = text.Trim();
-        if (!t.StartsWith("```")) return t;
-
-        var firstNewline = t.IndexOf('\n');
-        if (firstNewline >= 0) t = t[(firstNewline + 1)..];
-        if (t.EndsWith("```")) t = t[..^3];
-        return t.Trim();
-    }
-
-    private static string StripThinkTags(string text)
-    {
-        foreach (var closeTag in new[] { "</think>", "[/THINK]" })
-        {
-            var closeIdx = text.LastIndexOf(closeTag, StringComparison.OrdinalIgnoreCase);
-            if (closeIdx >= 0)
-                text = text[(closeIdx + closeTag.Length)..];
-        }
-        return text.Trim();
-    }
-
-    private string ReadReasoningPreamble(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return string.Empty;
-
-        if (!Path.IsPathRooted(path))
-            path = Path.Combine(AppContext.BaseDirectory, path);
-
+        ClueCallResult result;
         try
         {
-            var info = new FileInfo(path);
-            if (!info.Exists)
+            result = await _caller.CallAsync(request, promptProvider, buildBundle, parseResponse, ct)
+                .ConfigureAwait(false);
+        }
+        catch (LlmCallException ex)
+        {
+            // Le log « call completed » précède historiquement la vérification du texte vide :
+            // on le reproduit à l'identique sur le chemin d'échec, dans le même ordre.
+            LogCallCompleted(game, player, attempt, ex.LatencyMs, ex.EffectiveModel, ex.PromptVersion, remaining);
+
+            if (ex is EmptyLlmResponseException empty)
             {
+                // Cas typique d'un modèle reasoning (ex. gemma) dont la réflexion native sature la fenêtre de
+                // contexte / le budget de sortie : la complétion est tronquée (finish_reason=length) AVANT
+                // l'émission du JSON. response.Text est alors vide. On loggue finish_reason + usage pour rendre
+                // ce diagnostic immédiat, au lieu du générique « empty response » qui se répète en silence
+                // jusqu'à épuisement des retries (board bloqué à 0/4).
                 _logger.LogWarning(
-                    "Reasoning system prompt file not found: {Path}. Continuing without preamble.", path);
-                return string.Empty;
+                    "AI clue LLM returned empty content (native reasoning likely overflowed the context/output budget before emitting the answer): game={GameId} player={PlayerId} attempt={Attempt} finishReason={FinishReason} inputTokens={InputTokens} outputTokens={OutputTokens} model={LlmModel}. Increase the model's context window / maxOutputTokens, or enable ReasoningEnabled to load the concise reasoning prompt.",
+                    game.Id.Value, player.Id.Value, attempt,
+                    empty.FinishReason, empty.InputTokens, empty.OutputTokens,
+                    empty.EffectiveModel);
             }
 
-            var lastWrite = info.LastWriteTimeUtc;
-            if (_reasoningPreambleCache is { } cached
-                && cached.Path == path && cached.LastWriteTimeUtc == lastWrite)
-                return cached.Content;
+            LogPreambleWarning(ex.PreambleWarning);
+            throw;
+        }
 
-            var content = File.ReadAllText(path);
-            _reasoningPreambleCache = (path, lastWrite, content);
-            return content;
-        }
-        catch (IOException ex)
+        LogCallCompleted(game, player, attempt, result.LatencyMs, result.EffectiveModel, result.PromptVersion, remaining);
+        LogPreambleWarning(result.PreambleWarning);
+
+        _lastPromptVersion = result.PromptVersion;
+        return (result.Draft, result.PromptVersion);
+    }
+
+    /// <summary>
+    /// Journalise le préambule reasoning manquant/illisible, quelle que soit l'issue de l'appel LLM :
+    /// le cas le plus probable où ce diagnostic sert (mode reasoning mal configuré → préambule absent
+    /// → modèle renvoyant du vide) est précisément un chemin d'échec. Distingue « introuvable »
+    /// (message d'avant l'extraction) d'« illisible » (message + exception d'avant l'extraction).
+    /// </summary>
+    private void LogPreambleWarning(ReasoningPreambleWarning? warning)
+    {
+        if (warning is null)
+            return;
+
+        if (warning.Cause is { } cause)
         {
-            _logger.LogWarning(ex,
-                "Failed to read reasoning system prompt file: {Path}. Continuing without preamble.", path);
-            return string.Empty;
+            _logger.LogWarning(cause,
+                "Failed to read reasoning system prompt file: {Path}. Continuing without preamble.", warning.Path);
         }
+        else
+        {
+            _logger.LogWarning(
+                "Reasoning system prompt file not found: {Path}. Continuing without preamble.", warning.Path);
+        }
+    }
+
+    private void LogCallCompleted(
+        Game game, Player player, int attempt,
+        long latencyMs, string effectiveModel, int? promptVersion, HashSet<Direction> remaining)
+    {
+        _logger.LogInformation(
+            "AI clue LLM call completed: game={GameId} player={PlayerId} attempt={Attempt} latencyMs={LatencyMs} provider={LlmProvider} model={LlmModel} promptVersion={PromptVersion} remainingDirections={RemainingDirections}",
+            game.Id.Value, player.Id.Value, attempt, latencyMs,
+            _llmOptions.Value.Provider, effectiveModel, promptVersion,
+            string.Join(",", remaining));
     }
 
     private static HashSet<Direction> ComputeRemainingDirections(CloverBoard board)
