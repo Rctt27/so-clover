@@ -1651,3 +1651,47 @@ intra-carte reporté plus haut : changer la présentation entre D et E mettrait 
 la même comparaison (la personne *et* la présentation), et les 42 devinettes de H1 sont figées.
 Fermer ce canal un jour signifierait faire dépendre la graine de `(boardId, direction)` plutôt que du
 seul `boardId` — et **rejouer H1**. Consigné, non engagé.
+
+---
+
+### AVENANT AU PRÉ-ENREGISTREMENT DE LA SÉANCE E — 2026-08-09 — **écrit avant la première devinette de H2**
+
+Le critère `|Δ(H1,D)| ≤ |Δ(H1,H2)|` de la veille est conservé **mot pour mot**. Ce que le
+pré-enregistrement ne disait pas : comment séparer le cas franchi de l'issue alternative « ne
+tranche pas », qui y était nommée sans règle de décision. Elle est écrite maintenant, alors
+qu'**aucun chiffre de H2 n'existe** — H2 n'a pas encore été recruté.
+
+**Règle à deux étages**, implémentée dans `SoClover.Eval/Scoring/GuessingDispersion.cs` :
+
+1. **Étage de résolution.** Si l'IC 95 % de Δ(H1,H2) **contient zéro**, la dispersion entre deux
+   humains n'est pas établie → verdict **« ne tranche pas — un troisième devineur est requis »**,
+   quel que soit le résultat littéral du critère (qui reste rapporté). Motif : deux humains dont
+   l'écart n'est pas établi ne fournissent **aucune échelle** ; comparer |Δ(H1,D)| à |Δ(H1,H2)|
+   revient alors à comparer deux points de bruit — garde 2.
+2. **Étage du critère.** IC hors de zéro : |Δ(H1,D)| ≤ |Δ(H1,H2)| → **« le décodeur tombe dans la
+   dispersion humaine »** ; sinon → **« hors dispersion »**, sans interprétation pré-autorisée
+   au-delà du constat.
+
+**La règle ne fabrique aucune issue nouvelle, elle rend décidables celles qui étaient écrites.**
+Vérification sur les deux prédictions de la veille : |Δ(H1,H2)| ≈ 0,08 à n = 42 (demi-largeur
+±0,06) donne un IC excluant zéro → l'étage 1 passe et l'étage 2 tranche ; ≈ 0,02 donne un IC
+contenant zéro → « ne tranche pas », exactement l'issue du troisième devineur.
+
+**Trois Δ, un seul dénominateur.** Δ(H1,H2), Δ(H1,D) et Δ(H2,D) sont calculés sur les directions
+communes aux deux séances **et** au décodage — deux Δ de dénominateurs différents ne se compareraient
+pas. Δ(H1,D) est donc **réaffiché** ; il n'est pas re-mesuré au sens du 2026-08-08 : sa valeur est un
+**invariant à vérifier** (0,000 [−0,063 ; +0,063]), pas une quantité rouverte. Une divergence
+signalerait que H2 n'a pas couvert les 42 mêmes directions — un défaut de montage, pas un résultat.
+
+**Gardes de montage, refus bruyants** (le code applique le protocole, pas la discipline de
+l'opérateur) : `benchHash`, `seed` et `runId` doivent concorder entre les deux manifestes — la seule
+variable autorisée entre D et E est *la personne*, garde 1 ; et deux fichiers partageant un
+`sessionId` sont refusés comme « la même séance, pas deux devineurs », ce qui attrape le piège n° 1
+du pré-enregistrement (`--out` oublié, séance D détruite).
+
+**État à l'écriture de cet avenant.** `GuessingDispersion` et `guess-report --guessing-b` sont
+livrés, 12 tests dédiés, `dotnet test` **1012/1012**. Le rapport de la séance D est inchangé,
+revérifié à l'identique : 42 directions, R̄ 0,583 / 0,583, Δ 0,000 [−0,063 ; +0,063]. `guess.html`
+n'a **pas** été modifiée (piège n° 1 du 2026-08-08). Ce qui manque à la séance E n'est plus du code :
+c'est **H2**, qui ne peut être ni l'auteur, ni quiconque a lu ce registre ou
+`eval/analysis/*.sample.md`.
