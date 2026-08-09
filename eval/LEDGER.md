@@ -1695,3 +1695,65 @@ revérifié à l'identique : 42 directions, R̄ 0,583 / 0,583, Δ 0,000 [−0,06
 n'a **pas** été modifiée (piège n° 1 du 2026-08-08). Ce qui manque à la séance E n'est plus du code :
 c'est **H2**, qui ne peut être ni l'auteur, ni quiconque a lu ce registre ou
 `eval/analysis/*.sample.md`.
+
+---
+
+### SECOND AVENANT AU PRÉ-ENREGISTREMENT DE LA SÉANCE E — 2026-08-09 — **écrit avant la première devinette de H2**
+
+**Objet : la séance E se tiendra à distance, sur un kit HTML hors ligne.** H2 n'est pas dans la
+pièce et l'instrument ne se met pas en ligne. `guess-kit` grave le lot de la séance D dans un fichier
+HTML autonome (~20 Kio) que H2 ouvre dans son navigateur, sans serveur ni réseau ; il renvoie le
+`.jsonl` que la page lui fait enregistrer, et `guess-import` le réinjecte au format d'une séance
+servie. Ce qui suit déclare **ce que ce transport change**, avant qu'il ne produise le moindre
+chiffre.
+
+**Rectification du premier avenant.** Celui-ci se terminait sur « `guess.html` n'a **pas** été
+modifiée ». Elle l'est désormais : six lignes **ajoutées**, zéro supprimée — deux marqueurs de
+commentaire JavaScript encadrant les douze lignes de transport (`api()`, `post()`), plus le
+commentaire qui les explique. Le rendu est inchangé, et cela ne repose pas sur une relecture :
+`GuessKitPageTests` exige que tout ce qui précède le marqueur d'ouverture et tout ce qui suit celui
+de fermeture soit identique **octet pour octet** entre `guess.html` et le kit, et un second test
+vérifie que ces deux moitiés contiennent bien le CSS, `render()`, `toggle()` et la touche Entrée.
+Le piège n° 1 du 2026-08-08 visait une modification du **comportement** (blocage intra-carte) ;
+il reste tenu.
+
+**Ce que le hors-ligne préserve.** L'aveuglement de `GuessItemView` était déjà structurel : ni
+`boardId`, ni paire de référence. Le kit n'embarque donc que les seize mots dans l'ordre de
+`ShuffleSeed.ForClue` et l'indice — et **ne score pas**. `r` naît à l'import, sur la machine de
+l'opérateur, par la formule de `GuessingSession.SubmitGuess`. Le chrono était déjà déclaratif côté
+client en séance D : aucune régression sur cet axe. Les trois refus (deux mots, distincts, présents)
+sont reproduits mot pour mot, vérifiés dans un navigateur.
+
+**Ce que le hors-ligne concède — la seule chose que le serveur assurait.** *Le plan entier est dans
+la page.* Un devineur qui ouvrirait les outils de développement verrait les 42 items à venir —
+jamais les réponses, mais assez pour défaire `SpaceOut`, la dispersion des directions d'un même
+board qui refroidit la mémoire (cinquième limite du pré-enregistrement). Cette concession **ne se
+répare pas**, elle se consigne. H2 n'en sera pas informé — non par ruse, mais parce que le lui dire
+créerait la curiosité qu'on redoute. Elle est déclarée ici, avant les données, et sera rappelée dans
+la note de synthèse quel que soit le verdict.
+
+**Concessions mineures, également déclarées.** (a) Un bouton « Enregistrer mes réponses » persiste
+en bas à droite, que la séance D n'avait pas : une séance perdue faute d'affordance visible coûterait
+plus cher que cet écart de chrome. (b) La sauvegarde passe par `localStorage` — perte possible,
+corruption non ; repli visible si le navigateur la refuse. (c) L'environnement (écran, navigateur)
+diffère, comme pour tout second devineur, et reste hors de portée du harnais ; le `userAgent` est
+consigné dans le rapport.
+
+**Gardes ajoutées, refus bruyants.** `kitHash` (empreinte des items — indices **et** ordre de
+présentation) est confronté au plan reconstruit à l'import, avec `benchHash`, `seed`, `runId` et le
+nombre d'items ; chaque mot rapporté doit avoir été **présenté** sur ce plateau ; un `itemIndex`
+dupliqué ou hors plan est refusé ; `guess-import` refuse un `--out` qui existe déjà. Enfin,
+`--guessing` désigne la séance de référence et **son manifeste fait foi** : recalculer les exclusions
+depuis la ligne de commande a rendu **53** directions là où H1 en avait devinées **42** — trois
+boards avaient été exclus à la main pendant un diagnostic le 2026-08-07, et aucun argument de la CLI
+ne s'en souvient. L'erreur a été commise, puis rendue impossible.
+
+**Ce que cet avenant ne change pas.** Le critère, sa règle de lecture à deux étages et les trois
+issues du premier avenant sont **inchangés, mot pour mot**. La puissance reste faible et déclarée :
+à n = 42 chaque Δ porte ±0,06.
+
+**État à l'écriture.** `dotnet test` **1040/1040** (1012 + 28 dédiés au kit). Chaîne vérifiée de bout
+en bout dans un navigateur sur le kit réel — 42 directions, `kitHash fdf83148c1cf`, reprise après
+rechargement, rapport importé et consommé par `guess-report --guessing-b`. Ce qui manque à la séance
+E n'est toujours pas du code : c'est **H2**, qui ne peut être ni l'auteur, ni quiconque a lu ce
+registre ou `eval/analysis/*.sample.md`.
