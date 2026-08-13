@@ -502,7 +502,10 @@ app.MapPut("/api/games/{gameId}/settings", async (string gameId, UpdateGameSetti
 })
 .WithName("UpdateGameSettings");
 
-app.MapGet("/api/games/{gameId}/state", async (string gameId, string? playerId, bool includeSecrets, IGetGameStateUseCase useCase, CancellationToken ct) =>
+// `includeSecrets` est nullable : un `bool` non nullable serait traité comme paramètre de query
+// REQUIS par ASP.NET Core (400 au binding si absent). Défaut sûr : false — pas de divulgation
+// des secrets quand le paramètre n'est pas fourni.
+app.MapGet("/api/games/{gameId}/state", async (string gameId, string? playerId, bool? includeSecrets, IGetGameStateUseCase useCase, CancellationToken ct) =>
 {
     try
     {
@@ -513,7 +516,7 @@ app.MapGet("/api/games/{gameId}/state", async (string gameId, string? playerId, 
             requestingPlayerId = new PlayerId(pid);
         }
 
-        var response = await useCase.Handle(new GetGameState.Request(GameId.From(gameId), includeSecrets, requestingPlayerId), ct);
+        var response = await useCase.Handle(new GetGameState.Request(GameId.From(gameId), includeSecrets ?? false, requestingPlayerId), ct);
         var result = new
         {
             gameId = response.GameId,
