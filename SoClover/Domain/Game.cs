@@ -127,6 +127,17 @@ public sealed class Game
             ? _players.Values.Where(p => !p.IsDisconnected && p.IsAI).ToList().AsReadOnly()
             : ActivePlayers;
 
+    /// <summary>
+    /// Vrai quand un humain seul affronte au moins une IA dans le lobby : personne ne pourrait
+    /// deviner son plateau (les IA ne devinent pas), donc GuessAiBoardOnly devient obligatoire.
+    /// Hors Lobby le réglage est gelé — la valeur stockée fait foi.
+    /// </summary>
+    [JsonIgnore]
+    public bool GuessAiBoardOnlyForced =>
+        Phase == GamePhase.Lobby
+        && _players.Values.Any(p => p.IsAI && !p.IsDisconnected)
+        && GuessingParticipants.Count <= 1;
+
     [JsonIgnore]
     public IReadOnlyCollection<Player> BoardsToGuess =>
         _players.Values.Where(p => !p.IsDisconnected && p.Board.IsSubmitted).ToList().AsReadOnly();
@@ -202,6 +213,27 @@ public sealed class Game
         {
             AdminPlayerId = player.Id;
         }
+
+        SyncGuessAiBoardOnly();
+    }
+
+    /// <summary>
+    /// Réaligne GuessAiBoardOnly sur la composition courante du lobby : désactivé s'il n'y a plus
+    /// d'IA active, forcé à vrai si un humain se retrouve seul face à au moins une IA. Entre les
+    /// deux, le choix de l'admin est conservé tel quel.
+    /// </summary>
+    private void SyncGuessAiBoardOnly()
+    {
+        if (!_players.Values.Any(p => p.IsAI && !p.IsDisconnected))
+        {
+            GuessAiBoardOnly = false;
+            return;
+        }
+
+        if (GuessAiBoardOnlyForced)
+        {
+            GuessAiBoardOnly = true;
+        }
     }
 
     public void AddAIPlayer(Player player, int max)
@@ -236,10 +268,7 @@ public sealed class Game
             }
         }
 
-        if (GuessAiBoardOnly && !_players.Values.Any(p => p.IsAI && !p.IsDisconnected))
-        {
-            GuessAiBoardOnly = false;
-        }
+        SyncGuessAiBoardOnly();
     }
 
     public Player? FindPlayerByName(string name)
@@ -365,6 +394,9 @@ public sealed class Game
         if (enabled && !_players.Values.Any(p => p.IsAI && !p.IsDisconnected))
             throw new NoAiPlayerForGuessAiBoardOnlyException();
 
+        if (!enabled && GuessAiBoardOnlyForced)
+            throw new GuessAiBoardOnlyRequiredException();
+
         GuessAiBoardOnly = enabled;
     }
 
@@ -407,9 +439,14 @@ public sealed class Game
     {
         if (Phase != GamePhase.Lobby)
             throw new InvalidOperationInPhaseException("Writing phase can only start from Lobby.");
+        // Deux joueurs minimum : un humain seul n'a personne à qui donner ses indices.
+        if (ActivePlayers.Count < 2)
+            throw new NotEnoughPlayersException(2, ActivePlayers.Count);
+        // Filet de sécurité : la resynchro sur AddPlayer/RemovePlayer rend ce cas très improbable,
+        // mais on refuse de démarrer une partie où un humain seul écrirait un plateau indevinable.
+        if (GuessAiBoardOnlyForced && !GuessAiBoardOnly)
+            throw new GuessAiBoardOnlyRequiredException();
         BumpRevision();
-        if (_players.Count == 0)
-            throw new NotEnoughPlayersException(1, _players.Count);
         if (_wordsPool == null)
             throw new InvalidOperationException("WordsPool must be initialized before starting writing phase.");
         Phase = GamePhase.WritingClues;

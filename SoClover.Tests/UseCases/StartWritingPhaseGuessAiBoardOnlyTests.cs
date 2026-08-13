@@ -62,15 +62,19 @@ public class StartWritingPhaseGuessAiBoardOnlyTests
     [Fact]
     public async Task StartWritingPhase_without_GuessAiBoardOnly_all_players_get_cards()
     {
+        // Deux humains : sans quoi le mode « plateaux IA uniquement » serait imposé.
         var human = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        var human2 = new Player(PlayerId.New(), "Bob");
         var bot = new Player(PlayerId.New(), "Bot-1", isAdmin: false, isAI: true,
             aiConfig: new AIConfig("gpt-4o-mini", 0.7));
-        var sp = BuildProvider(new FakeConnectionTracker(new[] { human.Id }));
+        var sp = BuildProvider(new FakeConnectionTracker(new[] { human.Id, human2.Id }));
         var repo = sp.GetRequiredService<IGameRepository>();
 
         var game = new Game(GameId.New());
         game.AddPlayer(human);
+        game.AddPlayer(human2);
         game.AddAIPlayer(bot, max: 4);
+        Assert.False(game.GuessAiBoardOnly);
         await repo.Save(game);
 
         var useCase = sp.GetRequiredService<IStartWritingPhaseUseCase>();
@@ -79,6 +83,7 @@ public class StartWritingPhaseGuessAiBoardOnlyTests
         var reloaded = await repo.Get(game.Id);
         Assert.NotNull(reloaded);
         Assert.NotNull(reloaded!.Players.First(p => p.Id == human.Id).Board.TopLeft);
+        Assert.NotNull(reloaded.Players.First(p => p.Id == human2.Id).Board.TopLeft);
         Assert.NotNull(reloaded.Players.First(p => p.Id == bot.Id).Board.TopLeft);
     }
 }

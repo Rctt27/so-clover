@@ -128,7 +128,7 @@ public class AiFullGameFlowTests
     }
     
     [Fact]
-    public async Task Scenario_1_human_plus_2_AI_human_guesses_2_AI_boards_then_Scoring()
+    public async Task Scenario_2_humans_plus_2_AI_humans_guess_4_boards_then_Scoring()
     {
         var sp = BuildProvider();
         var repo = sp.GetRequiredService<IGameRepository>();
@@ -139,13 +139,17 @@ public class AiFullGameFlowTests
 
         var game = new Game(GameId.New(), "Français_OFF");
         var alice = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        var bob = new Player(PlayerId.New(), "Bob");
         var bot1 = new Player(PlayerId.New(), "Bot-1", isAdmin: false, isAI: true,
             aiConfig: new AIConfig("gpt-4o-mini", 0.7));
         var bot2 = new Player(PlayerId.New(), "Bot-2", isAdmin: false, isAI: true,
             aiConfig: new AIConfig("gpt-4o-mini", 0.7));
         game.AddPlayer(alice);
+        game.AddPlayer(bob);
         game.AddAIPlayer(bot1, max: 4);
         game.AddAIPlayer(bot2, max: 4);
+        // Deux humains présents : GuessAiBoardOnly reste optionnel, les humains écrivent aussi.
+        Assert.False(game.GuessAiBoardOnly);
         await repo.Save(game);
 
         await startWriting.Handle(new StartWritingPhase.Request(game.Id));
@@ -156,19 +160,21 @@ public class AiFullGameFlowTests
         AiTestHelpers.SimulateAiBoardSubmit(withAis!, bot2.Id, DateTime.UtcNow);
         await repo.Save(withAis!);
 
-        // Alice pose ses clues + submit (déclenche StartGuessingPhase auto)
+        // Les humains posent leurs clues + submit (le dernier déclenche StartGuessingPhase auto)
         await SetHumanCluesAsync(setClue, game.Id, alice.Id, "alice");
+        await SetHumanCluesAsync(setClue, game.Id, bob.Id, "bob");
         await submit.Handle(new SubmitBoard.Request(game.Id, alice.Id));
+        await submit.Handle(new SubmitBoard.Request(game.Id, bob.Id));
 
         var inGuessing = (await repo.Get(game.Id))!;
         Assert.Equal(GamePhase.Guessing, inGuessing.Phase);
-        Assert.Equal(3, inGuessing.BoardsToGuess.Count); // Alice + 2 AI
-        Assert.Single(inGuessing.GuessingParticipants);  // seule Alice devine
+        Assert.Equal(4, inGuessing.BoardsToGuess.Count);       // 2 humains + 2 AI
+        Assert.Equal(2, inGuessing.GuessingParticipants.Count); // seuls les humains devinent
 
         // Chaque board incomplet nécessite deux appels System :
         //   - 1er appel → cooldown (GuessingBoardRevealed=true), reste en Guessing.
         //   - 2e appel → efface le cooldown et avance réellement.
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 4; i++)
         {
             inGuessing = (await repo.Get(game.Id))!;
             // 1er appel : déclenche le cooldown.

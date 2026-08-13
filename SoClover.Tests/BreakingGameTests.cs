@@ -37,6 +37,13 @@ public class BreakingGameTests
         return services.BuildServiceProvider();
     }
 
+    /// <summary>
+    /// Deux joueurs minimum sont requis pour démarrer la phase d'écriture : les scénarios qui
+    /// n'ont besoin que de l'admin ajoutent ce second joueur figurant pour franchir le seuil.
+    /// </summary>
+    private static Task AddSecondPlayerAsync(ServiceProvider sp, GameId gameId)
+        => sp.GetRequiredService<IJoinGameUseCase>().Handle(new JoinGame.Request(gameId, "Bob"));
+
     [Fact]
     public async Task StartWriting_without_players_throws_NotEnoughPlayers()
     {
@@ -63,11 +70,12 @@ public class BreakingGameTests
         var join = sp.GetRequiredService<IJoinGameUseCase>();
         var startWriting = sp.GetRequiredService<IStartWritingPhaseUseCase>();
         var gameId = (await create.Handle(new CreateGame.Request("Admin"))).GameId;
+        await AddSecondPlayerAsync(sp, gameId);
 
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
 
         await Assert.ThrowsAsync<InvalidOperationInPhaseException>(async () =>
-            await join.Handle(new JoinGame.Request(gameId, "Bob")));
+            await join.Handle(new JoinGame.Request(gameId, "Carol")));
     }
 
     [Fact]
@@ -107,6 +115,7 @@ public class BreakingGameTests
         var createResponse = await create.Handle(new CreateGame.Request("Admin"));
         var gameId = createResponse.GameId;
         var adminId = createResponse.CreatorPlayerId;
+        await AddSecondPlayerAsync(sp, gameId);
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
 
         await Assert.ThrowsAsync<InvalidOperationInPhaseException>(async () =>
@@ -123,6 +132,7 @@ public class BreakingGameTests
         var createResponse = await create.Handle(new CreateGame.Request("Admin"));
         var gameId = createResponse.GameId;
         var adminId = createResponse.CreatorPlayerId;
+        await AddSecondPlayerAsync(sp, gameId);
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
 
         await Assert.ThrowsAsync<InvalidClueException>(async () =>
@@ -139,6 +149,7 @@ public class BreakingGameTests
         var createResponse = await create.Handle(new CreateGame.Request("Admin"));
         var gameId = createResponse.GameId;
         var adminId = createResponse.CreatorPlayerId;
+        await AddSecondPlayerAsync(sp, gameId);
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
 
         var longText = new string('a', Game.MaxClueLength + 1);
@@ -159,6 +170,7 @@ public class BreakingGameTests
         var createResponse = await create.Handle(new CreateGame.Request("Admin"));
         var gameId = createResponse.GameId;
         var adminId = createResponse.CreatorPlayerId;
+        await AddSecondPlayerAsync(sp, gameId);
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
 
         var maxText = new string('z', Game.MaxClueLength);
@@ -231,6 +243,7 @@ public class BreakingGameTests
         var guess = sp.GetRequiredService<IGuessUseCase>();
         var repo = sp.GetRequiredService<IGameRepository>();
         var gameId = (await create.Handle(new CreateGame.Request("Admin"))).GameId;
+        await AddSecondPlayerAsync(sp, gameId);
         await startWriting.Handle(new StartWritingPhase.Request(gameId));
         var preGuessing = await repo.Get(gameId) ?? throw new Exception();
         foreach (var pl in preGuessing.ActivePlayers) pl.Board.MarkSubmitted(DateTime.UtcNow);
@@ -270,6 +283,7 @@ public class BreakingGameTests
         var game = new Game(GameId.New());
         var alice = new Player(PlayerId.New(), "Alice", isAdmin: true);
         game.AddPlayer(alice);
+        game.AddPlayer(new Player(PlayerId.New(), "Bob"));
         await game.InitializeWordsPoolAsync(dict);
         game.StartWritingPhase(DateTime.UtcNow, TimeSpan.FromMinutes(5));
         await repo.Save(game);

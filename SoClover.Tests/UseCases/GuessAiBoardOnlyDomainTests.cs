@@ -18,10 +18,14 @@ public class GuessAiBoardOnlyDomainTests
     {
         var game = new Game(GameId.New());
         var human = new Player(PlayerId.New(), "Alice", isAdmin: true);
+        // Un second humain, sans quoi le mode « plateaux IA uniquement » serait imposé.
+        var human2 = new Player(PlayerId.New(), "Bob");
         var bot = new Player(PlayerId.New(), "Bot-1", isAdmin: false, isAI: true,
             aiConfig: new AIConfig("gpt-4o-mini", 0.7));
         game.AddPlayer(human);
+        game.AddPlayer(human2);
         game.AddPlayer(bot);
+        Assert.False(game.GuessAiBoardOnly);
 
         Assert.Equal(game.ActivePlayers.Count, game.WritingParticipants.Count);
         Assert.Contains(game.WritingParticipants, p => p.Id == human.Id);

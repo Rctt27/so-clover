@@ -12,6 +12,8 @@ public class DomainRotationTests
         ownerId = PlayerId.New();
         var player = new Player(ownerId, "Owner");
         game.AddPlayer(player);
+        // Deux joueurs minimum pour démarrer : le second n'intervient pas dans les rotations testées.
+        game.AddPlayer(new Player(PlayerId.New(), "Guest"));
 
         game.InitializeWordsPoolAsync(new TestWordDictionary()).Wait();
         game.StartWritingPhase(DateTime.UtcNow, TimeSpan.FromMinutes(5));

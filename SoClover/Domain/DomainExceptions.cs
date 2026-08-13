@@ -154,6 +154,14 @@ public class NoAiPlayerForGuessAiBoardOnlyException : DomainException
     }
 }
 
+public class GuessAiBoardOnlyRequiredException : DomainException
+{
+    public GuessAiBoardOnlyRequiredException()
+        : base("Cannot disable GuessAiBoardOnly: a lone human player can only guess AI boards.")
+    {
+    }
+}
+
 public class HumanCannotSubmitInGuessAiBoardOnlyException : DomainException
 {
     public HumanCannotSubmitInGuessAiBoardOnlyException()
