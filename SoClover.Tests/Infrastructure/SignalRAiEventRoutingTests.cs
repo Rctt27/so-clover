@@ -37,6 +37,7 @@ public class SignalRAiEventRoutingTests
                 GuessDurationSecondsOverride: null,
                 SemanticClueCheckEnabled: false,
                 GuessAiBoardOnly: false,
+                GuessAiBoardOnlyForced: false,
                 Phase: GamePhase.WritingClues,
                 AdminPlayerId: playerId.Value,
                 PhaseEndsAtUtc: null,

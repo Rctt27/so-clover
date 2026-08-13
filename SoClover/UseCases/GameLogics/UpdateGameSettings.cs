@@ -23,7 +23,8 @@ public static class UpdateGameSettings
         int? CluesDurationSeconds,
         int? GuessDurationSeconds,
         bool SemanticClueCheckEnabled,
-        bool GuessAiBoardOnly
+        bool GuessAiBoardOnly,
+        bool GuessAiBoardOnlyForced
     );
 
     public sealed class Handler : IUpdateGameSettingsUseCase
@@ -83,7 +84,8 @@ public static class UpdateGameSettings
                 game.CluesDurationSecondsOverride,
                 game.GuessDurationSecondsOverride,
                 game.SemanticClueCheckEnabled,
-                game.GuessAiBoardOnly
+                game.GuessAiBoardOnly,
+                game.GuessAiBoardOnlyForced
             );
         }
     }

@@ -462,7 +462,8 @@ app.MapPut("/api/games/{gameId}/settings", async (string gameId, UpdateGameSetti
             cluesDuration = response.CluesDurationSeconds,
             guessDuration = response.GuessDurationSeconds,
             semanticClueCheckEnabled = response.SemanticClueCheckEnabled,
-            guessAiBoardOnly = response.GuessAiBoardOnly
+            guessAiBoardOnly = response.GuessAiBoardOnly,
+            guessAiBoardOnlyForced = response.GuessAiBoardOnlyForced
         });
     }
     catch (GameNotFoundException)
@@ -475,6 +476,10 @@ app.MapPut("/api/games/{gameId}/settings", async (string gameId, UpdateGameSetti
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
     catch (NoAiPlayerForGuessAiBoardOnlyException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (GuessAiBoardOnlyRequiredException ex)
     {
         return Results.BadRequest(new { message = ex.Message });
     }
@@ -517,6 +522,7 @@ app.MapGet("/api/games/{gameId}/state", async (string gameId, string? playerId, 
             guessDurationSecondsOverride = response.GuessDurationSecondsOverride,
             semanticClueCheckEnabled = response.SemanticClueCheckEnabled,
             guessAiBoardOnly = response.GuessAiBoardOnly,
+            guessAiBoardOnlyForced = response.GuessAiBoardOnlyForced,
             phase = response.Phase.ToString(),
             phaseEndsAtUtc = response.PhaseEndsAtUtc,
             adminPlayerId = response.AdminPlayerId?.ToString(),
@@ -674,6 +680,18 @@ app.MapPost("/api/games/{gameId}/start", async (string gameId, IStartWritingPhas
     catch (DisconnectedPlayersException ex)
     {
         return Results.BadRequest(new { message = ex.Message, disconnectedPlayers = ex.PlayerNames });
+    }
+    catch (NotEnoughPlayersException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (GuessAiBoardOnlyRequiredException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (NoAiPlayerForGuessAiBoardOnlyException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
     }
 })
 .WithName("StartWritingPhase");

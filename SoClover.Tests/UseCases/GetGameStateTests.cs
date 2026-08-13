@@ -48,4 +48,25 @@ public class GetGameStateTests
         Assert.False(admin.IsAI);
         Assert.True(ai.IsAI);
     }
+
+    [Fact]
+    public async Task GetGameState_exposes_guessAiBoardOnly_forced_for_a_lone_human()
+    {
+        var sp = BuildProvider();
+        var create = sp.GetRequiredService<ICreateGameUseCase>();
+        var createAi = sp.GetRequiredService<ICreateAIPlayerUseCase>();
+        var getState = sp.GetRequiredService<IGetGameStateUseCase>();
+
+        var game = await create.Handle(new CreateGame.Request("Admin"));
+        var before = await getState.Handle(new GetGameState.Request(game.GameId));
+        Assert.False(before.GuessAiBoardOnly);
+        Assert.False(before.GuessAiBoardOnlyForced);
+
+        await createAi.Handle(new CreateAIPlayer.Request(
+            game.GameId, game.CreatorPlayerId, "Bot-1", "gpt-4o-mini", 0.7));
+
+        var after = await getState.Handle(new GetGameState.Request(game.GameId));
+        Assert.True(after.GuessAiBoardOnly);
+        Assert.True(after.GuessAiBoardOnlyForced);
+    }
 }
