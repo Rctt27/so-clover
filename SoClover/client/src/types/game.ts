@@ -18,6 +18,7 @@ export interface GameStateResponse {
   guessingState: GuessingPhaseStateResponse | null;
   semanticClueCheckEnabled: boolean;
   guessAiBoardOnly: boolean;
+  guessAiBoardOnlyForced: boolean;
 }
 
 export interface PlayerStateResponse {

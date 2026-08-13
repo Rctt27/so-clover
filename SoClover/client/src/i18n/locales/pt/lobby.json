@@ -16,7 +16,8 @@
     "semanticLabel": "Verificação semântica das pistas",
     "semanticDisabled": "Disponível apenas com os dicionários Francês e Inglês",
     "guessAiLabel": "Adivinhar apenas os tabuleiros da IA",
-    "guessAiDisabled": "Disponível apenas se houver pelo menos um jogador IA no jogo"
+    "guessAiDisabled": "Disponível apenas se houver pelo menos um jogador IA no jogo",
+    "guessAiForced": "Obrigatório: é o único jogador humano, ninguém poderia adivinhar o seu tabuleiro"
   },
   "players": {
     "title": "Jogadores",

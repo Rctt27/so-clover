@@ -41,6 +41,8 @@ interface GameState {
     guessDurationSeconds: number
     semanticClueCheckEnabled: boolean
     guessAiBoardOnly: boolean
+    /** Imposé par le serveur : un humain seul face à des IA ne peut deviner que des plateaux IA. */
+    guessAiBoardOnlyForced: boolean
   }
   setPhase: (phase: GamePhase) => void
   markAiGenerating: (playerId: string) => void
@@ -56,7 +58,7 @@ interface GameState {
   setConnectionStatus: (status: ConnectionStatus) => void
   setPlayers: (players: Array<{ playerId: string, name: string, cursorColorIndex: number, isAI: boolean }>) => void
   setPhaseEndsAtUtc: (deadline: string | null) => void
-  setSettings: (settings: { language: string, cluesDurationSeconds: number, guessDurationSeconds: number, semanticClueCheckEnabled: boolean, guessAiBoardOnly: boolean }) => void
+  setSettings: (settings: { language: string, cluesDurationSeconds: number, guessDurationSeconds: number, semanticClueCheckEnabled: boolean, guessAiBoardOnly: boolean, guessAiBoardOnlyForced: boolean }) => void
   setIsInitializing: (isInitializing: boolean) => void
   resetAuth: () => void
 }
@@ -81,6 +83,7 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
     guessDurationSeconds: 300,
     semanticClueCheckEnabled: true,
     guessAiBoardOnly: false,
+    guessAiBoardOnlyForced: false,
   },
   setPhase: (phase) => set(
     (state) => ({
@@ -144,6 +147,7 @@ const gameStateCreator: StateCreator<GameState, [["zustand/devtools", never]]> =
       guessDurationSeconds: 300,
       semanticClueCheckEnabled: true,
       guessAiBoardOnly: false,
+      guessAiBoardOnlyForced: false,
     }
   }, false, 'GameStore/resetAuth'),
 })

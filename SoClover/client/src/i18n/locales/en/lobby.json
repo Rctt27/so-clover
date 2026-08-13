@@ -16,7 +16,8 @@
     "semanticLabel": "Semantic clue check",
     "semanticDisabled": "Available only with the French and English dictionaries",
     "guessAiLabel": "Guess AI boards only",
-    "guessAiDisabled": "Available only if at least one AI player is in the game"
+    "guessAiDisabled": "Available only if at least one AI player is in the game",
+    "guessAiForced": "Required: you are the only human player, nobody could guess your board"
   },
   "players": {
     "title": "Players",

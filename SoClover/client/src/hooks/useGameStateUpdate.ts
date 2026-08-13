@@ -51,6 +51,7 @@ export const useGameStateUpdate = () => {
       guessDurationSeconds: state.guessDurationSecondsOverride ?? 300,
       semanticClueCheckEnabled: state.semanticClueCheckEnabled,
       guessAiBoardOnly: state.guessAiBoardOnly,
+      guessAiBoardOnlyForced: state.guessAiBoardOnlyForced ?? false,
     });
 
     // 2. Mise à jour des joueurs

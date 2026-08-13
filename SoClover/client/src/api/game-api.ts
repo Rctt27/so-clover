@@ -117,6 +117,7 @@ export const gameApi = {
     guessDuration: number;
     semanticClueCheckEnabled: boolean;
     guessAiBoardOnly: boolean;
+    guessAiBoardOnlyForced: boolean;
   }> => {
     const response = await fetch(`/api/games/${gameId}/settings`, {
       method: 'PUT',

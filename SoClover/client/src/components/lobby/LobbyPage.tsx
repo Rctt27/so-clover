@@ -25,6 +25,7 @@ export const LobbyPage: React.FC = () => {
             guessDurationSeconds: state.guessDurationSecondsOverride ?? 300,
             semanticClueCheckEnabled: state.semanticClueCheckEnabled ?? true,
             guessAiBoardOnly: state.guessAiBoardOnly ?? false,
+            guessAiBoardOnlyForced: state.guessAiBoardOnlyForced ?? false,
           });
         }
       } catch (err) {

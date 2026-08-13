@@ -16,7 +16,8 @@
     "semanticLabel": "Contrôle sémantique des indices",
     "semanticDisabled": "Disponible uniquement avec les dictionnaires Français et Anglais",
     "guessAiLabel": "Deviner uniquement les plateaux IA",
-    "guessAiDisabled": "Disponible uniquement si au moins un joueur IA est dans la partie"
+    "guessAiDisabled": "Disponible uniquement si au moins un joueur IA est dans la partie",
+    "guessAiForced": "Obligatoire : vous êtes le seul joueur humain, personne ne pourrait deviner votre plateau"
   },
   "players": {
     "title": "Joueurs",

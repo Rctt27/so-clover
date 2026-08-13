@@ -19,7 +19,9 @@ export const GameSettings: React.FC = () => {
   const semanticSupported = supportsSemanticCheck(settings.language)
   const semanticEnabled = settings.semanticClueCheckEnabled
   const hasAIPlayer = players.some(p => p.isAI)
-  const guessAiBoardOnlyEnabled = settings.guessAiBoardOnly
+  // Imposé par le serveur : un humain seul face à des IA ne peut deviner que des plateaux IA.
+  const guessAiBoardOnlyForced = settings.guessAiBoardOnlyForced
+  const guessAiBoardOnlyEnabled = settings.guessAiBoardOnly || guessAiBoardOnlyForced
 
   useEffect(() => {
     setLocalCluesDuration(settings.cluesDurationSeconds);
@@ -58,6 +60,7 @@ export const GameSettings: React.FC = () => {
         guessDurationSeconds: updated.guessDuration,
         semanticClueCheckEnabled: updated.semanticClueCheckEnabled,
         guessAiBoardOnly: updated.guessAiBoardOnly,
+        guessAiBoardOnlyForced: updated.guessAiBoardOnlyForced,
       });
     } catch (err) {
       console.error('Failed to update settings', err);
@@ -209,12 +212,16 @@ export const GameSettings: React.FC = () => {
         <div>
           <label
             className="flex items-center gap-2 text-sm font-medium text-slate-600"
-            title={!hasAIPlayer ? t('settings.guessAiDisabled') : undefined}
+            title={
+              !hasAIPlayer
+                ? t('settings.guessAiDisabled')
+                : guessAiBoardOnlyForced ? t('settings.guessAiForced') : undefined
+            }
           >
             <input
               type="checkbox"
               checked={guessAiBoardOnlyEnabled && hasAIPlayer}
-              disabled={!isGameAdmin || loading || !hasAIPlayer}
+              disabled={!isGameAdmin || loading || !hasAIPlayer || guessAiBoardOnlyForced}
               onChange={(e) => handleToggleGuessAiBoardOnly(e.target.checked)}
               className="accent-emerald-500 disabled:opacity-50"
             />
@@ -225,6 +232,11 @@ export const GameSettings: React.FC = () => {
           {!hasAIPlayer && (
             <p className="text-xs text-slate-400 italic mt-1">
               {t('settings.guessAiDisabled')}
+            </p>
+          )}
+          {hasAIPlayer && guessAiBoardOnlyForced && (
+            <p className="text-xs text-slate-400 italic mt-1">
+              {t('settings.guessAiForced')}
             </p>
           )}
         </div>
