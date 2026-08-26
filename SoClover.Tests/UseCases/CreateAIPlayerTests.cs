@@ -1,3 +1,4 @@
+using SoClover.Infrastructure.AI;
 using SoClover.Domain;
 using SoClover.Infrastructure;
 using SoClover.Tests.Helpers;
@@ -150,4 +151,76 @@ public class CreateAIPlayerTests
                 game.GameId, game.CreatorPlayerId, "Bot-1", "gpt-4o-mini", 0.7)));
     }
 
+    private sealed class StubApiKeyProbe : ILlmApiKeyProbe
+    {
+        private readonly bool _available;
+        public StubApiKeyProbe(bool available) => _available = available;
+
+        public int CallCount { get; private set; }
+
+        public Task<bool> IsAvailableAsync(CancellationToken ct = default)
+        {
+            CallCount++;
+            return Task.FromResult(_available);
+        }
+    }
+
+    private static ServiceProvider BuildProviderWithProbe(bool flagEnabled, ILlmApiKeyProbe probe)
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IGameRepository, InMemoryGameRepository>();
+        services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
+        services.AddSingleton<IWordDictionary>(_ => new DeterministicWordDictionary());
+        services.AddSingleton<IClock>(_ => new TestClock(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
+        services.AddSingleton<IGameSettingsProvider>(_ => new TestGameSettingsProvider());
+        services.AddSingleton<IWordsPoolCache, InMemoryWordsPoolCache>();
+        services.Configure<GameDefaultsOptions>(_ => { });
+        services.Configure<AIPlayersOptions>(o => o.Enabled = flagEnabled);
+        services.AddSingleton(probe);
+        services.AddTransient<ICreateGameUseCase, CreateGame.Handler>();
+        services.AddTransient<ICreateAIPlayerUseCase, CreateAIPlayer.Handler>();
+        return services.BuildServiceProvider();
+    }
+
+    [Fact]
+    public async Task Cannot_create_AI_player_when_llm_api_key_is_unavailable()
+    {
+        // Garde-fou serveur : un client resté ouvert au-delà du TTL de la sonde ne doit pas
+        // pouvoir ajouter un bot qui échouerait ensuite en pleine génération d'indices.
+        var sp = BuildProviderWithProbe(flagEnabled: true, new StubApiKeyProbe(available: false));
+
+        var game = await sp.GetRequiredService<ICreateGameUseCase>().Handle(new CreateGame.Request("Admin"));
+
+        await Assert.ThrowsAsync<AIPlayersDisabledException>(() =>
+            sp.GetRequiredService<ICreateAIPlayerUseCase>().Handle(new CreateAIPlayer.Request(
+                game.GameId, game.CreatorPlayerId, "Bot-1", "gpt-4o-mini", 0.7)));
+    }
+
+    [Fact]
+    public async Task Creates_AI_player_when_llm_api_key_is_available()
+    {
+        var sp = BuildProviderWithProbe(flagEnabled: true, new StubApiKeyProbe(available: true));
+
+        var game = await sp.GetRequiredService<ICreateGameUseCase>().Handle(new CreateGame.Request("Admin"));
+
+        var response = await sp.GetRequiredService<ICreateAIPlayerUseCase>().Handle(new CreateAIPlayer.Request(
+            game.GameId, game.CreatorPlayerId, "Bot-1", "gpt-4o-mini", 0.7));
+
+        Assert.NotEqual(default, response.PlayerId);
+    }
+
+    [Fact]
+    public async Task Disabled_flag_short_circuits_the_api_key_probe()
+    {
+        var probe = new StubApiKeyProbe(available: true);
+        var sp = BuildProviderWithProbe(flagEnabled: false, probe);
+
+        var game = await sp.GetRequiredService<ICreateGameUseCase>().Handle(new CreateGame.Request("Admin"));
+
+        await Assert.ThrowsAsync<AIPlayersDisabledException>(() =>
+            sp.GetRequiredService<ICreateAIPlayerUseCase>().Handle(new CreateAIPlayer.Request(
+                game.GameId, game.CreatorPlayerId, "Bot-1", "gpt-4o-mini", 0.7)));
+
+        Assert.Equal(0, probe.CallCount);
+    }
 }
