@@ -26,6 +26,32 @@ builder.Services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<LlmO
 builder.Services.Configure<AIPlayersOptions>(
     builder.Configuration.GetSection(AIPlayersOptions.SectionName));
 
+const string LlmCredentialProbeHttpClientName = "llm-credential-probe";
+
+// Sonde de disponibilité de la clé API LLM (double contrôle de la feature « joueurs IA » :
+// flag appsettings ET clé acceptée par le provider). Le choix de l'impl suit le provider, en
+// miroir du switch de ChatClientFactory ; seul Anthropic est réellement sondé.
+builder.Services.AddHttpClient(LlmCredentialProbeHttpClientName)
+    // Client capturé par un singleton : PooledConnectionLifetime évite qu'une entrée DNS
+    // périmée ne survive indéfiniment dans le pool de connexions.
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(15)
+    });
+builder.Services.AddSingleton<ILlmCredentialChecker>(sp =>
+{
+    var opts = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<LlmOptions>>();
+    if (opts.Value.Provider != LlmProvider.Anthropic)
+        return new AlwaysValidLlmCredentialChecker();
+
+    var http = sp.GetRequiredService<IHttpClientFactory>().CreateClient(LlmCredentialProbeHttpClientName);
+    return new AnthropicLlmCredentialChecker(http, opts);
+});
+// Singleton : le cache et le sémaphore de la sonde sont volontairement process-wide.
+builder.Services.AddSingleton<ILlmApiKeyProbe>(sp => new CachedLlmApiKeyProbe(
+    sp.GetRequiredService<ILlmCredentialChecker>(),
+    sp.GetRequiredService<SoClover.UseCases.Abstractions.IClock>()));
+
 // Per-game LLM call budget. Singleton so counters survive across requests within a process lifetime.
 builder.Services.AddSingleton<GameLlmBudget>(sp =>
 {
@@ -1238,8 +1264,29 @@ app.MapGet("/api/dictionaries", (IWebHostEnvironment env) =>
     }
 });
 
-app.MapGet("/api/config", (Microsoft.Extensions.Options.IOptions<AIPlayersOptions> aiOpts) =>
-    Results.Ok(new { aiPlayersEnabled = aiOpts.Value.Enabled, clueMaxLength = Game.MaxClueLength }))
+// Double contrôle de la feature « joueurs IA » : le flag appsettings ET la disponibilité de la
+// clé API côté provider (révocable à la demande depuis la console Anthropic). Le && court-circuite
+// la sonde quand le flag est déjà à false. aiPlayersEnabled reste le booléen *effectif* consommé
+// par le front ; aiPlayersUnavailableReason ne sert qu'à choisir le message de survol.
+app.MapGet("/api/config", async (
+    Microsoft.Extensions.Options.IOptions<AIPlayersOptions> aiOpts,
+    ILlmApiKeyProbe apiKeyProbe,
+    CancellationToken ct) =>
+{
+    var flagEnabled = aiOpts.Value.Enabled;
+    var effectivelyEnabled = flagEnabled && await apiKeyProbe.IsAvailableAsync(ct);
+
+    var unavailableReason = flagEnabled
+        ? (effectivelyEnabled ? null : "apiKeyUnavailable")
+        : "disabled";
+
+    return Results.Ok(new
+    {
+        aiPlayersEnabled = effectivelyEnabled,
+        aiPlayersUnavailableReason = unavailableReason,
+        clueMaxLength = Game.MaxClueLength
+    });
+})
     .WithName("GetPublicConfig");
 
 app.MapGet("/health", () => Results.Ok());

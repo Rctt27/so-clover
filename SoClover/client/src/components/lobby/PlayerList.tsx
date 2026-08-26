@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useGameStore, useAppConfigStore } from '../../core/store';
 import { gameApi } from '../../api/game-api';
+import { addAiTooltipKey } from './addAiTooltipKey';
 
 export const PlayerList: React.FC = () => {
   const { t } = useTranslation('lobby');
@@ -11,6 +12,8 @@ export const PlayerList: React.FC = () => {
   const [addingAI, setAddingAI] = useState(false);
   const [addAIError, setAddAIError] = useState<string | null>(null);
   const aiPlayersEnabled = useAppConfigStore(s => s.aiPlayersEnabled);
+  const aiPlayersUnavailableReason = useAppConfigStore(s => s.aiPlayersUnavailableReason);
+  const addAiTooltip = addAiTooltipKey(aiPlayersEnabled, aiPlayersUnavailableReason);
 
   const aiPlayers = players.filter(p => p.isAI);
   const aiPlayerCount = aiPlayers.length;
@@ -112,7 +115,7 @@ export const PlayerList: React.FC = () => {
           <button
             onClick={handleAddAIPlayer}
             disabled={addingAI || aiPlayersEnabled !== true}
-            title={aiPlayersEnabled === false ? t('players.addAiDisabled') : undefined}
+            title={addAiTooltip ? t(addAiTooltip) : undefined}
             className="w-full text-sm font-medium text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded-lg py-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {addingAI ? t('players.adding') : t('players.addAi')}

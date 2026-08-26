@@ -99,6 +99,18 @@ public class AIPlayersDisabledException : DomainException
         : base("AI players are disabled on this server.")
     {
     }
+
+    private AIPlayersDisabledException(string message) : base(message)
+    {
+    }
+
+    /// <summary>
+    /// La feature est activée en configuration mais la clé API du provider LLM est refusée
+    /// (révoquée depuis la console). Même type d'exception — donc même 403 — mais un message
+    /// distinct pour que les logs disent laquelle des deux portes a fermé.
+    /// </summary>
+    public static AIPlayersDisabledException ApiKeyUnavailable() =>
+        new("AI players are temporarily unavailable: the LLM API key was rejected by the provider.");
 }
 
 public class MaxAIPlayersReachedException : DomainException

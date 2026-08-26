@@ -29,6 +29,7 @@
     "addAiError": "Erreur lors de l'ajout",
     "adding": "Ajout en cours...",
     "addAi": "+ Ajouter un joueur IA",
-    "addAiDisabled": "Fonctionnalité actuellement désactivée en production"
+    "addAiDisabled": "Fonctionnalité actuellement désactivée en production",
+    "addAiApiUnavailable": "L'accès à l'API LLM est temporairement désactivé. Contacte-moi si tu veux essayer les joueurs IA."
   }
 }

@@ -29,6 +29,7 @@
     "addAiError": "Error while adding",
     "adding": "Adding…",
     "addAi": "+ Add an AI player",
-    "addAiDisabled": "Feature currently disabled in production"
+    "addAiDisabled": "Feature currently disabled in production",
+    "addAiApiUnavailable": "Access to the LLM API is temporarily disabled. Please contact me if you want to give AI players a shot."
   }
 }

@@ -18,8 +18,16 @@ export interface JoinGameConflictResponse {
 
 export type JoinGameResult = JoinGameResponse | JoinGameConflictResponse;
 
+/**
+ * Cause de l'indisponibilité des joueurs IA. `disabled` = flag serveur coupé,
+ * `apiKeyUnavailable` = clé API du provider LLM révoquée. Ne sert qu'à choisir le
+ * message de survol : `aiPlayersEnabled` porte déjà la disponibilité effective.
+ */
+export type AiPlayersUnavailableReason = 'disabled' | 'apiKeyUnavailable';
+
 export interface PublicConfigResponse {
   aiPlayersEnabled: boolean;
+  aiPlayersUnavailableReason: AiPlayersUnavailableReason | null;
   clueMaxLength: number;
 }
 
