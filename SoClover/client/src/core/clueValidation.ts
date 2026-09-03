@@ -31,7 +31,8 @@ export const isFrenchLanguage = (language: string): boolean =>
 
 // Languages whose dictionaries support semantic clue conformity validation.
 // Keep in sync with the backend SemanticValidationSupport.
-const SEMANTIC_SUPPORTED_PREFIXES = ['francais', 'english']
+// normalizeText strips diacritics, so 'portugues' also covers 'Português'.
+const SEMANTIC_SUPPORTED_PREFIXES = ['francais', 'english', 'portugues']
 
 export const supportsSemanticCheck = (language: string): boolean => {
     const norm = normalizeText(language)
