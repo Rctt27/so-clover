@@ -1,6 +1,6 @@
 ﻿export const CONSTANTS = {
   // À mettre à jour à chaque release de version (cf. CLAUDE.md § Versioning)
-  APP_VERSION: '2.18.4',
+  APP_VERSION: '2.18.5',
   GAME_URL_PREFIX: '/g/',
   SIGNALR_HUB_URL: '/hubs/game',
   RECONNECT: {
@@ -49,6 +49,36 @@
     clueUnderlineColorSuccess: '#4CAF50', // Vert Trèfle (souligné « validé », transitoire)
     clueUnderlineColorSaving: '#2196F3', // Bleu (souligné « sauvegarde / non-sauvé »)
     clueUnderlineColorError: '#F44336', // Rouge (souligné « erreur »)
+    // Pastille « ? » signalant qu'une explication LLM est consultable sur un indice IA
+    // (phase Guessing, une fois le board résolu). Dimensions en em → l'icône suit la
+    // taille de police fluide de l'indice (clueFontSize) sur toutes les tailles d'écran.
+    clueHintSizeEm: 1.15,          // Diamètre de la pastille, relatif à la police de l'indice
+    clueHintGapEm: 0.35,           // Espace entre la fin du mot et la pastille
+    clueHintBorderWidth: '1px',    // Contour de la pastille (même trait fin que le souligné)
+    clueHintIdleOpacity: 0.65,     // Opacité au repos ; 1 quand l'indice est survolé / le tooltip est ouvert
+    clueHintEnterScale: 0.55,      // Échelle de départ du zoom-in d'apparition
+    clueHintStaggerSec: 0.08,      // Pas de la cascade Top → Right → Bottom → Left
+    clueHintTapPaddingPx: 10,      // Tactile : débordement invisible de la zone de tap autour de la pastille
+    // Recentrage optique du « ? » dans sa pastille. Le flex centre la BOÎTE DE LIGNE, pas
+    // l'encre du glyphe : avec line-height 1, Mogra (ascent .85 / descent .35 em) place le
+    // centre de cette boîte 0.25em SOUS la baseline alors que l'encre du « ? » est centrée
+    // 0.42em AU-DESSUS → le glyphe monte de 0.17em. Mogra étant penchée, son encre déborde
+    // aussi de 0.046em à droite de l'avance. Valeurs mesurées au pixel sur la webfont du
+    // projet (donc identiques pour tous les clients), en em de la police du glyphe.
+    clueHintGlyphNudgeXEm: -0.05,
+    clueHintGlyphNudgeYEm: 0.17,
+    // Alignement de la pastille sur le mot. Le calque flex centre la BOÎTE DE LIGNE du
+    // clone, pas l'encre du mot : en Mogra le milieu des capitales est 0.135em au-dessus
+    // du centre de cette boîte, donc la pastille paraît basse. On la remonte d'autant pour
+    // que son centre tombe au milieu des capitales de l'indice (mesuré au pixel).
+    clueHintCapAlignEm: -0.135,
+    // Halo d'apparition : lueur qui naît sous la pastille, se dilate et s'éteint. Blanc
+    // légèrement crème — sur le vert saturé de la pétale, un blanc pur claque et un doré
+    // vire au jaune sale. Exprimé en composantes RGB car injecté dans un radial-gradient.
+    clueHintHaloColor: '255, 253, 240',
+    clueHintHaloScale: 2.2,          // Diamètre du halo, en multiples de la pastille
+    clueHintHaloPeakOpacity: 0.55,   // Opacité au pic de la lueur (début et fin à 0)
+    clueHintHaloDurationSec: 0.55,
     animations: {
       board: {
         initial: { opacity: 0, scale: 0.9 },
