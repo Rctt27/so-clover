@@ -14,6 +14,10 @@ import { shouldAutoPersistClue } from './shouldAutoPersistClue'
 
 export type ClueStatus = 'idle' | 'saving' | 'success' | 'error'
 
+// Ordre de la cascade d'apparition des pastilles « ? » autour du trèfle : chaque
+// direction entre avec un décalage de clueHintStaggerSec × son index.
+const CLUE_HINT_CASCADE_ORDER = ['top', 'right', 'bottom', 'left'] as const
+
 interface ClueInputProps {
   position: 'top' | 'right' | 'bottom' | 'left'
   value: string
@@ -160,6 +164,18 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
 
   const explanationIsAvailable = !!disabled && !!explanation
 
+  // Le décalage de cascade ne vaut que pour l'apparition : une fois la pastille en place,
+  // le fondu d'opacité au survol doit être immédiat. On retombe donc à 0 dès la fin de
+  // l'animation d'entrée, et on réarme quand l'explication redisparaît (passage au board
+  // suivant → les pastilles rejouent la cascade).
+  const [hintHasEntered, setHintHasEntered] = useState(false)
+  useEffect(() => {
+    if (!explanationIsAvailable) setHintHasEntered(false)
+  }, [explanationIsAvailable])
+  const hintDelay = hintHasEntered
+    ? 0
+    : CLUE_HINT_CASCADE_ORDER.indexOf(position) * theme.clueHintStaggerSec
+
   // Tactile : fermer le tooltip ouvert au tap quand on tape en dehors de l'indice.
   useEffect(() => {
     if (!isCoarse || !isTooltipVisible) return
@@ -213,17 +229,105 @@ export const ClueInput: React.FC<ClueInputProps> = ({ position, value, onSave, d
         }}
       />
 
-      {/* Tactile : bouton info explicite (hover indisponible). Tap → toggle du tooltip. */}
-      {explanationIsAvailable && isCoarse && (
-        <button
-          type="button"
-          aria-label={t('clueExplanationAria')}
-          aria-expanded={isTooltipVisible}
-          onClick={() => setIsTooltipVisible((v) => !v)}
-          className="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center rounded-full bg-blue-500 text-white text-xs font-bold shadow-md leading-none"
+      {/* Affordance « une explication est consultable » : pastille « ? » collée à droite du
+          mot. L'<input> occupe toute la pétale avec un texte centré → impossible de s'ancrer
+          sur son bord droit. Ce calque duplique donc l'indice en invisible pour reprendre la
+          largeur réelle du texte ; le padding-left compensatoire (pastille + gap) recentre ce
+          clone exactement sous le vrai texte, quelle que soit la longueur de l'indice. */}
+      {explanationIsAvailable && (
+        <div
+          className={`clue-word absolute inset-0 flex items-center justify-center pointer-events-none ${theme.clueFontClass}`}
+          style={{
+            paddingLeft: `calc(${theme.clueHintSizeEm}em + ${theme.clueHintGapEm}em)`,
+            fontWeight: theme.clueFontWeight,
+            fontSize: theme.clueFontSize,
+          }}
         >
-          i
-        </button>
+          <span style={{ visibility: 'hidden', whiteSpace: 'pre', minWidth: 0, overflow: 'hidden' }}>
+            {localValue}
+          </span>
+          {/* Le halo est un FRERE du bouton, pas un enfant : dans le bouton il hériterait du
+              scale d'entrée de Framer et les deux animations se composeraient. Ce wrapper porte
+              donc le gap et l'alignement cap-height, le bouton ne garde que sa propre boîte. */}
+          <span
+            className="relative shrink-0"
+            style={{
+              marginLeft: `${theme.clueHintGapEm}em`,
+              top: `${theme.clueHintCapAlignEm}em`,
+              lineHeight: 0,
+            }}
+          >
+            {/* Lueur d'apparition : naît au centre de la pastille, se dilate et se dissipe.
+                Même délai de cascade que sa pastille → la lumière et l'éclosion partent
+                ensemble. Montée seulement pendant l'entrée puis démontée : aucun re-render
+                ultérieur (survol, ouverture du tooltip) ne peut relancer la lueur. */}
+            {!hintHasEntered && (
+              <motion.span
+                aria-hidden="true"
+                className="absolute rounded-full pointer-events-none"
+                style={{
+                  width: `${theme.clueHintSizeEm * theme.clueHintHaloScale}em`,
+                  height: `${theme.clueHintSizeEm * theme.clueHintHaloScale}em`,
+                  left: '50%',
+                  top: '50%',
+                  marginLeft: `-${(theme.clueHintSizeEm * theme.clueHintHaloScale) / 2}em`,
+                  marginTop: `-${(theme.clueHintSizeEm * theme.clueHintHaloScale) / 2}em`,
+                  background: `radial-gradient(circle, rgba(${theme.clueHintHaloColor}, 0.95) 0%, rgba(${theme.clueHintHaloColor}, 0.45) 45%, rgba(${theme.clueHintHaloColor}, 0) 70%)`,
+                }}
+                initial={{ opacity: 0, scale: 0.35 }}
+                animate={{ opacity: [0, theme.clueHintHaloPeakOpacity, 0], scale: [0.35, 1, 1.25] }}
+                transition={{
+                  duration: theme.clueHintHaloDurationSec,
+                  times: [0, 0.35, 1],
+                  ease: 'easeOut',
+                  delay: hintDelay,
+                }}
+              />
+            )}
+            {/* Pointeur fin : le survol de l'indice ouvre déjà le tooltip, la pastille n'est
+                qu'un repère visuel → inerte et masquée aux lecteurs d'écran. Tactile : elle est
+                le seul déclencheur possible (pas de hover) → vrai bouton. */}
+            <motion.button
+              type="button"
+              aria-hidden={isCoarse ? undefined : true}
+              tabIndex={isCoarse ? undefined : -1}
+              aria-label={isCoarse ? t('clueExplanationAria') : undefined}
+              aria-expanded={isCoarse ? isTooltipVisible : undefined}
+              onClick={isCoarse ? () => setIsTooltipVisible((v) => !v) : undefined}
+              initial={{ opacity: 0, scale: theme.clueHintEnterScale }}
+              animate={{ opacity: isTooltipVisible ? 1 : theme.clueHintIdleOpacity, scale: 1 }}
+              transition={{
+                scale: { type: 'spring', stiffness: 380, damping: 18, delay: hintDelay },
+                opacity: { duration: 0.25, ease: 'easeOut', delay: hintDelay },
+              }}
+              onAnimationComplete={() => setHintHasEntered(true)}
+              className="relative shrink-0 flex items-center justify-center rounded-full leading-none"
+              style={{
+                width: `${theme.clueHintSizeEm}em`,
+                height: `${theme.clueHintSizeEm}em`,
+                border: `${theme.clueHintBorderWidth} solid ${theme.clueUnderlineColor}`,
+                color: theme.clueTextColor,
+                pointerEvents: isCoarse ? 'auto' : 'none',
+                cursor: isCoarse ? 'pointer' : undefined,
+              }}
+            >
+              {/* Tactile : la pastille suit la police de l'indice (~13-25px) — trop petit pour
+                  un tap. Cette zone invisible débordante élargit la cible sans changer le visuel ;
+                  le clic remonte au bouton parent. */}
+              {isCoarse && (
+                <span aria-hidden="true" className="absolute" style={{ inset: `-${theme.clueHintTapPaddingPx}px` }} />
+              )}
+              <span
+                style={{
+                  fontSize: '0.7em',
+                  transform: `translate(${theme.clueHintGlyphNudgeXEm}em, ${theme.clueHintGlyphNudgeYEm}em)`,
+                }}
+              >
+                ?
+              </span>
+            </motion.button>
+          </span>
+        </div>
       )}
 
       {explanationIsAvailable && (
