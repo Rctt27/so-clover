@@ -28,8 +28,20 @@ public sealed class AiCluePromptProviderFactoryTests
     }
 
     [Theory]
-    [InlineData("Klingon")]
+    [InlineData("Portuguese")]
+    [InlineData("portuguese")]
     [InlineData("Portuguese_(from_FR_OFF)")]
+    [InlineData("PORTUGUESE")]
+    // Normalize strips diacritics, so the native spelling resolves through the same prefix.
+    [InlineData("Português")]
+    public void IsLanguageSupported_returns_true_for_portuguese_variants(string lang)
+    {
+        var factory = new AiCluePromptProviderFactory();
+        Assert.True(factory.IsLanguageSupported(lang));
+    }
+
+    [Theory]
+    [InlineData("Klingon")]
     [InlineData("")]
     [InlineData(null)]
     public void IsLanguageSupported_returns_false_for_unsupported_or_null(string? lang)
@@ -60,6 +72,18 @@ public sealed class AiCluePromptProviderFactoryTests
         Assert.NotNull(provider);
         Assert.Equal("Français_OFF", provider.Language);
         Assert.IsType<FrenchAiCluePromptProvider>(provider);
+    }
+
+    [Fact]
+    public void GetFor_returns_portuguese_provider_for_portuguese_language()
+    {
+        var factory = new AiCluePromptProviderFactory();
+
+        var provider = factory.GetFor("Portuguese_(from_FR_OFF)");
+
+        Assert.NotNull(provider);
+        Assert.Equal("Portuguese_(from_FR_OFF)", provider.Language);
+        Assert.IsType<PortugueseAiCluePromptProvider>(provider);
     }
 
     [Fact]

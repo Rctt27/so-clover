@@ -6,6 +6,7 @@ public sealed class AiCluePromptProviderFactory : IAiCluePromptProviderFactory
 {
     private static readonly FrenchAiCluePromptProvider French = new();
     private static readonly EnglishAiCluePromptProvider English = new();
+    private static readonly PortugueseAiCluePromptProvider Portuguese = new();
 
     public IAiCluePromptProvider? GetFor(string language)
     {
@@ -14,6 +15,10 @@ public sealed class AiCluePromptProviderFactory : IAiCluePromptProviderFactory
             return French;
         if (norm.StartsWith("english", StringComparison.Ordinal))
             return English;
+        // Normalize strips diacritics, so "portugues" matches both "Portuguese_(from_FR_OFF)"
+        // and the native spelling "Português".
+        if (norm.StartsWith("portugues", StringComparison.Ordinal))
+            return Portuguese;
 
         return null;
     }

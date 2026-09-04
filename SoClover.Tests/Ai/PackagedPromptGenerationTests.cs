@@ -20,6 +20,7 @@ public sealed class PackagedPromptGenerationTests
     {
         "Français_OFF",
         "English_(from_FR_OFF)",
+        "Portuguese_(from_FR_OFF)",
     };
 
     private static BoardCluesPromptContext SampleContext(string language, IReadOnlyList<Direction> remaining)
