@@ -37,6 +37,7 @@ public class DeterministicWordDictionaryTests
     {
         new FrenchOffClueValidator(),
         new EnglishOffClueValidator(),
+        new PortugueseOffClueValidator(),
     };
 
     [Fact]

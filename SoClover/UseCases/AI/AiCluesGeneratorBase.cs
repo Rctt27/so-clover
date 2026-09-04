@@ -120,6 +120,16 @@ public abstract class AiCluesGeneratorBase : IGenerateAICluesUseCase
                 FailedCount: budgetFailed,
                 LlmCallsConsumed: _llmCalls);
         }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Filet de sécurité : une exception inattendue ne doit jamais remonter sans que le front
+            // reçoive un event de fin, sinon le joueur IA reste suspendu à N/4 indéfiniment (aucun
+            // AiClueGenerationFailed, aucun AiPlayerBoardFailed). On journalise et on laisse le flux
+            // continuer vers les events d'échec ci-dessous, qui couvrent les directions non résolues.
+            _logger.LogError(ex,
+                "AI clue generation aborted by an unexpected error: game={GameId} player={PlayerId} remainingDirections={RemainingDirections}",
+                game.Id.Value, player.Id.Value, string.Join(",", remaining));
+        }
 
         foreach (var dir in remaining)
         {

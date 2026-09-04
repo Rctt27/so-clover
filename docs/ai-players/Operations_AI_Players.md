@@ -97,6 +97,40 @@ curl -s -X POST "http://localhost:5000/api/games/$GAME_ID/start"
 curl -s "http://localhost:5000/api/games/$GAME_ID/state" | jq '.players[] | select(.isAI) | .board'
 ```
 
+## 4 bis. Fumée multilingue (FR / EN / PT)
+
+Les joueurs IA sont câblés sur les **trois** dictionnaires livrés. Rejouer la
+séquence du §4 en changeant seulement `language` à la création :
+
+| Langue | `language` à passer | Dossier prompt | Validateur d'indices |
+|---|---|---|---|
+| Français | `Français_OFF` | `Prompts/fr/` | `FrenchOffClueValidator` (R1 + R2) |
+| Anglais | `English_(from_FR_OFF)` | `Prompts/en/` | `EnglishOffClueValidator` (R1) |
+| Portugais | `Portuguese_(from_FR_OFF)` | `Prompts/pt/` | `PortugueseOffClueValidator` (R1) |
+
+Sur chacune des trois, vérifier :
+
+1. `POST /api/games/{id}/ai-players` renvoie **200** (un 400
+   `UnsupportedAiLanguageException` signifie que la branche de langue manque
+   dans `AiCluePromptProviderFactory.GetFor`) ;
+2. dans les logs, `promptVersion=5` sur la ligne « AI clue LLM call completed »
+   — c'est la génération PerDirection commune aux trois langues ; un autre
+   numéro veut dire qu'on ne sert pas le prompt attendu ;
+3. les indices sont produits **dans la langue de la partie**, pas en anglais par
+   défaut ;
+4. au moins un cycle `AI clue rejected` → retry apparaît, en PT comme en FR :
+   c'est la preuve que le validateur de la langue est bien branché (sans lui,
+   `NullClueValidator` accepte tout et la boucle de retry ne se déclenche
+   jamais).
+
+Un modèle local **multilingue** est nécessaire : un modèle anglophone étroit
+produira des indices en anglais sur un board portugais. `gemma-4-12b-qat`
+(défaut `appsettings.Development.json`) convient.
+
+Second passage avec `LLM__REASONINGENABLED=true` : la variante
+`board-clues-per-direction.reasoning.md` de chaque langue doit être chargée
+(`promptVersion=1`) sans lever `FileNotFoundException`.
+
 ## 5. Lire les logs structurés
 
 Chaque tentative LLM produit 2 lignes (côté console backend) avec ce template

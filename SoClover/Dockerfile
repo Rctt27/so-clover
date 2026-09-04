@@ -10,7 +10,11 @@ COPY SoClover/client/ ./
 # Usage: docker compose build --build-arg VITE_DEBUG_MODE=true web
 ARG VITE_DEBUG_MODE=false
 ENV VITE_DEBUG_MODE=$VITE_DEBUG_MODE
-RUN npm install
+# --no-audit: npm 10's audit endpoint (/-/npm/v1/security/audits/quick) answers 503
+# after a 120s timeout and npm retries it, adding ~415s to the 421s of this step for
+# nothing. The pending request prints no output, so the build looks frozen on the
+# previous stage's COPY. --no-fund silences the funding notice. Measured: 421s -> 6s.
+RUN npm install --no-audit --no-fund
 RUN npm run build
 
 # ------------------------
