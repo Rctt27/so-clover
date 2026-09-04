@@ -55,8 +55,17 @@ public static class GenerateAICluesPerDirection
                     try
                     {
                         var single = new HashSet<Direction> { dir };
+                        // Le contexte de prompt doit rester cohérent : RemainingDirections est restreint à
+                        // `dir`, donc l'historique de rejets l'est aussi. Sans ce filtrage, les rejets des
+                        // directions déjà traitées violent l'invariant de FileAiCluePromptProvider
+                        // (ArgumentException non rattrapée, board suspendu) et fuiteraient dans le
+                        // {{retryFeedback}} du prompt mono-direction.
+                        var singleHistory = new Dictionary<Direction, List<RejectedAttempt>>();
+                        if (rejectedHistory.TryGetValue(dir, out var historyForDir))
+                            singleHistory[dir] = historyForDir;
+
                         (draft, _) = await CallLlmAsync(
-                            game, player, single, rejectedHistory, promptProvider, attempt, ct,
+                            game, player, single, singleHistory, promptProvider, attempt, ct,
                             buildBundle: static (p, ctx) => p.BuildSingleDirectionCluePrompt(ctx),
                             parseResponse: AiClueResponseParser.ParseSingleDirection);
                     }

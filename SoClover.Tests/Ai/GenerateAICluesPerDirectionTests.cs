@@ -320,6 +320,98 @@ public class GenerateAICluesPerDirectionTests
         Assert.Empty(genericWarnings);
     }
 
+    // Le pipeline PerDirection restreint volontairement RemainingDirections à la direction courante, mais
+    // partageait jusqu'ici l'historique de rejets COMPLET. FileAiCluePromptProvider.ValidateContext porte
+    // l'invariant du pipeline PerBoard (« toute direction rejetée est dans les restantes ») et levait donc
+    // une ArgumentException dès qu'une direction antérieure avait accumulé un rejet — exception non
+    // rattrapée, qui remontait hors de Handle et laissait le board suspendu sans aucun event de fin.
+    // Second effet, masqué par le crash : le {{retryFeedback}} du prompt mono-direction rendait aussi
+    // les tentatives rejetées des AUTRES directions.
+    [Fact]
+    public async Task Each_single_direction_call_only_carries_the_rejection_history_of_that_direction()
+    {
+        var fake = new FakeChatClient();
+        var captured = new List<(Direction Resolved, Direction[] RejectedKeys)>();
+        var sp = BuildPerDirection(fake, promptBuild: ctx =>
+        {
+            captured.Add((ctx.RemainingDirections.Single(), ctx.RejectedPerDirection.Keys.ToArray()));
+            return new AiCluePromptBundle("S", "U", "{}");
+        });
+        var (gameId, aiPids) = await AiTestProvider.SetupGameWithAis(sp);
+        var aiPid = aiPids[0];
+
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var board = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPid).Board;
+        var safe = AiTestHelpers.PickSafeClues(board, 3);
+        var conflict = PickConflictWord(board);
+
+        // Right épuise ses 3 tentatives sur des rejets du validateur : c'est ce qui peuple rejectedHistory
+        // avant que Bottom et Left ne soient traitées à leur tour.
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Top,    safe[0], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Right,  conflict, "c1") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Right,  conflict, "c2") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Right,  conflict, "c3") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Bottom, safe[1], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Left,   safe[2], "ok") });
+
+        await sp.GetRequiredService<IGenerateAICluesUseCase>()
+            .Handle(new GenerateAIClues.Request(gameId, aiPid));
+
+        Assert.Equal(6, captured.Count);
+        Assert.All(captured, c => Assert.All(c.RejectedKeys, k => Assert.Equal(c.Resolved, k)));
+
+        // Et l'historique reste bien transmis pour la direction courante : la 3e tentative de Right
+        // doit voir ses 2 rejets précédents, sans quoi le retryFeedback serait vide.
+        var thirdRightAttempt = captured[3];
+        Assert.Equal(Direction.Right, thirdRightAttempt.Resolved);
+        Assert.Equal(new[] { Direction.Right }, thirdRightAttempt.RejectedKeys);
+    }
+
+    // Filet de sécurité : quoi qu'il arrive dans le pipeline, le front doit recevoir un event de fin.
+    // Sans lui, une exception inattendue (cf. le crash ValidateContext ci-dessus) laisse le joueur IA
+    // suspendu à N/4 indéfiniment, sans AiClueGenerationFailed ni AiPlayerBoardFailed.
+    [Fact]
+    public async Task Unexpected_exception_mid_board_still_publishes_board_failure_events()
+    {
+        var fake = new FakeChatClient();
+        var calls = 0;
+        var sp = BuildPerDirection(fake, promptBuild: _ =>
+        {
+            calls++;
+            if (calls == 2)
+                throw new ArgumentException("boom");
+            return new AiCluePromptBundle("S", "U", "{}");
+        });
+        var (gameId, aiPids) = await AiTestProvider.SetupGameWithAis(sp);
+        var aiPid = aiPids[0];
+
+        var repo = sp.GetRequiredService<IGameRepository>();
+        var board = (await repo.Get(gameId))!.Players.First(p => p.Id == aiPid).Board;
+        var safe = AiTestHelpers.PickSafeClues(board, 4);
+
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Top,    safe[0], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Right,  safe[1], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Bottom, safe[2], "ok") });
+        AiTestProvider.EnqueueValidJson(fake, new[] { (Direction.Left,   safe[3], "ok") });
+
+        var events = sp.GetRequiredService<InMemoryEventPublisher>();
+
+        var response = await sp.GetRequiredService<IGenerateAICluesUseCase>()
+            .Handle(new GenerateAIClues.Request(gameId, aiPid));
+
+        Assert.Equal(1, response.SucceededCount);
+        Assert.Equal(3, response.FailedCount);
+
+        var failed = events.PublishedEvents.OfType<AiClueGenerationFailed>().ToList();
+        Assert.Contains(failed, e => e.Direction == Direction.Right);
+        Assert.Contains(failed, e => e.Direction == Direction.Bottom);
+        Assert.Contains(failed, e => e.Direction == Direction.Left);
+        Assert.Contains(events.PublishedEvents.OfType<AiPlayerBoardFailed>(), _ => true);
+
+        var game = await repo.Get(gameId);
+        Assert.False(game!.Players.First(p => p.Id == aiPid).Board.IsSubmitted);
+    }
+
     private static string PickConflictWord(CloverBoard board)
     {
         // Réutilise le pattern du test PerBoard : prend un mot apparaissant déjà sur le board pour forcer un rejet.
