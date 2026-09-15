@@ -1,0 +1,92 @@
+### H1a — créer la version 1 d'un prompt
+POST {{baseUrl}}/api/public/v2/prompts
+Authorization: Basic {{publicKey}} {{secretKey}}
+Content-Type: application/json
+
+{"name":"spike-prompt","type":"text","prompt":"---\nversion: 1\n---\n# SYSTEM\nBonjour.","labels":["v1","production"],"config":{"socloverVersion":1},"commitMessage":"spike"}
+
+### H1b — créer la version 2
+POST {{baseUrl}}/api/public/v2/prompts
+Authorization: Basic {{publicKey}} {{secretKey}}
+Content-Type: application/json
+
+{"name":"spike-prompt","type":"text","prompt":"---\nversion: 2\n---\n# SYSTEM\nBonsoir.","labels":["v2"],"config":{"socloverVersion":2},"commitMessage":"spike"}
+
+### H1c — lister : attendu data[0].versions = [1, 2]
+GET {{baseUrl}}/api/public/v2/prompts?name=spike-prompt
+Authorization: Basic {{publicKey}} {{secretKey}}
+
+### H1d — lire par version : attendu prompt = contenu v1 (chaîne), version = 1
+GET {{baseUrl}}/api/public/v2/prompts/spike-prompt?version=1
+Authorization: Basic {{publicKey}} {{secretKey}}
+
+### H1e — lire par label : attendu version = 1
+GET {{baseUrl}}/api/public/v2/prompts/spike-prompt?label=production
+Authorization: Basic {{publicKey}} {{secretKey}}
+
+### H2a — créer un dataset
+POST {{baseUrl}}/api/public/v2/datasets
+Authorization: Basic {{publicKey}} {{secretKey}}
+Content-Type: application/json
+
+{"name":"spike-dataset","description":"spike","metadata":{"benchHash":"abc123"}}
+
+> {% client.global.set("datasetId", response.body.id); %}
+
+### H2b — item à id fourni (à envoyer DEUX fois) : attendu id = "dev-001-Top", un seul item
+POST {{baseUrl}}/api/public/dataset-items
+Authorization: Basic {{publicKey}} {{secretKey}}
+Content-Type: application/json
+
+{"datasetName":"spike-dataset","id":"dev-001-Top","input":{"words":["Paradis","Terrasse"]},"expectedOutput":{"referenceWords":["Paradis","Terrasse"]},"metadata":{"benchHash":"abc123"}}
+
+### H2c — relire le dataset : attendu metadata.benchHash = abc123
+GET {{baseUrl}}/api/public/v2/datasets/spike-dataset
+Authorization: Basic {{publicKey}} {{secretKey}}
+
+### H3 — experiment OTLP daté du 2026-07-28 (à envoyer DEUX fois : attendu aucun doublon)
+POST {{baseUrl}}/api/public/otel/v1/traces
+Authorization: Basic {{publicKey}} {{secretKey}}
+x-langfuse-ingestion-version: 4
+Content-Type: application/json
+
+{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"soclover-eval"}}]},"scopeSpans":[{"scope":{"name":"soclover-eval.spike"},"spans":[
+ {"traceId":"0af7651916cd43dd8448eb211c80319c","spanId":"b7ad6b7169203331","name":"experiment-item","kind":1,"startTimeUnixNano":"1785196800000000000","endTimeUnixNano":"1785196801200000000","attributes":[
+  {"key":"langfuse.experiment.id","value":{"stringValue":"spike-experiment"}},
+  {"key":"langfuse.experiment.name","value":{"stringValue":"spike-experiment"}},
+  {"key":"langfuse.experiment.dataset.id","value":{"stringValue":"{{datasetId}}"}},
+  {"key":"langfuse.experiment.item.id","value":{"stringValue":"dev-001-Top"}},
+  {"key":"langfuse.experiment.item.root_observation_id","value":{"stringValue":"b7ad6b7169203331"}},
+  {"key":"langfuse.experiment.item.expected_output","value":{"stringValue":"{\"referenceWords\":[\"Paradis\",\"Terrasse\"]}"}},
+  {"key":"langfuse.observation.input","value":{"stringValue":"{\"words\":[\"Paradis\",\"Terrasse\"]}"}},
+  {"key":"langfuse.observation.output","value":{"stringValue":"Jardin"}}]},
+ {"traceId":"0af7651916cd43dd8448eb211c80319c","spanId":"c1b2c3d4e5f60718","parentSpanId":"b7ad6b7169203331","name":"decode-clue #0","kind":1,"startTimeUnixNano":"1785196800100000000","endTimeUnixNano":"1785196801100000000","attributes":[
+  {"key":"langfuse.experiment.id","value":{"stringValue":"spike-experiment"}},
+  {"key":"langfuse.experiment.name","value":{"stringValue":"spike-experiment"}},
+  {"key":"langfuse.experiment.dataset.id","value":{"stringValue":"{{datasetId}}"}},
+  {"key":"langfuse.experiment.item.id","value":{"stringValue":"dev-001-Top"}},
+  {"key":"langfuse.experiment.item.root_observation_id","value":{"stringValue":"b7ad6b7169203331"}},
+  {"key":"langfuse.observation.type","value":{"stringValue":"generation"}},
+  {"key":"gen_ai.request.model","value":{"stringValue":"qwen/qwen3-8b"}},
+  {"key":"langfuse.observation.output","value":{"stringValue":"Paradis + Terrasse"}}]}
+]}]}]}
+
+### H4a — score sur l'observation de décodage
+POST {{baseUrl}}/api/public/scores
+Authorization: Basic {{publicKey}} {{secretKey}}
+Content-Type: application/json
+
+{"id":"spike-score-r","traceId":"0af7651916cd43dd8448eb211c80319c","observationId":"c1b2c3d4e5f60718","name":"r","value":1,"dataType":"NUMERIC"}
+
+### H4b — retrouver le dataset run de l'experiment : attendu un id
+GET {{baseUrl}}/api/public/datasets/spike-dataset/runs/spike-experiment
+Authorization: Basic {{publicKey}} {{secretKey}}
+
+> {% client.global.set("datasetRunId", response.body.id); %}
+
+### H4c — score de run
+POST {{baseUrl}}/api/public/scores
+Authorization: Basic {{publicKey}} {{secretKey}}
+Content-Type: application/json
+
+{"id":"spike-score-run","datasetRunId":"{{datasetRunId}}","name":"recovery","value":0.37,"dataType":"NUMERIC","comment":"n = 154"}
