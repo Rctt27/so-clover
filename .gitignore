@@ -97,3 +97,9 @@ eval/analysis/*.taxonomy.json
 
 # Surcharges locales du harnais d'evaluation (secrets, modeles) — jamais commitees
 SoClover.Eval/evalsettings.local.json
+
+# Langfuse local — secrets et environnement privé du client HTTP
+tools/langfuse/.env
+tools/langfuse/http-client.private.env.json
+# Prompts matérialisés depuis Langfuse — reconstructibles, désignés par leur sha
+eval/prompts/resolved/
