@@ -79,10 +79,22 @@ Content-Type: application/json
 {"id":"spike-score-r","traceId":"0af7651916cd43dd8448eb211c80319c","observationId":"c1b2c3d4e5f60718","name":"r","value":1,"dataType":"NUMERIC"}
 
 ### H4b — retrouver le dataset run de l'experiment : attendu un id
+# Constat du spike (Langfuse v4.36.1, déploiement en mode "events_only") : cet endpoint répond
+# 404 "This endpoint is not available on deployments running in Langfuse v4 events_only mode".
+# Bloc conservé tel quel pour documenter ce qui a été tenté — voir H4b bis pour la requête qui
+# fonctionne réellement sur ce déploiement et alimente {{datasetRunId}}.
 GET {{baseUrl}}/api/public/datasets/spike-dataset/runs/spike-experiment
 Authorization: Basic {{publicKey}} {{secretKey}}
 
-> {% client.global.set("datasetRunId", response.body.id); %}
+### H4b bis — endpoint qui fonctionne en mode "events_only" : lister les experiments sur une
+# fenêtre de temps et filtrer par name (l'id du run = langfuse.experiment.id envoyé à l'ingestion)
+GET {{baseUrl}}/api/public/experiments?fromStartTime=2026-07-01T00:00:00Z&toStartTime=2026-08-01T00:00:00Z
+Authorization: Basic {{publicKey}} {{secretKey}}
+
+> {%
+  const run = response.body.data.find(r => r.name === "spike-experiment");
+  client.global.set("datasetRunId", run.id);
+%}
 
 ### H4c — score de run
 POST {{baseUrl}}/api/public/scores
