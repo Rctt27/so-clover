@@ -29,4 +29,10 @@
     "generationMode": "PerDirection",
     "reasoningEnabled": false
   }
+  ,
+  "Langfuse": {
+    "baseUrl": "http://localhost:3000",
+    "promptSource": "Langfuse",
+    "promptLabel": "production"
+  }
 }

@@ -3,6 +3,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using SoClover.Eval.Io;
+using SoClover.Eval.Langfuse;
 using SoClover.Infrastructure.AI;
 
 namespace SoClover.Eval.Config;
@@ -45,6 +46,18 @@ public static class EvalLlmConfig
                 string.Join(Environment.NewLine, validation.Failures ?? []));
 
         return Options.Create(options);
+    }
+
+    /// <summary>
+    /// Section <c>Langfuse</c>, <b>facultative</b> : absente, elle rend les défauts — source
+    /// <c>Langfuse</c>, label <c>production</c>, aucune clé. C'est alors la résolution du prompt qui
+    /// échoue bruyamment, pas la lecture de la configuration.
+    /// </summary>
+    public static LangfuseOptions BindLangfuse(IConfiguration config)
+    {
+        var options = new LangfuseOptions();
+        config.GetSection("Langfuse").Bind(options);
+        return options;
     }
 
     /// <summary>
