@@ -1,4 +1,6 @@
+using System.Text.Json.Serialization;
 using SoClover.Eval.Decoder;
+using SoClover.Eval.Prompts;
 
 namespace SoClover.Eval.Calibration;
 
@@ -44,7 +46,9 @@ public sealed record CalibrationManifest(
     // Symétrique de DecodeManifest : ce que la machine a servi. Nullables et en fin de record,
     // donc les calibrations déjà committées se relisent inchangées. Hors DecoderFingerprint.
     string? Quantization = null,
-    int? LoadedContextLength = null);
+    int? LoadedContextLength = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    PromptProvenance? CluePrompt = null);
 
 /// <summary>
 /// Un décodage de calibration. C'est <see cref="ClueDecodeLine"/> <b>plus le champ

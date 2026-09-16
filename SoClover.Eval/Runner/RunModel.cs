@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using SoClover.Eval.Prompts;
+
 namespace SoClover.Eval.Runner;
 
 /// <summary>
@@ -26,7 +29,12 @@ public sealed record RunManifest(
     int MaxRetries,
     string Language,
     int HarnessVersion,
-    string? OperatorNotes);
+    string? OperatorNotes,
+    // Provenance du prompt générateur (spec §6.4). Omise quand nulle : un manifeste sans elle se
+    // sérialise exactement comme avant, et RunFile.ComputeHash8 l'efface — le hash8 dit la
+    // configuration, pas l'endroit d'où le prompt a été servi.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    PromptProvenance? Prompt = null);
 
 /// <summary>
 /// Une tentative d'appel LLM pour une direction. <b>Une ligne par tentative</b>, jamais une ligne

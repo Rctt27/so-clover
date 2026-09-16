@@ -38,6 +38,7 @@ public static partial class RunFile
             RunId = string.Empty,
             CreatedAtUtc = default,
             OperatorNotes = null,
+            Prompt = null,
         };
         return EvalJson.Sha256Hex(EvalJson.Serialize(canonical))[..8];
     }

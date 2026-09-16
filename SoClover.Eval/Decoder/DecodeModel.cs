@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using SoClover.Eval.Prompts;
+
 namespace SoClover.Eval.Decoder;
 
 /// <summary>
@@ -32,7 +35,13 @@ public sealed record DecodeManifest(
     // avec ces deux champs à null. Volontairement HORS DecoderFingerprint — voir
     // ModelRuntimeProbe et ModelRuntimeProbeTests.
     string? Quantization = null,
-    int? LoadedContextLength = null);
+    int? LoadedContextLength = null,
+    // Provenance des deux prompts décodeurs (spec §6.4). Hors DecoderFingerprint : l'identité du
+    // décodeur reste le chemin canonique et la version déclarée.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    PromptProvenance? CluePrompt = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    PromptProvenance? BoardPrompt = null);
 
 /// <summary>
 /// Un décodage mono-indice (N2). <c>R = |picked ∩ referenceWords| / 2 ∈ {0, 0.5, 1}</c>.
