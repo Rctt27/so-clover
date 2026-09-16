@@ -22,7 +22,11 @@ public sealed class FilePromptLoader
         return sections;
     }
 
-    private static ParsedPromptSections Parse(string content)
+    /// <summary>
+    /// Public pour <c>SoClover.Eval</c>, qui lit le <c>version:</c> d'un prompt venu de Langfuse
+    /// sans passer par un fichier : une seule implémentation du parsing de frontmatter.
+    /// </summary>
+    public static ParsedPromptSections Parse(string content)
     {
         var startIndex = 0;
         int? version = null;
