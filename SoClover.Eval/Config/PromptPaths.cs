@@ -20,4 +20,8 @@ public static class PromptPaths
         return Path.Combine(
             AppContext.BaseDirectory, "Infrastructure", "AI", "Prompts", "fr", fileName);
     }
+
+    /// <summary>Prompt PerBoard, exigé par le constructeur du provider mais jamais servi en PerDirection.</summary>
+    public static string FrBoardClues() =>
+        Path.Combine(AppContext.BaseDirectory, "Infrastructure", "AI", "Prompts", "fr", "board-clues.md");
 }

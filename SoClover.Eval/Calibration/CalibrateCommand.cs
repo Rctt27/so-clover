@@ -7,6 +7,8 @@ using SoClover.Eval.Config;
 using SoClover.Eval.Decoder;
 using SoClover.Eval.Human;
 using SoClover.Eval.Io;
+using SoClover.Eval.Langfuse;
+using SoClover.Eval.Prompts;
 using SoClover.Eval.Scoring;
 using SoClover.Infrastructure.AI.Prompts;
 
@@ -92,8 +94,11 @@ public static class CalibrateCommand
 
         using var chatClient = EvalLlmConfig.CreateChatClient(llmOptions);
         var loader = new FilePromptLoader();
-        var cluePromptPath = Path.Combine(
-            AppContext.BaseDirectory, "Decoder", "Prompts", "fr", "decode-clue.md");
+        var langfuseOptions = EvalLlmConfig.BindLangfuse(config);
+        var resolver = new PromptResolver(LangfuseClientFactory.CreateOrNull(langfuseOptions), PromptResolver.DefaultRoot);
+        var cluePrompt = await resolver.ResolveAsync(
+            SoCloverPrompt.DecoderFrClue, PromptSelectionArgs.From(args, langfuseOptions), ct).ConfigureAwait(false);
+        var cluePromptPath = cluePrompt.Path;
         var decoder = new ClueDecoder(
             chatClient, loader, cluePromptPath, opts.DefaultModel,
             (float)opts.DefaultTemperature, (float?)opts.TopP, opts.MaxOutputTokens);
@@ -152,7 +157,8 @@ public static class CalibrateCommand
                 HarnessVersion: CalibrationFile.HarnessVersion,
                 OperatorNotes: notes,
                 Quantization: runtime.Quantization,
-                LoadedContextLength: runtime.LoadedContextLength));
+                LoadedContextLength: runtime.LoadedContextLength,
+                CluePrompt: cluePrompt.Provenance));
         }
         else
         {
@@ -171,7 +177,7 @@ public static class CalibrateCommand
         Console.WriteLine($"  couples        : {lot.Couples.Count} principaux + {lot.Anchors.Count} ancre(s)");
         Console.WriteLine($"  indices        : {lot.Clues.Count} distinct(s) × {decodesPerClue} décodages");
         Console.WriteLine($"  modèle         : {opts.DefaultModel} (snapshot {modelSnapshotDate})");
-        Console.WriteLine($"  prompt         : clue v{decoder.PromptVersion}");
+        Console.WriteLine($"  prompt         : clue {cluePrompt.Describe()}");
         Console.WriteLine($"  empreinte      : {fingerprint}");
         Console.WriteLine($"  ε              : {epsilon.ToString("0.###", CultureInfo.InvariantCulture)}");
 

@@ -4,6 +4,8 @@ using SoClover.Eval.Bench;
 using SoClover.Eval.Cli;
 using SoClover.Eval.Config;
 using SoClover.Eval.Io;
+using SoClover.Eval.Langfuse;
+using SoClover.Eval.Prompts;
 using SoClover.Infrastructure.AI;
 using SoClover.Infrastructure.AI.Prompts;
 using SoClover.Infrastructure.Validation;
@@ -64,8 +66,22 @@ public static class GenerateCommand
             throw new InvalidOperationException(
                 $"Seul PerDirection est évalué dans ce cycle (Generator:generationMode={opts.GenerationMode}).");
 
+        // Résolution AVANT tout appel au LLM : une source langfuse indisponible arrête la commande
+        // sans rien dépenser, et sans repli silencieux sur le fichier (spec §6.5).
+        var langfuseOptions = EvalLlmConfig.BindLangfuse(config);
+        var selection = PromptSelectionArgs.From(args, langfuseOptions);
+        var catalogPrompt = opts.ReasoningEnabled
+            ? SoCloverPrompt.GeneratorFrPerDirectionReasoning
+            : SoCloverPrompt.GeneratorFrPerDirection;
+        var resolver = new PromptResolver(LangfuseClientFactory.CreateOrNull(langfuseOptions), PromptResolver.DefaultRoot);
+        var generatorPrompt = await resolver.ResolveAsync(catalogPrompt, selection, ct).ConfigureAwait(false);
+
         using var chatClient = EvalLlmConfig.CreateChatClient(llmOptions);
-        var promptProvider = new FrenchAiCluePromptProvider();
+        var promptProvider = new FrenchAiCluePromptProvider(
+            new FilePromptLoader(),
+            PromptPaths.FrBoardClues(),
+            opts.ReasoningEnabled ? SoCloverPrompt.GeneratorFrPerDirection.PackagedPath : generatorPrompt.Path,
+            opts.ReasoningEnabled ? generatorPrompt.Path : SoCloverPrompt.GeneratorFrPerDirectionReasoning.PackagedPath);
         var validator = new ClueValidatorFactory().GetFor(bench.Manifest.Language, semanticCheckEnabled: true);
         var caller = new AiClueLlmCaller(chatClient, llmOptions);
         var maxAttempts = opts.MaxRetries + 1;
@@ -90,7 +106,7 @@ public static class GenerateCommand
             CreatedAtUtc: createdAtUtc,
             BenchFile: benchPath.Replace('\\', '/'),
             BenchHash: bench.Manifest.BenchHash,
-            PromptFile: PromptPaths.FrPerDirection(opts.ReasoningEnabled).Replace('\\', '/'),
+            PromptFile: generatorPrompt.Path.Replace('\\', '/'),
             PromptVersion: probe.PromptVersion,
             GenerationMode: opts.GenerationMode.ToString(),
             ReasoningEnabled: opts.ReasoningEnabled,
@@ -105,7 +121,8 @@ public static class GenerateCommand
             MaxRetries: opts.MaxRetries,
             Language: bench.Manifest.Language,
             HarnessVersion: RunFile.HarnessVersion,
-            OperatorNotes: notes);
+            OperatorNotes: notes,
+            Prompt: generatorPrompt.Provenance);
 
         var hash8 = RunFile.ComputeHash8(draftManifest);
         var runId = args.Get("run-id")
@@ -132,7 +149,7 @@ public static class GenerateCommand
         Console.WriteLine($"run : {runId}");
         Console.WriteLine($"  fichier      : {runPath}");
         Console.WriteLine($"  modèle       : {opts.DefaultModel} (snapshot {modelSnapshotDate})");
-        Console.WriteLine($"  prompt       : v{probe.PromptVersion}, reasoning={opts.ReasoningEnabled}");
+        Console.WriteLine($"  prompt       : {generatorPrompt.Describe()}, reasoning={opts.ReasoningEnabled}");
         Console.WriteLine($"  à traiter    : {pending.Count} direction(s) sur {expected}");
         if (notes is not null) Console.WriteLine($"  notes        : {notes}");
 

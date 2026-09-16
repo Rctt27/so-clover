@@ -108,6 +108,13 @@ internal static class EvalProgram
               --epsilon 0                        marge du verdict décodeur ; se décide AVANT de
                                                  lire l'accord, et part au manifeste
 
+            Prompts (generate, decode, calibrate) :
+              --prompt-source file|langfuse     défaut : Langfuse:promptSource d'evalsettings.json ;
+                                                aucun repli silencieux de l'un à l'autre
+              --prompt-label <label>            défaut : production
+              --prompt-version <n>              numéro de version LANGFUSE (decode : prompt clue ;
+                                                le prompt board suit le label)
+
             Taxonomie (analyze) :
               --run <run.jsonl>                 run DÉCODÉ ; refuse sinon
               --sample 20 --seed S              échantillon seedé d'échecs, lisible à la main

@@ -5,6 +5,8 @@ using SoClover.Eval.Cli;
 using SoClover.Eval.Calibration;
 using SoClover.Eval.Config;
 using SoClover.Eval.Io;
+using SoClover.Eval.Langfuse;
+using SoClover.Eval.Prompts;
 using SoClover.Infrastructure.AI.Prompts;
 
 namespace SoClover.Eval.Decoder;
@@ -40,10 +42,14 @@ public static class DecodeCommand
 
         using var chatClient = EvalLlmConfig.CreateChatClient(llmOptions);
         var loader = new FilePromptLoader();
-        var cluePromptPath = Path.Combine(
-            AppContext.BaseDirectory, "Decoder", "Prompts", "fr", "decode-clue.md");
-        var boardPromptPath = Path.Combine(
-            AppContext.BaseDirectory, "Decoder", "Prompts", "fr", "decode-board.md");
+        var langfuseOptions = EvalLlmConfig.BindLangfuse(config);
+        var selection = PromptSelectionArgs.From(args, langfuseOptions);
+        var resolver = new PromptResolver(LangfuseClientFactory.CreateOrNull(langfuseOptions), PromptResolver.DefaultRoot);
+        var cluePrompt = await resolver.ResolveAsync(SoCloverPrompt.DecoderFrClue, selection, ct).ConfigureAwait(false);
+        var boardPrompt = await resolver.ResolveAsync(
+            SoCloverPrompt.DecoderFrBoard, PromptSelectionArgs.ForBoardPrompt(selection, langfuseOptions), ct).ConfigureAwait(false);
+        var cluePromptPath = cluePrompt.Path;
+        var boardPromptPath = boardPrompt.Path;
 
         var clueDecoder = new ClueDecoder(
             chatClient, loader, cluePromptPath, opts.DefaultModel,
@@ -92,7 +98,9 @@ public static class DecodeCommand
                 HarnessVersion: RunFile.HarnessVersion,
                 OperatorNotes: notes,
                 Quantization: runtime.Quantization,
-                LoadedContextLength: runtime.LoadedContextLength));
+                LoadedContextLength: runtime.LoadedContextLength,
+                CluePrompt: cluePrompt.Provenance,
+                BoardPrompt: boardPrompt.Provenance));
         }
         else
         {
@@ -115,7 +123,7 @@ public static class DecodeCommand
         Console.WriteLine($"décodage de {run.Manifest.RunId}");
         Console.WriteLine($"  fichier        : {decodedPath}");
         Console.WriteLine($"  modèle         : {opts.DefaultModel} (snapshot {modelSnapshotDate})");
-        Console.WriteLine($"  prompts        : clue v{clueDecoder.PromptVersion}, board v{boardDecoder.PromptVersion}");
+        Console.WriteLine($"  prompts        : clue {cluePrompt.Describe()}, board {boardPrompt.Describe()}");
         Console.WriteLine($"  indices valides: {validClues.Count} / {bench.Manifest.BoardCount * 4}");
         Console.WriteLine($"  décodages/clue : {decodesPerClue}");
 
