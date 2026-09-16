@@ -105,7 +105,12 @@ public class EvalLlmConfigTests
     [Fact]
     public void BuildConfiguration_reads_evalsettings_without_shadowing_the_production_appsettings()
     {
-        var config = EvalLlmConfig.BuildConfiguration();
+        // BuildConfiguration() sans argument lit <cwd>/SoClover.Eval/evalsettings.local.json : un
+        // répertoire courant à la racine du dépôt (CI, IDE) chargerait le fichier de secrets
+        // gitignoré du poste, et un JSON malformé dedans ferait échouer ce test sur certaines
+        // machines seulement. Un répertoire temporaire vide isole le test de ce fichier.
+        var workingDirectory = Path.Combine(Path.GetTempPath(), "eval-config-" + Guid.NewGuid());
+        var config = EvalLlmConfig.BuildConfiguration(workingDirectory);
 
         Assert.True(config.GetSection("Generator").Exists());
         Assert.True(config.GetSection("Decoder").Exists());
