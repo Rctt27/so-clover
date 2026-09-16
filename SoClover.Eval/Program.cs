@@ -7,6 +7,7 @@ using SoClover.Eval.Cli;
 using SoClover.Eval.Decoder;
 using SoClover.Eval.Human;
 using SoClover.Eval.Io;
+using SoClover.Eval.Langfuse;
 using SoClover.Eval.Runner;
 using SoClover.Eval.Scoring;
 using SoClover.Eval.Web;
@@ -42,6 +43,7 @@ internal static class EvalProgram
                 "compare" => CompareCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "calibrate" => CalibrateCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "analyze" => AnalyzeCommand.ExecuteAsync(cliArgs, CancellationToken.None),
+                "langfuse-sync" => LangfuseSyncCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "elicit" => Elicit(cliArgs, CancellationToken.None),
                 "judge" => Judge(cliArgs, CancellationToken.None),
                 "guess" => Guess(cliArgs, CancellationToken.None),
@@ -89,6 +91,8 @@ internal static class EvalProgram
               human-report  Agrégats des deux séances humaines (aucun appel LLM)
               calibrate     P6 : accord decodeur/humain, kappa, quatre portes, verdict unique
               analyze       P7 : taxonomie chiffree des modes d'echec (aucun appel LLM)
+              langfuse-sync --prompts   Publie dans Langfuse le contenu courant des prompts du
+                            dépôt (idempotent ; refuse un conflit de version)
 
             Sous-ensemble (score, compare) :
               --subset <elicitation.jsonl>      restreint TOUS les dénominateurs aux directions
