@@ -18,7 +18,11 @@ public sealed class FrenchAiCluePromptProvider : FileAiCluePromptProvider
             DefaultPerDirectionPromptPath(),
             DefaultPerDirectionReasoningPromptPath()) { }
 
-    internal FrenchAiCluePromptProvider(
+    /// <summary>
+    /// Public pour <c>SoClover.Eval</c>, qui charge un prompt matérialisé depuis Langfuse. Aucun
+    /// effet sur la production, qui passe par le constructeur sans argument.
+    /// </summary>
+    public FrenchAiCluePromptProvider(
         FilePromptLoader loader,
         string promptFilePath,
         string perDirectionPromptFilePath,
