@@ -126,4 +126,64 @@ public class EvalLlmConfigTests
         Assert.True(File.Exists(standard), $"prompt introuvable : {standard}");
         Assert.True(File.Exists(reasoning), $"prompt reasoning introuvable : {reasoning}");
     }
+
+    // BuildConfiguration(workingDirectory) lit, en plus de la couche bin/, un
+    // SoClover.Eval/evalsettings.local.json relatif à la racine du dépôt : c'est là que vivent les
+    // clés Langfuse locales (SoClover.Eval/README.md), et rien ne copie ce fichier gitignoré dans
+    // bin/ tant qu'il n'est pas déclaré Content — ce que ce projet refuse précisément de faire.
+    [Fact]
+    public void BuildConfiguration_reads_evalsettings_local_from_the_repo_root()
+    {
+        var workingDirectory = Path.Combine(Path.GetTempPath(), "eval-config-" + Guid.NewGuid());
+        var evalDirectory = Path.Combine(workingDirectory, "SoClover.Eval");
+        Directory.CreateDirectory(evalDirectory);
+        File.WriteAllText(
+            Path.Combine(evalDirectory, "evalsettings.local.json"),
+            """{"Langfuse":{"publicKey":"pk-test"}}""");
+
+        try
+        {
+            var config = EvalLlmConfig.BuildConfiguration(workingDirectory);
+
+            Assert.Equal("pk-test", EvalLlmConfig.BindLangfuse(config).PublicKey);
+        }
+        finally
+        {
+            Directory.Delete(workingDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void An_environment_variable_overrides_evalsettings_local_from_the_repo_root()
+    {
+        var workingDirectory = Path.Combine(Path.GetTempPath(), "eval-config-" + Guid.NewGuid());
+        var evalDirectory = Path.Combine(workingDirectory, "SoClover.Eval");
+        Directory.CreateDirectory(evalDirectory);
+        File.WriteAllText(
+            Path.Combine(evalDirectory, "evalsettings.local.json"),
+            """{"Langfuse":{"publicKey":"pk-test"}}""");
+
+        Environment.SetEnvironmentVariable("LANGFUSE__PUBLICKEY", "pk-par-env");
+        try
+        {
+            var config = EvalLlmConfig.BuildConfiguration(workingDirectory);
+
+            Assert.Equal("pk-par-env", EvalLlmConfig.BindLangfuse(config).PublicKey);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("LANGFUSE__PUBLICKEY", null);
+            Directory.Delete(workingDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void BuildConfiguration_still_works_without_a_local_override_file()
+    {
+        var workingDirectory = Path.Combine(Path.GetTempPath(), "eval-config-" + Guid.NewGuid());
+
+        var config = EvalLlmConfig.BuildConfiguration(workingDirectory);
+
+        Assert.True(config.GetSection("Generator").Exists());
+    }
 }

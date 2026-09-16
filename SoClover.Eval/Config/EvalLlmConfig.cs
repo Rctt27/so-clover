@@ -22,10 +22,28 @@ public static class EvalLlmConfig
     /// <c>SoClover</c> dans l'output de <c>SoClover.Tests</c> par propagation transitive.
     /// </summary>
     public static IConfigurationRoot BuildConfiguration() =>
+        BuildConfiguration(Directory.GetCurrentDirectory());
+
+    /// <summary>
+    /// Comme <see cref="BuildConfiguration()"/>, avec une couche supplémentaire, optionnelle, lue
+    /// depuis <c>&lt;workingDirectory&gt;/SoClover.Eval/evalsettings.local.json</c> — l'emplacement
+    /// documenté par <c>SoClover.Eval/README.md</c> pour les clés locales (Langfuse comprises).
+    /// Ce fichier est gitignoré, donc jamais copié par MSBuild dans <c>bin/</c>, alors que toutes
+    /// les commandes du harnais se lancent depuis la racine du dépôt (CLAUDE.md) : sans cette
+    /// couche, il n'était jamais lu en pratique. On refuse volontairement d'en faire un item
+    /// <c>Content</c> de <c>SoClover.Eval.csproj</c> — un tel item se propagerait transitivement
+    /// dans l'output de <c>SoClover.Tests</c> via la référence de projet, et ferait dépendre la
+    /// configuration des tests de la machine de son auteur. La couche est insérée après celle de
+    /// <c>bin/</c> mais avant les variables d'environnement, qui gardent le dernier mot.
+    /// </summary>
+    public static IConfigurationRoot BuildConfiguration(string workingDirectory) =>
         new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("evalsettings.json", optional: false)
             .AddJsonFile("evalsettings.local.json", optional: true)
+            .AddJsonFile(
+                Path.Combine(workingDirectory, "SoClover.Eval", "evalsettings.local.json"),
+                optional: true)
             .AddEnvironmentVariables()
             .Build();
 
