@@ -9,4 +9,14 @@ public sealed record LangfuseDataset(string Id, string Name, string? BenchHash);
 
 public sealed record LangfuseDatasetItem(string Id, JsonObject Input, JsonObject ExpectedOutput, JsonObject Metadata);
 
+/// <summary>Un score NUMERIC. Exactement une cible : (<see cref="TraceId"/>, <see cref="ObservationId"/>) ou <see cref="DatasetRunId"/>.</summary>
+public sealed record LangfuseScore(
+    string Id,
+    string Name,
+    double Value,
+    string? TraceId,
+    string? ObservationId,
+    string? DatasetRunId,
+    string? Comment);
+
 public sealed class LangfuseException(string message, Exception? inner = null) : Exception(message, inner);

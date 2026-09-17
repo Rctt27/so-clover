@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -118,6 +119,58 @@ public sealed class LangfuseClient
             ["metadata"] = item.Metadata.DeepClone(),
         };
         await SendAsync(HttpMethod.Post, "/api/public/dataset-items", body, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>L'id fourni sert de clé d'idempotence : re-poster met le score à jour.</summary>
+    public async Task CreateScoreAsync(LangfuseScore score, CancellationToken ct)
+    {
+        var body = new JsonObject
+        {
+            ["id"] = score.Id,
+            ["name"] = score.Name,
+            ["value"] = score.Value,
+            ["dataType"] = "NUMERIC",
+        };
+        if (score.TraceId is not null) body["traceId"] = score.TraceId;
+        if (score.ObservationId is not null) body["observationId"] = score.ObservationId;
+        if (score.DatasetRunId is not null) body["datasetRunId"] = score.DatasetRunId;
+        if (score.Comment is not null) body["comment"] = score.Comment;
+
+        await SendAsync(HttpMethod.Post, "/api/public/scores", body, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>OTLP/HTTP JSON. Sans l'en-tête d'ingestion v4, les spans peuvent mettre dix minutes à apparaître.</summary>
+    public async Task SendOtlpTracesAsync(JsonObject payload, CancellationToken ct) =>
+        await SendAsync(HttpMethod.Post, "/api/public/otel/v1/traces", payload, ct,
+            headers: new Dictionary<string, string> { ["x-langfuse-ingestion-version"] = "4" }).ConfigureAwait(false);
+
+    /// <summary>
+    /// Id de l'experiment, lu dans la liste filtrée par fenêtre de temps puis par nom.
+    /// <para>
+    /// `GET /api/public/datasets/{nom}/runs/{run}` n'existe pas sur l'instance mesurée (mode
+    /// « events_only », spike du 2026-09-16, §11 de la spec) : c'est `/api/public/experiments` qui
+    /// porte la liste. La fenêtre doit couvrir les horodatages **reconstruits** des spans, qui sont
+    /// dans le passé — d'où un `fromStartTime` dérivé de la date de création du run, pas de maintenant.
+    /// </para>
+    /// </summary>
+    public async Task<string?> FindExperimentIdAsync(
+        string experimentName, DateTime fromStartTime, DateTime toStartTime, CancellationToken ct)
+    {
+        static string Iso(DateTime moment) =>
+            Uri.EscapeDataString(moment.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture));
+
+        var json = await SendAsync(
+            HttpMethod.Get,
+            $"/api/public/experiments?fromStartTime={Iso(fromStartTime)}&toStartTime={Iso(toStartTime)}",
+            null, ct, allowNotFound: true).ConfigureAwait(false);
+
+        if (json?["data"] is not JsonArray data)
+            return null;
+
+        return data.OfType<JsonObject>()
+            .Where(e => (string?)e["name"] == experimentName)
+            .Select(e => (string?)e["id"])
+            .FirstOrDefault();
     }
 
     private static LangfuseDataset ParseDataset(JsonObject json) => new(

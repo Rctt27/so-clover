@@ -3,11 +3,33 @@ using SoClover.Eval.Bench;
 using SoClover.Eval.Decoder;
 using SoClover.Eval.Prompts;
 using SoClover.Eval.Runner;
+using SoClover.Eval.Scoring;
 
 namespace SoClover.Tests.Eval.Helpers;
 
 internal static class LangfuseFixtures
 {
+    public static MetricsReport Metrics(MetricCounts? counts = null) => new(
+        RunId: "20260728-v5-google-gemma-4-12b-qat-d79a63b9",
+        BenchFile: "eval/boards.dev.jsonl",
+        BenchHash: "416b819a41a1",
+        BoardCount: 40,
+        DirectionCount: 160,
+        ValidRate: 0.963,
+        FirstAttemptRate: 0.963,
+        ParseFailureRate: 0.031,
+        Recovery: 0.370,
+        Strict2Of2: 0.026,
+        HalfRate: 0.630,
+        BoardPositions: 0.278,
+        BoardSolvedFirstTry: 0.0,
+        ConfusionTop: [],
+        DecodeFailureRate: 0.038,
+        ItemsCompleted: 160,
+        ItemsExpected: 160,
+        PerItemRBar: new Dictionary<(string BoardId, string Direction), double>(),
+        Counts: counts ?? (MetricCounts.Zero with { DecodedItems = 154, ScoredBoards = 40, Decodes = 480 }));
+
     public static readonly PromptProvenance LangfuseClue =
         new("langfuse", "decoder-fr-clue", 3, "production", new string('a', 64));
 
