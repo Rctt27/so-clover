@@ -56,6 +56,9 @@ pourquoi ils sont préfixés par le `boardId`, lui-même préfixé par le hash d
 `decoder-fr-clue`, `decoder-fr-board`, matérialisés sous `eval/prompts/resolved/<sha12 du
 contenu>/fr/<fichier>.md` avant d'être chargés par les mêmes classes que la prod. Aucun repli
 silencieux : Langfuse injoignable ou clés absentes ⟹ échec avant tout appel LLM.
+La provenance est hors hash8, mais le hash8 hache le chemin `promptFile`, qui dépend de la source
+(`eval/prompts/resolved/…` contre `bin/Debug|Release/…`) : deux re-runs de même configuration servis
+par des sources différentes ne portent pas le même hash8.
 
 ```bash
 dotnet run --project SoClover.Eval -- generate --bench eval/boards.dev.jsonl \

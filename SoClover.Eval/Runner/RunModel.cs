@@ -31,8 +31,10 @@ public sealed record RunManifest(
     int HarnessVersion,
     string? OperatorNotes,
     // Provenance du prompt générateur (spec §6.4). Omise quand nulle : un manifeste sans elle se
-    // sérialise exactement comme avant, et RunFile.ComputeHash8 l'efface — le hash8 dit la
-    // configuration, pas l'endroit d'où le prompt a été servi.
+    // sérialise exactement comme avant, et RunFile.ComputeHash8 l'efface : la provenance elle-même
+    // est hors hash8. Le hash8 hache en revanche PromptFile, dont le chemin dépend de la source
+    // (eval/prompts/resolved/<sha12>/… pour Langfuse, bin/Debug|Release/… pour le fichier) : deux
+    // re-runs de même configuration servis par des sources différentes n'ont pas le même hash8.
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     PromptProvenance? Prompt = null);
 

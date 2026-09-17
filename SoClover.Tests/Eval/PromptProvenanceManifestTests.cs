@@ -7,8 +7,9 @@ using Xunit;
 namespace SoClover.Tests.Eval;
 
 /// <summary>
-/// La provenance du prompt est une information d'audit : elle ne doit changer ni le hash8 d'un run
-/// (qui signale un re-run de même configuration), ni la forme des manifestes existants.
+/// La provenance du prompt est une information d'audit : à <c>PromptFile</c> égal, elle ne change pas
+/// le hash8 d'un run (qui signale un re-run de même configuration), ni la forme des manifestes
+/// existants. Le chemin <c>PromptFile</c>, lui, dépend de la source et entre dans le hash8.
 /// </summary>
 public class PromptProvenanceManifestTests
 {
@@ -21,12 +22,29 @@ public class PromptProvenanceManifestTests
     }
 
     [Fact]
-    public void La_provenance_ne_change_pas_le_hash8()
+    public void A_PromptFile_egal_la_provenance_ne_change_pas_le_hash8()
     {
         var bare = LangfuseFixtures.RunManifest();
         var withProvenance = LangfuseFixtures.RunManifest(LangfuseFixtures.LangfuseClue);
 
         Assert.Equal(RunFile.ComputeHash8(bare), RunFile.ComputeHash8(withProvenance));
+    }
+
+    // Ruling 13 : comportement documenté, pas souhaité. Le hash8 hache PromptFile, dont le chemin
+    // dépend de la source du prompt (et de Debug/Release pour la source fichier).
+    [Fact]
+    public void Le_hash8_depend_du_chemin_PromptFile_donc_de_la_source_du_prompt()
+    {
+        var fromFile = LangfuseFixtures.RunManifest() with
+        {
+            PromptFile = ".../bin/Debug/net9.0/Infrastructure/AI/Prompts/fr/board-clues-per-direction.md",
+        };
+        var fromLangfuse = LangfuseFixtures.RunManifest() with
+        {
+            PromptFile = "eval/prompts/resolved/aaaaaaaaaaaa/fr/board-clues-per-direction.md",
+        };
+
+        Assert.NotEqual(RunFile.ComputeHash8(fromFile), RunFile.ComputeHash8(fromLangfuse));
     }
 
     [Fact]
