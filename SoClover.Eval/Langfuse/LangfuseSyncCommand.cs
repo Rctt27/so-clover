@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using SoClover.Eval.Bench;
 using SoClover.Eval.Cli;
 using SoClover.Eval.Config;
 using SoClover.Eval.Io;
@@ -77,6 +78,18 @@ public static class LangfuseSyncCommand
     private static async Task SyncBenchAsync(LangfuseClient client, string benchPath, CancellationToken ct)
     {
         var bench = BenchFile.Read(benchPath);
+        await SyncBenchAsync(client, bench, benchPath, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Séparée de la lecture disque (<see cref="BenchFile.Read"/>) pour être testable sans réseau
+    /// ni fichier : <c>SoClover.Tests</c> lui passe un <see cref="BenchContents"/> déjà construit
+    /// via <c>LangfuseFixtures.Bench()</c> et un <see cref="LangfuseClient"/> câblé sur
+    /// <c>LangfuseStubHandler</c>.
+    /// </summary>
+    internal static async Task SyncBenchAsync(
+        LangfuseClient client, BenchContents bench, string benchPath, CancellationToken ct)
+    {
         BenchDatasetMapper.RequireNotTestBench(bench.Manifest);
 
         var name = BenchDatasetMapper.DatasetName(bench.Manifest);
@@ -103,8 +116,27 @@ public static class LangfuseSyncCommand
         }
 
         var items = BenchDatasetMapper.ToItems(bench);
-        foreach (var item in items)
-            await client.UpsertDatasetItemAsync(name, item, ct).ConfigureAwait(false);
+        for (var i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+            try
+            {
+                await client.UpsertDatasetItemAsync(name, item, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Sans ce diagnostic, un échec en cours de boucle laisse le dataset à moitié
+                // rempli sans qu'on sache lequel des N items est passé — nommer l'id, sa position
+                // et le compte déjà envoyé rend la reprise actionnable. Relancer est sûr : chaque
+                // item porte un id stable, un re-POST le met simplement à jour (UpsertDatasetItemAsync).
+                throw new LangfuseException(
+                    $"Échec de l'upsert de l'item {item.Id} ({i + 1}/{items.Count}) dans le dataset " +
+                    $"{name} : {i} item(s) déjà envoyé(s) avec succès avant cet échec. Relancer " +
+                    "langfuse-sync --bench est idempotent — les items déjà postés seront simplement " +
+                    "remis à jour à l'identique.",
+                    ex);
+            }
+        }
 
         Console.WriteLine($"  dataset {name} : {items.Count} item(s) à jour (benchHash {bench.Manifest.BenchHash})");
     }

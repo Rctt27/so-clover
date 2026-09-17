@@ -14,6 +14,16 @@ public static class BenchDatasetMapper
 
     public static string DatasetName(BenchManifest manifest) => $"soclover-bench-{manifest.BenchId}";
 
+    /// <summary>
+    /// Langfuse impose l'unicité d'un id de dataset-item <b>par projet, tous datasets confondus</b>
+    /// — pas seulement au sein d'un dataset. La propriété tient aujourd'hui parce que chaque
+    /// <c>boardId</c> est déjà préfixé par le <c>benchId</c> (ex. <c>dev-001</c>, <c>test-001</c>) :
+    /// deux bancs distincts ne peuvent donc pas produire le même id. Incident constaté le
+    /// 2026-09-17 : un item de <c>spike-dataset</c> (résidu d'un essai manuel, id <c>dev-001-Top</c>)
+    /// a bloqué la création de <c>soclover-bench-dev</c> par conflit d'id au niveau du projet.
+    /// Tout futur dataset publié dans ce projet Langfuse doit préserver cette propriété de préfixage
+    /// — ne pas changer ce format d'id sans revérifier l'unicité globale.
+    /// </summary>
     public static string ItemId(string boardId, string direction) => $"{boardId}-{direction}";
 
     public static void RequireNotTestBench(BenchManifest manifest)
