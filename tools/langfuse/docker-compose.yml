@@ -25,7 +25,7 @@ services:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
       SALT: ${SALT}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-      TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-true}
+      TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-false}
       LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: ${LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES:-false}
       # Lets the worker reach the web service internally for in-app agent MCP
       # calls without redirecting NEXTAUTH_URL, which also builds links for
@@ -112,7 +112,7 @@ services:
     restart: always
     depends_on: *langfuse-depends-on
     ports:
-      - 3000:3000
+      - 127.0.0.1:3000:3000
     environment:
       <<: *langfuse-worker-env
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
@@ -166,7 +166,7 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     ports:
-      - 9090:9000
+      - 127.0.0.1:9090:9000
       - 127.0.0.1:9091:9001
     volumes:
       - langfuse_minio_data:/data
