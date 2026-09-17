@@ -47,6 +47,7 @@ internal static class EvalProgram
                 "analyze" => AnalyzeCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "langfuse-sync" => LangfuseSyncCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "langfuse-pull" => LangfusePullCommand.ExecuteAsync(cliArgs, CancellationToken.None),
+                "langfuse-export" => LangfuseExportCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "elicit" => Elicit(cliArgs, CancellationToken.None),
                 "judge" => Judge(cliArgs, CancellationToken.None),
                 "guess" => Guess(cliArgs, CancellationToken.None),
@@ -100,6 +101,9 @@ internal static class EvalProgram
                             dataset, un item par direction (idempotent ; le banc de test est refusé)
               langfuse-pull --prompt <nom> --label <l> | --version <n>
                             Écrit une version Langfuse dans le fichier du dépôt (refuse sans bump)
+              langfuse-export --run <run.jsonl> [--decoded <x.decoded.jsonl>]
+                            Publie un run décodé et scoré comme experiment Langfuse
+                            (aucun appel LLM, idempotent)
 
             Sous-ensemble (score, compare) :
               --subset <elicitation.jsonl>      restreint TOUS les dénominateurs aux directions
