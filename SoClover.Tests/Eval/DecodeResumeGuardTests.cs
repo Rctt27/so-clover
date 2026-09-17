@@ -1,5 +1,7 @@
+using SoClover.Eval.Calibration;
 using SoClover.Eval.Decoder;
 using SoClover.Eval.Io;
+using SoClover.Eval.Prompts;
 using Xunit;
 
 namespace SoClover.Tests.Eval;
@@ -97,5 +99,58 @@ public class DecodeResumeGuardTests
         // Même decodesPerClue, décodeur différent : refusé malgré l'accord sur le nombre.
         Assert.Throws<InvalidOperationException>(() =>
             DecodeCommand.RequireCompatibleResume(existing, autreDecodeur, 3, Path));
+    }
+}
+
+/// <summary>
+/// Garde 0 à la reprise : même empreinte (chemin canonique et version déclarée identiques) ne
+/// veut pas dire même contenu. Quand le manifeste existant ET le prompt résolu portent tous deux
+/// une provenance, un <c>ContentSha256</c> différent du prompt clue refuse la reprise.
+/// </summary>
+public class DecodeResumeContentGuardTests
+{
+    private const string Path = "eval/runs/run-x.9a829dc206d2.decoded.jsonl";
+
+    private static PromptProvenance Provenance(char sha) =>
+        new("langfuse", "decoder-fr-clue", 3, "production", new string(sha, 64));
+
+    private static DecodeManifest Manifest(PromptProvenance? cluePrompt) =>
+        new("manifest", "decode-1", new DateTime(2026, 8, 6, 0, 0, 0, DateTimeKind.Utc),
+            "run-x", "eval/boards.dev.jsonl", "416b819a41a1",
+            "OpenAI", "http://localhost:1234/v1", "qwen/qwen3-8b", "2026-08-06", null,
+            0.3, null, 512,
+            "Decoder/Prompts/fr/decode-clue.md", 2,
+            "Decoder/Prompts/fr/decode-board.md", 1,
+            3, RunFile.HarnessVersion, null, CluePrompt: cluePrompt);
+
+    private static string FingerprintOf(DecodeManifest m) => DecoderFingerprint.FromManifest(m);
+
+    [Fact]
+    public void Un_contenu_de_prompt_clue_different_sous_la_meme_empreinte_est_refuse()
+    {
+        var existing = Manifest(Provenance('a'));
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            DecodeCommand.RequireCompatibleResume(existing, FingerprintOf(existing), 3, Path, Provenance('b')));
+
+        Assert.Contains("garde 0", ex.Message, StringComparison.Ordinal);
+        Assert.Contains(new string('a', 8), ex.Message, StringComparison.Ordinal);
+        Assert.Contains(new string('b', 8), ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Un_contenu_de_prompt_clue_identique_passe()
+    {
+        var existing = Manifest(Provenance('a'));
+
+        DecodeCommand.RequireCompatibleResume(existing, FingerprintOf(existing), 3, Path, Provenance('a'));
+    }
+
+    [Fact]
+    public void Un_manifeste_anterieur_sans_provenance_ne_bloque_pas_la_reprise()
+    {
+        var existing = Manifest(null);
+
+        DecodeCommand.RequireCompatibleResume(existing, FingerprintOf(existing), 3, Path, Provenance('b'));
     }
 }

@@ -104,7 +104,7 @@ public static class DecodeCommand
         }
         else
         {
-            RequireCompatibleResume(existing.Manifest, fingerprint, decodesPerClue, decodedPath);
+            RequireCompatibleResume(existing.Manifest, fingerprint, decodesPerClue, decodedPath, cluePrompt.Provenance);
         }
 
         var alreadyDecoded = existing is null
@@ -185,9 +185,16 @@ public static class DecodeCommand
     /// Les deux vérifications restent <b>distinctes</b> : <c>decodesPerClue</c> est délibérément
     /// hors de l'empreinte (granularité de R̄, pas décodeur), donc l'une ne couvre pas l'autre.
     /// </para>
+    /// <para>
+    /// Garde 0 (spec §6.3) : l'empreinte hache le chemin canonique et la version <b>déclarée</b>,
+    /// pas le contenu. Quand le manifeste existant et le prompt clue résolu portent tous deux une
+    /// provenance, un <c>ContentSha256</c> différent refuse la reprise. Un manifeste antérieur à la
+    /// provenance ne se juge pas sur ce point.
+    /// </para>
     /// </summary>
     internal static void RequireCompatibleResume(
-        DecodeManifest existing, string currentFingerprint, int decodesPerClue, string decodedPath)
+        DecodeManifest existing, string currentFingerprint, int decodesPerClue, string decodedPath,
+        PromptProvenance? currentCluePrompt = null)
     {
         var existingFingerprint = DecoderFingerprint.FromManifest(existing);
         if (!string.Equals(existingFingerprint, currentFingerprint, StringComparison.Ordinal))
@@ -197,6 +204,15 @@ public static class DecodeCommand
                 $"{existing.Temperature}), le décodeur courant est {currentFingerprint}. " +
                 "Reprendre mélangerait deux décodeurs sous un manifeste qui n'en nomme qu'un. " +
                 "Charger le décodeur d'origine, ou --force pour repartir de zéro.");
+
+        if (existing.CluePrompt is { } existingClue && currentCluePrompt is { } currentClue
+            && !string.Equals(existingClue.ContentSha256, currentClue.ContentSha256, StringComparison.Ordinal))
+            throw new InvalidOperationException(
+                $"{decodedPath} a été décodé avec un prompt clue de contenu sha {existingClue.ContentSha256[..8]}, " +
+                $"le prompt résolu a le contenu sha {currentClue.ContentSha256[..8]} sous la même version " +
+                $"déclarée v{existing.CluePromptVersion} (garde 0). Reprendre mélangerait deux contenus sous une " +
+                "même empreinte. Bumper le frontmatter du prompt, résoudre la version d'origine, ou --force " +
+                "pour repartir de zéro.");
 
         if (existing.DecodesPerClue != decodesPerClue)
             throw new InvalidOperationException(
