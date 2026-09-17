@@ -4,10 +4,12 @@ using SoClover.Eval.Analysis;
 using SoClover.Eval.Bench;
 using SoClover.Eval.Calibration;
 using SoClover.Eval.Cli;
+using SoClover.Eval.Config;
 using SoClover.Eval.Decoder;
 using SoClover.Eval.Human;
 using SoClover.Eval.Io;
 using SoClover.Eval.Langfuse;
+using SoClover.Eval.Prompts;
 using SoClover.Eval.Runner;
 using SoClover.Eval.Scoring;
 using SoClover.Eval.Web;
@@ -35,7 +37,7 @@ internal static class EvalProgram
         {
             var exitCode = cliArgs.Verb switch
             {
-                "doctor" => Task.FromResult(Doctor()),
+                "doctor" => DoctorAsync(CancellationToken.None),
                 "bench" => Bench(cliArgs),
                 "generate" => GenerateCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "decode" => DecodeCommand.ExecuteAsync(cliArgs, CancellationToken.None),
@@ -44,6 +46,7 @@ internal static class EvalProgram
                 "calibrate" => CalibrateCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "analyze" => AnalyzeCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "langfuse-sync" => LangfuseSyncCommand.ExecuteAsync(cliArgs, CancellationToken.None),
+                "langfuse-pull" => LangfusePullCommand.ExecuteAsync(cliArgs, CancellationToken.None),
                 "elicit" => Elicit(cliArgs, CancellationToken.None),
                 "judge" => Judge(cliArgs, CancellationToken.None),
                 "guess" => Guess(cliArgs, CancellationToken.None),
@@ -95,6 +98,8 @@ internal static class EvalProgram
                             Publie dans Langfuse le contenu courant des prompts du dépôt
                             (idempotent ; refuse un conflit de version) et/ou le banc désigné comme
                             dataset, un item par direction (idempotent ; le banc de test est refusé)
+              langfuse-pull --prompt <nom> --label <l> | --version <n>
+                            Écrit une version Langfuse dans le fichier du dépôt (refuse sans bump)
 
             Sous-ensemble (score, compare) :
               --subset <elicitation.jsonl>      restreint TOUS les dénominateurs aux directions
@@ -132,7 +137,7 @@ internal static class EvalProgram
     // Vérifie que les .md de SoClover (déclarés Content/CopyToOutputDirectory=Always) sont bien
     // propagés dans l'output de SoClover.Eval par la ProjectReference. Toute la suite du harnais
     // en dépend : sans ça, FrenchAiCluePromptProvider lève FileNotFoundException à l'exécution.
-    private static int Doctor()
+    private static async Task<int> DoctorAsync(CancellationToken ct)
     {
         Console.WriteLine($"BaseDirectory : {AppContext.BaseDirectory}");
 
@@ -156,6 +161,27 @@ internal static class EvalProgram
         Console.WriteLine($"system : {bundle.SystemPrompt.Length} caractères");
         Console.WriteLine($"user   : {bundle.UserPrompt.Length} caractères");
         Console.WriteLine("OK — les prompts sont résolvables depuis SoClover.Eval.");
+
+        var langfuseOptions = EvalLlmConfig.BindLangfuse(EvalLlmConfig.BuildConfiguration());
+        Console.WriteLine($"source des prompts : {langfuseOptions.PromptSource}");
+        if (LangfuseClientFactory.CreateOrNull(langfuseOptions) is not { } client)
+        {
+            Console.WriteLine("Langfuse : aucune clé configurée — contrôle de dérive sauté.");
+            return 0;
+        }
+
+        try
+        {
+            foreach (var prompt in SoCloverPrompt.Synchronized)
+            {
+                var production = await client.GetPromptAsync(prompt.LangfuseName!, "production", null, ct);
+                Console.WriteLine(PromptDrift.Describe(prompt, File.ReadAllText(prompt.PackagedPath), production));
+            }
+        }
+        catch (LangfuseException ex)
+        {
+            Console.WriteLine($"Langfuse : {ex.Message}");
+        }
         return 0;
     }
 
