@@ -1,3 +1,7 @@
+# AVERTISSEMENT : les ids d'item de dataset sont uniques PAR PROJET Langfuse, pas par dataset.
+# Ne rejouer ce fichier que sur une instance jetable, ou avec des ids `spike-…` : un id du banc
+# (`dev-001-Top`, …) écraserait l'item correspondant de `soclover-bench-dev`.
+
 ### H1a — créer la version 1 d'un prompt
 POST {{baseUrl}}/api/public/v2/prompts
 Authorization: Basic {{publicKey}} {{secretKey}}
@@ -33,12 +37,12 @@ Content-Type: application/json
 
 > {% client.global.set("datasetId", response.body.id); %}
 
-### H2b — item à id fourni (à envoyer DEUX fois) : attendu id = "dev-001-Top", un seul item
+### H2b — item à id fourni (à envoyer DEUX fois) : attendu id = "spike-001-Top", un seul item
 POST {{baseUrl}}/api/public/dataset-items
 Authorization: Basic {{publicKey}} {{secretKey}}
 Content-Type: application/json
 
-{"datasetName":"spike-dataset","id":"dev-001-Top","input":{"words":["Paradis","Terrasse"]},"expectedOutput":{"referenceWords":["Paradis","Terrasse"]},"metadata":{"benchHash":"abc123"}}
+{"datasetName":"spike-dataset","id":"spike-001-Top","input":{"words":["Paradis","Terrasse"]},"expectedOutput":{"referenceWords":["Paradis","Terrasse"]},"metadata":{"benchHash":"abc123"}}
 
 ### H2c — relire le dataset : attendu metadata.benchHash = abc123
 GET {{baseUrl}}/api/public/v2/datasets/spike-dataset
@@ -55,7 +59,7 @@ Content-Type: application/json
   {"key":"langfuse.experiment.id","value":{"stringValue":"spike-experiment"}},
   {"key":"langfuse.experiment.name","value":{"stringValue":"spike-experiment"}},
   {"key":"langfuse.experiment.dataset.id","value":{"stringValue":"{{datasetId}}"}},
-  {"key":"langfuse.experiment.item.id","value":{"stringValue":"dev-001-Top"}},
+  {"key":"langfuse.experiment.item.id","value":{"stringValue":"spike-001-Top"}},
   {"key":"langfuse.experiment.item.root_observation_id","value":{"stringValue":"b7ad6b7169203331"}},
   {"key":"langfuse.experiment.item.expected_output","value":{"stringValue":"{\"referenceWords\":[\"Paradis\",\"Terrasse\"]}"}},
   {"key":"langfuse.observation.input","value":{"stringValue":"{\"words\":[\"Paradis\",\"Terrasse\"]}"}},
@@ -64,7 +68,7 @@ Content-Type: application/json
   {"key":"langfuse.experiment.id","value":{"stringValue":"spike-experiment"}},
   {"key":"langfuse.experiment.name","value":{"stringValue":"spike-experiment"}},
   {"key":"langfuse.experiment.dataset.id","value":{"stringValue":"{{datasetId}}"}},
-  {"key":"langfuse.experiment.item.id","value":{"stringValue":"dev-001-Top"}},
+  {"key":"langfuse.experiment.item.id","value":{"stringValue":"spike-001-Top"}},
   {"key":"langfuse.experiment.item.root_observation_id","value":{"stringValue":"b7ad6b7169203331"}},
   {"key":"langfuse.observation.type","value":{"stringValue":"generation"}},
   {"key":"gen_ai.request.model","value":{"stringValue":"qwen/qwen3-8b"}},
