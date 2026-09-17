@@ -95,4 +95,44 @@ internal static class LangfuseFixtures
         HarnessVersion: 1,
         OperatorNotes: null,
         CluePrompt: clue);
+
+    /// <summary>
+    /// Run sur <see cref="Bench"/> : Top réussit à la 2e tentative, Right et Bottom à la 1re,
+    /// Left échoue au format. Les latences sont choisies pour rendre la chronologie vérifiable.
+    /// </summary>
+    public static RunContents Run() => new(
+        RunManifest(),
+        [
+            Attempt("Top", 1, null, valid: false, failure: "unparseable", latencyMs: 1000),
+            Attempt("Top", 2, "Jardin", valid: true, failure: null, latencyMs: 2000),
+            Attempt("Right", 1, "Cuisine", valid: true, failure: null, latencyMs: 1500),
+            Attempt("Bottom", 1, "Bijou", valid: true, failure: null, latencyMs: 1500),
+            Attempt("Left", 1, null, valid: false, failure: "empty", latencyMs: 500),
+        ]);
+
+    /// <summary>Trois décodages par direction ; Left n'en a aucun (D6), Bottom en a un en échec de format.</summary>
+    public static DecodeContents Decoded() => new(
+        DecodeManifest(),
+        [
+            Decode("Top", 0, ["Paradis", "Terrasse"], 1.0),
+            Decode("Top", 1, ["Paradis", "Herbe"], 0.5),
+            Decode("Top", 2, ["Membre", "Herbe"], 0.0),
+            Decode("Right", 0, ["Tarte", "Herbe"], 1.0),
+            Decode("Right", 1, ["Tarte", "Herbe"], 1.0),
+            Decode("Right", 2, ["Tarte", "Fable"], 0.5),
+            Decode("Bottom", 0, ["Liquide", "Collier"], 1.0),
+            Decode("Bottom", 1, null, null),
+            Decode("Bottom", 2, ["Collier", "Miroir"], 0.5),
+        ],
+        []);
+
+    private static RunAttempt Attempt(string direction, int attempt, string? clue, bool valid, string? failure, long latencyMs) => new(
+        Kind: "attempt", BoardId: "dev-001", Direction: direction, Attempt: attempt, Clue: clue,
+        Candidates: null, Explanation: clue is null ? null : "explication", Valid: valid,
+        RejectionRules: [], FailureKind: failure, LatencyMs: latencyMs, InputTokens: 1200, OutputTokens: 80,
+        PromptVersion: 5, EffectiveModel: "google/gemma-4-12b-qat");
+
+    private static ClueDecodeLine Decode(string direction, int index, IReadOnlyList<string>? picked, double? r) => new(
+        Kind: "clueDecode", BoardId: "dev-001", Direction: direction, DecodeIndex: index, Picked: picked, R: r,
+        ShuffleSeed: "seed", DecodeFailureKind: picked is null ? "unparseable" : null, LatencyMs: 800);
 }
