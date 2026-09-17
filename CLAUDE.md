@@ -180,6 +180,12 @@ npm run dev   # Proxy automatique vers localhost:5000
   `Infrastructure/AI/AiClueResponseParser.cs`, `Infrastructure/AI/LlmCallExceptions.cs`.
   `AiClueLlmCaller` **ne journalise pas** : il rend latence / version de prompt / modèle effectif /
   usage, et `AiCluesGeneratorBase` conserve ses messages de log inchangés.
+- **Langfuse (local, `tools/langfuse/`) est la source des prompts du harnais** : `generate`, `decode`
+  et `calibrate` résolvent `generator-fr-per-direction`, `decoder-fr-clue`, `decoder-fr-board` par
+  label (défaut `production`) et les matérialisent sous `eval/prompts/resolved/<sha12>/fr/` — même
+  chemin canonique, donc **même empreinte de décodeur** qu'avec le fichier. Aucun repli silencieux :
+  `--prompt-source file` s'écrit. La prod lit toujours ses fichiers ; `langfuse-pull` y ramène une
+  version retenue. Rien de Langfuse n'entre dans `SoClover/`.
 
 ## Testing
 

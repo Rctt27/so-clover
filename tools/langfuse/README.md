@@ -82,6 +82,23 @@ Si un conflit apparaît un jour (ex. un Postgres local de SoClover sur 5432), re
 concerné dans `docker-compose.yml`, par exemple `127.0.0.1:5433:5432` pour `postgres`, et documenter
 le remap ici.
 
+## Mode "events_only" (v4.36.1) — endpoints de lecture indisponibles
+
+Cette instance tourne en mode `events_only`. Plusieurs endpoints de **lecture** REST y répondent
+404 (`"This endpoint is not available on deployments running in Langfuse v4 events_only mode"`) :
+`GET /api/public/traces/{id}`, la liste des traces, `GET /api/public/observations` (v1),
+`GET /api/public/datasets/{name}/runs/{run}` et `GET /api/public/scores/{id}`. Deux conséquences
+pour `SoClover.Eval` :
+
+- l'id d'une experiment se retrouve via `GET /api/public/experiments?fromStartTime=…&toStartTime=…`
+  filtré côté client par `name`, pas via un endpoint `runs/{runName}` (absent sur ce déploiement) ;
+- un score publié (`POST /api/public/scores`) ne se relit **pas** par API — son rattachement se
+  vérifie visuellement dans l'UI (Datasets → `<nom du dataset>` → Experiments), jamais par un
+  `curl` de contrôle.
+
+`GET /api/public/v2/observations?traceId=…` reste disponible et suffit à vérifier qu'un span a
+bien été ingéré.
+
 ## Cohabitation mémoire avec LM Studio (spec §12)
 
 Mesure effectuée avec la stack Langfuse seule démarrée (6 conteneurs), **sans** modèle chargé dans

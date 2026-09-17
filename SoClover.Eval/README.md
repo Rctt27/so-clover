@@ -27,7 +27,86 @@ Les secrets ne sont **jamais** committés. Pour un provider payant :
 GENERATOR__APIKEY=sk-ant-... dotnet run --project SoClover.Eval -- generate ...
 ```
 
-Un `evalsettings.local.json` (gitignoré) peut porter des surcharges locales.
+Un `evalsettings.local.json` (gitignoré) peut porter des surcharges locales. Lancées depuis la
+racine du dépôt (le cas normal, cf. plus bas), les commandes le lisent aussi à
+`SoClover.Eval/evalsettings.local.json` — utile pour les clés Langfuse, jamais copiées par le
+build dans `bin/`.
+
+## Langfuse
+
+Démarrage de l'instance locale (Docker, jamais déployée) : [`tools/langfuse/README.md`](../tools/langfuse/README.md).
+Les clés du projet (`LANGFUSE__PUBLICKEY`, `LANGFUSE__SECRETKEY`, `LANGFUSE__BASEURL`) vont dans
+`SoClover.Eval/evalsettings.local.json` — jamais committées ; les variables d'environnement
+`LANGFUSE__*` restent prioritaires pour une expérimentation ponctuelle.
+
+À la première installation, pousser les trois prompts et le banc dev comme dataset :
+
+```bash
+dotnet run --project SoClover.Eval -- langfuse-sync --prompts --bench eval/boards.dev.jsonl
+```
+
+Idempotent (un contenu déjà présent n'est pas re-poussé) ; le banc de test est **refusé**. Les ids
+d'item du dataset (`dev-001-Top`, …) sont uniques par **projet** Langfuse, pas par dataset — c'est
+pourquoi ils sont préfixés par le `boardId`, lui-même préfixé par le hash du banc.
+
+### Source des prompts
+
+`generate`, `decode` et `calibrate` résolvent leur(s) prompt(s) dans Langfuse **par défaut**
+(`Langfuse:promptSource` d'`evalsettings.json`) : `generator-fr-per-direction`,
+`decoder-fr-clue`, `decoder-fr-board`, matérialisés sous `eval/prompts/resolved/<sha12 du
+contenu>/fr/<fichier>.md` avant d'être chargés par les mêmes classes que la prod. Aucun repli
+silencieux : Langfuse injoignable ou clés absentes ⟹ échec avant tout appel LLM.
+
+```bash
+dotnet run --project SoClover.Eval -- generate --bench eval/boards.dev.jsonl \
+  --prompt-source file        # hors ligne, ou pour les tests
+dotnet run --project SoClover.Eval -- decode --run eval/runs/<runId>.jsonl \
+  --prompt-label candidat     # défaut : production
+dotnet run --project SoClover.Eval -- decode --run eval/runs/<runId>.jsonl \
+  --prompt-version 6          # numéro de version LANGFUSE (decode : prompt clue ; le board suit le label)
+```
+
+L'en-tête de sortie affiche toujours la source : `prompt : vN (langfuse <nom> #M, label …, sha …)`
+ou `vN (fichier, sha …)`.
+
+**Garde de contenu (§6.3), appliquée par une machine.** À la résolution, le harnais liste toutes
+les versions Langfuse du prompt et refuse bruyamment si une autre version déclare le même
+`version:` de frontmatter avec un contenu différent — éditer un prompt dans l'UI sans bumper son
+frontmatter devient donc inexécutable, avant tout appel LLM.
+
+**Empreinte inchangée (§6.4).** `DecoderFingerprint` continue de hacher le chemin canonique
+(`fr/decode-clue.md`) et la version **déclarée**, jamais le contenu ni la provenance : un décodeur
+résolu depuis Langfuse a la même empreinte qu'un décodeur de contenu identique lu sur disque. C'est
+ce qui rend les runs comparables des deux côtés de la migration.
+
+**Itérer sur un prompt** : publier une nouvelle version au frontmatter bumpé dans l'UI Langfuse,
+lancer un cycle avec `--prompt-label candidat` (ou `--prompt-version`), puis, si la variante est
+retenue, la ramener dans le dépôt :
+
+```bash
+dotnet run --project SoClover.Eval -- langfuse-pull --prompt decoder-fr-clue --label candidat
+```
+
+Refuse si la version Langfuse n'est pas strictement supérieure à celle du fichier, ou si le
+contenu est identique. Le commit reste manuel.
+
+### Publier un run comme experiment
+
+```bash
+dotnet run --project SoClover.Eval -- langfuse-export --run eval/runs/<runId>.jsonl
+```
+
+Publie les spans OTLP et les scores d'un run déjà décodé et scoré, sans appel LLM. **Ré-exporter
+est idempotent pour les scores** (ré-écrits par id) mais **ne renvoie pas les spans** d'une
+experiment déjà présente — `--resend-spans` force le renvoi, en sachant qu'il duplique les
+observations côté Langfuse. Un backfill de l'historique du registre sur `soclover-bench-dev` a été
+fait une fois ; comme les scores ne se relisent pas par API sur ce déploiement (mode
+`events_only`), vérifier leur rattachement se fait dans l'UI (Datasets → `soclover-bench-dev` →
+Experiments), pas par un appel REST.
+
+> **Un `recovery` affiché par Langfuse est une moyenne recopiée, jamais un verdict.** `compare`,
+> `calibrate` et le registre restent seuls juges des Δ appariés, des IC et des décisions
+> `retenu / neutre / écarté`.
 
 ## Contrainte structurante : deux passes
 

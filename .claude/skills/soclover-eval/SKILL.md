@@ -67,7 +67,8 @@ dotnet run --project SoClover.Eval -c Release -- <verbe> [options]
 ```
 
 ```
-doctor → generate → [rechargement manuel du modèle] → decode → score → calibrate → ligne LEDGER → commit
+[langfuse-sync (première fois)] → doctor → generate → [rechargement manuel du modèle] → decode
+  → score → calibrate → ligne LEDGER → langfuse-export → commit
 ```
 
 - `bench` **ne se relance pas** : `eval/boards.dev.jsonl` (40 boards) et `boards.test.jsonl` (60)
@@ -128,7 +129,9 @@ Ces règles existent parce que chacune a été enfreinte au moins une fois, avec
    garde donc son empreinte, deux décodeurs différents écrivent sous la même identité, et les
    `recovery` cessent d'être comparables sans qu'aucun artefact ne le signale. Vérifier le
    frontmatter **avant** de lancer `decode` ou `calibrate` ; l'en-tête de sortie affiche
-   `prompt : clue vN`, le lire.
+   `prompt : clue vN`, le lire. Avec la source Langfuse, la garde est appliquée à la résolution
+   (refus si un même `version:` porte deux contenus) ; avec `--prompt-source file`, elle reste
+   manuelle.
 1. **Une variable à la fois** (discipline P3) : prompt → modèle → température/maxOutputTokens →
    `decodesPerClue`. Si deux bougent malgré tout, les effets ne sont **pas séparables** : le
    déclarer comme une dette dans la note de registre, et la solder par une mesure dédiée.
@@ -202,6 +205,9 @@ Ces règles existent parce que chacune a été enfreinte au moins une fois, avec
   `--sample` ; elle est rapportée à part. Priorité de la taxonomie : **`M2 → M3 → M4 → M1 → M?`**.
 - **Un seul bootstrap** : `Scoring/Bootstrap.Ci` sert le Δ`recovery`, l'accord et κ. Ne jamais en
   écrire un second.
+- **Un `recovery` affiché par Langfuse est une moyenne recopiée, jamais un verdict** : deux
+  experiments d'empreintes différentes ne se comparent pas davantage dans l'UI que dans le
+  registre.
 
 ## Toucher au code du harnais
 
