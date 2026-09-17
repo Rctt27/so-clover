@@ -62,9 +62,12 @@ public static class DecoderFingerprint
     /// <c>fr/decode-clue.md</c>.
     /// <para>
     /// <c>DecodeManifest.CluePromptFile</c> est un chemin <b>absolu</b> dérivé de
-    /// <c>AppContext.BaseDirectory</c>. Haché tel quel, l'empreinte changerait d'une machine à
-    /// l'autre, et même d'un <c>bin/Debug</c> à un <c>bin/Release</c> : deux calibrations
-    /// identiques deviendraient incomparables. Deux segments et non un seul, parce que
+    /// <c>AppContext.BaseDirectory</c> pour la source fichier, ou un chemin <b>relatif</b>
+    /// (<c>eval/prompts/resolved/&lt;sha12&gt;/fr/decode-clue.md</c>) pour un prompt matérialisé
+    /// depuis Langfuse. Haché tel quel, l'empreinte changerait d'une machine à l'autre, d'une source
+    /// à l'autre, et même d'un <c>bin/Debug</c> à un <c>bin/Release</c> : deux calibrations
+    /// identiques deviendraient incomparables. Les deux derniers segments sont les mêmes dans tous
+    /// ces cas — la formule ne change pas. Deux segments et non un seul, parce que
     /// <c>en/decode-clue.md</c> doit être une autre empreinte.
     /// </para>
     /// </summary>

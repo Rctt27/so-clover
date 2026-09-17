@@ -47,7 +47,7 @@ dotnet run --project SoClover.Eval -- langfuse-sync --prompts --bench eval/board
 
 Idempotent (un contenu déjà présent n'est pas re-poussé) ; le banc de test est **refusé**. Les ids
 d'item du dataset (`dev-001-Top`, …) sont uniques par **projet** Langfuse, pas par dataset — c'est
-pourquoi ils sont préfixés par le `boardId`, lui-même préfixé par le hash du banc.
+pourquoi ils sont préfixés par le `boardId`, lui-même préfixé par le `benchId` (`dev-001`).
 
 ### Source des prompts
 
