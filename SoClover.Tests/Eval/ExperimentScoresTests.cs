@@ -40,13 +40,52 @@ public class ExperimentScoresTests
         Assert.Equal("2 décodage(s) exploitable(s) sur 3", recovery.Comment);
     }
 
-    /// <summary>D6 : une direction sans décodage exploitable n'est pas un échec sémantique — aucun score, jamais 0.</summary>
+    /// <summary>Ruling 14 : comme dans RunMetrics.Compute, une direction sans indice valide compte R̄ = 0 (A-1).</summary>
     [Fact]
-    public void Une_direction_sans_decodage_n_a_aucun_score()
+    public void Une_direction_sans_indice_valide_publie_un_recovery_nul_sur_la_racine()
     {
         var left = Items().Single(i => i.ItemId == "dev-001-Left");
 
-        Assert.DoesNotContain(ExperimentScores.ForItems(ExperimentId, Items()), s => s.TraceId == left.TraceId);
+        var scores = ExperimentScores.ForItems(ExperimentId, Items())
+            .Where(s => s.TraceId == left.TraceId)
+            .ToList();
+
+        Assert.DoesNotContain(scores, s => s.Name == "r");
+        var recovery = scores.Single(s => s.Name == "recovery");
+        Assert.Equal(0.0, recovery.Value);
+        Assert.Equal(left.RootSpanId, recovery.ObservationId);
+        Assert.Equal("aucun indice valide (A-1), compté 0 comme dans RunMetrics", recovery.Comment);
+    }
+
+    /// <summary>Ruling 14 : un indice valide dont aucun décodage n'est exploitable compte R̄ = 0, comme dans RunMetrics.Compute.</summary>
+    [Fact]
+    public void Un_indice_valide_sans_decodage_exploitable_publie_un_recovery_nul()
+    {
+        var item = new ItemSpans("dev-001-Top", "trace", "root", [new DecodeSpan(0, "decode-0", null)], HasValidClue: true);
+
+        var scores = ExperimentScores.ForItems(ExperimentId, [item]);
+
+        Assert.DoesNotContain(scores, s => s.Name == "r");
+        var recovery = scores.Single(s => s.Name == "recovery");
+        Assert.Equal(0.0, recovery.Value);
+        Assert.Equal("root", recovery.ObservationId);
+        Assert.Equal("aucun décodage exploitable, compté 0 comme dans RunMetrics", recovery.Comment);
+    }
+
+    [Fact]
+    public void La_moyenne_des_recovery_d_item_egale_le_recovery_de_RunMetrics()
+    {
+        var run = LangfuseFixtures.Run();
+        var metrics = RunMetrics.Compute(
+            LangfuseFixtures.Bench(), run, LangfuseFixtures.Decoded(), maxAttempts: run.Manifest.MaxRetries + 1);
+
+        var itemRecoveries = ExperimentScores.ForItems(ExperimentId, Items())
+            .Where(s => s.Name == "recovery")
+            .Select(s => s.Value)
+            .ToList();
+
+        Assert.Equal(metrics.DirectionCount, itemRecoveries.Count);
+        Assert.Equal(metrics.Recovery, itemRecoveries.Average(), precision: 10);
     }
 
     [Fact]

@@ -23,15 +23,20 @@ public static class ExperimentScores
                     item.TraceId, decode.SpanId, null, null));
             }
 
-            // D6 : aucun décodage exploitable ⟹ aucun score, jamais un R̄ = 0 fabriqué.
-            if (exploitable.Count == 0)
-                continue;
+            // Ruling 14 : aligné sur RunMetrics.Compute, qui garde toute direction au dénominateur
+            // avec R̄ = 0 quand elle n'a pas d'indice valide (A-1) ou aucun décodage exploitable.
+            // Sans ces zéros, la moyenne des items dans Langfuse surévaluerait le run.
+            var (value, comment) = (item.HasValidClue, exploitable.Count) switch
+            {
+                (false, _) => (0.0, "aucun indice valide (A-1), compté 0 comme dans RunMetrics"),
+                (true, 0) => (0.0, "aucun décodage exploitable, compté 0 comme dans RunMetrics"),
+                _ => (exploitable.Average(d => d.R!.Value),
+                    $"{exploitable.Count} décodage(s) exploitable(s) sur {item.Decodes.Count}"),
+            };
 
             scores.Add(new LangfuseScore(
-                ScoreId(experimentId, item.ItemId, "recovery"), "recovery",
-                exploitable.Average(d => d.R!.Value),
-                item.TraceId, item.RootSpanId, null,
-                $"{exploitable.Count} décodage(s) exploitable(s) sur {item.Decodes.Count}"));
+                ScoreId(experimentId, item.ItemId, "recovery"), "recovery", value,
+                item.TraceId, item.RootSpanId, null, comment));
         }
         return scores;
     }

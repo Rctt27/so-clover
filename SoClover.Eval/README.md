@@ -107,6 +107,10 @@ fait une fois ; comme les scores ne se relisent pas par API sur ce déploiement 
 `events_only`), vérifier leur rattachement se fait dans l'UI (Datasets → `soclover-bench-dev` →
 Experiments), pas par un appel REST.
 
+Le score d'item `recovery` suit `RunMetrics` : une direction sans indice valide (A-1), ou dont aucun
+décodage n'est exploitable, reçoit `recovery = 0` avec un commentaire qui le dit, au lieu d'être
+omise — la moyenne des items d'un run complet égale donc le `recovery` du run.
+
 > **Un `recovery` affiché par Langfuse est une moyenne recopiée, jamais un verdict.** `compare`,
 > `calibrate` et le registre restent seuls juges des Δ appariés, des IC et des décisions
 > `retenu / neutre / écarté`.

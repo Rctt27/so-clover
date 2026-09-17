@@ -16,7 +16,12 @@ public sealed record ExperimentContext(
 
 public sealed record DecodeSpan(int DecodeIndex, string SpanId, double? R);
 
-public sealed record ItemSpans(string ItemId, string TraceId, string RootSpanId, IReadOnlyList<DecodeSpan> Decodes);
+/// <summary>
+/// <paramref name="HasValidClue"/> : au moins une tentative valide — la même règle que
+/// <see cref="SoClover.Eval.Scoring.RunMetrics"/>, qui compte R̄ = 0 aux directions sans indice valide (A-1).
+/// </summary>
+public sealed record ItemSpans(
+    string ItemId, string TraceId, string RootSpanId, IReadOnlyList<DecodeSpan> Decodes, bool HasValidClue);
 
 public sealed record OtlpExport(IReadOnlyList<JsonObject> Payloads, IReadOnlyList<ItemSpans> Items);
 
@@ -116,7 +121,7 @@ public static class OtlpExperimentBuilder
                 };
 
                 var root = Span(traceId, rootId, null, "experiment-item", rootStart, cursor, rootAttributes);
-                items.Add((new ItemSpans(itemId, traceId, rootId, decodeSpans), children.Prepend(root).ToList()));
+                items.Add((new ItemSpans(itemId, traceId, rootId, decodeSpans, retained is not null), children.Prepend(root).ToList()));
             }
         }
 
