@@ -44,4 +44,25 @@ public class PromptPullPolicyTests
         Assert.Contains("ÉCART", PromptDrift.Describe(prompt, V4, P(2, V5)));
         Assert.Contains("langfuse-sync --prompts", PromptDrift.Describe(prompt, V4, null));
     }
+
+    [Fact]
+    public void Doctor_sans_cle_avec_la_source_langfuse_annonce_l_echec_des_verbes_a_prompt()
+    {
+        var message = PromptDrift.DescribeMissingCredentials(PromptSource.Langfuse);
+
+        Assert.Contains("aucune clé", message);
+        Assert.Contains("generate", message);
+        Assert.Contains("decode", message);
+        Assert.Contains("calibrate", message);
+        Assert.Contains("--prompt-source file", message);
+    }
+
+    [Fact]
+    public void Doctor_sans_cle_avec_la_source_fichier_ne_signale_que_le_controle_saute()
+    {
+        var message = PromptDrift.DescribeMissingCredentials(PromptSource.File);
+
+        Assert.Contains("contrôle de dérive sauté", message);
+        Assert.DoesNotContain("échoueront", message);
+    }
 }

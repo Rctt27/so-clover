@@ -16,4 +16,15 @@ public static class PromptDrift
             : $"  {prompt.LangfuseName} : ÉCART — production #{production.Version} " +
               $"(v{PromptContent.DeclaredVersion(production.Content)}) ≠ fichier embarqué (v{local})";
     }
+
+    /// <summary>
+    /// Ligne de <c>doctor</c> sans clé Langfuse. Avec la source <c>langfuse</c> configurée, l'absence
+    /// de clé n'est pas un détail : pas de repli silencieux (spec §6.5), donc les verbes qui
+    /// résolvent un prompt échoueront — autant le dire ici plutôt qu'au premier run.
+    /// </summary>
+    public static string DescribeMissingCredentials(PromptSource source) => source == PromptSource.Langfuse
+        ? "Langfuse : aucune clé configurée alors que la source des prompts est langfuse — contrôle de " +
+          "dérive sauté, et `generate`, `decode` et `calibrate` échoueront tant que les clés manquent " +
+          "(LANGFUSE__PUBLICKEY / LANGFUSE__SECRETKEY), ou passer `--prompt-source file`."
+        : "Langfuse : aucune clé configurée — contrôle de dérive sauté.";
 }

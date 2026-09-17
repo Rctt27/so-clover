@@ -172,7 +172,7 @@ internal static class EvalProgram
         Console.WriteLine($"source des prompts : {langfuseOptions.PromptSource}");
         if (LangfuseClientFactory.CreateOrNull(langfuseOptions) is not { } client)
         {
-            Console.WriteLine("Langfuse : aucune clé configurée — contrôle de dérive sauté.");
+            Console.WriteLine(PromptDrift.DescribeMissingCredentials(langfuseOptions.PromptSource));
             return 0;
         }
 
