@@ -1,3 +1,5 @@
+using SoClover.Domain;
+using SoClover.Eval.Bench;
 using SoClover.Eval.Decoder;
 using SoClover.Eval.Prompts;
 using SoClover.Eval.Runner;
@@ -8,6 +10,42 @@ internal static class LangfuseFixtures
 {
     public static readonly PromptProvenance LangfuseClue =
         new("langfuse", "decoder-fr-clue", 3, "production", new string('a', 64));
+
+    // Adaptation au code réel (brief §Interfaces) : `BenchBoardMapper.ReferenceWords(board, d)`
+    // (publique) LIT l'oracle gelé dans `board.Directions`, qui est encore `[]` à ce point de la
+    // construction — elle lèverait. `DeriveReferenceWords(cards, edge)` (interne, visible ici via
+    // InternalsVisibleTo) CALCULE la paire depuis la géométrie, sans dépendre de `Directions` :
+    // c'est la même surcharge que `BenchGenerator` utilise pour produire l'oracle au départ.
+    public static BenchContents Bench(string benchId = "dev")
+    {
+        var board = new BenchBoard(
+            Kind: "board",
+            BoardId: "dev-001",
+            Cards:
+            [
+                ["Paradis", "Membre", "Vêtement", "Chêne"],
+                ["Terrasse", "Tarte", "Déchet", "Voleur"],
+                ["Maître", "Herbe", "Liquide", "Fable"],
+                ["Miroir", "Fuite", "Collier", "Ampoule"],
+            ],
+            Directions: [],
+            Strata: new BenchStrata(null));
+
+        board = board with
+        {
+            Directions = BoardGeometry.AllDirections
+                .Select(d => new BenchDirection(d.ToString(), BenchBoardMapper.DeriveReferenceWords(board.Cards, d)))
+                .ToList(),
+        };
+
+        return new BenchContents(
+            new BenchManifest(
+                Kind: "manifest", BenchId: benchId, Seed: 20260726001, BoardCount: 1, Language: "Français_OFF",
+                DictionaryFile: "Français_OFF.txt", DictionaryHash: "78240a42a83c", PrngAlgorithm: "xoshiro256ss",
+                GeneratorVersion: 1, CreatedAtUtc: new DateTime(2026, 7, 27, 23, 15, 16, DateTimeKind.Utc),
+                BenchHash: "416b819a41a1"),
+            [board]);
+    }
 
     public static RunManifest RunManifest(PromptProvenance? prompt = null) => new(
         Kind: "manifest",

@@ -84,6 +84,47 @@ public sealed class LangfuseClient
         return ParsePrompt(json);
     }
 
+    public async Task<LangfuseDataset?> GetDatasetAsync(string name, CancellationToken ct)
+    {
+        var json = await SendAsync(
+            HttpMethod.Get, $"/api/public/v2/datasets/{Uri.EscapeDataString(name)}", null, ct,
+            allowNotFound: true).ConfigureAwait(false);
+        return json is null ? null : ParseDataset(json);
+    }
+
+    public async Task<LangfuseDataset> CreateDatasetAsync(
+        string name, string description, JsonObject metadata, CancellationToken ct)
+    {
+        var body = new JsonObject
+        {
+            ["name"] = name,
+            ["description"] = description,
+            ["metadata"] = metadata.DeepClone(),
+        };
+        var json = await SendAsync(HttpMethod.Post, "/api/public/v2/datasets", body, ct).ConfigureAwait(false)
+                   ?? throw new LangfuseException($"Création du dataset {name} : réponse vide.");
+        return ParseDataset(json);
+    }
+
+    /// <summary>L'id est fourni : re-poster le même item le met à jour au lieu de le dupliquer (hypothèse H2).</summary>
+    public async Task UpsertDatasetItemAsync(string datasetName, LangfuseDatasetItem item, CancellationToken ct)
+    {
+        var body = new JsonObject
+        {
+            ["datasetName"] = datasetName,
+            ["id"] = item.Id,
+            ["input"] = item.Input.DeepClone(),
+            ["expectedOutput"] = item.ExpectedOutput.DeepClone(),
+            ["metadata"] = item.Metadata.DeepClone(),
+        };
+        await SendAsync(HttpMethod.Post, "/api/public/dataset-items", body, ct).ConfigureAwait(false);
+    }
+
+    private static LangfuseDataset ParseDataset(JsonObject json) => new(
+        (string)json["id"]!,
+        (string)json["name"]!,
+        json["metadata"] is JsonObject metadata ? (string?)metadata["benchHash"] : null);
+
     internal async Task<JsonObject?> SendAsync(
         HttpMethod method, string pathAndQuery, JsonNode? body, CancellationToken ct,
         bool allowNotFound = false, IReadOnlyDictionary<string, string>? headers = null)

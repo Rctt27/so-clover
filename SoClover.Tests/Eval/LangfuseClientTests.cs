@@ -141,4 +141,32 @@ public class LangfuseClientTests
         var ex = Assert.Throws<InvalidOperationException>(() => LangfuseClientFactory.CreateRequired(options));
         Assert.Contains("LANGFUSE__PUBLICKEY", ex.Message);
     }
+
+    [Fact]
+    public async Task Un_item_de_dataset_est_poste_avec_son_id_et_le_nom_du_dataset()
+    {
+        var handler = new LangfuseStubHandler((_, _) => LangfuseStubHandler.Json("{}"));
+        var item = BenchDatasetMapper.ToItems(LangfuseFixtures.Bench())[0];
+
+        await LangfuseStubHandler.Client(handler).UpsertDatasetItemAsync("soclover-bench-dev", item, CancellationToken.None);
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal("/api/public/dataset-items", request.PathAndQuery);
+        var body = JsonNode.Parse(request.Body!)!.AsObject();
+        Assert.Equal("soclover-bench-dev", (string?)body["datasetName"]);
+        Assert.Equal("dev-001-Top", (string?)body["id"]);
+        Assert.NotNull(body["expectedOutput"]);
+    }
+
+    [Fact]
+    public async Task Un_dataset_se_relit_avec_son_benchHash()
+    {
+        var handler = new LangfuseStubHandler((_, _) => LangfuseStubHandler.Json(
+            """{"id":"ds_1","name":"soclover-bench-dev","metadata":{"benchHash":"416b819a41a1"}}"""));
+
+        var dataset = await LangfuseStubHandler.Client(handler).GetDatasetAsync("soclover-bench-dev", CancellationToken.None);
+
+        Assert.Equal(new LangfuseDataset("ds_1", "soclover-bench-dev", "416b819a41a1"), dataset);
+        Assert.Equal("/api/public/v2/datasets/soclover-bench-dev", handler.Requests[0].PathAndQuery);
+    }
 }

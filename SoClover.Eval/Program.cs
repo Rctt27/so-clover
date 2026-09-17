@@ -91,8 +91,10 @@ internal static class EvalProgram
               human-report  Agrégats des deux séances humaines (aucun appel LLM)
               calibrate     P6 : accord decodeur/humain, kappa, quatre portes, verdict unique
               analyze       P7 : taxonomie chiffree des modes d'echec (aucun appel LLM)
-              langfuse-sync --prompts   Publie dans Langfuse le contenu courant des prompts du
-                            dépôt (idempotent ; refuse un conflit de version)
+              langfuse-sync --prompts | --bench <banc.jsonl>
+                            Publie dans Langfuse le contenu courant des prompts du dépôt
+                            (idempotent ; refuse un conflit de version) et/ou le banc désigné comme
+                            dataset, un item par direction (idempotent ; le banc de test est refusé)
 
             Sous-ensemble (score, compare) :
               --subset <elicitation.jsonl>      restreint TOUS les dénominateurs aux directions
