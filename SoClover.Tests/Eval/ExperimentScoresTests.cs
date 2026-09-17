@@ -69,7 +69,7 @@ public class ExperimentScoresTests
         var recovery = scores.Single(s => s.Name == "recovery");
         Assert.Equal(0.370, recovery.Value);
         Assert.Equal("run_1", recovery.DatasetRunId);
-        Assert.Equal("n = 154", recovery.Comment);
+        Assert.Equal("n = 160", recovery.Comment);
         Assert.Null(recovery.TraceId);
         Assert.Equal(
             new[] { "recovery", "half_rate", "valid_rate", "first_attempt_rate", "board_positions", "decode_failure_rate" },
@@ -82,8 +82,22 @@ public class ExperimentScoresTests
         var scores = ExperimentScores.ForRun(ExperimentId, "run_1",
             LangfuseFixtures.Metrics(MetricCounts.Zero with { DecodedItems = 0, ScoredBoards = 0, Decodes = 480 }));
 
-        Assert.DoesNotContain(scores, s => s.Name is "recovery" or "half_rate" or "board_positions");
+        Assert.DoesNotContain(scores, s => s.Name is "half_rate" or "board_positions");
         Assert.Contains(scores, s => s.Name == "decode_failure_rate");
+
+        // recovery porte sur DirectionCount (160), pas sur DecodedItems : 0 sur 160 directions
+        // reste une mesure réelle même quand aucun item n'a été décodé.
+        var recovery = scores.Single(s => s.Name == "recovery");
+        Assert.Equal("n = 160", recovery.Comment);
+    }
+
+    [Fact]
+    public void Un_banc_sans_direction_supprime_recovery_et_les_taux_par_direction()
+    {
+        var scores = ExperimentScores.ForRun(ExperimentId, "run_1",
+            LangfuseFixtures.Metrics() with { DirectionCount = 0 });
+
+        Assert.DoesNotContain(scores, s => s.Name is "recovery" or "valid_rate" or "first_attempt_rate");
     }
 
     [Fact]

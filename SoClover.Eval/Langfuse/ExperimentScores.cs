@@ -39,9 +39,12 @@ public static class ExperimentScores
     public static IReadOnlyList<LangfuseScore> ForRun(string experimentId, string datasetRunId, MetricsReport metrics)
     {
         var counts = metrics.Counts;
+        // Effectifs recopiés de RunMetrics.Compute : recovery = Σ R̄ / DirectionCount porte sur
+        // TOUTES les directions du banc (une direction sans décodage y entre avec R̄ = 0), pas
+        // seulement celles effectivement décodées — contrairement à half_rate.
         (string Name, double Value, int Denominator)[] candidates =
         [
-            ("recovery", metrics.Recovery, counts.DecodedItems),
+            ("recovery", metrics.Recovery, metrics.DirectionCount),
             ("half_rate", metrics.HalfRate, counts.DecodedItems),
             ("valid_rate", metrics.ValidRate, metrics.DirectionCount),
             ("first_attempt_rate", metrics.FirstAttemptRate, metrics.DirectionCount),
