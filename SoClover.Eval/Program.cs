@@ -104,6 +104,8 @@ internal static class EvalProgram
               langfuse-export --run <run.jsonl> [--decoded <x.decoded.jsonl>]
                             Publie un run décodé et scoré comme experiment Langfuse
                             (aucun appel LLM, idempotent)
+                --resend-spans  renvoie les spans d'une experiment déjà présente
+                                (duplique les observations)
 
             Sous-ensemble (score, compare) :
               --subset <elicitation.jsonl>      restreint TOUS les dénominateurs aux directions

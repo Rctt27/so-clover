@@ -21,6 +21,23 @@ public static class LangfuseExportCommand
 
     public static string ExperimentName(string runId, string fingerprint) => $"{runId}.{fingerprint}";
 
+    /// <summary>
+    /// Ruling 12 (2026-09-17) : sur ce déploiement Langfuse v4 « events_only », renvoyer les mêmes
+    /// spans OTLP à une experiment déjà ingérée ne les met pas à jour — ça les duplique. Constaté en
+    /// pratique le 2026-09-17 sur la trace <c>473ef7c265bd585074320c5a472c0884</c> : un second export
+    /// identique a fait passer <c>GET /api/public/v2/observations?traceId=…</c> de 5 à 10 lignes
+    /// strictement identiques (mêmes ids, mêmes horodatages). Les ids OTLP restent déterministes
+    /// (hypothèse H3, <see cref="OtlpIds"/>) mais ce déploiement ne les traite pas comme une clé
+    /// d'upsert pour les observations — contrairement aux scores, dont l'idempotence par id est
+    /// documentée et vérifiée pour <see cref="LangfuseClient.CreateScoreAsync"/>. Donc : ne renvoyer
+    /// les spans que si l'experiment n'existe pas encore, ou si l'opérateur force explicitement le
+    /// doublon via <c>--resend-spans</c> en connaissance de cause. Les scores, eux, sont toujours
+    /// republiés — c'est ce qui permet de compléter un export dont les scores de run avaient manqué
+    /// (experiment pas encore visible lors du premier passage).
+    /// </summary>
+    internal static bool ShouldSendSpans(string? existingExperimentId, bool resendSpans) =>
+        existingExperimentId is null || resendSpans;
+
     public static void RequireExportable(RunContents run, DecodeContents decoded, string metricsJson)
     {
         if (decoded.Manifest.GeneratorRunId != run.Manifest.RunId)
@@ -75,27 +92,48 @@ public static class LangfuseExportCommand
         Console.WriteLine($"  dataset      : {datasetName} ({dataset.Id})");
         Console.WriteLine($"  items        : {export.Items.Count}, lots OTLP : {export.Payloads.Count}");
 
-        foreach (var payload in export.Payloads)
-            await client.SendOtlpTracesAsync(payload, ct).ConfigureAwait(false);
+        // Recherchée AVANT tout envoi : c'est cette recherche qui décide si les spans partent ou
+        // non (ShouldSendSpans). Fenêtre passée, comme pour la recherche post-envoi ci-dessous :
+        // les horodatages reconstruits des spans sont dans le passé.
+        var existingExperimentId = await client.FindExperimentIdAsync(
+            experimentId,
+            run.Manifest.CreatedAtUtc.AddDays(-1),
+            DateTime.UtcNow.AddDays(1),
+            ct).ConfigureAwait(false);
 
+        var datasetRunId = existingExperimentId;
+        if (ShouldSendSpans(existingExperimentId, args.Has("resend-spans")))
+        {
+            foreach (var payload in export.Payloads)
+                await client.SendOtlpTracesAsync(payload, ct).ConfigureAwait(false);
+
+            // L'ingestion OTLP est asynchrone côté Langfuse : l'experiment n'existe qu'une fois les
+            // spans traités par le worker. La fenêtre couvre les horodatages reconstruits (passés).
+            for (var attempt = 0; attempt < DatasetRunPollAttempts && datasetRunId is null; attempt++)
+            {
+                datasetRunId = await client.FindExperimentIdAsync(
+                    experimentId,
+                    run.Manifest.CreatedAtUtc.AddDays(-1),
+                    DateTime.UtcNow.AddDays(1),
+                    ct).ConfigureAwait(false);
+                if (datasetRunId is null)
+                    await Task.Delay(DatasetRunPollDelay, ct).ConfigureAwait(false);
+            }
+        }
+        else
+        {
+            Console.WriteLine(
+                $"  spans        : experiment déjà présente ({existingExperimentId}), spans non renvoyés — " +
+                "--resend-spans pour forcer (duplique les observations)");
+        }
+
+        // Les scores, contrairement aux spans, sont idempotents par id (LangfuseClient.CreateScoreAsync) :
+        // toujours republiés, y compris quand les spans ne le sont pas — c'est ce qui permet de
+        // compléter un export dont les scores de run avaient manqué la première fois.
         var itemScores = ExperimentScores.ForItems(experimentId, export.Items);
         foreach (var score in itemScores)
             await client.CreateScoreAsync(score, ct).ConfigureAwait(false);
         Console.WriteLine($"  scores item  : {itemScores.Count}");
-
-        // L'ingestion OTLP est asynchrone côté Langfuse : l'experiment n'existe qu'une fois les
-        // spans traités par le worker. La fenêtre couvre les horodatages reconstruits (passés).
-        string? datasetRunId = null;
-        for (var attempt = 0; attempt < DatasetRunPollAttempts && datasetRunId is null; attempt++)
-        {
-            datasetRunId = await client.FindExperimentIdAsync(
-                experimentId,
-                run.Manifest.CreatedAtUtc.AddDays(-1),
-                DateTime.UtcNow.AddDays(1),
-                ct).ConfigureAwait(false);
-            if (datasetRunId is null)
-                await Task.Delay(DatasetRunPollDelay, ct).ConfigureAwait(false);
-        }
 
         if (datasetRunId is null)
         {
