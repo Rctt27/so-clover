@@ -229,4 +229,47 @@ public class LangfuseClientTests
         Assert.Null(await LangfuseStubHandler.Client(handler).FindExperimentIdAsync(
             "run.9a829dc206d2", DateTime.UnixEpoch, DateTime.UnixEpoch, CancellationToken.None));
     }
+
+    /// <summary>
+    /// Ruling 15 : pagination par curseur, forme observée le 2026-09-17 sur l'instance locale —
+    /// `meta.cursor` tant qu'il reste une page, `meta = {}` sur la dernière.
+    /// </summary>
+    [Fact]
+    public async Task Suit_le_curseur_jusqu_a_la_page_qui_porte_l_experiment()
+    {
+        var handler = new LangfuseStubHandler((request, _) => request.RequestUri!.Query.Contains("cursor=")
+            ? LangfuseStubHandler.Json("""{"data":[{"id":"exp_1","name":"run.9a829dc206d2"}],"meta":{}}""")
+            : LangfuseStubHandler.Json("""{"data":[{"id":"exp_2","name":"un-autre"}],"meta":{"cursor":"page-2"}}"""));
+
+        var id = await LangfuseStubHandler.Client(handler).FindExperimentIdAsync(
+            "run.9a829dc206d2", DateTime.UnixEpoch, DateTime.UnixEpoch, CancellationToken.None);
+
+        Assert.Equal("exp_1", id);
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Contains("limit=", handler.Requests[0].PathAndQuery);
+        Assert.DoesNotContain("cursor=", handler.Requests[0].PathAndQuery);
+        Assert.Contains("cursor=page-2", handler.Requests[1].PathAndQuery);
+    }
+
+    [Fact]
+    public async Task La_derniere_page_sans_l_experiment_rend_null()
+    {
+        var handler = new LangfuseStubHandler((request, _) => request.RequestUri!.Query.Contains("cursor=")
+            ? LangfuseStubHandler.Json("""{"data":[{"id":"exp_3","name":"encore-un-autre"}],"meta":{}}""")
+            : LangfuseStubHandler.Json("""{"data":[{"id":"exp_2","name":"un-autre"}],"meta":{"cursor":"page-2"}}"""));
+
+        Assert.Null(await LangfuseStubHandler.Client(handler).FindExperimentIdAsync(
+            "run.9a829dc206d2", DateTime.UnixEpoch, DateTime.UnixEpoch, CancellationToken.None));
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task Un_404_sur_la_liste_des_experiments_est_une_erreur()
+    {
+        var handler = new LangfuseStubHandler((_, _) =>
+            LangfuseStubHandler.Json("""{"message":"not found"}""", HttpStatusCode.NotFound));
+
+        await Assert.ThrowsAsync<LangfuseException>(() => LangfuseStubHandler.Client(handler).FindExperimentIdAsync(
+            "run.9a829dc206d2", DateTime.UnixEpoch, DateTime.UnixEpoch, CancellationToken.None));
+    }
 }

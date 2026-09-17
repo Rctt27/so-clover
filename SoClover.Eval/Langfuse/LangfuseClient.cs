@@ -152,6 +152,12 @@ public sealed class LangfuseClient
     /// porte la liste. La fenêtre doit couvrir les horodatages **reconstruits** des spans, qui sont
     /// dans le passé — d'où un `fromStartTime` dérivé de la date de création du run, pas de maintenant.
     /// </para>
+    /// <para>
+    /// Pagination par curseur (forme observée le 2026-09-17) : `meta.cursor` tant qu'il reste une
+    /// page, `meta = {}` sur la dernière. Toutes les pages sont parcourues : une experiment manquée
+    /// ferait renvoyer ses spans, donc les dupliquer. Un 404 sur une liste est une erreur, jamais
+    /// une liste vide.
+    /// </para>
     /// </summary>
     public async Task<string?> FindExperimentIdAsync(
         string experimentName, DateTime fromStartTime, DateTime toStartTime, CancellationToken ct)
@@ -159,19 +165,37 @@ public sealed class LangfuseClient
         static string Iso(DateTime moment) =>
             Uri.EscapeDataString(moment.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture));
 
-        var json = await SendAsync(
-            HttpMethod.Get,
-            $"/api/public/experiments?fromStartTime={Iso(fromStartTime)}&toStartTime={Iso(toStartTime)}",
-            null, ct, allowNotFound: true).ConfigureAwait(false);
+        var baseQuery = $"/api/public/experiments?fromStartTime={Iso(fromStartTime)}&toStartTime={Iso(toStartTime)}" +
+                        $"&limit={ExperimentsPageSize}";
+        var seenCursors = new HashSet<string>(StringComparer.Ordinal);
+        string? cursor = null;
 
-        if (json?["data"] is not JsonArray data)
-            return null;
+        while (true)
+        {
+            var query = cursor is null ? baseQuery : $"{baseQuery}&cursor={Uri.EscapeDataString(cursor)}";
+            var json = (await SendAsync(HttpMethod.Get, query, null, ct).ConfigureAwait(false))!;
 
-        return data.OfType<JsonObject>()
-            .Where(e => (string?)e["name"] == experimentName)
-            .Select(e => (string?)e["id"])
-            .FirstOrDefault();
+            if (json["data"] is not JsonArray data)
+                throw new LangfuseException($"Langfuse GET {query} : réponse sans tableau `data`.");
+
+            var id = data.OfType<JsonObject>()
+                .Where(e => (string?)e["name"] == experimentName)
+                .Select(e => (string?)e["id"])
+                .FirstOrDefault();
+            if (id is not null)
+                return id;
+
+            cursor = json["meta"] is JsonObject meta && meta["cursor"] is JsonValue value
+                ? (string?)value
+                : null;
+            if (string.IsNullOrEmpty(cursor))
+                return null;
+            if (!seenCursors.Add(cursor))
+                throw new LangfuseException($"Langfuse GET {baseQuery} : curseur répété, pagination interrompue.");
+        }
     }
+
+    internal const int ExperimentsPageSize = 50;
 
     private static LangfuseDataset ParseDataset(JsonObject json) => new(
         (string)json["id"]!,

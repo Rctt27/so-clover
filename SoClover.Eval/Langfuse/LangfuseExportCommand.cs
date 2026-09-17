@@ -93,12 +93,12 @@ public static class LangfuseExportCommand
         Console.WriteLine($"  items        : {export.Items.Count}, lots OTLP : {export.Payloads.Count}");
 
         // Recherchée AVANT tout envoi : c'est cette recherche qui décide si les spans partent ou
-        // non (ShouldSendSpans). Fenêtre passée, comme pour la recherche post-envoi ci-dessous :
-        // les horodatages reconstruits des spans sont dans le passé.
+        // non (ShouldSendSpans). Fenêtre centrée sur CreatedAtUtc, comme pour la recherche post-envoi :
+        // l'heure de début d'une experiment est celle de son premier span reconstruit, soit CreatedAtUtc.
         var existingExperimentId = await client.FindExperimentIdAsync(
             experimentId,
             run.Manifest.CreatedAtUtc.AddDays(-1),
-            DateTime.UtcNow.AddDays(1),
+            run.Manifest.CreatedAtUtc.AddDays(1),
             ct).ConfigureAwait(false);
 
         var datasetRunId = existingExperimentId;
@@ -108,13 +108,13 @@ public static class LangfuseExportCommand
                 await client.SendOtlpTracesAsync(payload, ct).ConfigureAwait(false);
 
             // L'ingestion OTLP est asynchrone côté Langfuse : l'experiment n'existe qu'une fois les
-            // spans traités par le worker. La fenêtre couvre les horodatages reconstruits (passés).
+            // spans traités par le worker. Même fenêtre que ci-dessus (début reconstruit = CreatedAtUtc).
             for (var attempt = 0; attempt < DatasetRunPollAttempts && datasetRunId is null; attempt++)
             {
                 datasetRunId = await client.FindExperimentIdAsync(
                     experimentId,
                     run.Manifest.CreatedAtUtc.AddDays(-1),
-                    DateTime.UtcNow.AddDays(1),
+                    run.Manifest.CreatedAtUtc.AddDays(1),
                     ct).ConfigureAwait(false);
                 if (datasetRunId is null)
                     await Task.Delay(DatasetRunPollDelay, ct).ConfigureAwait(false);
