@@ -100,6 +100,23 @@ public class LangfuseClientTests
         Assert.Contains("401", ex.Message);
     }
 
+    [Theory]
+    [InlineData("<html>proxy</html>", "non JSON")]
+    [InlineData("""{"name":"decoder-fr-clue","type":"chat","version":2,"prompt":[{"role":"system","content":"x"}],"labels":[]}""", "chat")]
+    [InlineData("""{"name":"decoder-fr-clue","type":"text","prompt":"---\nversion: 4\n---\n","labels":[]}""", "version")]
+    public async Task Une_reponse_2xx_de_forme_inattendue_leve_une_LangfuseException_explicite(string body, string expected)
+    {
+        var handler = new LangfuseStubHandler((_, _) => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(body, Encoding.UTF8, "application/json"),
+        });
+
+        var ex = await Assert.ThrowsAsync<LangfuseException>(() => LangfuseStubHandler.Client(handler)
+            .GetPromptAsync("decoder-fr-clue", "production", null, CancellationToken.None));
+
+        Assert.Contains(expected, ex.Message);
+    }
+
     [Fact]
     public async Task Un_serveur_injoignable_leve_une_LangfuseException_qui_nomme_le_repli()
     {

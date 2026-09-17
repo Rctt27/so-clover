@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace SoClover.Eval.Langfuse;
@@ -48,7 +49,9 @@ public sealed class LangfuseClient
         return data.OfType<JsonObject>()
             .Where(p => (string?)p["name"] == name)
             .SelectMany(p => p["versions"] is JsonArray versions
-                ? versions.Select(x => (int)x!)
+                ? versions.Select(x => x is JsonValue v && v.TryGetValue<int>(out var number)
+                    ? number
+                    : throw new LangfuseException($"prompt {name} : version non entière dans la réponse Langfuse."))
                 : [])
             .Distinct()
             .Order()
@@ -198,9 +201,12 @@ public sealed class LangfuseClient
     internal const int ExperimentsPageSize = 50;
 
     private static LangfuseDataset ParseDataset(JsonObject json) => new(
-        (string)json["id"]!,
-        (string)json["name"]!,
-        json["metadata"] is JsonObject metadata ? (string?)metadata["benchHash"] : null);
+        RequiredString(json, "id", "dataset"),
+        RequiredString(json, "name", "dataset"),
+        json["metadata"] is JsonObject metadata && metadata["benchHash"] is JsonValue hash
+                                                && hash.TryGetValue<string>(out var benchHash)
+            ? benchHash
+            : null);
 
     internal async Task<JsonObject?> SendAsync(
         HttpMethod method, string pathAndQuery, JsonNode? body, CancellationToken ct,
@@ -242,15 +248,50 @@ public sealed class LangfuseClient
                     $"Langfuse {method} {pathAndQuery} → {(int)response.StatusCode} : " +
                     (text.Length > 300 ? text[..300] + "…" : text));
 
-            return string.IsNullOrWhiteSpace(text)
-                ? new JsonObject()
-                : JsonNode.Parse(text) as JsonObject ?? new JsonObject();
+            if (string.IsNullOrWhiteSpace(text))
+                return new JsonObject();
+
+            JsonNode? parsed;
+            try
+            {
+                parsed = JsonNode.Parse(text);
+            }
+            catch (JsonException ex)
+            {
+                throw new LangfuseException(
+                    $"Langfuse {method} {pathAndQuery} → {(int)response.StatusCode} : réponse non JSON : " +
+                    (text.Length > 300 ? text[..300] + "…" : text), ex);
+            }
+            return parsed as JsonObject ?? new JsonObject();
         }
     }
 
-    private static LangfusePrompt ParsePrompt(JsonObject json) => new(
-        (string)json["name"]!,
-        (int)json["version"]!,
-        (string)json["prompt"]!,
-        json["labels"] is JsonArray labels ? labels.Select(l => (string)l!).ToList() : []);
+    private static LangfusePrompt ParsePrompt(JsonObject json)
+    {
+        var name = RequiredString(json, "name", "prompt");
+        var type = json["type"] is JsonValue t && t.TryGetValue<string>(out var typeText) ? typeText : "text";
+        if (type != "text")
+            throw new LangfuseException(
+                $"Prompt {name} de type {type} : seuls les prompts de type text sont pris en charge par le harnais.");
+
+        return new LangfusePrompt(
+            name,
+            RequiredInt(json, "version", $"prompt {name}"),
+            RequiredString(json, "prompt", $"prompt {name}"),
+            json["labels"] is JsonArray labels
+                ? labels.Select(l => l is JsonValue v && v.TryGetValue<string>(out var label)
+                    ? label
+                    : throw new LangfuseException($"prompt {name} : label non textuel dans la réponse Langfuse.")).ToList()
+                : []);
+    }
+
+    private static string RequiredString(JsonObject json, string field, string what) =>
+        json[field] is JsonValue value && value.TryGetValue<string>(out var text)
+            ? text
+            : throw new LangfuseException($"{what} : champ `{field}` absent ou non textuel dans la réponse Langfuse.");
+
+    private static int RequiredInt(JsonObject json, string field, string what) =>
+        json[field] is JsonValue value && value.TryGetValue<int>(out var number)
+            ? number
+            : throw new LangfuseException($"{what} : champ `{field}` absent ou non entier dans la réponse Langfuse.");
 }
