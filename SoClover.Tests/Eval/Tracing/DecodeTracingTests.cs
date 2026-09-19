@@ -127,4 +127,21 @@ public class DecodeTracingTests
         Assert.Equal(1, line.DecodeIndex);
         Assert.Equal(1, Assert.Single(result.Items.Single(i => i.ItemId == $"{Board.BoardId}-Top").Decodes).DecodeIndex);
     }
+
+    [Fact]
+    public async Task A_board_whose_board_decode_already_exists_does_not_rerun_it()
+    {
+        var (clue, board, fake) = Decoders();
+        var valid = Board.Directions.ToDictionary(d => (Board.BoardId, d.Direction), _ => "Indice");
+        foreach (var d in Board.Directions) { fake.Enqueue(Picked(d.ReferenceWords)); fake.Enqueue(Picked(d.ReferenceWords)); }
+        var ctx = Context(valid) with { AlreadyBoardDecoded = new HashSet<string> { Board.BoardId } };
+
+        using var session = TracingTestKit.Start(out var exported);
+        var result = await DecodeBoardUnit.RunAsync(clue, board, ctx, Board, default);
+        session.Checkpoint(Board.BoardId);
+
+        Assert.Equal(8, result.ClueLines.Count);
+        Assert.Null(result.BoardLine);
+        Assert.DoesNotContain(exported, a => a.DisplayName == "decode-board");
+    }
 }

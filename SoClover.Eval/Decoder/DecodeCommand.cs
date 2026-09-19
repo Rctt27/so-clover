@@ -149,7 +149,7 @@ public static class DecodeCommand
 
         var experimentId = LangfuseExportCommand.ExperimentName(run.Manifest.RunId, fingerprint);
         var ctx = new DecodeUnitContext(run, manifest, experimentId, datasetId, fingerprint, decodesPerClue,
-            bench.Manifest.BenchHash, validClues, alreadyDecoded);
+            bench.Manifest.BenchHash, validClues, alreadyDecoded, alreadyBoardDecoded);
 
         foreach (var board in DecodeResume.PendingBoards(bench, validClues, existing, decodesPerClue))
         {
@@ -165,10 +165,8 @@ public static class DecodeCommand
                 foreach (var score in ExperimentScores.ForItems(experimentId, unit.Items))
                     await client.CreateScoreAsync(score, ct).ConfigureAwait(false);
             }
-            foreach (var line in unit.ClueLines)
-                DecodeFile.AppendClueDecode(decodedPath, line);
-            if (unit.BoardLine is not null && !alreadyBoardDecoded.Contains(board.BoardId))
-                DecodeFile.AppendBoardDecode(decodedPath, unit.BoardLine);
+            // Un seul append par board : pas de board à moitié écrit après un arrêt brutal.
+            DecodeFile.AppendBoardUnit(decodedPath, unit.ClueLines, unit.BoardLine);
 
             Console.WriteLine($"  {board.BoardId} décodé — écoulé {stopwatch.Elapsed:hh\\:mm\\:ss}");
         }

@@ -111,6 +111,43 @@ public class DecodeFileTests : IDisposable
         Assert.StartsWith(afterFirst, File.ReadAllText(_path));
     }
 
+    [Fact]
+    public void A_board_unit_is_written_as_the_same_lines_as_the_per_line_appends()
+    {
+        var clueLines = new[] { Decode("dev-001", "Top", 0), Decode("dev-001", "Top", 1, r: null), Decode("dev-001", "Left", 0) };
+        var other = Path.Combine(Path.GetTempPath(), $"run-{Guid.NewGuid():N}.decoded.jsonl");
+        try
+        {
+            DecodeFile.WriteManifest(other, Manifest());
+            foreach (var line in clueLines) DecodeFile.AppendClueDecode(other, line);
+            DecodeFile.AppendBoardDecode(other, BoardDecode("dev-001"));
+
+            DecodeFile.WriteManifest(_path, Manifest());
+            DecodeFile.AppendBoardUnit(_path, clueLines, BoardDecode("dev-001"));
+
+            Assert.Equal(File.ReadAllText(other), File.ReadAllText(_path));
+            var decoded = DecodeFile.Read(_path);
+            Assert.Equal(3, decoded.ClueDecodes.Count);
+            Assert.Single(decoded.BoardDecodes);
+        }
+        finally
+        {
+            if (File.Exists(other)) File.Delete(other);
+        }
+    }
+
+    [Fact]
+    public void A_board_unit_without_board_decode_writes_only_its_clue_lines()
+    {
+        DecodeFile.WriteManifest(_path, Manifest());
+        DecodeFile.AppendBoardUnit(_path, [Decode("dev-001", "Top", 0), Decode("dev-001", "Top", 1)], null);
+
+        var decoded = DecodeFile.Read(_path);
+
+        Assert.Equal(2, decoded.ClueDecodes.Count);
+        Assert.Empty(decoded.BoardDecodes);
+    }
+
     // Le contrat de chemin vit désormais dans DecodePathFingerprintTests : il porte l'empreinte
     // du décodeur, et se tester ici en double n'ajouterait rien.
 

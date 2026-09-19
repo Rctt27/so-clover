@@ -148,6 +148,23 @@ public static class DecodeFile
     public static void AppendBoardDecode(string path, BoardDecodeLine line) =>
         File.AppendAllText(path, EvalJson.Serialize(line) + "\n", Utf8NoBom);
 
+    /// <summary>
+    /// Les lignes d'un board de <c>decode</c> (unité atomique, spec phase 3 §8 bis) en <b>un seul</b>
+    /// append : un arrêt brutal ne laisse pas de board à moitié écrit, dont la reprise republierait
+    /// des scores d'item calculés sur une partie seulement de ses décodages. Même sérialisation que
+    /// <see cref="AppendClueDecode"/> et <see cref="AppendBoardDecode"/>.
+    /// </summary>
+    public static void AppendBoardUnit(string path, IReadOnlyList<ClueDecodeLine> clueLines, BoardDecodeLine? boardLine)
+    {
+        var builder = new StringBuilder();
+        foreach (var line in clueLines)
+            builder.Append(EvalJson.Serialize(line)).Append('\n');
+        if (boardLine is not null)
+            builder.Append(EvalJson.Serialize(boardLine)).Append('\n');
+        if (builder.Length > 0)
+            File.AppendAllText(path, builder.ToString(), Utf8NoBom);
+    }
+
     public static DecodeContents? ReadOrNull(string path) =>
         File.Exists(path) ? Read(path) : null;
 

@@ -19,7 +19,10 @@ public sealed record DecodeUnitContext(
     int DecodesPerClue,
     string BenchHash,
     IReadOnlyDictionary<(string BoardId, string Direction), string> ValidClues,
-    IReadOnlySet<(string BoardId, string Direction, int DecodeIndex)> AlreadyDecoded);
+    IReadOnlySet<(string BoardId, string Direction, int DecodeIndex)> AlreadyDecoded,
+    // Boards dont la ligne N3 existe déjà (reprise d'un fichier antérieur au board atomique) :
+    // N3 n'est pas rejoué.
+    IReadOnlySet<string>? AlreadyBoardDecoded = null);
 
 public sealed record DecodeUnitResult(
     IReadOnlyList<ClueDecodeLine> ClueLines,
@@ -98,7 +101,7 @@ public static class DecodeBoardUnit
             .ToDictionary(d => d, d => ctx.ValidClues[(board.BoardId, d.ToString())]);
 
         BoardDecodeLine? boardLine = null;
-        if (boardClues.Count == 4)
+        if (boardClues.Count == 4 && ctx.AlreadyBoardDecoded?.Contains(board.BoardId) != true)
         {
             using var boardRoot = EvalTracing.StartRoot("decode-board", OtlpIds.TraceId(ctx.ExperimentId, board.BoardId));
             boardRoot?.SetTag(EvalTracing.SessionId, runId);
