@@ -186,6 +186,9 @@ npm run dev   # Proxy automatique vers localhost:5000
   chemin canonique, donc **même empreinte de décodeur** qu'avec le fichier. Aucun repli silencieux :
   `--prompt-source file` s'écrit. La prod lit toujours ses fichiers ; `langfuse-pull` y ramène une
   version retenue. Rien de Langfuse n'entre dans `SoClover/`.
+- **Traçage en direct (phase 3)** : SDK OpenTelemetry dans `SoClover.Eval/Tracing/` uniquement —
+  jamais dans `SoClover/`. Les appels LLM passent par `EvalLlmConfig.CreateChatClient`, instrumenté
+  par M.E.AI ; une perte de télémétrie interrompt le run avant l'écriture de l'unité en cours.
 
 ## Testing
 
