@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Globalization;
-using SoClover.Domain;
 using SoClover.Eval.Bench;
 using SoClover.Eval.Cli;
 using SoClover.Eval.Config;
@@ -10,6 +9,7 @@ using SoClover.Eval.Io;
 using SoClover.Eval.Langfuse;
 using SoClover.Eval.Prompts;
 using SoClover.Eval.Scoring;
+using SoClover.Eval.Tracing;
 using SoClover.Infrastructure.AI.Prompts;
 
 namespace SoClover.Eval.Calibration;
@@ -91,10 +91,15 @@ public static class CalibrateCommand
         var config = EvalLlmConfig.BuildConfiguration();
         var llmOptions = EvalLlmConfig.Bind(config, "Decoder");
         var opts = llmOptions.Value;
+        var langfuseOptions = EvalLlmConfig.BindLangfuse(config);
+
+        // Refus (banc de test, clés absentes, Langfuse injoignable) AVANT tout appel LLM : aucun
+        // repli silencieux sur --trace off. calibrate ne rejoue jamais un pseudo-run humain.
+        using var tracing = await TracingSetup
+            .StartAsync(args, langfuseOptions, bench.Manifest, isHumanRun: false, ct).ConfigureAwait(false);
 
         using var chatClient = EvalLlmConfig.CreateChatClient(llmOptions);
         var loader = new FilePromptLoader();
-        var langfuseOptions = EvalLlmConfig.BindLangfuse(config);
         var resolver = new PromptResolver(LangfuseClientFactory.CreateOrNull(langfuseOptions), PromptResolver.DefaultRoot);
         var cluePrompt = await resolver.ResolveAsync(
             SoCloverPrompt.DecoderFrClue, PromptSelectionArgs.From(args, langfuseOptions), ct).ConfigureAwait(false);
@@ -158,11 +163,13 @@ public static class CalibrateCommand
                 OperatorNotes: notes,
                 Quantization: runtime.Quantization,
                 LoadedContextLength: runtime.LoadedContextLength,
-                CluePrompt: cluePrompt.Provenance));
+                CluePrompt: cluePrompt.Provenance,
+                Tracing: tracing.Manifest));
         }
         else
         {
             RequireCompatibleResume(existing.Manifest, decodesPerClue, epsilon, path);
+            TracingManifest.RequireSameMode(existing.Manifest.Tracing, tracing.Manifest, path);
         }
 
         var alreadyDecoded = existing is null
@@ -188,24 +195,16 @@ public static class CalibrateCommand
         {
             ct.ThrowIfCancellationRequested();
 
-            var board = boards[clue.BoardId];
-            var direction = Enum.Parse<Direction>(clue.Direction);
-
-            for (var index = 0; index < decodesPerClue; index++)
-            {
-                if (alreadyDecoded.Contains((clue.BoardId, clue.Direction, clue.Clue, index)))
-                    continue;
-
-                // ShuffleSeed.ForClue ne dépend NI de la direction NI de l'indice : les deux
-                // options d'un couple voient le même ordre à decodeIndex égal. L'ordre de
-                // présentation ne peut donc structurellement pas expliquer une préférence du
-                // décodeur — le contrôle est apparié, gratuitement.
-                var line = await decoder
-                    .DecodeAsync(board, direction, clue.Clue, index, bench.Manifest.BenchHash, ct)
-                    .ConfigureAwait(false);
-
+            // ShuffleSeed.ForClue ne dépend NI de la direction NI de l'indice : les deux
+            // options d'un couple voient le même ordre à decodeIndex égal. L'ordre de
+            // présentation ne peut donc structurellement pas expliquer une préférence du
+            // décodeur — le contrôle est apparié, gratuitement.
+            var lines = await CalibrateClueUnit.RunAsync(decoder, boards[clue.BoardId], clue.Direction, clue.Clue,
+                decodesPerClue, alreadyDecoded, calibrationId, fingerprint, epsilon, bench.Manifest.BenchHash, ct)
+                .ConfigureAwait(false);
+            tracing.Checkpoint($"{clue.BoardId} {clue.Direction} « {clue.Clue} »");
+            foreach (var line in lines)
                 CalibrationFile.AppendDecode(path, CalibrationDecode.From(line, clue.Clue));
-            }
 
             done++;
             if (done % 20 == 0)
