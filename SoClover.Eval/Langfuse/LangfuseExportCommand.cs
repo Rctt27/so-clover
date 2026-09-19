@@ -67,10 +67,13 @@ public static class LangfuseExportCommand
 
     /// <summary>
     /// Décodage tracé en direct (phase 3) : son experiment a été créée par <c>decode</c>, avec ses
-    /// propres ids de spans, et ses scores d'item publiés board par board. Le backfill ne s'y
-    /// applique pas — ses ids déterministes (<see cref="OtlpIds.SpanId"/>) n'y existent pas, et ses
-    /// scores d'item, de mêmes ids, écraseraient les scores live en les rattachant à des
-    /// observations inexistantes. Seuls les scores de run sont (re)publiés.
+    /// propres ids de spans, et ses scores d'item publiés board par board. Le backfill ne republie
+    /// pas ces scores : ses ids de span sont déterministes (calculés depuis le hash de l'id de trace,
+    /// pas depuis les ids réellement émis en direct), et les poster attacherait un score à une
+    /// observation qui n'existe pas. Une réparation est possible en principe — la racine de trace
+    /// est déterministe (<see cref="OtlpIds.TraceId"/>, même formule en direct et au backfill), donc
+    /// <c>GET /api/public/v2/observations?traceId=…</c> retrouve les ids de span réellement émis — mais
+    /// ce chemin n'est pas implémenté ici : seuls les scores de run sont (re)publiés.
     /// </summary>
     internal static bool IsLiveTraced(DecodeManifest manifest) => manifest.Tracing?.IsOn == true;
 

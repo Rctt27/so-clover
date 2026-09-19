@@ -138,11 +138,17 @@ appels LLM d'abord, puis flush des spans (`decode` publie en plus ses scores d'i
 la même commande le reprend, elle refait l'unité interrompue.
 
 `decode` crée l'experiment `<runId>.<empreinte>` en direct (le dataset du banc doit déjà exister via
-`langfuse-sync --bench`, comme avant la phase 3) et publie ses scores d'item et de run au fil de la
-passe. Ce que la phase 3 dispense, c'est `langfuse-export` : `langfuse-export` garde son rôle pour le
-**backfill** des runs antérieurs à la phase 3 et pour republier des scores manquants ; sur un
-`decode` déjà tracé en direct, il ne renvoie jamais les spans (refuse `--resend-spans`) et ne fait
-que republier les scores de run.
+`langfuse-sync --bench`, comme avant la phase 3) et publie ses scores d'item au fil de la passe,
+board par board ; les scores de run ne sont publiés qu'une seule fois, en fin de passe. Ce que la
+phase 3 dispense, c'est `langfuse-export` : `langfuse-export` garde son rôle pour le **backfill** des
+runs antérieurs à la phase 3 et pour republier des scores manquants ; sur un `decode` déjà tracé en
+direct, il ne renvoie jamais les spans (refuse `--resend-spans`) et ne fait que republier les scores
+de run.
+
+Une unité interrompue (Ctrl+C, coupure électrique) peut laisser des spans incomplets dans Langfuse :
+la reprise réécrit la même trace (même id déterministe), donc des observations en double peuvent
+apparaître pour cette unité. C'est attendu, pas un bug — Langfuse ne fait pas d'upsert sur les spans
+(Ruling 12).
 
 Tous les objets d'un run — génération et décodage — partagent `session.id = runId` : la vue
 *Sessions* de Langfuse les montre ensemble.
