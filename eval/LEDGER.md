@@ -1836,3 +1836,4 @@ n'est introduit — le bootstrap le dit déjà.
 **Gardes de montage.** `benchHash`, `seed` et `runId` doivent concorder entre **tous** les corpus, et
 les `sessionId` être deux à deux distincts sur l'ensemble — la seule variable autorisée reste *la
 personne*.
+| 2026-09-19 | 20260919-v5-google-gemma-4-12b-qat-e74bb9b6 | boards.dev.jsonl | board-clues-per-direction.md | v5 | google/gemma-4-12b-qat | 2026-09-19 | temp 1 / topP 0,95 / maxTokens 4096 / maxRetries 0 / reasoning False | 0,944 | 0,944 | 0,389 | 0,013 | 0,702 | 0,000 | pré-calibration | neutre | test E2E Langfuse : replication de d79a63b9 (v5 gemma) sous decodeur e46ee636933a, prompts servis par Langfuse ; attendu delta ~0 ; seul ecart hors empreinte : ctx decodeur 8000 | gén. : test E2E Langfuse, replication de d79a63b9 (pas une optimisation) ; LM Studio, thinking OFF, ctx 9k ; déc. : qwen/qwen3-8b (LM Studio, qwen3-8b thinking OFF, ctx 8k) |
