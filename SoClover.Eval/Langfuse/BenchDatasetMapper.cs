@@ -26,9 +26,12 @@ public static class BenchDatasetMapper
     /// </summary>
     public static string ItemId(string boardId, string direction) => $"{boardId}-{direction}";
 
+    public static bool IsTestBench(BenchManifest manifest) =>
+        string.Equals(manifest.BenchId, "test", StringComparison.OrdinalIgnoreCase);
+
     public static void RequireNotTestBench(BenchManifest manifest)
     {
-        if (string.Equals(manifest.BenchId, "test", StringComparison.OrdinalIgnoreCase))
+        if (IsTestBench(manifest))
             throw new InvalidOperationException(
                 "Le banc de test ne se pousse pas dans Langfuse (spec §7.1) : le consulter est un acte de " +
                 "jalon consigné au registre, pas une page qu'on ouvre.");

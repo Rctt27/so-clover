@@ -142,6 +142,10 @@ public sealed class LangfuseClient
         await SendAsync(HttpMethod.Post, "/api/public/scores", body, ct).ConfigureAwait(false);
     }
 
+    /// <summary>Clés valides pour ce projet ? Un 401 lève une <see cref="LangfuseException"/>.</summary>
+    public async Task CheckCredentialsAsync(CancellationToken ct) =>
+        await SendAsync(HttpMethod.Get, "/api/public/projects", null, ct).ConfigureAwait(false);
+
     /// <summary>OTLP/HTTP JSON. Sans l'en-tête d'ingestion v4, les spans peuvent mettre dix minutes à apparaître.</summary>
     public async Task SendOtlpTracesAsync(JsonObject payload, CancellationToken ct) =>
         await SendAsync(HttpMethod.Post, "/api/public/otel/v1/traces", payload, ct,
