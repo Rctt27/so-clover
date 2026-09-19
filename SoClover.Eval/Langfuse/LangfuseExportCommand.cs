@@ -108,10 +108,17 @@ public static class LangfuseExportCommand
         var existingExperimentId = await client.FindExperimentIdAsync(
             experimentId, searchFrom, searchTo, ct).ConfigureAwait(false);
 
+        var datasetRunId = existingExperimentId;
         if (ShouldSendSpans(existingExperimentId, args.Has("resend-spans")))
         {
             foreach (var payload in export.Payloads)
                 await client.SendOtlpTracesAsync(payload, ct).ConfigureAwait(false);
+
+            // L'ingestion OTLP est asynchrone côté Langfuse : attendre que l'experiment soit visible
+            // AVANT de poster les scores d'item, qui référencent des observations tout juste
+            // envoyées — même fenêtre que la recherche pré-envoi.
+            datasetRunId = await ExperimentRunScores.WaitForExperimentAsync(
+                client, experimentId, searchFrom, searchTo, ct).ConfigureAwait(false);
         }
         else
         {
@@ -128,9 +135,7 @@ public static class LangfuseExportCommand
             await client.CreateScoreAsync(score, ct).ConfigureAwait(false);
         Console.WriteLine($"  scores item  : {itemScores.Count}");
 
-        var published = await ExperimentRunScores.PublishAsync(
-            client, experimentId, metrics, searchFrom, searchTo, ct).ConfigureAwait(false);
-        if (!published)
+        if (datasetRunId is null)
         {
             Console.Error.WriteLine(
                 "AVERTISSEMENT : le dataset run n'est pas encore visible, scores de run NON publiés. " +
@@ -138,6 +143,7 @@ public static class LangfuseExportCommand
             return 1;
         }
 
+        await ExperimentRunScores.PublishAsync(client, experimentId, datasetRunId, metrics, ct).ConfigureAwait(false);
         Console.WriteLine("Rappel : ces scores sont des moyennes. Δ apparié, IC et verdict restent à `compare`.");
         return 0;
     }
