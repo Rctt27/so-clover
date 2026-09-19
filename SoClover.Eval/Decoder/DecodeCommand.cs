@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using SoClover.Domain;
 using SoClover.Eval.Bench;
 using SoClover.Eval.Cli;
 using SoClover.Eval.Calibration;
@@ -7,6 +6,8 @@ using SoClover.Eval.Config;
 using SoClover.Eval.Io;
 using SoClover.Eval.Langfuse;
 using SoClover.Eval.Prompts;
+using SoClover.Eval.Scoring;
+using SoClover.Eval.Tracing;
 using SoClover.Infrastructure.AI.Prompts;
 
 namespace SoClover.Eval.Decoder;
@@ -36,13 +37,25 @@ public static class DecodeCommand
                 $"Le run déclare benchHash {run.Manifest.BenchHash}, le banc porte {bench.Manifest.BenchHash}. " +
                 "Décoder un run contre un autre banc est une erreur de protocole.");
 
+        var isHumanRun = run.Manifest.GenerationMode == SoClover.Eval.Human.HumanRunExport.GenerationModeName;
+
         var config = EvalLlmConfig.BuildConfiguration();
         var llmOptions = EvalLlmConfig.Bind(config, "Decoder");
         var opts = llmOptions.Value;
+        var langfuseOptions = EvalLlmConfig.BindLangfuse(config);
+
+        // Refus (banc de test, pseudo-run humain, clés absentes, Langfuse injoignable) AVANT tout
+        // appel LLM : aucun repli silencieux sur --trace off.
+        using var tracing = await TracingSetup
+            .StartAsync(args, langfuseOptions, bench.Manifest, isHumanRun, ct).ConfigureAwait(false);
+        var client = tracing.IsOn ? LangfuseClientFactory.CreateRequired(langfuseOptions) : null;
+        // Sans traçage, aucune activité n'est créée : l'id de dataset n'est jamais lu.
+        var datasetId = client is null
+            ? string.Empty
+            : (await LangfuseExportCommand.RequireDatasetAsync(client, bench, run.Manifest.BenchFile, ct).ConfigureAwait(false)).Id;
 
         using var chatClient = EvalLlmConfig.CreateChatClient(llmOptions);
         var loader = new FilePromptLoader();
-        var langfuseOptions = EvalLlmConfig.BindLangfuse(config);
         var selection = PromptSelectionArgs.From(args, langfuseOptions);
         var resolver = new PromptResolver(LangfuseClientFactory.CreateOrNull(langfuseOptions), PromptResolver.DefaultRoot);
         var cluePrompt = await resolver.ResolveAsync(SoCloverPrompt.DecoderFrClue, selection, ct).ConfigureAwait(false);
@@ -67,6 +80,7 @@ public static class DecodeCommand
         var decodedPath = DecodeFile.PathFor(runPath, fingerprint);
         var existing = force ? null : DecodeFile.ReadOrNull(decodedPath);
 
+        DecodeManifest manifest;
         if (existing is null)
         {
             var providerModelListHash = await EvalLlmConfig
@@ -75,7 +89,7 @@ public static class DecodeCommand
             var runtime = await ModelRuntimeProbe
                 .FetchAsync(opts, opts.DefaultModel, ct).ConfigureAwait(false);
 
-            DecodeFile.WriteManifest(decodedPath, new DecodeManifest(
+            manifest = new DecodeManifest(
                 Kind: "manifest",
                 DecodeRunId: $"{run.Manifest.RunId}+decode-{DateTime.UtcNow:yyyyMMddHHmmss}",
                 CreatedAtUtc: DateTime.UtcNow,
@@ -100,11 +114,15 @@ public static class DecodeCommand
                 Quantization: runtime.Quantization,
                 LoadedContextLength: runtime.LoadedContextLength,
                 CluePrompt: cluePrompt.Provenance,
-                BoardPrompt: boardPrompt.Provenance));
+                BoardPrompt: boardPrompt.Provenance,
+                Tracing: tracing.Manifest);
+            DecodeFile.WriteManifest(decodedPath, manifest);
         }
         else
         {
             RequireCompatibleResume(existing.Manifest, fingerprint, decodesPerClue, decodedPath, cluePrompt.Provenance);
+            TracingManifest.RequireSameMode(existing.Manifest.Tracing, tracing.Manifest, decodedPath);
+            manifest = existing.Manifest;
         }
 
         var alreadyDecoded = existing is null
@@ -115,7 +133,7 @@ public static class DecodeCommand
             : existing.BoardDecodes.Select(d => d.BoardId).ToHashSet();
 
         // Indice retenu par direction : la dernière tentative valide du run générateur.
-        var validClues = run.Attempts
+        IReadOnlyDictionary<(string BoardId, string Direction), string> validClues = run.Attempts
             .Where(a => a.Valid && a.Clue is not null)
             .GroupBy(a => (a.BoardId, a.Direction))
             .ToDictionary(g => g.Key, g => g.Last().Clue!);
@@ -129,42 +147,42 @@ public static class DecodeCommand
 
         var stopwatch = Stopwatch.StartNew();
 
-        foreach (var board in bench.Boards)
+        var experimentId = LangfuseExportCommand.ExperimentName(run.Manifest.RunId, fingerprint);
+        var ctx = new DecodeUnitContext(run, manifest, experimentId, datasetId, fingerprint, decodesPerClue,
+            bench.Manifest.BenchHash, validClues, alreadyDecoded);
+
+        foreach (var board in DecodeResume.PendingBoards(bench, validClues, existing, decodesPerClue))
         {
             ct.ThrowIfCancellationRequested();
 
-            foreach (var direction in BoardGeometry.AllDirections)
+            var unit = await DecodeBoardUnit.RunAsync(clueDecoder, boardDecoder, ctx, board, ct).ConfigureAwait(false);
+
+            // Traces, puis scores d'item (REST, idempotents), puis artefact : une panne à l'une des
+            // deux premières étapes laisse le board non écrit, donc refait à la reprise (§8 bis).
+            tracing.Checkpoint(board.BoardId);
+            if (client is not null)
             {
-                if (!validClues.TryGetValue((board.BoardId, direction.ToString()), out var clue))
-                    continue; // Aucun indice valide : la direction comptera R̄ = 0 au scoring.
-
-                for (var index = 0; index < decodesPerClue; index++)
-                {
-                    if (alreadyDecoded.Contains((board.BoardId, direction.ToString(), index)))
-                        continue;
-
-                    var line = await clueDecoder
-                        .DecodeAsync(board, direction, clue, index, bench.Manifest.BenchHash, ct)
-                        .ConfigureAwait(false);
-                    DecodeFile.AppendClueDecode(decodedPath, line);
-                }
+                foreach (var score in ExperimentScores.ForItems(experimentId, unit.Items))
+                    await client.CreateScoreAsync(score, ct).ConfigureAwait(false);
             }
-
-            // N3 : seulement si les 4 directions ont un indice valide — une affectation
-            // partielle ne mesure pas la cohérence board.
-            var boardClues = BoardGeometry.AllDirections
-                .Where(d => validClues.ContainsKey((board.BoardId, d.ToString())))
-                .ToDictionary(d => d, d => validClues[(board.BoardId, d.ToString())]);
-
-            if (boardClues.Count == 4 && !alreadyBoardDecoded.Contains(board.BoardId))
-            {
-                var line = await boardDecoder
-                    .DecodeAsync(board, boardClues, bench.Manifest.BenchHash, ct)
-                    .ConfigureAwait(false);
-                DecodeFile.AppendBoardDecode(decodedPath, line);
-            }
+            foreach (var line in unit.ClueLines)
+                DecodeFile.AppendClueDecode(decodedPath, line);
+            if (unit.BoardLine is not null && !alreadyBoardDecoded.Contains(board.BoardId))
+                DecodeFile.AppendBoardDecode(decodedPath, unit.BoardLine);
 
             Console.WriteLine($"  {board.BoardId} décodé — écoulé {stopwatch.Elapsed:hh\\:mm\\:ss}");
+        }
+
+        if (client is not null)
+        {
+            var decodedNow = DecodeFile.Read(decodedPath);
+            var metrics = RunMetrics.Compute(bench, run, decodedNow, run.Manifest.MaxRetries + 1);
+            var (from, to) = LangfuseExportCommand.SearchWindow(run.Manifest.CreatedAtUtc, decodedNow.Manifest.CreatedAtUtc);
+            if (!await ExperimentRunScores.PublishAsync(client, experimentId, metrics, from, to, ct).ConfigureAwait(false))
+                Console.Error.WriteLine(
+                    "AVERTISSEMENT : experiment pas encore visible, scores de run non publiés — " +
+                    "`score` puis `langfuse-export` les republieront (sans renvoyer de spans).");
+            Console.WriteLine($"experiment Langfuse : {experimentId}");
         }
 
         Console.WriteLine($"terminé en {stopwatch.Elapsed:hh\\:mm\\:ss}. Décodage : {decodedPath}");

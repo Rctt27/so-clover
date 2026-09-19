@@ -1,4 +1,5 @@
 using System.Text.Json;
+using SoClover.Eval.Bench;
 using SoClover.Eval.Calibration;
 using SoClover.Eval.Cli;
 using SoClover.Eval.Config;
@@ -46,6 +47,23 @@ public static class LangfuseExportCommand
     internal static bool ShouldSendSpans(string? existingExperimentId, bool resendSpans) =>
         existingExperimentId is null || resendSpans;
 
+    /// <summary>
+    /// Dataset Langfuse du banc, exigé présent et au même <c>benchHash</c>. Partagé avec
+    /// <c>decode</c> tracé, qui le résout avant tout appel LLM.
+    /// </summary>
+    internal static async Task<LangfuseDataset> RequireDatasetAsync(
+        LangfuseClient client, BenchContents bench, string benchFile, CancellationToken ct)
+    {
+        var datasetName = BenchDatasetMapper.DatasetName(bench.Manifest);
+        var dataset = await client.GetDatasetAsync(datasetName, ct).ConfigureAwait(false)
+                      ?? throw new InvalidOperationException(
+                          $"Dataset {datasetName} absent de Langfuse : lancer `langfuse-sync --bench {benchFile}` d'abord.");
+        if (dataset.BenchHash != bench.Manifest.BenchHash)
+            throw new InvalidOperationException(
+                $"Le dataset {datasetName} porte benchHash {dataset.BenchHash}, le run {bench.Manifest.BenchHash}.");
+        return dataset;
+    }
+
     public static void RequireExportable(RunContents run, DecodeContents decoded, string metricsJson)
     {
         if (decoded.Manifest.GeneratorRunId != run.Manifest.RunId)
@@ -86,12 +104,7 @@ public static class LangfuseExportCommand
         var client = LangfuseClientFactory.CreateRequired(options);
 
         var datasetName = BenchDatasetMapper.DatasetName(bench.Manifest);
-        var dataset = await client.GetDatasetAsync(datasetName, ct).ConfigureAwait(false)
-                      ?? throw new InvalidOperationException(
-                          $"Dataset {datasetName} absent de Langfuse : lancer `langfuse-sync --bench {run.Manifest.BenchFile}` d'abord.");
-        if (dataset.BenchHash != bench.Manifest.BenchHash)
-            throw new InvalidOperationException(
-                $"Le dataset {datasetName} porte benchHash {dataset.BenchHash}, le run {bench.Manifest.BenchHash}.");
+        var dataset = await RequireDatasetAsync(client, bench, run.Manifest.BenchFile, ct).ConfigureAwait(false);
 
         var export = OtlpExperimentBuilder.Build(
             new ExperimentContext(experimentId, dataset.Id, fingerprint, bench, run, decoded));
