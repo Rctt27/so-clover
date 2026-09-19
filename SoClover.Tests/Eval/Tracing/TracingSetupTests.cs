@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.RegularExpressions;
 using SoClover.Eval.Cli;
 using SoClover.Eval.Langfuse;
 using SoClover.Eval.Tracing;
@@ -50,5 +51,16 @@ public class TracingSetupTests
         var handler = new LangfuseStubHandler((_, _) => LangfuseStubHandler.Json("{\"message\":\"no\"}", HttpStatusCode.Unauthorized));
         var ex = await Assert.ThrowsAsync<LangfuseException>(() => TracePreflight.RunAsync(LangfuseStubHandler.Client(handler), default));
         Assert.Contains("--trace off", ex.Message);
+    }
+
+    [Fact]
+    public async Task Preflight_when_unreachable_names_tools_langfuse_once_and_never_prompt_source()
+    {
+        var handler = new LangfuseStubHandler((_, _) => throw new HttpRequestException("Connection refused"));
+        var ex = await Assert.ThrowsAsync<LangfuseException>(() => TracePreflight.RunAsync(LangfuseStubHandler.Client(handler), default));
+
+        Assert.Contains("--trace off", ex.Message);
+        Assert.Single(Regex.Matches(ex.Message, "tools/langfuse"));
+        Assert.DoesNotContain("--prompt-source", ex.Message);
     }
 }

@@ -18,9 +18,17 @@ public static class TracePreflight
         }
         catch (LangfuseException ex)
         {
+            // Cas injoignable (LangfuseClient.SendAsync, ~L236) : son message répète déjà
+            // « tools/langfuse » et suggère --prompt-source (hors-sujet ici, c'est le repli du
+            // chemin prompts). On en reprend la seule cause (l'exception réseau d'origine),
+            // pas le message déjà enrichi. Cas 401/non-2xx : ex.Message est déjà sobre, on le
+            // garde tel quel — il ne mentionne ni tools/langfuse ni --prompt-source.
+            var cause = ex.InnerException is HttpRequestException or TaskCanceledException
+                ? ex.InnerException.Message
+                : ex.Message;
             throw new LangfuseException(
-                $"Préflight du traçage en échec : {ex.Message} — démarrer tools/langfuse, ou --trace off " +
-                "pour lancer sans traçage.", ex);
+                $"Préflight du traçage en échec : {cause} — démarrer tools/langfuse (docker compose up -d), " +
+                "ou --trace off pour lancer sans traçage.", ex);
         }
     }
 }

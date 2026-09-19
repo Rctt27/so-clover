@@ -142,7 +142,7 @@ public sealed class LangfuseClient
         await SendAsync(HttpMethod.Post, "/api/public/scores", body, ct).ConfigureAwait(false);
     }
 
-    /// <summary>Clés valides pour ce projet ? Un 401 lève une <see cref="LangfuseException"/>.</summary>
+    /// <summary>Clés valides pour ce projet ? Une réponse non 2xx — 401 pour des clés refusées — lève une <see cref="LangfuseException"/>.</summary>
     public async Task CheckCredentialsAsync(CancellationToken ct) =>
         await SendAsync(HttpMethod.Get, "/api/public/projects", null, ct).ConfigureAwait(false);
 
