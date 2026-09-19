@@ -60,7 +60,8 @@ public static class OtlpExperimentBuilder
                 var itemId = BenchDatasetMapper.ItemId(board.BoardId, direction.Direction);
                 var traceId = OtlpIds.TraceId(ctx.ExperimentId, itemId);
                 var rootId = OtlpIds.SpanId(ctx.ExperimentId, itemId, "root");
-                var common = CommonAttributes(ctx, itemId, rootId).ToList();
+                var common = ExperimentAttributes.Common(
+                    ctx.ExperimentId, ctx.DatasetId, ctx.DecoderFingerprint, ctx.Run.Manifest, ctx.Decoded.Manifest, itemId, rootId).ToList();
 
                 var rootStart = cursor;
                 var children = new List<JsonObject>();
@@ -105,20 +106,7 @@ public static class OtlpExperimentBuilder
                 }
 
                 var retained = attempts.FirstOrDefault(a => a.Valid);
-                var rootAttributes = new List<(string, object)>(common)
-                {
-                    ("langfuse.observation.input", BenchDatasetMapper.Input(board, direction.Direction).ToJsonString()),
-                    ("langfuse.observation.output", new JsonObject
-                    {
-                        ["clue"] = retained?.Clue,
-                        ["valid"] = retained is not null,
-                        ["attempts"] = attempts.Count,
-                    }.ToJsonString()),
-                    ("langfuse.experiment.item.expected_output", new JsonObject
-                    {
-                        ["referenceWords"] = new JsonArray(direction.ReferenceWords.Select(w => (JsonNode?)w).ToArray()),
-                    }.ToJsonString()),
-                };
+                var rootAttributes = common.Concat(ExperimentAttributes.ItemRoot(board, direction, attempts)).ToList();
 
                 var root = Span(traceId, rootId, null, "experiment-item", rootStart, cursor, rootAttributes);
                 items.Add((new ItemSpans(itemId, traceId, rootId, decodeSpans, retained is not null), children.Prepend(root).ToList()));
@@ -137,28 +125,6 @@ public static class OtlpExperimentBuilder
     {
         var instant = utc.Kind == DateTimeKind.Local ? utc.ToUniversalTime() : utc;
         return ((instant.Ticks - DateTime.UnixEpoch.Ticks) * 100).ToString(CultureInfo.InvariantCulture);
-    }
-
-    private static IEnumerable<(string Key, object Value)> CommonAttributes(ExperimentContext ctx, string itemId, string rootId)
-    {
-        var run = ctx.Run.Manifest;
-        var decoded = ctx.Decoded.Manifest;
-        yield return ("langfuse.experiment.id", ctx.ExperimentId);
-        yield return ("langfuse.experiment.name", ctx.ExperimentId);
-        yield return ("langfuse.experiment.dataset.id", ctx.DatasetId);
-        yield return ("langfuse.environment", "experiment");
-        yield return ("langfuse.experiment.metadata.run_id", run.RunId);
-        yield return ("langfuse.experiment.metadata.bench_hash", run.BenchHash);
-        yield return ("langfuse.experiment.metadata.decoder_fingerprint", ctx.DecoderFingerprint);
-        yield return ("langfuse.experiment.metadata.generator_model", run.ModelId);
-        yield return ("langfuse.experiment.metadata.generator_prompt_version", run.PromptVersion?.ToString(CultureInfo.InvariantCulture) ?? "—");
-        yield return ("langfuse.experiment.metadata.generator_temperature", run.Temperature.ToString("R", CultureInfo.InvariantCulture));
-        yield return ("langfuse.experiment.metadata.decoder_model", decoded.ModelId);
-        yield return ("langfuse.experiment.metadata.decoder_clue_prompt_version", decoded.CluePromptVersion?.ToString(CultureInfo.InvariantCulture) ?? "—");
-        yield return ("langfuse.experiment.metadata.decodes_per_clue", decoded.DecodesPerClue.ToString(CultureInfo.InvariantCulture));
-        yield return ("langfuse.experiment.metadata.notes", run.OperatorNotes ?? "—");
-        yield return ("langfuse.experiment.item.id", itemId);
-        yield return ("langfuse.experiment.item.root_observation_id", rootId);
     }
 
     private static JsonObject Span(

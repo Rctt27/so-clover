@@ -16,10 +16,18 @@ namespace SoClover.Eval.Langfuse;
 /// </summary>
 public static class LangfuseExportCommand
 {
-    private const int DatasetRunPollAttempts = 10;
-    private static readonly TimeSpan DatasetRunPollDelay = TimeSpan.FromSeconds(3);
-
     public static string ExperimentName(string runId, string fingerprint) => $"{runId}.{fingerprint}";
+
+    /// <summary>
+    /// Une experiment backfillée commence à la création du run ; une experiment tracée en direct
+    /// (phase 3) à celle du décodage. La fenêtre couvre les deux : manquer l'experiment ferait
+    /// renvoyer ses spans, donc les dupliquer (Ruling 12).
+    /// </summary>
+    public static (DateTime From, DateTime To) SearchWindow(DateTime runCreatedAtUtc, DateTime decodeCreatedAtUtc) =>
+        (Min(runCreatedAtUtc, decodeCreatedAtUtc).AddDays(-1), Max(runCreatedAtUtc, decodeCreatedAtUtc).AddDays(1));
+
+    private static DateTime Min(DateTime a, DateTime b) => a < b ? a : b;
+    private static DateTime Max(DateTime a, DateTime b) => a > b ? a : b;
 
     /// <summary>
     /// Ruling 12 (2026-09-17) : sur ce déploiement Langfuse v4 « events_only », renvoyer les mêmes
@@ -93,32 +101,17 @@ public static class LangfuseExportCommand
         Console.WriteLine($"  items        : {export.Items.Count}, lots OTLP : {export.Payloads.Count}");
 
         // Recherchée AVANT tout envoi : c'est cette recherche qui décide si les spans partent ou
-        // non (ShouldSendSpans). Fenêtre centrée sur CreatedAtUtc, comme pour la recherche post-envoi :
-        // l'heure de début d'une experiment est celle de son premier span reconstruit, soit CreatedAtUtc.
+        // non (ShouldSendSpans). Fenêtre couvrant à la fois la création du run et celle du décodage
+        // (SearchWindow) : un backfill démarre ses spans à CreatedAtUtc du run, une trace live (phase 3)
+        // à celle du décodage.
+        var (searchFrom, searchTo) = SearchWindow(run.Manifest.CreatedAtUtc, decoded.Manifest.CreatedAtUtc);
         var existingExperimentId = await client.FindExperimentIdAsync(
-            experimentId,
-            run.Manifest.CreatedAtUtc.AddDays(-1),
-            run.Manifest.CreatedAtUtc.AddDays(1),
-            ct).ConfigureAwait(false);
+            experimentId, searchFrom, searchTo, ct).ConfigureAwait(false);
 
-        var datasetRunId = existingExperimentId;
         if (ShouldSendSpans(existingExperimentId, args.Has("resend-spans")))
         {
             foreach (var payload in export.Payloads)
                 await client.SendOtlpTracesAsync(payload, ct).ConfigureAwait(false);
-
-            // L'ingestion OTLP est asynchrone côté Langfuse : l'experiment n'existe qu'une fois les
-            // spans traités par le worker. Même fenêtre que ci-dessus (début reconstruit = CreatedAtUtc).
-            for (var attempt = 0; attempt < DatasetRunPollAttempts && datasetRunId is null; attempt++)
-            {
-                datasetRunId = await client.FindExperimentIdAsync(
-                    experimentId,
-                    run.Manifest.CreatedAtUtc.AddDays(-1),
-                    run.Manifest.CreatedAtUtc.AddDays(1),
-                    ct).ConfigureAwait(false);
-                if (datasetRunId is null)
-                    await Task.Delay(DatasetRunPollDelay, ct).ConfigureAwait(false);
-            }
         }
         else
         {
@@ -135,7 +128,9 @@ public static class LangfuseExportCommand
             await client.CreateScoreAsync(score, ct).ConfigureAwait(false);
         Console.WriteLine($"  scores item  : {itemScores.Count}");
 
-        if (datasetRunId is null)
+        var published = await ExperimentRunScores.PublishAsync(
+            client, experimentId, metrics, searchFrom, searchTo, ct).ConfigureAwait(false);
+        if (!published)
         {
             Console.Error.WriteLine(
                 "AVERTISSEMENT : le dataset run n'est pas encore visible, scores de run NON publiés. " +
@@ -143,10 +138,6 @@ public static class LangfuseExportCommand
             return 1;
         }
 
-        var runScores = ExperimentScores.ForRun(experimentId, datasetRunId, metrics);
-        foreach (var score in runScores)
-            await client.CreateScoreAsync(score, ct).ConfigureAwait(false);
-        Console.WriteLine($"  scores run   : {string.Join(", ", runScores.Select(s => $"{s.Name}={s.Value:0.000}"))}");
         Console.WriteLine("Rappel : ces scores sont des moyennes. Δ apparié, IC et verdict restent à `compare`.");
         return 0;
     }
