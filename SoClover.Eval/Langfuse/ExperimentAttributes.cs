@@ -2,7 +2,9 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using SoClover.Eval.Bench;
 using SoClover.Eval.Decoder;
+using SoClover.Eval.Io;
 using SoClover.Eval.Runner;
+using SoClover.Eval.Tracing;
 
 namespace SoClover.Eval.Langfuse;
 
@@ -20,7 +22,7 @@ public static class ExperimentAttributes
         yield return ("langfuse.experiment.id", experimentId);
         yield return ("langfuse.experiment.name", experimentId);
         yield return ("langfuse.experiment.dataset.id", datasetId);
-        yield return ("langfuse.environment", "experiment");
+        yield return (EvalTracing.Environment, "experiment");
         yield return ("langfuse.experiment.metadata.run_id", run.RunId);
         yield return ("langfuse.experiment.metadata.bench_hash", run.BenchHash);
         yield return ("langfuse.experiment.metadata.decoder_fingerprint", fingerprint);
@@ -39,16 +41,16 @@ public static class ExperimentAttributes
         BenchBoard board, BenchDirection direction, IReadOnlyList<RunAttempt> attempts)
     {
         var retained = attempts.FirstOrDefault(a => a.Valid);
-        yield return ("langfuse.observation.input", BenchDatasetMapper.Input(board, direction.Direction).ToJsonString());
-        yield return ("langfuse.observation.output", new JsonObject
+        yield return (EvalTracing.Input, BenchDatasetMapper.Input(board, direction.Direction).ToJsonString(EvalJson.Options));
+        yield return (EvalTracing.Output, new JsonObject
         {
             ["clue"] = retained?.Clue,
             ["valid"] = retained is not null,
             ["attempts"] = attempts.Count,
-        }.ToJsonString());
+        }.ToJsonString(EvalJson.Options));
         yield return ("langfuse.experiment.item.expected_output", new JsonObject
         {
             ["referenceWords"] = new JsonArray(direction.ReferenceWords.Select(w => (JsonNode?)w).ToArray()),
-        }.ToJsonString());
+        }.ToJsonString(EvalJson.Options));
     }
 }

@@ -36,8 +36,7 @@ public static class CalibrateClueUnit
             using var span = EvalTracing.Source.StartActivity($"decode-clue #{index}");
             span?.SetTag(EvalTracing.SessionId, calibrationId);
             var line = await decoder.DecodeAsync(board, parsed, clue, index, benchHash, ct).ConfigureAwait(false);
-            span?.SetTag(EvalTracing.Output, line.Picked is null ? $"échec : {line.DecodeFailureKind}" : string.Join(" + ", line.Picked));
-            span?.SetTag(EvalTracing.Metadata("r"), line.R?.ToString("0.0", CultureInfo.InvariantCulture) ?? "—");
+            EvalTracing.AnnotateDecode(span, line);
             lines.Add(line);
         }
         return lines;

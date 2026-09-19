@@ -76,6 +76,34 @@ public class DecodeTracingTests
     }
 
     [Fact]
+    public async Task A_direction_fully_decoded_in_a_prior_session_yields_no_item_but_an_A1_direction_keeps_its_zero()
+    {
+        var (clue, board, fake) = Decoders();
+        var valid = Board.Directions.Where(d => d.Direction != "Left")
+            .ToDictionary(d => (Board.BoardId, d.Direction), _ => "Indice");
+        foreach (var d in Board.Directions.Where(d => d.Direction is "Right" or "Bottom"))
+        { fake.Enqueue(Picked(d.ReferenceWords)); fake.Enqueue(Picked(d.ReferenceWords)); }
+        var ctx = Context(valid) with
+        {
+            AlreadyDecoded = new HashSet<(string, string, int)>
+            {
+                (Board.BoardId, "Top", 0),
+                (Board.BoardId, "Top", 1),
+            },
+        };
+
+        using var session = TracingTestKit.Start(out var exported);
+        var result = await DecodeBoardUnit.RunAsync(clue, board, ctx, Board, default);
+        session.Checkpoint(Board.BoardId);
+
+        Assert.DoesNotContain(result.Items, i => i.ItemId == $"{Board.BoardId}-Top");
+        var left = result.Items.Single(i => i.ItemId == $"{Board.BoardId}-Left");
+        Assert.False(left.HasValidClue);
+        Assert.Empty(left.Decodes);
+        Assert.Equal(3, result.Items.Count); // Right, Bottom (decodes) + Left (A-1) ; Top exclu (M-8)
+    }
+
+    [Fact]
     public async Task A_direction_without_valid_clue_is_an_item_without_decodes_and_no_board_decode_runs()
     {
         var (clue, board, fake) = Decoders();

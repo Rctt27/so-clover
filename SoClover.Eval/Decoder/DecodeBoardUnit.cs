@@ -66,6 +66,7 @@ public static class DecodeBoardUnit
             root?.SetTag(EvalTracing.Metadata("generate_trace_id"), OtlpIds.TraceId(runId, itemId));
 
             var decodeSpans = new List<DecodeSpan>();
+            var hasValidClue = ctx.ValidClues.ContainsKey((board.BoardId, benchDirection.Direction));
             if (ctx.ValidClues.TryGetValue((board.BoardId, benchDirection.Direction), out var clue))
             {
                 var direction = Enum.Parse<Direction>(benchDirection.Direction);
@@ -80,15 +81,20 @@ public static class DecodeBoardUnit
                     span?.SetTag(EvalTracing.SessionId, runId);
                     var line = await clueDecoder
                         .DecodeAsync(board, direction, clue, index, ctx.BenchHash, ct).ConfigureAwait(false);
-                    span?.SetTag(EvalTracing.Output, line.Picked is null
-                        ? $"échec : {line.DecodeFailureKind}"
-                        : string.Join(" + ", line.Picked));
-                    span?.SetTag(EvalTracing.Metadata("r"), line.R?.ToString("0.0", CultureInfo.InvariantCulture) ?? "—");
+                    EvalTracing.AnnotateDecode(span, line);
 
                     clueLines.Add(line);
                     decodeSpans.Add(new DecodeSpan(index, span?.SpanId.ToHexString() ?? string.Empty, line.R));
                 }
             }
+
+            // Reprise partielle (M-8) : une direction à indice valide dont tous les décodages
+            // étaient déjà faits cette session ne produit aucun ItemSpans — en émettre un vide
+            // publierait recovery = 0 et écraserait le score déjà correct de la passe précédente.
+            // Une direction A-1 (sans indice valide) garde son item avec HasValidClue = false : son
+            // recovery = 0 est la mesure elle-même, pas un artefact de reprise.
+            if (hasValidClue && decodeSpans.Count == 0)
+                continue;
 
             items.Add(new ItemSpans(itemId, OtlpIds.TraceId(ctx.ExperimentId, itemId), rootId, decodeSpans,
                 attempts.Any(a => a.Valid)));

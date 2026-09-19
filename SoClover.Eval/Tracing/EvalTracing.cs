@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Globalization;
+using SoClover.Eval.Decoder;
 
 namespace SoClover.Eval.Tracing;
 
@@ -17,7 +19,6 @@ public static class EvalTracing
     public const string Environment = "langfuse.environment";
     public const string Input = "langfuse.observation.input";
     public const string Output = "langfuse.observation.output";
-    public const string ObservationType = "langfuse.observation.type";
 
     public static readonly ActivitySource Source = new(SourceName);
 
@@ -33,4 +34,18 @@ public static class EvalTracing
             name,
             ActivityKind.Internal,
             new ActivityContext(ActivityTraceId.CreateFromString(traceIdHex), default, ActivityTraceFlags.Recorded));
+
+    /// <summary>
+    /// Annotation d'un span <c>decode-clue</c> : partagée par <see cref="Decoder.DecodeBoardUnit"/> et
+    /// <see cref="Calibration.CalibrateClueUnit"/>, qui décodent chacun un indice puis posent les
+    /// mêmes tags (sortie + <c>r</c>). Ne rien poser si le traçage est éteint.
+    /// </summary>
+    public static void AnnotateDecode(Activity? span, ClueDecodeLine line)
+    {
+        if (span is null) return;
+        span.SetTag(Output, line.Picked is null
+            ? $"échec : {line.DecodeFailureKind}"
+            : string.Join(" + ", line.Picked));
+        span.SetTag(Metadata("r"), line.R?.ToString("0.0", CultureInfo.InvariantCulture) ?? "—");
+    }
 }
