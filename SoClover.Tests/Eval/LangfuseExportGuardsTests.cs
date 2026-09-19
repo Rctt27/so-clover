@@ -1,4 +1,5 @@
 using SoClover.Eval.Langfuse;
+using SoClover.Eval.Tracing;
 using SoClover.Tests.Eval.Helpers;
 using Xunit;
 
@@ -64,5 +65,30 @@ public class LangfuseExportGuardsTests
     public void Avec_experiment_existante_et_resend_spans_les_spans_sont_renvoyes()
     {
         Assert.True(LangfuseExportCommand.ShouldSendSpans(existingExperimentId: "cm123", resendSpans: true));
+    }
+
+    /// <summary>Un décodage tracé en direct a créé son experiment et publié ses scores d'item au fil
+    /// des boards : le backfill ne s'y applique pas (ids de spans différents).</summary>
+    [Fact]
+    public void Un_decodage_trace_en_direct_est_reconnu()
+    {
+        var live = LangfuseFixtures.DecodeManifest() with { Tracing = TracingManifest.Langfuse("http://langfuse.test") };
+
+        Assert.True(LangfuseExportCommand.IsLiveTraced(live));
+        Assert.False(LangfuseExportCommand.IsLiveTraced(LangfuseFixtures.DecodeManifest()));
+        Assert.False(LangfuseExportCommand.IsLiveTraced(LangfuseFixtures.DecodeManifest() with { Tracing = TracingManifest.Off }));
+    }
+
+    [Fact]
+    public void Resend_spans_est_refuse_sur_un_decodage_trace_en_direct()
+    {
+        var live = LangfuseFixtures.DecodeManifest() with { Tracing = TracingManifest.Langfuse("http://langfuse.test") };
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => LangfuseExportCommand.RequireResendAllowed(live, resendSpans: true));
+
+        Assert.Contains("--resend-spans", ex.Message);
+        LangfuseExportCommand.RequireResendAllowed(live, resendSpans: false);
+        LangfuseExportCommand.RequireResendAllowed(LangfuseFixtures.DecodeManifest(), resendSpans: true);
     }
 }

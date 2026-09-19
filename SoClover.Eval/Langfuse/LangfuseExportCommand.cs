@@ -7,6 +7,7 @@ using SoClover.Eval.Decoder;
 using SoClover.Eval.Io;
 using SoClover.Eval.Runner;
 using SoClover.Eval.Scoring;
+using SoClover.Eval.Tracing;
 
 namespace SoClover.Eval.Langfuse;
 
@@ -64,6 +65,28 @@ public static class LangfuseExportCommand
         return dataset;
     }
 
+    /// <summary>
+    /// Décodage tracé en direct (phase 3) : son experiment a été créée par <c>decode</c>, avec ses
+    /// propres ids de spans, et ses scores d'item publiés board par board. Le backfill ne s'y
+    /// applique pas — ses ids déterministes (<see cref="OtlpIds.SpanId"/>) n'y existent pas, et ses
+    /// scores d'item, de mêmes ids, écraseraient les scores live en les rattachant à des
+    /// observations inexistantes. Seuls les scores de run sont (re)publiés.
+    /// </summary>
+    internal static bool IsLiveTraced(DecodeManifest manifest) => manifest.Tracing?.IsOn == true;
+
+    /// <summary>
+    /// <c>--resend-spans</c> n'a pas de sens pour une experiment créée en direct : renvoyer des spans
+    /// la dupliquerait (Ruling 12), avec des ids qui ne sont pas ceux des observations live.
+    /// </summary>
+    internal static void RequireResendAllowed(DecodeManifest manifest, bool resendSpans)
+    {
+        if (resendSpans && IsLiveTraced(manifest))
+            throw new InvalidOperationException(
+                "--resend-spans refusé : ce décodage a été tracé en direct, son experiment a été créée par " +
+                "`decode`. Renvoyer des spans la dupliquerait (Ruling 12). Relancer sans --resend-spans : " +
+                "seuls les scores de run seront republiés.");
+    }
+
     public static void RequireExportable(RunContents run, DecodeContents decoded, string metricsJson)
     {
         if (decoded.Manifest.GeneratorRunId != run.Manifest.RunId)
@@ -90,6 +113,7 @@ public static class LangfuseExportCommand
         var run = RunFile.Read(runPath);
         var decoded = DecodeFile.Read(decodedPath);
         RequireExportable(run, decoded, File.ReadAllText(metricsPath));
+        RequireResendAllowed(decoded.Manifest, args.Has("resend-spans"));
 
         var bench = BenchFile.Read(run.Manifest.BenchFile);
         BenchDatasetMapper.RequireNotTestBench(bench.Manifest);
@@ -105,6 +129,9 @@ public static class LangfuseExportCommand
 
         var datasetName = BenchDatasetMapper.DatasetName(bench.Manifest);
         var dataset = await RequireDatasetAsync(client, bench, run.Manifest.BenchFile, ct).ConfigureAwait(false);
+
+        if (IsLiveTraced(decoded.Manifest))
+            return await PublishLiveRunScoresAsync(client, run, decoded, experimentId, metrics, ct).ConfigureAwait(false);
 
         var export = OtlpExperimentBuilder.Build(
             new ExperimentContext(experimentId, dataset.Id, fingerprint, bench, run, decoded));
@@ -157,6 +184,31 @@ public static class LangfuseExportCommand
         }
 
         await ExperimentRunScores.PublishAsync(client, experimentId, datasetRunId, metrics, ct).ConfigureAwait(false);
+        Console.WriteLine("Rappel : ces scores sont des moyennes. Δ apparié, IC et verdict restent à `compare`.");
+        return 0;
+    }
+
+    /// <summary>
+    /// Export d'un décodage tracé en direct : ni spans ni scores d'item (publiés en direct par
+    /// <c>decode</c>), seulement les scores de run, une fois l'experiment visible.
+    /// </summary>
+    private static async Task<int> PublishLiveRunScoresAsync(
+        LangfuseClient client, RunContents run, DecodeContents decoded, string experimentId,
+        MetricsReport metrics, CancellationToken ct)
+    {
+        Console.WriteLine($"experiment : {experimentId} (tracée en direct par `decode`)");
+        Console.WriteLine("  spans        : non envoyés — experiment créée en direct");
+        Console.WriteLine("  scores item  : laissés tels que publiés en direct par `decode`");
+
+        var (searchFrom, searchTo) = SearchWindow(run.Manifest.CreatedAtUtc, decoded.Manifest.CreatedAtUtc);
+        if (!await ExperimentRunScores.PublishAsync(client, experimentId, metrics, searchFrom, searchTo, ct).ConfigureAwait(false))
+        {
+            Console.Error.WriteLine(
+                "AVERTISSEMENT : le dataset run n'est pas encore visible, scores de run NON publiés. " +
+                "Relancer la même commande (idempotente).");
+            return 1;
+        }
+
         Console.WriteLine("Rappel : ces scores sont des moyennes. Δ apparié, IC et verdict restent à `compare`.");
         return 0;
     }

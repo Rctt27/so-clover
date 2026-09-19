@@ -179,7 +179,7 @@ public static class DecodeCommand
             if (!await ExperimentRunScores.PublishAsync(client, experimentId, metrics, from, to, ct).ConfigureAwait(false))
                 Console.Error.WriteLine(
                     "AVERTISSEMENT : experiment pas encore visible, scores de run non publiés — " +
-                    "`score` puis `langfuse-export` les republieront (sans renvoyer de spans).");
+                    "`score` puis `langfuse-export` republieront les scores de run.");
             Console.WriteLine($"experiment Langfuse : {experimentId}");
         }
 
