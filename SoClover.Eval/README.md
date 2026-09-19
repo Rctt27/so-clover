@@ -133,14 +133,16 @@ plein run coûterait une unité).
 
 L'unité atomique diffère par verbe : une **direction** pour `generate`, un **board** pour `decode`
 (ses lignes N2/N3 s'écrivent en un seul append), un **indice** pour `calibrate`. Dans chaque cas :
-appels LLM d'abord, puis flush des spans, puis écriture de l'unité. Un flush en échec n'écrit rien
-et arrête le run — la même commande le reprend, elle refait l'unité interrompue.
+appels LLM d'abord, puis flush des spans (`decode` publie en plus ses scores d'item par REST à cette
+étape, avant l'écriture), puis écriture de l'unité. Un flush en échec n'écrit rien et arrête le run —
+la même commande le reprend, elle refait l'unité interrompue.
 
-`decode` crée l'experiment `<runId>.<empreinte>` en direct (plus besoin de `langfuse-sync --bench`
-pour voir apparaître les items) et publie ses scores d'item et de run au fil de la passe.
-`langfuse-export` garde son rôle pour le **backfill** des runs antérieurs à la phase 3 et pour
-republier des scores manquants ; sur un `decode` déjà tracé en direct, il ne renvoie jamais les
-spans (refuse `--resend-spans`) et ne fait que republier les scores de run.
+`decode` crée l'experiment `<runId>.<empreinte>` en direct (le dataset du banc doit déjà exister via
+`langfuse-sync --bench`, comme avant la phase 3) et publie ses scores d'item et de run au fil de la
+passe. Ce que la phase 3 dispense, c'est `langfuse-export` : `langfuse-export` garde son rôle pour le
+**backfill** des runs antérieurs à la phase 3 et pour republier des scores manquants ; sur un
+`decode` déjà tracé en direct, il ne renvoie jamais les spans (refuse `--resend-spans`) et ne fait
+que republier les scores de run.
 
 Tous les objets d'un run — génération et décodage — partagent `session.id = runId` : la vue
 *Sessions* de Langfuse les montre ensemble.
