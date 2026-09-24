@@ -115,6 +115,44 @@ omise — la moyenne des items d'un run complet égale donc le `recovery` du run
 > `calibrate` et le registre restent seuls juges des Δ appariés, des IC et des décisions
 > `retenu / neutre / écarté`.
 
+### Traçage en direct (phase 3)
+
+`generate`, `decode` et `calibrate` tracent dans Langfuse **par défaut** (`--trace langfuse`) : un
+run tracé est visible dans Langfuse dès sa fin, **sans** passer par `langfuse-export`. `--trace off`
+désactive le traçage pour la commande et se consigne dans le manifeste (`tracing: {"target":"off"}`,
+`null` pour un manifeste antérieur à la phase 3, relu comme `off`) — le champ est hors hash8 et hors
+empreinte de décodeur, tracer ne change pas l'identité d'une mesure. Une reprise se fait **sous le
+même mode** que la première passe : un manifeste tracé ne se reprend pas en `--trace off`, et
+inversement.
+
+Le traçage est refusé **avant tout appel LLM**, en proposant `--trace off` : valeur `--trace`
+inconnue, banc de test (même refus que `langfuse-sync --bench`), pseudo-run humain projeté
+(`decode` uniquement, D5), clés Langfuse absentes, ou préflight en échec (`TracePreflight` : `GET`
+authentifié sur l'API publique puis un `POST` OTLP vide — une panne ici ne coûte rien, la même en
+plein run coûterait une unité).
+
+L'unité atomique diffère par verbe : une **direction** pour `generate`, un **board** pour `decode`
+(ses lignes N2/N3 s'écrivent en un seul append), un **indice** pour `calibrate`. Dans chaque cas :
+appels LLM d'abord, puis flush des spans (`decode` publie en plus ses scores d'item par REST à cette
+étape, avant l'écriture), puis écriture de l'unité. Un flush en échec n'écrit rien et arrête le run —
+la même commande le reprend, elle refait l'unité interrompue.
+
+`decode` crée l'experiment `<runId>.<empreinte>` en direct (le dataset du banc doit déjà exister via
+`langfuse-sync --bench`, comme avant la phase 3) et publie ses scores d'item au fil de la passe,
+board par board ; les scores de run ne sont publiés qu'une seule fois, en fin de passe. Ce que la
+phase 3 dispense, c'est `langfuse-export` : `langfuse-export` garde son rôle pour le **backfill** des
+runs antérieurs à la phase 3 et pour republier des scores manquants ; sur un `decode` déjà tracé en
+direct, il ne renvoie jamais les spans (refuse `--resend-spans`) et ne fait que republier les scores
+de run.
+
+Une unité interrompue (Ctrl+C, coupure électrique) peut laisser des spans incomplets dans Langfuse :
+la reprise réécrit la même trace (même id déterministe), donc des observations en double peuvent
+apparaître pour cette unité. C'est attendu, pas un bug — Langfuse ne fait pas d'upsert sur les spans
+(Ruling 12).
+
+Tous les objets d'un run — génération et décodage — partagent `session.id = runId` : la vue
+*Sessions* de Langfuse les montre ensemble.
+
 ## Contrainte structurante : deux passes
 
 LM Studio ne sert qu'un modèle à la fois. Générer et décoder sont donc deux commandes distinctes,

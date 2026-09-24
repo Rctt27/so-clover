@@ -1,4 +1,5 @@
 using System.Text.Json;
+using SoClover.Eval.Bench;
 using SoClover.Eval.Calibration;
 using SoClover.Eval.Cli;
 using SoClover.Eval.Config;
@@ -6,6 +7,7 @@ using SoClover.Eval.Decoder;
 using SoClover.Eval.Io;
 using SoClover.Eval.Runner;
 using SoClover.Eval.Scoring;
+using SoClover.Eval.Tracing;
 
 namespace SoClover.Eval.Langfuse;
 
@@ -16,10 +18,18 @@ namespace SoClover.Eval.Langfuse;
 /// </summary>
 public static class LangfuseExportCommand
 {
-    private const int DatasetRunPollAttempts = 10;
-    private static readonly TimeSpan DatasetRunPollDelay = TimeSpan.FromSeconds(3);
-
     public static string ExperimentName(string runId, string fingerprint) => $"{runId}.{fingerprint}";
+
+    /// <summary>
+    /// Une experiment backfillée commence à la création du run ; une experiment tracée en direct
+    /// (phase 3) à celle du décodage. La fenêtre couvre les deux : manquer l'experiment ferait
+    /// renvoyer ses spans, donc les dupliquer (Ruling 12).
+    /// </summary>
+    public static (DateTime From, DateTime To) SearchWindow(DateTime runCreatedAtUtc, DateTime decodeCreatedAtUtc) =>
+        (Min(runCreatedAtUtc, decodeCreatedAtUtc).AddDays(-1), Max(runCreatedAtUtc, decodeCreatedAtUtc).AddDays(1));
+
+    private static DateTime Min(DateTime a, DateTime b) => a < b ? a : b;
+    private static DateTime Max(DateTime a, DateTime b) => a > b ? a : b;
 
     /// <summary>
     /// Ruling 12 (2026-09-17) : sur ce déploiement Langfuse v4 « events_only », renvoyer les mêmes
@@ -37,6 +47,48 @@ public static class LangfuseExportCommand
     /// </summary>
     internal static bool ShouldSendSpans(string? existingExperimentId, bool resendSpans) =>
         existingExperimentId is null || resendSpans;
+
+    /// <summary>
+    /// Dataset Langfuse du banc, exigé présent et au même <c>benchHash</c>. Partagé avec
+    /// <c>decode</c> tracé, qui le résout avant tout appel LLM.
+    /// </summary>
+    internal static async Task<LangfuseDataset> RequireDatasetAsync(
+        LangfuseClient client, BenchContents bench, string benchFile, CancellationToken ct)
+    {
+        var datasetName = BenchDatasetMapper.DatasetName(bench.Manifest);
+        var dataset = await client.GetDatasetAsync(datasetName, ct).ConfigureAwait(false)
+                      ?? throw new InvalidOperationException(
+                          $"Dataset {datasetName} absent de Langfuse : lancer `langfuse-sync --bench {benchFile}` d'abord.");
+        if (dataset.BenchHash != bench.Manifest.BenchHash)
+            throw new InvalidOperationException(
+                $"Le dataset {datasetName} porte benchHash {dataset.BenchHash}, le run {bench.Manifest.BenchHash}.");
+        return dataset;
+    }
+
+    /// <summary>
+    /// Décodage tracé en direct (phase 3) : son experiment a été créée par <c>decode</c>, avec ses
+    /// propres ids de spans, et ses scores d'item publiés board par board. Le backfill ne republie
+    /// pas ces scores : ses ids de span sont déterministes (calculés depuis le hash de l'id de trace,
+    /// pas depuis les ids réellement émis en direct), et les poster attacherait un score à une
+    /// observation qui n'existe pas. Une réparation est possible en principe — la racine de trace
+    /// est déterministe (<see cref="OtlpIds.TraceId"/>, même formule en direct et au backfill), donc
+    /// <c>GET /api/public/v2/observations?traceId=…</c> retrouve les ids de span réellement émis — mais
+    /// ce chemin n'est pas implémenté ici : seuls les scores de run sont (re)publiés.
+    /// </summary>
+    internal static bool IsLiveTraced(DecodeManifest manifest) => manifest.Tracing?.IsOn == true;
+
+    /// <summary>
+    /// <c>--resend-spans</c> n'a pas de sens pour une experiment créée en direct : renvoyer des spans
+    /// la dupliquerait (Ruling 12), avec des ids qui ne sont pas ceux des observations live.
+    /// </summary>
+    internal static void RequireResendAllowed(DecodeManifest manifest, bool resendSpans)
+    {
+        if (resendSpans && IsLiveTraced(manifest))
+            throw new InvalidOperationException(
+                "--resend-spans refusé : ce décodage a été tracé en direct, son experiment a été créée par " +
+                "`decode`. Renvoyer des spans la dupliquerait (Ruling 12). Relancer sans --resend-spans : " +
+                "seuls les scores de run seront republiés.");
+    }
 
     public static void RequireExportable(RunContents run, DecodeContents decoded, string metricsJson)
     {
@@ -64,6 +116,7 @@ public static class LangfuseExportCommand
         var run = RunFile.Read(runPath);
         var decoded = DecodeFile.Read(decodedPath);
         RequireExportable(run, decoded, File.ReadAllText(metricsPath));
+        RequireResendAllowed(decoded.Manifest, args.Has("resend-spans"));
 
         var bench = BenchFile.Read(run.Manifest.BenchFile);
         BenchDatasetMapper.RequireNotTestBench(bench.Manifest);
@@ -78,12 +131,10 @@ public static class LangfuseExportCommand
         var client = LangfuseClientFactory.CreateRequired(options);
 
         var datasetName = BenchDatasetMapper.DatasetName(bench.Manifest);
-        var dataset = await client.GetDatasetAsync(datasetName, ct).ConfigureAwait(false)
-                      ?? throw new InvalidOperationException(
-                          $"Dataset {datasetName} absent de Langfuse : lancer `langfuse-sync --bench {run.Manifest.BenchFile}` d'abord.");
-        if (dataset.BenchHash != bench.Manifest.BenchHash)
-            throw new InvalidOperationException(
-                $"Le dataset {datasetName} porte benchHash {dataset.BenchHash}, le run {bench.Manifest.BenchHash}.");
+        var dataset = await RequireDatasetAsync(client, bench, run.Manifest.BenchFile, ct).ConfigureAwait(false);
+
+        if (IsLiveTraced(decoded.Manifest))
+            return await PublishLiveRunScoresAsync(client, run, decoded, experimentId, metrics, ct).ConfigureAwait(false);
 
         var export = OtlpExperimentBuilder.Build(
             new ExperimentContext(experimentId, dataset.Id, fingerprint, bench, run, decoded));
@@ -93,13 +144,12 @@ public static class LangfuseExportCommand
         Console.WriteLine($"  items        : {export.Items.Count}, lots OTLP : {export.Payloads.Count}");
 
         // Recherchée AVANT tout envoi : c'est cette recherche qui décide si les spans partent ou
-        // non (ShouldSendSpans). Fenêtre centrée sur CreatedAtUtc, comme pour la recherche post-envoi :
-        // l'heure de début d'une experiment est celle de son premier span reconstruit, soit CreatedAtUtc.
+        // non (ShouldSendSpans). Fenêtre couvrant à la fois la création du run et celle du décodage
+        // (SearchWindow) : un backfill démarre ses spans à CreatedAtUtc du run, une trace live (phase 3)
+        // à celle du décodage.
+        var (searchFrom, searchTo) = SearchWindow(run.Manifest.CreatedAtUtc, decoded.Manifest.CreatedAtUtc);
         var existingExperimentId = await client.FindExperimentIdAsync(
-            experimentId,
-            run.Manifest.CreatedAtUtc.AddDays(-1),
-            run.Manifest.CreatedAtUtc.AddDays(1),
-            ct).ConfigureAwait(false);
+            experimentId, searchFrom, searchTo, ct).ConfigureAwait(false);
 
         var datasetRunId = existingExperimentId;
         if (ShouldSendSpans(existingExperimentId, args.Has("resend-spans")))
@@ -107,18 +157,11 @@ public static class LangfuseExportCommand
             foreach (var payload in export.Payloads)
                 await client.SendOtlpTracesAsync(payload, ct).ConfigureAwait(false);
 
-            // L'ingestion OTLP est asynchrone côté Langfuse : l'experiment n'existe qu'une fois les
-            // spans traités par le worker. Même fenêtre que ci-dessus (début reconstruit = CreatedAtUtc).
-            for (var attempt = 0; attempt < DatasetRunPollAttempts && datasetRunId is null; attempt++)
-            {
-                datasetRunId = await client.FindExperimentIdAsync(
-                    experimentId,
-                    run.Manifest.CreatedAtUtc.AddDays(-1),
-                    run.Manifest.CreatedAtUtc.AddDays(1),
-                    ct).ConfigureAwait(false);
-                if (datasetRunId is null)
-                    await Task.Delay(DatasetRunPollDelay, ct).ConfigureAwait(false);
-            }
+            // L'ingestion OTLP est asynchrone côté Langfuse : attendre que l'experiment soit visible
+            // AVANT de poster les scores d'item, qui référencent des observations tout juste
+            // envoyées — même fenêtre que la recherche pré-envoi.
+            datasetRunId = await ExperimentRunScores.WaitForExperimentAsync(
+                client, experimentId, searchFrom, searchTo, ct).ConfigureAwait(false);
         }
         else
         {
@@ -143,10 +186,32 @@ public static class LangfuseExportCommand
             return 1;
         }
 
-        var runScores = ExperimentScores.ForRun(experimentId, datasetRunId, metrics);
-        foreach (var score in runScores)
-            await client.CreateScoreAsync(score, ct).ConfigureAwait(false);
-        Console.WriteLine($"  scores run   : {string.Join(", ", runScores.Select(s => $"{s.Name}={s.Value:0.000}"))}");
+        await ExperimentRunScores.PublishAsync(client, experimentId, datasetRunId, metrics, ct).ConfigureAwait(false);
+        Console.WriteLine("Rappel : ces scores sont des moyennes. Δ apparié, IC et verdict restent à `compare`.");
+        return 0;
+    }
+
+    /// <summary>
+    /// Export d'un décodage tracé en direct : ni spans ni scores d'item (publiés en direct par
+    /// <c>decode</c>), seulement les scores de run, une fois l'experiment visible.
+    /// </summary>
+    private static async Task<int> PublishLiveRunScoresAsync(
+        LangfuseClient client, RunContents run, DecodeContents decoded, string experimentId,
+        MetricsReport metrics, CancellationToken ct)
+    {
+        Console.WriteLine($"experiment : {experimentId} (tracée en direct par `decode`)");
+        Console.WriteLine("  spans        : non envoyés — experiment créée en direct");
+        Console.WriteLine("  scores item  : laissés tels que publiés en direct par `decode`");
+
+        var (searchFrom, searchTo) = SearchWindow(run.Manifest.CreatedAtUtc, decoded.Manifest.CreatedAtUtc);
+        if (!await ExperimentRunScores.PublishAsync(client, experimentId, metrics, searchFrom, searchTo, ct).ConfigureAwait(false))
+        {
+            Console.Error.WriteLine(
+                "AVERTISSEMENT : le dataset run n'est pas encore visible, scores de run NON publiés. " +
+                "Relancer la même commande (idempotente).");
+            return 1;
+        }
+
         Console.WriteLine("Rappel : ces scores sont des moyennes. Δ apparié, IC et verdict restent à `compare`.");
         return 0;
     }

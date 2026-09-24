@@ -68,8 +68,13 @@ dotnet run --project SoClover.Eval -c Release -- <verbe> [options]
 
 ```
 [langfuse-sync (première fois)] → doctor → generate → [rechargement manuel du modèle] → decode
-  → score → calibrate → ligne LEDGER → langfuse-export → commit
+  → score → calibrate → ligne LEDGER → commit
 ```
+
+**Traçage en direct** (phase 3) : `generate`, `decode`, `calibrate` tracent dans Langfuse par défaut ;
+`decode` crée l'experiment. `langfuse-export` ne sert plus qu'au backfill des runs antérieurs. Un
+run lancé en `--trace off` le dit dans son manifeste — le noter dans `--notes`. Une coupure de
+Langfuse arrête le run : relancer la même commande.
 
 - `bench` **ne se relance pas** : `eval/boards.dev.jsonl` (40 boards) et `boards.test.jsonl` (60)
   sont committés avec leur seed et leur hash. Un banc qui bouge invalide tout l'historique du

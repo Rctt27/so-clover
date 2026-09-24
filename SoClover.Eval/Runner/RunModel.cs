@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using SoClover.Eval.Prompts;
+using SoClover.Eval.Tracing;
 
 namespace SoClover.Eval.Runner;
 
@@ -36,7 +37,12 @@ public sealed record RunManifest(
     // (eval/prompts/resolved/<sha12>/… pour Langfuse, bin/Debug|Release/… pour le fichier) : deux
     // re-runs de même configuration servis par des sources différentes n'ont pas le même hash8.
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    PromptProvenance? Prompt = null);
+    PromptProvenance? Prompt = null,
+    // Mode de traçage de la session qui a créé l'artefact (phase 3). Omis quand nul : un
+    // manifeste antérieur se relit et se re-sérialise à l'identique. Hors hash8 (RunFile.ComputeHash8
+    // l'efface) et hors DecoderFingerprint : tracer ne change pas l'identité d'une mesure.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    TracingManifest? Tracing = null);
 
 /// <summary>
 /// Une tentative d'appel LLM pour une direction. <b>Une ligne par tentative</b>, jamais une ligne

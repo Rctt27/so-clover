@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using SoClover.Eval.Io;
 using SoClover.Eval.Langfuse;
+using SoClover.Eval.Tracing;
 using SoClover.Infrastructure.AI;
 
 namespace SoClover.Eval.Config;
@@ -79,10 +80,26 @@ public static class EvalLlmConfig
     }
 
     /// <summary>
-    /// Compose le même pipeline que la production : <c>Timeout(Throttle(Provider))</c>.
+    /// Compose le même pipeline que la production — <c>Timeout(Throttle(Provider))</c> — puis
+    /// l'enveloppe de l'instrumentation OpenTelemetry de Microsoft.Extensions.AI (phase 3) : un span
+    /// <c>gen_ai</c> par appel, prompt et réponse compris. Sans session de traçage, aucun écouteur :
+    /// l'enveloppe ne coûte rien. Le contenu « sensible » ici, ce sont les mots du banc.
     /// </summary>
     public static IChatClient CreateChatClient(IOptions<LlmOptions> options) =>
-        new ChatClientFactory(options).Create();
+        Instrument(new ChatClientFactory(options).Create());
+
+    /// <summary>
+    /// <c>UseOpenTelemetry</c> ne place le contenu que dans des <c>ActivityEvent</c> (spike, tâche 0
+    /// — hypothèse O1 tombée), ignorés par l'endpoint OTLP de Langfuse, qui lit
+    /// <see cref="EvalTracing.Input"/> / <see cref="EvalTracing.Output"/> posés en tags. D'où
+    /// <see cref="LangfuseIoChatClient"/>, ajouté après (donc à l'intérieur de) l'instrumentation :
+    /// il voit le span <c>chat</c> comme <see cref="System.Diagnostics.Activity.Current"/>.
+    /// </summary>
+    internal static IChatClient Instrument(IChatClient inner) =>
+        new ChatClientBuilder(inner)
+            .UseOpenTelemetry(sourceName: EvalTracing.ChatSourceName, configure: c => c.EnableSensitiveData = true)
+            .Use(client => new LangfuseIoChatClient(client))
+            .Build();
 
     /// <summary>
     /// SHA-256 du payload de <c>GET {baseUrl}/models</c>, tronqué à 12 caractères.

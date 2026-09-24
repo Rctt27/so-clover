@@ -39,6 +39,7 @@ public static partial class RunFile
             CreatedAtUtc = default,
             OperatorNotes = null,
             Prompt = null,
+            Tracing = null,
         };
         return EvalJson.Sha256Hex(EvalJson.Serialize(canonical))[..8];
     }

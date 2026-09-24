@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using SoClover.Eval.Decoder;
 using SoClover.Eval.Prompts;
+using SoClover.Eval.Tracing;
 
 namespace SoClover.Eval.Calibration;
 
@@ -48,7 +49,12 @@ public sealed record CalibrationManifest(
     string? Quantization = null,
     int? LoadedContextLength = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    PromptProvenance? CluePrompt = null);
+    PromptProvenance? CluePrompt = null,
+    // Mode de traçage de la session qui a créé l'artefact (phase 3). Omis quand nul : un
+    // manifeste antérieur se relit et se re-sérialise à l'identique. Hors hash8 (RunFile.ComputeHash8
+    // l'efface) et hors DecoderFingerprint : tracer ne change pas l'identité d'une mesure.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    TracingManifest? Tracing = null);
 
 /// <summary>
 /// Un décodage de calibration. C'est <see cref="ClueDecodeLine"/> <b>plus le champ

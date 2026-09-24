@@ -15,6 +15,15 @@ Le projet suit **SemVer** (`vMAJOR.MINOR.PATCH`), avec des tags Git annotés et 
 
 **Version courante : `2.19.0`.**
 
+**Cette version est celle de l'app SoClover, pas du dépôt : la release suit les chemins modifiés.**
+Un numéro SemVer est un contrat avec les consommateurs d'un livrable ; seul `SoClover/` est déployé.
+- Un merge qui touche `SoClover/**` — y compris les briques partagées avec le harnais
+  (`AiClueLlmCaller`, `ClueAcceptance`, `BoardGeometry`…) — suit le processus de release ci-dessous.
+- Un merge qui ne touche que `SoClover.Eval/**`, `SoClover.Tests/Eval/**`, `eval/**` ou
+  `tools/langfuse/**` se fait dans `main` **sans tag, sans bump d'`APP_VERSION`, sans ligne de
+  `CHANGELOG.md`** : la prod est identique au bit près. Le harnais n'a pas de version applicative ;
+  sa version de format est `harnessVersion` (manifestes), ses mesures vivent dans `eval/LEDGER.md`.
+
 Jalons structurants : réécriture du front en React/TypeScript (v2.0), temps réel SignalR (v1.3), persistance PostgreSQL (v1.2), joueurs IA (v2.5), support du dictionnaire Anglais (v2.6), validation sémantique des indices étendue à l'Anglais (v2.7), code de partie lisible 4-mots exposé dans l'URL `/g/<code>` (v2.10), compatibilité mobile/tactile (v2.14), PWA installable plein écran iPhone (v2.15), régionalisation i18n EN/FR/PT (v2.16), UI unifiée single-layout laptop/mobile (v2.18), joueurs IA multilingues FR/EN/PT (v2.19). Historique complet des tags : voir [`CHANGELOG.md`](CHANGELOG.md).
 
 ### ⚠️ Pré-requis ABSOLU avant toute release : le code doit être sur `main`
@@ -186,6 +195,9 @@ npm run dev   # Proxy automatique vers localhost:5000
   chemin canonique, donc **même empreinte de décodeur** qu'avec le fichier. Aucun repli silencieux :
   `--prompt-source file` s'écrit. La prod lit toujours ses fichiers ; `langfuse-pull` y ramène une
   version retenue. Rien de Langfuse n'entre dans `SoClover/`.
+- **Traçage en direct (phase 3)** : SDK OpenTelemetry dans `SoClover.Eval/Tracing/` uniquement —
+  jamais dans `SoClover/`. Les appels LLM passent par `EvalLlmConfig.CreateChatClient`, instrumenté
+  par M.E.AI ; une perte de télémétrie interrompt le run avant l'écriture de l'unité en cours.
 
 ## Testing
 

@@ -12,6 +12,7 @@ using SoClover.Eval.Langfuse;
 using SoClover.Eval.Prompts;
 using SoClover.Eval.Runner;
 using SoClover.Eval.Scoring;
+using SoClover.Eval.Tracing;
 using SoClover.Eval.Web;
 using SoClover.Infrastructure;
 using SoClover.Infrastructure.AI.Prompts;
@@ -78,7 +79,9 @@ internal static class EvalProgram
               doctor    Vérifie que les prompts de SoClover sont résolvables depuis cet exécutable
               bench     Génère un banc seedé et l'écrit en JSONL
               generate  Banc -> indices (appelle le LLM générateur ; reprenable)
+                            [--trace langfuse|off]  défaut langfuse (traçage en direct)
               decode    Run d'indices -> décodages N2/N3 (appelle le LLM décodeur ; reprenable)
+                            [--trace langfuse|off]  défaut langfuse (crée l'experiment en direct)
               score     Calcule les 9 indicateurs N1-N3 + 2 de santé (aucun appel LLM)
               compare   Δ recovery apparié + IC bootstrap + verdict de promotion (aucun appel LLM)
               elicit    Séance A (auteur) : serveur local de saisie chronométrée
@@ -94,6 +97,7 @@ internal static class EvalProgram
               human-run     Projette la séance A en pseudo-run décodable (aucun appel LLM)
               human-report  Agrégats des deux séances humaines (aucun appel LLM)
               calibrate     P6 : accord decodeur/humain, kappa, quatre portes, verdict unique
+                            [--trace langfuse|off]  défaut langfuse (trace libre, sans experiment ni score)
               analyze       P7 : taxonomie chiffree des modes d'echec (aucun appel LLM)
               langfuse-sync --prompts | --bench <banc.jsonl>
                             Publie dans Langfuse le contenu courant des prompts du dépôt
@@ -173,6 +177,7 @@ internal static class EvalProgram
         if (LangfuseClientFactory.CreateOrNull(langfuseOptions) is not { } client)
         {
             Console.WriteLine(PromptDrift.DescribeMissingCredentials(langfuseOptions.PromptSource));
+            Console.WriteLine("traçage : clés absentes — generate, decode et calibrate échoueront sans --trace off");
             return 0;
         }
 
@@ -183,6 +188,9 @@ internal static class EvalProgram
                 var production = await client.GetPromptAsync(prompt.LangfuseName!, "production", null, ct);
                 Console.WriteLine(PromptDrift.Describe(prompt, File.ReadAllText(prompt.PackagedPath), production));
             }
+
+            await TracePreflight.RunAsync(client, ct);
+            Console.WriteLine("traçage : endpoint OTLP joignable, clés acceptées (generate, decode et calibrate tracent par défaut)");
         }
         catch (LangfuseException ex)
         {

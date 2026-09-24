@@ -6,6 +6,7 @@ using SoClover.Eval.Config;
 using SoClover.Eval.Io;
 using SoClover.Eval.Langfuse;
 using SoClover.Eval.Prompts;
+using SoClover.Eval.Tracing;
 using SoClover.Infrastructure.AI;
 using SoClover.Infrastructure.AI.Prompts;
 using SoClover.Infrastructure.Validation;
@@ -76,6 +77,9 @@ public static class GenerateCommand
         var resolver = new PromptResolver(LangfuseClientFactory.CreateOrNull(langfuseOptions), PromptResolver.DefaultRoot);
         var generatorPrompt = await resolver.ResolveAsync(catalogPrompt, selection, ct).ConfigureAwait(false);
 
+        using var tracing = await TracingSetup
+            .StartAsync(args, langfuseOptions, bench.Manifest, isHumanRun: false, ct).ConfigureAwait(false);
+
         using var chatClient = EvalLlmConfig.CreateChatClient(llmOptions);
         var promptProvider = new FrenchAiCluePromptProvider(
             new FilePromptLoader(),
@@ -122,7 +126,8 @@ public static class GenerateCommand
             Language: bench.Manifest.Language,
             HarnessVersion: RunFile.HarnessVersion,
             OperatorNotes: notes,
-            Prompt: generatorPrompt.Provenance);
+            Prompt: generatorPrompt.Provenance,
+            Tracing: tracing.Manifest);
 
         var hash8 = RunFile.ComputeHash8(draftManifest);
         var runId = args.Get("run-id")
@@ -137,6 +142,7 @@ public static class GenerateCommand
             if (existing.Manifest.BenchHash != bench.Manifest.BenchHash)
                 throw new InvalidOperationException(
                     $"{runPath} porte benchHash {existing.Manifest.BenchHash}, incompatible avec {bench.Manifest.BenchHash}.");
+            TracingManifest.RequireSameMode(existing.Manifest.Tracing, tracing.Manifest, runPath);
             Console.WriteLine($"reprise : {existing.Attempts.Count} tentative(s) déjà consignée(s)");
         }
         else
@@ -150,25 +156,33 @@ public static class GenerateCommand
         Console.WriteLine($"  fichier      : {runPath}");
         Console.WriteLine($"  modèle       : {opts.DefaultModel} (snapshot {modelSnapshotDate})");
         Console.WriteLine($"  prompt       : {generatorPrompt.Describe()}, reasoning={opts.ReasoningEnabled}");
+        Console.WriteLine($"  traçage      : {(tracing.IsOn ? tracing.Manifest.Host : "off")}");
         Console.WriteLine($"  à traiter    : {pending.Count} direction(s) sur {expected}");
         if (notes is not null) Console.WriteLine($"  notes        : {notes}");
 
         var runner = new ClueRunner(caller, promptProvider, validator, maxAttempts, bench.Manifest.Language);
         var stopwatch = Stopwatch.StartNew();
+        var progress = ResumeProgress.From(expected, pending.Count);
         var done = 0;
 
         foreach (var (board, direction) in pending)
         {
             ct.ThrowIfCancellationRequested();
 
-            await foreach (var attempt in runner.RunDirectionAsync(board, direction, ct).ConfigureAwait(false))
+            var attempts = await GenerateDirectionUnit
+                .RunAsync(runner, board, direction, maxAttempts, runId, ct).ConfigureAwait(false);
+
+            // Traces d'abord, artefact ensuite : une perte de télémétrie laisse la direction non
+            // écrite, donc refaite à la reprise (spec phase 3, §5).
+            tracing.Checkpoint($"{board.BoardId} {direction}");
+            foreach (var attempt in attempts)
                 RunFile.AppendAttempt(runPath, attempt);
 
             done++;
             var elapsed = stopwatch.Elapsed;
-            var eta = done > 0 ? TimeSpan.FromSeconds(elapsed.TotalSeconds / done * (pending.Count - done)) : TimeSpan.Zero;
+            var eta = progress.Remaining(done, elapsed);
             Console.WriteLine(
-                $"  [{done}/{pending.Count}] {board.BoardId} {direction} — écoulé {elapsed:hh\\:mm\\:ss}, reste ~{eta:hh\\:mm\\:ss}");
+                $"  {progress.Counter(done)} {board.BoardId} {direction} — écoulé {elapsed:hh\\:mm\\:ss}, reste ~{eta:hh\\:mm\\:ss}");
         }
 
         Console.WriteLine($"terminé en {stopwatch.Elapsed:hh\\:mm\\:ss}. Run : {runPath}");
