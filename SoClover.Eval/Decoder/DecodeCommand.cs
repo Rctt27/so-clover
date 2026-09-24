@@ -151,7 +151,11 @@ public static class DecodeCommand
         var ctx = new DecodeUnitContext(run, manifest, experimentId, datasetId, fingerprint, decodesPerClue,
             bench.Manifest.BenchHash, validClues, alreadyDecoded, alreadyBoardDecoded);
 
-        foreach (var board in DecodeResume.PendingBoards(bench, validClues, existing, decodesPerClue))
+        var pendingBoards = DecodeResume.PendingBoards(bench, validClues, existing, decodesPerClue);
+        var progress = ResumeProgress.From(bench.Boards.Count, pendingBoards.Count);
+        var done = 0;
+
+        foreach (var board in pendingBoards)
         {
             ct.ThrowIfCancellationRequested();
 
@@ -168,7 +172,11 @@ public static class DecodeCommand
             // Un seul append par board : pas de board à moitié écrit après un arrêt brutal.
             DecodeFile.AppendBoardUnit(decodedPath, unit.ClueLines, unit.BoardLine);
 
-            Console.WriteLine($"  {board.BoardId} décodé — écoulé {stopwatch.Elapsed:hh\\:mm\\:ss}");
+            done++;
+            var elapsed = stopwatch.Elapsed;
+            Console.WriteLine(
+                $"  {progress.Counter(done)} {board.BoardId} décodé — écoulé {elapsed:hh\\:mm\\:ss}, " +
+                $"reste ~{progress.Remaining(done, elapsed):hh\\:mm\\:ss}");
         }
 
         if (client is not null)

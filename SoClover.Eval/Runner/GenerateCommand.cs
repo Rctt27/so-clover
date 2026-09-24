@@ -162,6 +162,7 @@ public static class GenerateCommand
 
         var runner = new ClueRunner(caller, promptProvider, validator, maxAttempts, bench.Manifest.Language);
         var stopwatch = Stopwatch.StartNew();
+        var progress = ResumeProgress.From(expected, pending.Count);
         var done = 0;
 
         foreach (var (board, direction) in pending)
@@ -179,9 +180,9 @@ public static class GenerateCommand
 
             done++;
             var elapsed = stopwatch.Elapsed;
-            var eta = done > 0 ? TimeSpan.FromSeconds(elapsed.TotalSeconds / done * (pending.Count - done)) : TimeSpan.Zero;
+            var eta = progress.Remaining(done, elapsed);
             Console.WriteLine(
-                $"  [{done}/{pending.Count}] {board.BoardId} {direction} — écoulé {elapsed:hh\\:mm\\:ss}, reste ~{eta:hh\\:mm\\:ss}");
+                $"  {progress.Counter(done)} {board.BoardId} {direction} — écoulé {elapsed:hh\\:mm\\:ss}, reste ~{eta:hh\\:mm\\:ss}");
         }
 
         Console.WriteLine($"terminé en {stopwatch.Elapsed:hh\\:mm\\:ss}. Run : {runPath}");
