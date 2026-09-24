@@ -8,7 +8,7 @@ namespace SoClover.Eval.Tracing;
 /// <summary>
 /// Repli d'O1 : M.E.AI 9.5 ne place pas les messages là où Langfuse les lit. Placé SOUS
 /// l'instrumentation, ce client voit le span <c>chat</c> comme <see cref="Activity.Current"/> et y
-/// pose entrée et sortie sous les attributs que Langfuse interprète.
+/// pose entrée, sortie et usage sous les attributs que Langfuse interprète.
 /// </summary>
 internal sealed class LangfuseIoChatClient(IChatClient inner) : DelegatingChatClient(inner)
 {
@@ -31,6 +31,11 @@ internal sealed class LangfuseIoChatClient(IChatClient inner) : DelegatingChatCl
             JsonSerializer.Serialize(list.Select(m => new { role = m.Role.Value, content = m.Text }), SerializerOptions));
         var response = await base.GetResponseAsync(list, options, cancellationToken).ConfigureAwait(false);
         Activity.Current?.SetTag(EvalTracing.Output, response.Text);
+        // M.E.AI écrit les tokens sous gen_ai.response.*_tokens, que Langfuse range en métadonnée :
+        // sans usage_details, ses colonnes d'usage restent à 0 (validation réelle du 2026-09-24).
+        if (response.Usage is { InputTokenCount: { } input, OutputTokenCount: { } output })
+            Activity.Current?.SetTag(EvalTracing.UsageDetails,
+                JsonSerializer.Serialize(new { input, output }));
         return response;
     }
 }

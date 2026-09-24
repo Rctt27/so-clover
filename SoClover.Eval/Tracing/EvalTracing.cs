@@ -19,6 +19,7 @@ public static class EvalTracing
     public const string Environment = "langfuse.environment";
     public const string Input = "langfuse.observation.input";
     public const string Output = "langfuse.observation.output";
+    public const string UsageDetails = "langfuse.observation.usage_details";
 
     public static readonly ActivitySource Source = new(SourceName);
 
