@@ -40,8 +40,11 @@ public class ResumeProgressTests
     public void The_estimate_is_zero_before_the_first_unit_completes()
     {
         var progress = ResumeProgress.From(total: 160, pending: 154);
+        // Arbitraire, mais non nul : le zéro attendu doit venir de l'absence d'unité terminée,
+        // pas d'un temps écoulé nul.
+        var elapsedDuringFirstCall = TimeSpan.FromSeconds(3);
 
-        Assert.Equal(TimeSpan.Zero, progress.Remaining(doneThisSession: 0, elapsed: TimeSpan.FromSeconds(3)));
+        Assert.Equal(TimeSpan.Zero, progress.Remaining(doneThisSession: 0, elapsed: elapsedDuringFirstCall));
     }
 
     [Fact]
